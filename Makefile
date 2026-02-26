@@ -38,15 +38,18 @@ $(BUILD)/%.o: %.S | $(BUILD)
 $(TARGET): $(OBJS)
 	$(LD) $(LDFLAGS) $(OBJS) -o $@
 
-run: all
-	qemu-system-aarch64 -machine virt,dumpdtb=virt.dtb -nographic
+virt.dtb: 
+	qemu-system-aarch64 -machine virt,dumpdtb=virt.dtb
+
+run: all virt.dtb
 	qemu-system-aarch64 \
 		-machine virt \
 		-cpu cortex-a72 \
 		-m 1024 \
 		-kernel $(TARGET) \
 		-device loader,file=virt.dtb,addr=0x41000000 \
-		-nographic
+		-serial stdio \
+		-display none
 
 clean:
 	rm -rf $(BUILD)
