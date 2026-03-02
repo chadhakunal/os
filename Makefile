@@ -39,7 +39,10 @@ $(TARGET): $(OBJS)
 	$(LD) $(LDFLAGS) $(OBJS) -o $@
 
 virt.dtb: 
-	qemu-system-aarch64 -machine virt,dumpdtb=virt.dtb
+	qemu-system-aarch64 \
+		-machine virt,dumpdtb=virt.dtb \
+		-cpu cortex-a72 \
+		-m 1024
 
 run: all virt.dtb
 	qemu-system-aarch64 \
@@ -53,3 +56,4 @@ run: all virt.dtb
 
 clean:
 	rm -rf $(BUILD)
+	rm -rf virt.dtb

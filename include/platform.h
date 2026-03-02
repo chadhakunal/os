@@ -3,13 +3,16 @@
 
 #include "types.h"
 
+extern char _end[];
+extern char _kernel_start[];
+
 struct cpu_core {
     const char* name;
 };
 
 struct memory_region {
     uint64_t base;
-    uint64_t size;    
+    uint64_t size;
 };
 
 struct device {
@@ -25,7 +28,7 @@ struct platform_info {
 };
 
 
-extern struct platform_info platform;
+volatile extern struct platform_info platform;
 
 uint32_t platform_init(void* boot_data);
 

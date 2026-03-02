@@ -3,6 +3,7 @@ ENTRY(_start)
 SECTIONS
 {
     . = 0x40080000;
+    _kernel_start = .;
 
     .text : {
         *(.text*)
@@ -17,7 +18,11 @@ SECTIONS
     }
 
     .bss : {
+        __bss_start = .;
         *(.bss*)
         *(COMMON)
+        __bss_end = .;
     }
+
+    _end = .;
 }
