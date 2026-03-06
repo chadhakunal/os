@@ -11,10 +11,11 @@ TARGET			= $(BUILD)/kernel.elf
 
 KERNEL_C_SRCS 	:= $(shell find kernel -name "*.c")
 PLATFORM_C_SRCS := $(shell find platform -name "*.c")
+LIB_C_SRCS		:= $(shell find lib -name "*.c")
 ARCH_C_SRCS 	:= $(shell find $(ARCHDIR) -name "*.c")
 ARCH_S_SRCS		:= $(shell find $(ARCHDIR) -name "*.S")
 
-ALL_C_SRCS 		:= $(KERNEL_C_SRCS) $(PLATFORM_C_SRCS) $(ARCH_C_SRCS)
+ALL_C_SRCS 		:= $(KERNEL_C_SRCS) $(PLATFORM_C_SRCS) $(ARCH_C_SRCS) $(LIB_C_SRCS)
 
 OBJS 			:= $(patsubst %.c,$(BUILD)/%.o,$(ALL_C_SRCS))
 OBJS 			+= $(patsubst %.S,$(BUILD)/%.o,$(ARCH_S_SRCS)) 
@@ -51,8 +52,7 @@ run: all virt.dtb
 		-m 1024 \
 		-kernel $(TARGET) \
 		-device loader,file=virt.dtb,addr=0x41000000 \
-		-serial stdio \
-		-display none
+		-nographic
 
 clean:
 	rm -rf $(BUILD)

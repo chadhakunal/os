@@ -1,6 +1,6 @@
-#include "memory.h"
 #include "platform.h"
 #include "kernel/drivers/uart.h"
+#include "kernel/memory.h"
 
 struct memory_info kernel_memory = {0};
 

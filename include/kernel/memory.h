@@ -19,7 +19,6 @@ struct memory_info {
 extern struct memory_info kernel_memory;
 
 void memory_init();
-
 void print_memory();
 
 #endif

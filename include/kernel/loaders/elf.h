@@ -1,0 +1,4 @@
+#ifndef KERNEL_LOADERS_ELF
+#define KERNEL_LOADERS_ELF
+
+#endif

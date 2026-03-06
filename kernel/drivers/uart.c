@@ -24,6 +24,16 @@ void uart_print(char* c) {
     return;
 }
 
+void uart_println(char *s) {
+    uart_print(s);
+    uart_putc('\n');
+}
+
+void uart_indent(int depth) {
+    for (int i = 0; i < depth; i++)
+        uart_print("  ");
+}
+
 void uart_print_hex(uint64_t value) {
     uart_print("0x");
 
@@ -44,7 +54,7 @@ void uart_print_hex_32(uint32_t value) {
     uart_print("\n");
 }
 
-void uart_print_int(uint32_t value) {
+void uart_print_int(int32_t value) {
     char buffer[20];
     int i = 0;
 

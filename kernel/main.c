@@ -2,7 +2,7 @@
 
 #include "types.h"
 #include "platform.h"
-#include "memory.h"
+#include "kernel/memory.h"
 #include "kernel/drivers/uart.h"
 
 void kmain(void* dtb_ptr) {
