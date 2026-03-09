@@ -4,7 +4,6 @@
 #include "platform.h"
 #include "kernel/memory.h"
 #include "lib/printk/printk.h"
-#include "kernel/drivers/uart.h"
 #include "page.h"
 
 void kmain(void* dtb_ptr) {
@@ -12,7 +11,6 @@ void kmain(void* dtb_ptr) {
     print_memory();
     struct pages_metadata_struct *page_table_start = init_paging();
     print_pages_metadata();
-
     while(1) {
         __asm__ volatile("wfe");
     }

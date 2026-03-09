@@ -16,6 +16,7 @@ struct page {
 struct pages_metadata_struct {
   struct page *free_page_head;
   struct page *page_list;
+  uint64_t page_list_size;
   uint64_t total_pages;
   uint64_t pages_in_use;
 };
