@@ -7,6 +7,7 @@ struct memory_info kernel_memory = {0};
 void memory_init() {
   kernel_memory.kernel_start = (uint64_t)&_kernel_start;
   kernel_memory.kernel_end = (uint64_t)&_end;
+  kernel_memory.kernel_size = kernel_memory.kernel_end - kernel_memory.kernel_start;
 
   kernel_memory.total_memory_base = platform.ram.base;
   kernel_memory.total_memory_size = platform.ram.size;

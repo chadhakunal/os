@@ -73,3 +73,31 @@ void uart_print_int(int32_t value) {
         uart_putc(buffer[--i]);
     }
 }
+
+void uart_print_long_int(int64_t value) {
+
+    char buffer[20];
+    int i = 0;
+
+    if(value == 0) {
+        uart_putc('0');
+        uart_putc('\n');
+        return;
+    }
+
+    if(value < 0) {
+        uart_putc('-');
+        value = -value;
+    }
+
+    while(value > 0) {
+        buffer[i++] = '0' + (value % 10);
+        value /= 10;
+    }
+
+    while(i > 0) {
+        uart_putc(buffer[--i]);
+    }
+
+    uart_putc('\n');
+}
