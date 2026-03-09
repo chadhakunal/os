@@ -40,8 +40,6 @@ void uart_print_hex(uint64_t value) {
     for(int i = 60; i >= 0; i -= 4) {
         uart_putc(hex_digit((value >> i) & 0xF));
     }
-
-    uart_print("\n");
 }
 
 void uart_print_hex_32(uint32_t value) {
@@ -50,8 +48,6 @@ void uart_print_hex_32(uint32_t value) {
     for(int i = 28; i >= 0; i -= 4) {
         uart_putc(hex_digit((value >> i) & 0xF));
     }
-
-    uart_print("\n");
 }
 
 void uart_print_int(int32_t value) {
@@ -60,7 +56,6 @@ void uart_print_int(int32_t value) {
 
     if(value == 0) {
         uart_putc('0');
-        uart_putc('\n');
         return;
     }
 
@@ -77,8 +72,6 @@ void uart_print_int(int32_t value) {
     while(i > 0) {
         uart_putc(buffer[--i]);
     }
-
-    uart_putc('\n');
 }
 
 void uart_print_long_int(int64_t value) {

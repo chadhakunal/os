@@ -1,9 +1,9 @@
 #include "page.h"
 #include "kernel/memory.h"
-#include "kernel/drivers/uart.h"
 #include "platform.h"
 #include "types.h"
 #include "kernel/panic.h"
+#include "lib/printk/printk.h"
 
 #define ALIGN_UP(x, a) (((uintptr_t)(x) + ((a) - 1)) & ~((uintptr_t)((a) - 1)))
 
@@ -12,11 +12,11 @@ volatile struct pages_metadata_struct pages_metadata = {0};
 volatile struct pages_metadata_struct *init_paging() {
   pages_metadata.pages_in_use = 0;
   pages_metadata.total_pages = kernel_memory.total_memory_size / PAGE_SIZE;
-  uint64_t page_list_size = pages_metadata.total_pages * sizeof(struct page);
+  pages_metadata.page_list_size = pages_metadata.total_pages * sizeof(struct page);
 
   uintptr_t kernel_end = ALIGN_UP((uintptr_t)&_end, PAGE_SIZE);
   struct page *last_free = NULL;
-  kernel_memory.kernel_end = ALIGN_UP(kernel_end + page_list_size, PAGE_SIZE);
+  kernel_memory.kernel_end = ALIGN_UP(kernel_end + pages_metadata.page_list_size, PAGE_SIZE);
   pages_metadata.page_list = (struct page *)kernel_end;
   for (uint64_t i = 0; i < pages_metadata.total_pages; i++) {
     pages_metadata.page_list[i].page_frame_id = i;
@@ -50,15 +50,12 @@ bool in_kernel_space(uintptr_t start, uintptr_t end) {
 }
 
 void print_pages_metadata() {
-  uart_print("Pages Metadata\n");
-  uart_print("\tTotal Pages: ");
-  uart_print_long_int(pages_metadata.total_pages);
-  uart_print("\tPages in Use: ");
-  uart_print_long_int(pages_metadata.pages_in_use);
-  uart_print("\tPage List Address: ");
-  uart_print_hex((uint64_t)pages_metadata.page_list);
-  uart_print("\tFirst Free Page: ");
-  uart_print_long_int((uint64_t)pages_metadata.free_page_head->page_frame_id);
+  printk("Pages Metadata\n");
+  printk("\tMemory Used for Page List: %lu KB\n", pages_metadata.page_list_size/1024);
+  printk("\tTotal Pages: %lu\n", pages_metadata.total_pages);
+  printk("\tPages in Use: %lu\n", pages_metadata.pages_in_use);
+  printk("\tPage List Address: %lx\n", (uint64_t)pages_metadata.page_list);
+  printk("\tFirst Free Page Frame: %lu\n", (uint64_t)pages_metadata.free_page_head->page_frame_id);
 }
 
 void *get_free_page(bool is_kernel) {

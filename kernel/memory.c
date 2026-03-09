@@ -1,6 +1,6 @@
 #include "platform.h"
-#include "kernel/drivers/uart.h"
 #include "kernel/memory.h"
+#include "lib/printk/printk.h"
 
 struct memory_info kernel_memory = {0};
 
@@ -14,9 +14,9 @@ void memory_init() {
 }
 
 void print_memory() {
-    uart_print("Memory: \n");
-    uart_print_hex(kernel_memory.kernel_start);
-    uart_print_hex(kernel_memory.kernel_end);
-    uart_print_hex(kernel_memory.total_memory_base);
-    uart_print_hex(kernel_memory.total_memory_size);
+  printk("Memory: \n");
+  printk("\tKernel Image Range: %lx -> %lx\n", kernel_memory.kernel_start, kernel_memory.kernel_end);
+  printk("\tKernel Size: %llu KB\n", (kernel_memory.kernel_end - kernel_memory.kernel_start)/(1024));
+  printk("\tTotal Memory Range: %lx -> %lx\n", kernel_memory.total_memory_base, kernel_memory.total_memory_base + kernel_memory.total_memory_size);
+  printk("\tMemory Size: %llu MB\n", kernel_memory.total_memory_size/(1024*1024));
 }
