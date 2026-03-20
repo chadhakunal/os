@@ -17,14 +17,14 @@ void uart_putc(char c) {
     return;
 }
 
-void uart_print(char* c) {
+void uart_print(const char* c) {
     while(*c != '\0') {
         uart_putc(*c++);
     }
     return;
 }
 
-void uart_println(char *s) {
+void uart_println(const char *s) {
     uart_print(s);
     uart_putc('\n');
 }
