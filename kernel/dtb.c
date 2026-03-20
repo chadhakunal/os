@@ -233,13 +233,13 @@ uint32_t platform_init(void* dtb) {
 
     struct fdt_header* hdr = (struct fdt_header*)dtb;
 
-    uint32_t magic = __builtin_bswap32(hdr->magic);
+    uint32_t magic = bswap32(hdr->magic);
     
-    uint32_t off_dt_struct = __builtin_bswap32(hdr->off_dt_struct);
-    uint32_t size_dt_struct = __builtin_bswap32(hdr->size_dt_struct);
+    uint32_t off_dt_struct = bswap32(hdr->off_dt_struct);
+    uint32_t size_dt_struct = bswap32(hdr->size_dt_struct);
 
-    uint32_t off_dt_strings = __builtin_bswap32(hdr->off_dt_strings);
-    uint32_t size_dt_strings __attribute__((unused)) = __builtin_bswap32(hdr->size_dt_strings);    
+    uint32_t off_dt_strings = bswap32(hdr->off_dt_strings);
+    uint32_t size_dt_strings __attribute__((unused)) = bswap32(hdr->size_dt_strings);    
 
     if(magic == EXPECTED_MAGIC) {
         uart_print("DTB Magic Matched...\n");
