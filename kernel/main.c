@@ -12,6 +12,6 @@ void kmain(void* dtb_ptr) {
     init_paging();
     print_pages_metadata();
     while(1) {
-        __asm__ volatile("wfe");
+        __asm__ volatile("wfi");
     }
 }
