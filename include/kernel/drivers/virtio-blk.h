@@ -1,4 +1,0 @@
-#ifndef KERNEL_DRIVERS_VIRTIO_BLK
-#define KERNEL_DRIVERS_VIRTIO_BLK
-
-#endif
