@@ -16,6 +16,7 @@ extern void enable_virtual_memory(uint64_t addr);
 
 void kmain(void* dtb_ptr) {
     uart_print("Kernel Started...\n");
+    memory_init();
     print_memory();
 
     void* root_page_table_addr = create_initial_page_table();

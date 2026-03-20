@@ -1,9 +1,6 @@
 #include "types.h"
+#include "arch/hw-interface.h"
 #include "kernel/drivers/uart.h"
-
-static inline void set_ttbr0(uint64_t addr) {
-    asm volatile("msr ttbr0_el1, %0" :: "r"(addr));
-}
 
 static inline uint64_t get_ttbr0()
 {
@@ -41,7 +38,7 @@ void enable_virtual_memory(uint64_t addr)
     uart_print("TCR EL1 Set\n");
 
     /* Set root page table */
-    set_ttbr0(addr);
+    asm volatile("msr ttbr0_el1, %0" :: "r"(addr));
     uart_print("TTBR0 EL1 Set\n");
 
     /* Ensure register writes are visible */
