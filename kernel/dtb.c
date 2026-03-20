@@ -1,7 +1,6 @@
 #include "platform.h"
-#include "platform/dtb.h"
-#include "kernel/drivers/uart.h"
-#include "lib/string.h"
+#include "drivers/uart.h"
+#include "string.h"
 
 #define DEBUG_DTB 1
 

@@ -1,5 +1,5 @@
 #include "types.h"
-#include "kernel/drivers/uart.h"
+#include "drivers/uart.h"
 
 #define UART_DEBUG_BASE 0x09000000
 #define UART_DEBUG_DR ((volatile uint32_t*)(UART_DEBUG_BASE + 0x00))

@@ -1,9 +1,9 @@
 #include "page.h"
-#include "kernel/memory.h"
+#include "memory.h"
 #include "platform.h"
 #include "types.h"
-#include "kernel/panic.h"
-#include "lib/printk/printk.h"
+#include "panic.h"
+#include "printk.h"
 
 #define ALIGN_UP(x, a) (((uintptr_t)(x) + ((a) - 1)) & ~((uintptr_t)((a) - 1)))
 

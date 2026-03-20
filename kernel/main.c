@@ -2,8 +2,8 @@
 
 #include "types.h"
 #include "platform.h"
-#include "kernel/memory.h"
-#include "lib/printk/printk.h"
+#include "memory.h"
+#include "printk.h"
 #include "page.h"
 
 void kmain(void* dtb_ptr) {

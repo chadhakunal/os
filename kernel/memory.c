@@ -1,6 +1,6 @@
 #include "platform.h"
-#include "kernel/memory.h"
-#include "lib/printk/printk.h"
+#include "memory.h"
+#include "printk.h"
 
 struct memory_info kernel_memory = {0};
 

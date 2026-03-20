@@ -1,6 +1,6 @@
-#include "lib/printk/printk.h"
-#include "lib/printk/printk_formats.h"
-#include "kernel/drivers/uart.h"
+#include "printk.h"
+#include "printk_formats.h"
+#include "drivers/uart.h"
 #include "types.h"
 #include <stdarg.h>
 

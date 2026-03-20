@@ -1,5 +1,5 @@
 #include "types.h"
-#include "kernel/drivers/uart.h"
+#include "drivers/uart.h"
 
 void panic(const char *msg) {
   uart_println("KERNEL PANIC:");
