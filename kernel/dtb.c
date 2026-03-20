@@ -4,6 +4,28 @@
 
 #define DEBUG_DTB 1
 
+// FDT (Flattened Device Tree) constants
+#define FDT_BEGIN_NODE  0x00000001
+#define FDT_END_NODE    0x00000002
+#define FDT_PROP        0x00000003
+#define FDT_NOP         0x00000004
+#define FDT_END         0x00000009
+#define EXPECTED_MAGIC  0xd00dfeed
+
+// FDT header structure
+struct fdt_header {
+    uint32_t magic;
+    uint32_t totalsize;
+    uint32_t off_dt_struct;
+    uint32_t off_dt_strings;
+    uint32_t off_mem_rsvmap;
+    uint32_t version;
+    uint32_t last_comp_version;
+    uint32_t boot_cpuid_phys;
+    uint32_t size_dt_strings;
+    uint32_t size_dt_struct;
+};
+
 volatile struct platform_info platform = {0};
 
 static inline uint32_t fdt_u32(const void *p)
@@ -120,7 +142,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
                 else if (len == 8) {
 
                     uint64_t base = fdt_u32(value);
-                    uint32_t size = fdt_u32(value + 4);
+                    uint32_t size __attribute__((unused)) = fdt_u32(value + 4);
 
                     if (in_virtio) {
 
@@ -210,7 +232,7 @@ uint32_t platform_init(void* dtb) {
     uint32_t size_dt_struct = __builtin_bswap32(hdr->size_dt_struct);
 
     uint32_t off_dt_strings = __builtin_bswap32(hdr->off_dt_strings);
-    uint32_t size_dt_strings = __builtin_bswap32(hdr->size_dt_strings);    
+    uint32_t size_dt_strings __attribute__((unused)) = __builtin_bswap32(hdr->size_dt_strings);    
 
     if(magic == EXPECTED_MAGIC) {
         uart_print("DTB Magic Matched...\n");
