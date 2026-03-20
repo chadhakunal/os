@@ -1,10 +1,10 @@
 #include "types.h"
 #include "drivers/uart.h"
 
-#define UART_DEBUG_BASE 0x09000000
-#define UART_DEBUG_DR ((volatile uint32_t*)(UART_DEBUG_BASE + 0x00))
-#define UART_DEBUG_FR ((volatile uint32_t*)(UART_DEBUG_BASE + 0x18))
-#define UART_DEBUG_CR ((volatile uint32_t*)(UART_DEBUG_BASE + 0x30))
+#define UART_BASE 0x10000000
+#define UART_RBR ((volatile uint8_t*)(UART_BASE + 0x00))
+#define UART_THR ((volatile uint8_t*)(UART_BASE + 0x00))
+#define UART_LSR ((volatile uint8_t*)(UART_BASE + 0x05))
 
 static char hex_digit(uint8_t c) {
     if(c < 10) return '0' + c;
@@ -12,9 +12,8 @@ static char hex_digit(uint8_t c) {
 }
 
 void uart_putc(char c) {
-    while(*UART_DEBUG_FR & (1 << 5)) {};
-    *UART_DEBUG_DR = c;
-    return;
+    while (!(*UART_LSR & 0x20)) {};  // Wait for TX ready (bit 5)
+    *UART_THR = c;
 }
 
 void uart_print(const char* c) {
