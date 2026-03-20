@@ -28,11 +28,18 @@ struct fdt_header {
 
 volatile struct platform_info platform = {0};
 
+static inline uint32_t bswap32(uint32_t v) {
+    return ((v & 0xFF000000) >> 24) |
+           ((v & 0x00FF0000) >> 8) |
+           ((v & 0x0000FF00) << 8) |
+           ((v & 0x000000FF) << 24);
+}
+
 static inline uint32_t fdt_u32(const void *p)
 {
     uint32_t v;
     memcpy(&v, p, 4);
-    return __builtin_bswap32(v);
+    return bswap32(v);
 }
 
 static void uart_print_n(const char *s, int n)

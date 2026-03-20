@@ -8,6 +8,7 @@ PHDRS {
 
 SECTIONS {
 	. = 0x80200000;
+	_kernel_start = .;
 	
 	.text.init : { *(.text.init) } :text
 	.text   : { *(.text) *(.text.*) } :text
@@ -23,5 +24,6 @@ SECTIONS {
 	. = ALIGN(16);
 	. += 16384;
 	_stack_top = .;
+	_end = .;
 	_kernel_end = .;
 }
