@@ -9,7 +9,7 @@
 void kmain(void* dtb_ptr) {
     printk("Kernel Started...\n");
     print_memory();
-    struct pages_metadata_struct *page_table_start = init_paging();
+    init_paging();
     print_pages_metadata();
     while(1) {
         __asm__ volatile("wfe");
