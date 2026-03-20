@@ -1,5 +1,6 @@
 #include "platform.h"
 #include "memory.h"
+#include "drivers/uart.h"
 
 void kmain(void* dtb);
 
@@ -13,10 +14,20 @@ void boot(void) {
     void *dtb;
     asm ("mv %0, a1" : "=r" (dtb));
     
+    // Early debug: try printing to UART
+    uart_putc('B');
+    uart_putc('O');
+    uart_putc('O');
+    uart_putc('T');
+    uart_putc('\n');
+    
     // Boot sequence
     if (platform_init(dtb) != 0) {
+        uart_println("platform_init failed");
         return;
     }
+    uart_println("platform_init ok");
     memory_init();
+    uart_println("memory_init ok");
     kmain(dtb);
 }
