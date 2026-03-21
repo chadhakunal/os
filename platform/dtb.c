@@ -208,6 +208,12 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 }
 
 uint32_t platform_init(void* dtb) {
+    if (!dtb) {
+        /* No DTB provided, use hardcoded defaults */
+        platform.uart.base = 0x10000000;
+        return 0;
+    }
+    
     /* Initialize UART early so we can debug */
     platform.uart.base = 0x10000000;
     uart_print("platform_init called with dtb=");
