@@ -2,7 +2,7 @@
 
 #include "types.h"
 #include "platform.h"
-#include "arch/cpu_idle.h"
+#include "cpu_idle.h"
 
 #include "kernel/memory/memory_info.h"
 #include "kernel/memory/page_allocator.h"
@@ -27,6 +27,8 @@ void kmain(void* dtb_ptr) {
 
     allocate_root_page_table();
     create_identity_map();
+
+    // init_process();
 
     printk("Virtual Memory Enabled and we are still running!\n");
     
