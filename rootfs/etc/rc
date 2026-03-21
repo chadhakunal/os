@@ -1,0 +1,5 @@
+#!/bin/sh
+echo Running $0
+mount -t proc proc /proc
+mount -t disk virtio /mnt
+exec /bin/sh

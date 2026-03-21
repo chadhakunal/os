@@ -6,7 +6,7 @@
 #include "kernel/memory/memory_info.h"
 #include "kernel/memory/page_tables.h"
 
-#include "arch/virtual_memory.h"
+#include "virtual_memory.h"
 #include "lib/string.h"
 
 page_table_t* root_page_table = NULL;

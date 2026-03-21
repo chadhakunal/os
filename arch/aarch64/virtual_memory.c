@@ -1,4 +1,6 @@
 #include "types.h"
+#include "virtual_memory.h"
+
 #include "kernel/drivers/uart.h"
 
 void enable_virtual_memory(uint64_t addr)
