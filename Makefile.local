@@ -16,8 +16,16 @@ PLAT_OBJS    := $(patsubst %,build/%.o,$(PLAT_SRCS))
 LIB_SRCS     := $(wildcard lib/*.c)
 LIB_OBJS     := $(patsubst %,build/%.o,$(LIB_SRCS))
 
-# Linker script location
+# Linker script location - used by Makefile-RISC rule
 ARCH_LD := arch/riscv64/linker.ld
+
+# Make sure the linker script is copied to where Makefile-RISC expects it
+kernel/kernel.ld: $(ARCH_LD)
+	@mkdir -p $(@D)
+	@cp $(ARCH_LD) $@
+
+# Make all depend on this being set up
+all: kernel/kernel.ld
 
 # Compilation rules for arch/riscv64/
 build/arch/riscv64/%.S.o: arch/riscv64/%.S
@@ -38,6 +46,8 @@ build/lib/%.c.o: lib/%.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Override kernel.elf target to include arch, platform, and lib objects
-build/kernel.elf: $(ARCH_OBJS) $(PLAT_OBJS) $(LIB_OBJS) $(KERN_ASM) $(KERN_C) build/tarfs.o
-	$(LD) -T $(ARCH_LD) $^ -o $@
+# Append arch, platform, and lib objects to be linked
+override KERN_ALL := $(ARCH_OBJS) $(PLAT_OBJS) $(LIB_OBJS) $(KERN_ALL)
+
+# Override just the linker script variable used by Makefile-RISC
+override KERN_LD_SCRIPT := $(ARCH_LD)
