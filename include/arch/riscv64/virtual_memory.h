@@ -48,9 +48,15 @@
 /*
  * PTE_ADDR: encode a physical address into a PTE.
  * PPN occupies bits [53:10] of the PTE, where PPN = PA >> 12.
- * So: PTE[53:10] = PA[55:12]  =>  shift PA right by 2 to place it.
+ * So: PTE[53:10] = PA[55:12]  =>  shift PA right by 12, then left by 10.
  */
-#define PTE_ADDR(x) (((uint64_t)(x) >> 2) & 0x003FFFFFFFFFFC00ULL)
+#define PTE_ADDR(x) (((uint64_t)(x) >> 12) << 10)
+
+/*
+ * PTE_DECODE: extract physical address from a PTE entry.
+ * Reverse of PTE_ADDR: extract bits [53:10], shift right by 10, shift left by 12.
+ */
+#define PTE_DECODE(x) (((uint64_t)(x) & 0x003FFFFFFFFFFC00ULL) << 2)
 
 /*
  * Sv39 uses 3 levels (39-bit VA, 4KB pages):

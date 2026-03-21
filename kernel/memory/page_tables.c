@@ -38,7 +38,7 @@ void create_page_table_entry(uint64_t pa) {
         if(!pt1) panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
         root_page_table->page_table_entries[pt0_idx] = PTE_ADDR(pt1) | PTE_VALID | PTE_TABLE;
     } else {
-        pt1 = (page_table_t*)(PTE_ADDR(root_page_table->page_table_entries[pt0_idx]));
+        pt1 = (page_table_t*)PTE_DECODE(root_page_table->page_table_entries[pt0_idx]);
     }
 
     if(pt1->page_table_entries[pt1_idx] == 0) {
@@ -46,7 +46,7 @@ void create_page_table_entry(uint64_t pa) {
         if(!pt2) panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
         pt1->page_table_entries[pt1_idx] = PTE_ADDR(pt2) | PTE_VALID | PTE_TABLE;
     } else {
-        pt2 = (page_table_t*)(PTE_ADDR(pt1->page_table_entries[pt1_idx]));
+        pt2 = (page_table_t*)PTE_DECODE(pt1->page_table_entries[pt1_idx]);
     }
 
     if(pt2->page_table_entries[pt2_idx] == 0) {
@@ -54,10 +54,10 @@ void create_page_table_entry(uint64_t pa) {
         if(!pt3) panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
         pt2->page_table_entries[pt2_idx] = PTE_ADDR(pt3) | PTE_VALID | PTE_TABLE;
     } else {
-        pt3 = (page_table_t*)(PTE_ADDR(pt2->page_table_entries[pt2_idx]));
+        pt3 = (page_table_t*)PTE_DECODE(pt2->page_table_entries[pt2_idx]);
     }
 
-    pt3->page_table_entries[pt3_idx] = PTE_ADDR(pa) | PTE_VALID | PTE_TABLE | PTE_ATTRIDX(1) | PTE_AP_KERNEL | PTE_SH_INNER | PTE_AF;
+    pt3->page_table_entries[pt3_idx] = PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_A | PTE_D;
 }
 
 void remove_page_table_entry(uint64_t pa) {
