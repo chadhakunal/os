@@ -35,7 +35,7 @@ void init_page_allocator() {
     uintptr_t page_end = page_start + DEFAULT_PAGE_SIZE;
     
     /* Mark page frame 0 and kernel pages as in-use */
-    if (i == 0 || in_kernel_space(page_start, page_end)) {
+    if (i == 0 || in_kernel_space(page_start, page_end) || page_end <= memory_info.kernel_start) {
       pages_metadata.page_list[i].is_kernel = true;
       pages_metadata.page_list[i].in_use = true;
       pages_metadata.pages_in_use++;
