@@ -8,19 +8,39 @@ CFLAGS += -Iinclude -Iinclude/arch/riscv64 -Iinclude/kernel -Iinclude/platform
 ARCH_SRCS    := $(wildcard arch/riscv64/*.S) $(wildcard arch/riscv64/*.c)
 ARCH_OBJS    := $(patsubst %,build/%.o,$(ARCH_SRCS))
 
+# Platform sources
+PLAT_SRCS    := $(wildcard platform/*.c)
+PLAT_OBJS    := $(patsubst %,build/%.o,$(PLAT_SRCS))
+
+# Lib sources (printk, string)
+LIB_SRCS     := $(wildcard lib/*.c)
+LIB_OBJS     := $(patsubst %,build/%.o,$(LIB_SRCS))
+
+# Append all to KERN_C so they get linked
+KERN_C += $(ARCH_OBJS) $(PLAT_OBJS) $(LIB_OBJS)
+
 # Linker script location
 ARCH_LD := arch/riscv64/linker.ld
 
-# Compilation rules for arch/riscv64/ assembly
+# Compilation rules for arch/riscv64/
 build/arch/riscv64/%.S.o: arch/riscv64/%.S
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Compilation rules for arch/riscv64/ C code
 build/arch/riscv64/%.c.o: arch/riscv64/%.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-# Override kernel.elf to use arch objects and arch linker script
-build/kernel.elf: $(ARCH_OBJS) $(KERN_ASM) $(KERN_C) build/tarfs.o
-	$(LD) -T $(ARCH_LD) $^ -o $@
+# Compilation rules for platform/
+build/platform/%.c.o: platform/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compilation rules for lib/
+build/lib/%.c.o: lib/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Update kernel.elf to use arch linker script
+build/kernel.elf: $(KERN_ALL) build/tarfs.o
+	$(LD) -T $(ARCH_LD) $(KERN_ALL) build/tarfs.o -o $@
