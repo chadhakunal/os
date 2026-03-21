@@ -17,11 +17,8 @@ void enable_virtual_memory(uint64_t addr)
     asm volatile("sfence.vma zero, zero");
     uart_print("sfence.vma done\n");
 
-    asm volatile("csrw satp, %0" :: "r"(satp));
-    uart_print("satp Set\n");
-
-    // Flush TLB after enabling paging
-    asm volatile("sfence.vma zero, zero");
-
+    // Enable virtual memory by writing satp
+    asm volatile("csrw satp, %0; sfence.vma zero, zero" :: "r"(satp));
+    
     uart_print("Virtual memory enabled\n");
 }

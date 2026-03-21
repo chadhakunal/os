@@ -66,7 +66,7 @@ void remove_page_table_entry(uint64_t pa) {
 
 void create_identity_map() {
     if(!root_page_table) allocate_root_page_table();
-    uint64_t physical_memory_start = 0;
+    uint64_t physical_memory_start = memory_info.total_memory_base;
     uint64_t physical_memory_end = memory_info.total_memory_base + memory_info.total_memory_size;
 
     for(uint64_t pa = physical_memory_start; pa < physical_memory_end; pa = pa + DEFAULT_PAGE_SIZE) {
