@@ -3,7 +3,7 @@
 #include "kernel/drivers/uart.h"
 #include "lib/string.h"
 
-#define DEBUG_DTB 0
+#define DEBUG_DTB 1
 
 volatile struct platform_info platform = {0};
 
@@ -208,6 +208,9 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 }
 
 uint32_t platform_init(void* dtb) {
+    /* Initialize UART to default address for early debug output */
+    platform.uart.base = 0x10000000;
+    
     uart_print("Platform Init...\n");
 
     struct fdt_header* hdr = (struct fdt_header*)dtb;
