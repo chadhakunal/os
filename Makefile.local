@@ -1,9 +1,8 @@
 # Makefile.local - RISC-V64 architecture-specific build rules
 # Auto-included by Makefile-RISC via "-include Makefile.local"
-# Note: This is included BEFORE Makefile-RISC rules, so we modify CFLAGS here
 
-# Add include paths to CFLAGS so they apply to all compilation
-CFLAGS += -Iinclude
+# Add architecture-specific include paths to CFLAGS
+CFLAGS += -Iinclude -Iinclude/arch/riscv64 -Iinclude/kernel -Iinclude/platform
 
 # Architecture-specific sources for RISC-V64
 ARCH_SRCS    := $(wildcard arch/riscv64/*.S) $(wildcard arch/riscv64/*.c)
