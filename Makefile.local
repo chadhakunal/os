@@ -46,6 +46,14 @@ build/lib/%.c.o: lib/%.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+build/libc/%.c.o: libc/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Ilibc/include -c $< -o $@
+
+build/libc/%.S.o: libc/%.S
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Ilibc/include -c $< -o $@
+
 # Append arch, platform, and lib objects to be linked
 override KERN_ALL := $(ARCH_OBJS) $(PLAT_OBJS) $(LIB_OBJS) $(KERN_ALL)
 
