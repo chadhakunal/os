@@ -8,6 +8,7 @@
 
 #include "virtual_memory.h"
 #include "lib/string.h"
+#include "lib/printk.h"
 
 page_table_t* root_page_table = NULL;
 
