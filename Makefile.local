@@ -8,15 +8,24 @@ ARCH_OBJS    := $(patsubst %,build/%.o,$(ARCH_SRCS))
 # Linker script location
 ARCH_LD := arch/riscv64/linker.ld
 
+# Override kernel compilation rules to add -Iinclude for top-level headers
+build/kernel/%.c.o: kernel/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Iinclude -Ikernel/include -c $< -o $@
+
+build/kernel/%.S.o: kernel/%.S
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Iinclude -Ikernel/include -c $< -o $@
+
 # Compilation rules for arch/riscv64/ assembly
 build/arch/riscv64/%.S.o: arch/riscv64/%.S
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -Ikernel/include -c $< -o $@
+	$(CC) $(CFLAGS) -Iinclude -Ikernel/include -c $< -o $@
 
 # Compilation rules for arch/riscv64/ C code
 build/arch/riscv64/%.c.o: arch/riscv64/%.c
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -Ikernel/include -c $< -o $@
+	$(CC) $(CFLAGS) -Iinclude -Ikernel/include -c $< -o $@
 
 # Override kernel.elf to use arch objects and arch linker script
 build/kernel.elf: $(ARCH_OBJS) $(KERN_ASM) $(KERN_C) build/tarfs.o
