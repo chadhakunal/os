@@ -26,7 +26,7 @@ void kmain(void* dtb_ptr) {
     print_pages_metadata();
 
     allocate_root_page_table();
-    // create_identity_map();
+    create_identity_map();
 
     // init_process();
 
