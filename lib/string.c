@@ -13,11 +13,8 @@ void memcpy(void* dst, const void* src, int len) {
 void *memset(void *dest, int value, uint64_t n) {
     // TODO: Optimize
     unsigned char *d = dest;
-    uart_print("HERE: ");
-    uart_print_hex((uint64_t)d);
 
     for (uint64_t i = 0; i < n; i++) {
-        // uart_print_hex(i);
         d[i] = (unsigned char)value;
     }
 
