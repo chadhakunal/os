@@ -8,11 +8,16 @@ static char hex_digit(const uint8_t c) {
 }
 
 void uart_putc(const char c) {
-    volatile uint8_t *uart_base = (volatile uint8_t *)platform.uart.base;
+    uint64_t base = platform.uart.base;
+    if (!base) base = 0x10000000;  /* Fallback to RISC-V virt default if not set */
+    
+    volatile uint8_t *uart_base = (volatile uint8_t *)base;
     volatile uint8_t *lsr = uart_base + 0x05;  /* Line Status Register at byte offset 0x05 */
     volatile uint8_t *thr = uart_base + 0x00; /* Transmit Holding Register at byte offset 0x00 */
     
-    while(!(*lsr & 0x20)) {};  /* Wait until TX empty (bit 5) */
+    /* Wait up to 1000000 iterations for TX to be ready, then just write anyway */
+    int timeout = 1000000;
+    while(timeout-- > 0 && !(*lsr & 0x20)) {};
     *thr = c;
     return;
 }
