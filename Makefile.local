@@ -1,0 +1,23 @@
+# Makefile.local - RISC-V64 architecture-specific build rules
+# Auto-included by Makefile-RISC via "-include Makefile.local"
+
+# Architecture-specific sources for RISC-V64
+ARCH_SRCS    := $(wildcard arch/riscv64/*.S) $(wildcard arch/riscv64/*.c)
+ARCH_OBJS    := $(patsubst %,build/%.o,$(ARCH_SRCS))
+
+# Linker script location
+ARCH_LD := arch/riscv64/linker.ld
+
+# Compilation rules for arch/riscv64/ assembly
+build/arch/riscv64/%.S.o: arch/riscv64/%.S
+@mkdir -p $(@D)
+$(CC) $(CFLAGS) -Ikernel/include -c $< -o $@
+
+# Compilation rules for arch/riscv64/ C code
+build/arch/riscv64/%.c.o: arch/riscv64/%.c
+@mkdir -p $(@D)
+$(CC) $(CFLAGS) -Ikernel/include -c $< -o $@
+
+# Override kernel.elf to use arch objects and arch linker script
+build/kernel.elf: $(ARCH_OBJS) $(KERN_ASM) $(KERN_C) build/tarfs.o
+$(LD) -T $(ARCH_LD) $^ -o $@
