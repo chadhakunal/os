@@ -33,7 +33,9 @@ void init_page_allocator() {
     pages_metadata.page_list[i].next_free_page = NULL;
     uintptr_t page_start = DEFAULT_PAGE_SIZE * i + memory_info.total_memory_base;
     uintptr_t page_end = page_start + DEFAULT_PAGE_SIZE;
-    if (in_kernel_space(page_start, page_end)) {
+    
+    /* Mark page frame 0 and kernel pages as in-use */
+    if (i == 0 || in_kernel_space(page_start, page_end)) {
       pages_metadata.page_list[i].is_kernel = true;
       pages_metadata.page_list[i].in_use = true;
       pages_metadata.pages_in_use++;
