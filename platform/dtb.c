@@ -3,7 +3,7 @@
 #include "kernel/drivers/uart.h"
 #include "lib/string.h"
 
-#define DEBUG_DTB 1
+#define DEBUG_DTB 0
 
 volatile struct platform_info platform = {0};
 
@@ -208,11 +208,6 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 }
 
 uint32_t platform_init(void* dtb) {
-    /* Initialize UART to default address for early debug output */
-    platform.uart.base = 0x10000000;
-    
-    uart_print("Platform Init...\n");
-
     struct fdt_header* hdr = (struct fdt_header*)dtb;
 
     uint32_t magic = bswap32(hdr->magic);
@@ -222,14 +217,14 @@ uint32_t platform_init(void* dtb) {
 
     uint32_t off_dt_strings = bswap32(hdr->off_dt_strings);
 
-    if(magic == EXPECTED_MAGIC) {
-        uart_print("DTB Magic Matched...\n");
-    } else {
-        uart_print("DTB Magic Did Not Match...\n");
+    if(magic != EXPECTED_MAGIC) {
         return -1;
     }
 
     dtb_walk(dtb, off_dt_struct, off_dt_strings, size_dt_struct);
+    
+    /* Now that DTB has been walked and platform.uart.base is set, we can print */
+    uart_print("Platform Init Complete...\n");
 
     return 0;
 }
