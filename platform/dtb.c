@@ -7,11 +7,19 @@
 
 volatile struct platform_info platform = {0};
 
+static inline uint32_t bswap32(uint32_t x)
+{
+    return ((x & 0xff000000) >> 24) |
+           ((x & 0x00ff0000) >> 8)  |
+           ((x & 0x0000ff00) << 8)  |
+           ((x & 0x000000ff) << 24);
+}
+
 static inline uint32_t fdt_u32(const void *p)
 {
     uint32_t v;
     memcpy(&v, p, 4);
-    return __builtin_bswap32(v);
+    return bswap32(v);
 }
 
 static void uart_print_n(const char *s, int n)
@@ -204,12 +212,12 @@ uint32_t platform_init(void* dtb) {
 
     struct fdt_header* hdr = (struct fdt_header*)dtb;
 
-    uint32_t magic = __builtin_bswap32(hdr->magic);
+    uint32_t magic = bswap32(hdr->magic);
     
-    uint32_t off_dt_struct = __builtin_bswap32(hdr->off_dt_struct);
-    uint32_t size_dt_struct = __builtin_bswap32(hdr->size_dt_struct);
+    uint32_t off_dt_struct = bswap32(hdr->off_dt_struct);
+    uint32_t size_dt_struct = bswap32(hdr->size_dt_struct);
 
-    uint32_t off_dt_strings = __builtin_bswap32(hdr->off_dt_strings);
+    uint32_t off_dt_strings = bswap32(hdr->off_dt_strings);
 
     if(magic == EXPECTED_MAGIC) {
         uart_print("DTB Magic Matched...\n");
