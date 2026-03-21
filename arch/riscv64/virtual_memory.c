@@ -13,12 +13,18 @@ void enable_virtual_memory(uint64_t addr)
      */
     satp = (8ULL << 60) | (addr >> 12);
 
+    uart_print("About to enable MMU\n");
+    
     // Ensure all page table writes are visible before enabling the MMU
     asm volatile("sfence.vma zero, zero");
     uart_print("sfence.vma done\n");
 
-    // Enable virtual memory by writing satp
-    asm volatile("csrw satp, %0; sfence.vma zero, zero" :: "r"(satp));
+    // Enable virtual memory
+    asm volatile("csrw satp, %0" :: "r"(satp) : "memory");
+    
+    // Critical: TLB and instruction cache must be flushed after satp write
+    asm volatile("sfence.vma zero, zero");
+    asm volatile("fence.i");
     
     uart_print("Virtual memory enabled\n");
 }

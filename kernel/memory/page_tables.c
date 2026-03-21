@@ -82,6 +82,15 @@ void create_identity_map() {
     }
     
     printk("Identity map created: %lu pages mapped\n", count);
+    
+    // Verify that kernel code address is mapped
+    printk("Verifying kernel address 0x80200000 is in identity map...\n");
+    if (0x80200000 >= physical_memory_start && 0x80200000 < physical_memory_end) {
+        printk("✓ Kernel address 0x80200000 is within mapped range\n");
+    } else {
+        printk("✗ ERROR: Kernel address 0x80200000 is NOT within mapped range!\n");
+    }
+    
     printk("Enabling virtual memory with root_page_table at 0x%lx\n", (uint64_t)root_page_table);
     
     enable_virtual_memory((uint64_t)root_page_table);
