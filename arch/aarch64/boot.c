@@ -1,5 +1,4 @@
 #include "platform.h"
-#include "kernel/memory.h"
 
 void kmain(void* dtb);
 

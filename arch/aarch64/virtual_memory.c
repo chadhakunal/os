@@ -1,13 +1,5 @@
 #include "types.h"
-#include "arch/hw-interface.h"
 #include "kernel/drivers/uart.h"
-
-static inline uint64_t get_ttbr0()
-{
-    uint64_t val;
-    asm volatile("mrs %0, ttbr0_el1" : "=r"(val));
-    return val;
-}
 
 void enable_virtual_memory(uint64_t addr)
 {

@@ -6,35 +6,35 @@
 #define UART_DEBUG_FR ((volatile uint32_t*)(UART_DEBUG_BASE + 0x18))
 #define UART_DEBUG_CR ((volatile uint32_t*)(UART_DEBUG_BASE + 0x30))
 
-static char hex_digit(uint8_t c) {
+static char hex_digit(const uint8_t c) {
     if(c < 10) return '0' + c;
     return 'A' + (c - 10);
 }
 
-void uart_putc(char c) {
+void uart_putc(const char c) {
     while(*UART_DEBUG_FR & (1 << 5)) {};
     *UART_DEBUG_DR = c;
     return;
 }
 
-void uart_print(char* c) {
+void uart_print(const char* c) {
     while(*c != '\0') {
         uart_putc(*c++);
     }
     return;
 }
 
-void uart_println(char *s) {
+void uart_println(const char *s) {
     uart_print(s);
     uart_putc('\n');
 }
 
-void uart_indent(int depth) {
+void uart_indent(const int depth) {
     for (int i = 0; i < depth; i++)
         uart_print("  ");
 }
 
-void uart_print_hex(uint64_t value) {
+void uart_print_hex(const uint64_t value) {
     uart_print("0x");
 
     for(int i = 60; i >= 0; i -= 4) {
@@ -42,7 +42,7 @@ void uart_print_hex(uint64_t value) {
     }
 }
 
-void uart_print_hex_32(uint32_t value) {
+void uart_print_hex_32(const uint32_t value) {
     uart_print("0x");
 
     for(int i = 28; i >= 0; i -= 4) {

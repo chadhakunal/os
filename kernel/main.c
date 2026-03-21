@@ -2,12 +2,13 @@
 
 #include "types.h"
 #include "platform.h"
-#include "kernel/memory.h"
-#include "lib/printk/printk.h"
-#include "page.h"
+#include "arch/cpu_idle.h"
 
-extern void* create_initial_page_table();
-extern void enable_virtual_memory(uint64_t addr);
+#include "kernel/memory/memory_info.h"
+#include "kernel/memory/page_allocator.h"
+#include "kernel/memory/page_tables.h"
+
+#include "lib/printk/printk.h"
 
 /*
     TODO: NEON/FP Unit needs to be enabled 
@@ -16,17 +17,18 @@ extern void enable_virtual_memory(uint64_t addr);
 */
 
 void kmain(void* dtb_ptr) {
+    (void)dtb_ptr;
     printk("Kernel Started...\n");
-    memory_init();
-    
-    print_memory();
-    struct pages_metadata_struct *page_table_start = init_paging();
+    init_memory_info();
+    print_memory_info();
+
+    init_page_allocator();
     print_pages_metadata();
 
-    void* root_page_table_addr = create_initial_page_table();
-    enable_virtual_memory((uint64_t)root_page_table_addr);
+    allocate_root_page_table();
+    create_identity_map();
+
+    printk("Virtual Memory Enabled and we are still running!\n");
     
-    while(1) {
-        __asm__ volatile("wfe");
-    }
+    arch_wait();
 }

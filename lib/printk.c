@@ -20,9 +20,9 @@ static void format_print(const char **fmt_ptr, va_list *args) {
       if (is_long > 1) {
         uart_print_int(va_arg(*args, int64_t));
       } else if (is_short > 1) {
-        uart_print_int(va_arg(*args, int8_t));
+        uart_print_int((int8_t)va_arg(*args, int));
       } else if (is_short) {
-        uart_print_int(va_arg(*args, int16_t));
+        uart_print_int((int16_t)va_arg(*args, int));
       } else {
         uart_print_int(va_arg(*args, int32_t));
       }
@@ -32,9 +32,9 @@ static void format_print(const char **fmt_ptr, va_list *args) {
       if (is_long > 1) {
         uart_print_int(va_arg(*args, uint64_t));
       } else if (is_short > 1) {
-        uart_print_int(va_arg(*args, uint8_t));
+        uart_print_int((uint8_t)va_arg(*args, unsigned int));
       } else if (is_short) {
-        uart_print_int(va_arg(*args, uint16_t));
+        uart_print_int((uint16_t)va_arg(*args, unsigned int));
       } else {
         uart_print_int(va_arg(*args, uint32_t));
       }
