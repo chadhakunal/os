@@ -8,7 +8,7 @@ PHDRS
 
 SECTIONS
 {
-    . = 0x40000000;
+    . = 0x80200000;          /* OpenSBI jumps here on QEMU virt */
     _kernel_start = .;
 
     .text : {
