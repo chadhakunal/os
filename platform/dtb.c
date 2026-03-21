@@ -3,7 +3,7 @@
 #include "kernel/drivers/uart.h"
 #include "lib/string.h"
 
-#define DEBUG_DTB 1
+#define DEBUG_DTB 0
 
 volatile struct platform_info platform = {0};
 
