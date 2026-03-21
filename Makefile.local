@@ -21,23 +21,23 @@ ARCH_LD := arch/riscv64/linker.ld
 
 # Compilation rules for arch/riscv64/
 build/arch/riscv64/%.S.o: arch/riscv64/%.S
-@mkdir -p $(@D)
-$(CC) $(CFLAGS) -c $< -o $@
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 build/arch/riscv64/%.c.o: arch/riscv64/%.c
-@mkdir -p $(@D)
-$(CC) $(CFLAGS) -c $< -o $@
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Compilation rules for platform/
 build/platform/%.c.o: platform/%.c
-@mkdir -p $(@D)
-$(CC) $(CFLAGS) -c $< -o $@
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Compilation rules for lib/
 build/lib/%.c.o: lib/%.c
-@mkdir -p $(@D)
-$(CC) $(CFLAGS) -c $< -o $@
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 # Override kernel.elf target to include arch, platform, and lib objects
 build/kernel.elf: $(ARCH_OBJS) $(PLAT_OBJS) $(LIB_OBJS) $(KERN_ASM) $(KERN_C) build/tarfs.o
-$(LD) -T $(ARCH_LD) $^ -o $@
+	$(LD) -T $(ARCH_LD) $^ -o $@
