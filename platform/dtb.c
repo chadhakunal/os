@@ -208,6 +208,22 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 }
 
 uint32_t platform_init(void* dtb) {
-    /* Do nothing for now - just return success so we can reach kmain */
+    if (!dtb) {
+        return 0;
+    }
+    
+    struct fdt_header* hdr = (struct fdt_header*)dtb;
+
+    uint32_t magic = bswap32(hdr->magic);
+    uint32_t off_dt_struct = bswap32(hdr->off_dt_struct);
+    uint32_t size_dt_struct = bswap32(hdr->size_dt_struct);
+    uint32_t off_dt_strings = bswap32(hdr->off_dt_strings);
+
+    if(magic != EXPECTED_MAGIC) {
+        return -1;
+    }
+
+    dtb_walk(dtb, off_dt_struct, off_dt_strings, size_dt_struct);
+
     return 0;
 }
