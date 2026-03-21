@@ -26,6 +26,10 @@ void kmain(void* dtb_ptr) {
     print_pages_metadata();
 
     allocate_root_page_table();
+    
+    extern page_table_t* root_page_table;
+    printk("Root page table allocated at: 0x%lx\n", (uint64_t)root_page_table);
+    
     create_identity_map();
 
     // init_process();

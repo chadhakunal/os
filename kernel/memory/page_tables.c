@@ -69,9 +69,19 @@ void create_identity_map() {
     uint64_t physical_memory_start = memory_info.total_memory_base;
     uint64_t physical_memory_end = memory_info.total_memory_base + memory_info.total_memory_size;
 
+    printk("Creating identity map from 0x%lx to 0x%lx\n", physical_memory_start, physical_memory_end);
+    
+    uint64_t count = 0;
     for(uint64_t pa = physical_memory_start; pa < physical_memory_end; pa = pa + DEFAULT_PAGE_SIZE) {
         create_page_table_entry(pa);
+        count++;
+        if((count % 1024) == 0) {
+            printk("Mapped 0x%lx entries...\n", count);
+        }
     }
-
+    
+    printk("Identity map created: %lu pages mapped\n", count);
+    printk("Enabling virtual memory with root_page_table at 0x%lx\n", (uint64_t)root_page_table);
+    
     enable_virtual_memory((uint64_t)root_page_table);
 }
