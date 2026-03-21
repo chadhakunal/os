@@ -60,6 +60,10 @@ void create_page_table_entry(uint64_t pa) {
     pt3->page_table_entries[pt3_idx] = PTE_ADDR(pa) | PTE_VALID | PTE_TABLE | PTE_ATTRIDX(1) | PTE_AP_KERNEL | PTE_SH_INNER | PTE_AF;
 }
 
+void remove_page_table_entry(uint64_t pa) {
+    // TODO
+}
+
 void create_identity_map() {
     if(!root_page_table) allocate_root_page_table();
     uint64_t physical_memory_start = 0;
