@@ -1,10 +1,6 @@
 #include "types.h"
 #include "kernel/drivers/uart.h"
-
-#define UART_DEBUG_BASE 0x09000000
-#define UART_DEBUG_DR ((volatile uint32_t*)(UART_DEBUG_BASE + 0x00))
-#define UART_DEBUG_FR ((volatile uint32_t*)(UART_DEBUG_BASE + 0x18))
-#define UART_DEBUG_CR ((volatile uint32_t*)(UART_DEBUG_BASE + 0x30))
+#include "platform.h"
 
 static char hex_digit(const uint8_t c) {
     if(c < 10) return '0' + c;
@@ -12,8 +8,12 @@ static char hex_digit(const uint8_t c) {
 }
 
 void uart_putc(const char c) {
-    while(*UART_DEBUG_FR & (1 << 5)) {};
-    *UART_DEBUG_DR = c;
+    volatile uint8_t *uart_base = (volatile uint8_t *)platform.uart.base;
+    volatile uint8_t *lsr = uart_base + 0x05;  /* Line Status Register at byte offset 0x05 */
+    volatile uint8_t *thr = uart_base + 0x00; /* Transmit Holding Register at byte offset 0x00 */
+    
+    while(!(*lsr & 0x20)) {};  /* Wait until TX empty (bit 5) */
+    *thr = c;
     return;
 }
 
