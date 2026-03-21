@@ -121,7 +121,6 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
                 else if (len == 8) {
 
                     uint64_t base = fdt_u32(value);
-                    uint32_t size = fdt_u32(value + 4);
 
                     if (in_virtio) {
 
@@ -211,7 +210,6 @@ uint32_t platform_init(void* dtb) {
     uint32_t size_dt_struct = __builtin_bswap32(hdr->size_dt_struct);
 
     uint32_t off_dt_strings = __builtin_bswap32(hdr->off_dt_strings);
-    uint32_t size_dt_strings = __builtin_bswap32(hdr->size_dt_strings);    
 
     if(magic == EXPECTED_MAGIC) {
         uart_print("DTB Magic Matched...\n");

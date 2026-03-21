@@ -4,7 +4,7 @@ CC      		= aarch64-elf-gcc
 LD      		= aarch64-elf-ld
 
 BUILD			= build/$(ARCH)
-CFLAGS  		= -O3 -ffreestanding -nostdlib -Iinclude -Wall -Wextra # -Werror
+CFLAGS  		= -O3 -ffreestanding -nostdlib -Iinclude -Wall -Wextra -fPIC -mgeneral-regs-only # -Werror
 LDFLAGS 		= -T $(ARCHDIR)/linker.ld
 
 TARGET			= $(BUILD)/kernel.elf

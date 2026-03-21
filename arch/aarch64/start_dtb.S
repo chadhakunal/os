@@ -24,7 +24,7 @@ bss_done:
     bl      boot_entry
 
 hang:
-    wfe
+    wfi
     b       hang
 
 .section .bss
