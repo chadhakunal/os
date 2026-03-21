@@ -58,7 +58,7 @@ void create_page_table_entry(uint64_t pa) {
         pt3 = (page_table_t*)PTE_DECODE(pt2->page_table_entries[pt2_idx]);
     }
 
-    pt3->page_table_entries[pt3_idx] = PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_A | PTE_D;
+    pt3->page_table_entries[pt3_idx] = PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
 }
 
 void remove_page_table_entry(uint64_t pa) {
