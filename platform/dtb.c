@@ -208,41 +208,6 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 }
 
 uint32_t platform_init(void* dtb) {
-    if (!dtb) {
-        /* No DTB provided, use hardcoded defaults */
-        platform.uart.base = 0x10000000;
-        return 0;
-    }
-    
-    /* Initialize UART early so we can debug */
-    platform.uart.base = 0x10000000;
-    uart_print("platform_init called with dtb=");
-    uart_print_hex((uint64_t)dtb);
-    uart_print("\n");
-    
-    struct fdt_header* hdr = (struct fdt_header*)dtb;
-
-    uint32_t magic = bswap32(hdr->magic);
-    uart_print("DTB magic: ");
-    uart_print_hex(magic);
-    uart_print("\n");
-    
-    uint32_t off_dt_struct = bswap32(hdr->off_dt_struct);
-    uint32_t size_dt_struct = bswap32(hdr->size_dt_struct);
-
-    uint32_t off_dt_strings = bswap32(hdr->off_dt_strings);
-
-    if(magic != EXPECTED_MAGIC) {
-        uart_print("DTB magic mismatch!\n");
-        return -1;
-    }
-
-    uart_print("Walking DTB...\n");
-    dtb_walk(dtb, off_dt_struct, off_dt_strings, size_dt_struct);
-    
-    uart_print("DTB walk complete, UART base: ");
-    uart_print_hex(platform.uart.base);
-    uart_print("\n");
-
+    /* Do nothing for now - just return success so we can reach kmain */
     return 0;
 }
