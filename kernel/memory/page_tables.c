@@ -23,31 +23,21 @@ void allocate_root_page_table() {
     if(!root_page_table) panic("FAILED TO ALLOCATE ROOT PAGE TABLE!");
 }
 
-// TODO: The flags need to be generalized across Architectures (not sure how to yet)
 void create_page_table_entry(uint64_t pa) {
-    uint64_t pt0_idx = PT0_OFFSET(pa);
-    uint64_t pt1_idx = PT1_OFFSET(pa);
-    uint64_t pt2_idx = PT2_OFFSET(pa);
-    uint64_t pt3_idx = PT3_OFFSET(pa);
+    uint64_t pt1_idx = PT1_OFFSET(pa);  // VPN[2]
+    uint64_t pt2_idx = PT2_OFFSET(pa);  // VPN[1]
+    uint64_t pt3_idx = PT3_OFFSET(pa);  // VPN[0]
 
-    page_table_t* pt1;
     page_table_t* pt2;
     page_table_t* pt3;
     
-    if(root_page_table->page_table_entries[pt0_idx] == 0) {
-        pt1 = allocate_page_table();
-        if(!pt1) panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
-        root_page_table->page_table_entries[pt0_idx] = PTE_ADDR(pt1) | PTE_VALID | PTE_TABLE;
-    } else {
-        pt1 = (page_table_t*)PTE_DECODE(root_page_table->page_table_entries[pt0_idx]);
-    }
-
-    if(pt1->page_table_entries[pt1_idx] == 0) {
+    // Root table (pt1 == root_page_table) is indexed by VPN[2]
+    if(root_page_table->page_table_entries[pt1_idx] == 0) {
         pt2 = allocate_page_table();
         if(!pt2) panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
-        pt1->page_table_entries[pt1_idx] = PTE_ADDR(pt2) | PTE_VALID | PTE_TABLE;
+        root_page_table->page_table_entries[pt1_idx] = PTE_ADDR(pt2) | PTE_VALID | PTE_TABLE;
     } else {
-        pt2 = (page_table_t*)PTE_DECODE(pt1->page_table_entries[pt1_idx]);
+        pt2 = (page_table_t*)PTE_DECODE(root_page_table->page_table_entries[pt1_idx]);
     }
 
     if(pt2->page_table_entries[pt2_idx] == 0) {
