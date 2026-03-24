@@ -6,9 +6,9 @@ void enable_virtual_memory(uint64_t addr)
     uint64_t satp;
 
     /*
-     * satp layout (Sv39):
+     * satp layout (Sv48):
      *   [63:60] MODE = 8  (Sv39 — 3-level, 39-bit VA, 4KB pages)
-     *   [59:44] ASID = 0
+     *   [59:44] ASID = 0  (This is used for iding the virtual address space, for caching)
      *   [43:0]  PPN  = physical page number of root page table
      */
     satp = (8ULL << 60) | (addr >> 12);

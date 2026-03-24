@@ -67,12 +67,11 @@ void create_identity_map() {
     uint64_t count = 0;
     for(uint64_t pa = physical_memory_start; pa < physical_memory_end; pa = pa + DEFAULT_PAGE_SIZE) {
         create_page_table_entry(pa);
+        printk("Mapped Physical Memory %lx\n", pa);
         count++;
     }
     
     printk("Minimal identity map created: %lu pages mapped\n", count);
-    printk("Kernel code at 0x80200000 is %s\n", 
-           (0x80200000 >= physical_memory_start && 0x80200000 < physical_memory_end) ? "MAPPED" : "NOT MAPPED");
     
     printk("Root PT at 0x%lx, enabling virtual memory...\n", (uint64_t)root_page_table);
     
