@@ -28,14 +28,8 @@ void enable_virtual_memory(uint64_t addr)
     asm volatile("sfence.vma zero, zero");
     uart_print("sfence.vma done\n");
 
-    // Flush instruction cache
-    asm volatile("fence.i");
-    uart_print("fence.i done\n");
-    
-    // Test: Check mstatus
-    uint64_t mstatus;
-    asm volatile("csrr %0, mstatus" : "=r"(mstatus));
-    uart_print("mstatus read done\n");
+    // Try without fence.i - might be causing issues
+    uart_print("Skipping fence.i\n");
     
     // Test: Try writing Sv48 MODE instead of Sv39
     uart_print("Testing Sv48 mode with invalid PPN=0...\n");
