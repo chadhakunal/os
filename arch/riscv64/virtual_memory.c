@@ -1,6 +1,6 @@
 #include "types.h"
 #include "kernel/drivers/uart.h"
-#include "kernel/lib/printk/printk.h"
+#include "lib/printk/printk.h"
 
 void enable_virtual_memory(uint64_t addr)
 {
