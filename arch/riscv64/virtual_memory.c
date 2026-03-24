@@ -19,6 +19,9 @@ void enable_virtual_memory(uint64_t addr)
     asm volatile("sfence.vma zero, zero");
     uart_print("sfence.vma done\n");
 
+    // Flush instruction cache before enabling paging
+    asm volatile("fence.i");
+    
     // Enable virtual memory
     asm volatile("csrw satp, %0" :: "r"(satp) : "memory");
     

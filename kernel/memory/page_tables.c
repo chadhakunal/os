@@ -67,7 +67,7 @@ void create_identity_map() {
     
     printk("Creating minimal identity map from 0x%lx to 0x%lx\n", physical_memory_start, physical_memory_end);
     uint64_t count = 0;
-    for(uint64_t pa = physical_memory_start; pa < physical_memory_end; pa = pa + DEFAULT_PAGE_SIZE) {
+    for(uint64_t pa = physical_memory_start; pa < physical_memory_end; pa += DEFAULT_PAGE_SIZE) {
         create_page_table_entry(pa);
         //printk("Mapped Physical Memory %lx\n", pa);
         count++;
