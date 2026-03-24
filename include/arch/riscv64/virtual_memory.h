@@ -56,7 +56,7 @@
  * PTE_DECODE: extract physical address from a PTE entry.
  * Reverse of PTE_ADDR: extract bits [53:10], shift right by 10, shift left by 12.
  */
-#define PTE_DECODE(x) (((uint64_t)(x) & 0x003FFFFFFFFFFC00ULL) << 2)
+#define PTE_DECODE(x) (((uint64_t)(x) >> 10) << 12)
 
 /*
  * Sv39 uses 3 levels (39-bit VA, 4KB pages):

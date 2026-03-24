@@ -57,7 +57,7 @@ void remove_page_table_entry(uint64_t pa) {
 
 void create_identity_map() {
     if(!root_page_table) allocate_root_page_table();
-    printk("Root page table located at %lx\n", root_page_table);
+
     // For testing, only map the kernel region + 4MB of RAM
     uint64_t physical_memory_start = memory_info.total_memory_base;
     uint64_t physical_memory_end = physical_memory_start + memory_info.total_memory_size;
