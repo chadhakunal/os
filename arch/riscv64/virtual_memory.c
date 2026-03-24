@@ -15,15 +15,32 @@ void enable_virtual_memory(uint64_t addr)
 
     uart_print("About to enable MMU\n");
     
-    // Ensure all page table writes are visible before enabling the MMU
+    // Test: read current satp to verify register exists and is accessible
+    uint64_t old_satp;
+    asm volatile("csrr %0, satp" : "=r"(old_satp));
+    uart_print("Current satp value read\n");
+    
+    // Ensure all writes are complete before touching paging
+    asm volatile("" ::: "memory");
+    
+    // Flush all TLB entries
     asm volatile("sfence.vma zero, zero");
     uart_print("sfence.vma done\n");
 
-    // Flush instruction cache before enabling paging
+    // Flush instruction cache
     asm volatile("fence.i");
     
+    // Full memory fence
+    asm volatile("fence");
+    
     // Enable virtual memory
+    uart_print("About to write satp...\n");
     asm volatile("csrw satp, %0" :: "r"(satp) : "memory");
+    uart_print("satp write complete\n");
+    
+    // Small delay
+    volatile int i = 0;
+    while(i < 10) i++;
     
     // Critical: TLB and instruction cache must be flushed after satp write
     asm volatile("sfence.vma zero, zero");
