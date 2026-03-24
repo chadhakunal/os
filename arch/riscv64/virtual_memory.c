@@ -30,21 +30,12 @@ void enable_virtual_memory(uint64_t addr)
 
     // Flush instruction cache
     asm volatile("fence.i");
+    uart_print("fence.i done\n");
     
-    // Full memory fence
-    asm volatile("fence");
-    
-    // Check mstatus - might need to set bits before enabling paging
+    // Test: Check mstatus
     uint64_t mstatus;
     asm volatile("csrr %0, mstatus" : "=r"(mstatus));
-    uart_print("Current mstatus read\n");
-    
-    // Try setting bits that might be needed
-    // Bit 17 (VM) is obsolete in newer specs, but some systems need it
-    // Bit 11 (MIE) - machine interrupt enable
-    // Just try writing back the same value to test
-    asm volatile("csrw mstatus, %0" :: "r"(mstatus));
-    uart_print("mstatus write succeeded\n");
+    uart_print("mstatus read done\n");
     
     // Test: Try writing Sv48 MODE instead of Sv39
     uart_print("Testing Sv48 mode with invalid PPN=0...\n");
