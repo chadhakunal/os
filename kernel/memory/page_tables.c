@@ -23,10 +23,10 @@ void allocate_root_page_table() {
     if(!root_page_table) panic("FAILED TO ALLOCATE ROOT PAGE TABLE!");
 }
 
-void create_page_table_entry(uint64_t pa) {
-    uint64_t pt1_idx = PT1_OFFSET(pa);  // VPN[2]
-    uint64_t pt2_idx = PT2_OFFSET(pa);  // VPN[1]
-    uint64_t pt3_idx = PT3_OFFSET(pa);  // VPN[0]
+void create_page_table_entry(uint64_t va) {
+    uint64_t pt1_idx = PT1_OFFSET(va);  // VPN[2]
+    uint64_t pt2_idx = PT2_OFFSET(va);  // VPN[1]
+    uint64_t pt3_idx = PT3_OFFSET(va);  // VPN[0]
 
     page_table_t* pt2;
     page_table_t* pt3;
@@ -48,7 +48,7 @@ void create_page_table_entry(uint64_t pa) {
         pt3 = (page_table_t*)PTE_DECODE(pt2->page_table_entries[pt2_idx]);
     }
 
-    pt3->page_table_entries[pt3_idx] = PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
+    pt3->page_table_entries[pt3_idx] = PTE_ADDR(va) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
 }
 
 void remove_page_table_entry(uint64_t pa) {
