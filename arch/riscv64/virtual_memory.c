@@ -33,8 +33,13 @@ void enable_virtual_memory(uint64_t addr)
     // Full memory fence
     asm volatile("fence");
     
-    // Enable virtual memory
-    uart_print("About to write satp...\n");
+    // Test: Try writing MODE=0 (Bare) first - just to see if CSR write works
+    uart_print("Testing CSR write with MODE=0...\n");
+    asm volatile("csrw satp, zero");
+    uart_print("MODE=0 write succeeded\n");
+    
+    // Now write our Sv39 mode value
+    uart_print("About to write satp with Sv39...\n");
     asm volatile("csrw satp, %0" :: "r"(satp) : "memory");
     uart_print("satp write complete\n");
     
