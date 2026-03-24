@@ -51,7 +51,7 @@ void create_page_table_entry(uint64_t va) {
     }
 
     pt3->page_table_entries[pt3_idx] = PTE_ADDR(va) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
-    printk("Final level pte, Entry: %lx\n", pt3->page_table_entries[pt3_idx]);
+  //printk("Final level pte, Entry: %lx\n", pt3->page_table_entries[pt3_idx]);
 }
 
 void remove_page_table_entry(uint64_t pa) {

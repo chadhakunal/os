@@ -27,25 +27,11 @@ void enable_virtual_memory(uint64_t addr)
     // Flush all TLB entries
     asm volatile("sfence.vma zero, zero");
     uart_print("sfence.vma done\n");
-
-    // Try without fence.i - might be causing issues
-    uart_print("Skipping fence.i\n");
     
-    // Test: Try writing Sv48 MODE instead of Sv39
-    uart_print("Testing Sv48 mode with invalid PPN=0...\n");
-    uint64_t test_satp_sv48 = (9ULL << 60) | 0;  // MODE=9 (Sv48), PPN=0
-    asm volatile("csrw satp, %0" :: "r"(test_satp_sv48) : "memory");
-    uart_print("Sv48 with PPN=0 write succeeded\n");
-    
-    // Write MODE=0 again to disable
-    asm volatile("csrw satp, zero");
-    uart_print("Disabled paging\n");
-    
-    // Test: Try writing Sv39 MODE but with PPN=0
-    uart_print("Testing Sv39 mode with invalid PPN=0...\n");
-    uint64_t test_satp = (8ULL << 60) | 0;  // MODE=8 (Sv39), PPN=0
-    asm volatile("csrw satp, %0" :: "r"(test_satp) : "memory");
-    uart_print("Sv39 with PPN=0 write succeeded\n");
+    // Test: Try writing Sv39 MODE with our REAL root page table address
+    uart_print("Testing Sv39 mode with REAL root PT...\n");
+    asm volatile("csrw satp, %0" :: "r"(satp) : "memory");
+    uart_print("Sv39 with real root PT write succeeded\n");
     
     // Now write our real value
     uart_print("About to write satp with Sv39 and real PPN...\n");
