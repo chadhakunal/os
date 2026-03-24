@@ -61,19 +61,22 @@ void remove_page_table_entry(uint64_t pa) {
 void create_identity_map() {
     if(!root_page_table) allocate_root_page_table();
 
-    // For testing, only map the kernel region + 4MB of RAM
-    uint64_t physical_memory_start = memory_info.total_memory_base;
-    uint64_t physical_memory_end = physical_memory_start + memory_info.total_memory_size;
+    // Map EVERYTHING from 0x0 to end of RAM, including firmware space
+    // This ensures no gaps in page table that could cause infinite walks
+    uint64_t physical_memory_start = 0x0;
+    uint64_t physical_memory_end = memory_info.total_memory_base + memory_info.total_memory_size;
     
-    printk("Creating minimal identity map from 0x%lx to 0x%lx\n", physical_memory_start, physical_memory_end);
+    printk("Creating identity map from 0x%lx to 0x%lx\n", physical_memory_start, physical_memory_end);
     uint64_t count = 0;
     for(uint64_t pa = physical_memory_start; pa < physical_memory_end; pa += DEFAULT_PAGE_SIZE) {
         create_page_table_entry(pa);
-        //printk("Mapped Physical Memory %lx\n", pa);
         count++;
+        if((count % 4096) == 0 && count > 0) {
+            printk("  Mapped %lu pages...\n", count);
+        }
     }
     
-    printk("Minimal identity map created: %lu pages mapped\n", count);
+    printk("Identity map created: %lu pages mapped\n", count);
     
     printk("Root PT at 0x%lx, enabling virtual memory...\n", (uint64_t)root_page_table);
     
