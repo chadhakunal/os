@@ -18,7 +18,7 @@ void enable_virtual_memory(uint64_t addr)
     // Test: read current satp to verify register exists and is accessible
     uint64_t old_satp;
     asm volatile("csrr %0, satp" : "=r"(old_satp));
-    uart_print("Current satp value read\n");
+    printk("Current satp value read %lx\n", old_satp);
     
     // Ensure all writes are complete before touching paging
     asm volatile("" ::: "memory");
