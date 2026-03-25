@@ -24,7 +24,7 @@ void allocate_root_page_table() {
     panic("FAILED TO ALLOCATE ROOT PAGE TABLE!");
 }
 
-void create_page_table_entry(uint64_t va) {
+void create_page_table_entry(uint64_t va, uint64_t pa) {
   uint64_t pt1_idx = PT1_OFFSET(va); // VPN[2]
   uint64_t pt2_idx = PT2_OFFSET(va); // VPN[1]
   uint64_t pt3_idx = PT3_OFFSET(va); // VPN[0]
@@ -54,14 +54,14 @@ void create_page_table_entry(uint64_t va) {
   }
 
   pt3->page_table_entries[pt3_idx] =
-      PTE_ADDR(va) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
+      PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
 }
 
 void remove_page_table_entry(uint64_t pa) {
   // TODO
 }
 
-void create_identity_map() {
+void create_kernel_map() {
   if (!root_page_table)
     allocate_root_page_table();
 
@@ -76,17 +76,10 @@ void create_identity_map() {
   uint64_t count = 0;
   for (uint64_t pa = physical_memory_start; pa < physical_memory_end;
        pa += DEFAULT_PAGE_SIZE) {
-    create_page_table_entry(pa);
+    create_page_table_entry(pa, pa);
+    create_page_table_entry(pa + KERNEL_VIRTUAL_MEMORY_BASE, pa);
     count++;
-    if ((count % 4096) == 0 && count > 0) {
-      printk("  Mapped %lu pages...\n", count);
-    }
   }
-
-  printk("Identity map created: %lu pages mapped\n", count);
-
-  printk("Root PT at 0x%lx, enabling virtual memory...\n",
-         (uint64_t)root_page_table);
 
   enable_virtual_memory((uint64_t)root_page_table);
 }

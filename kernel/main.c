@@ -1,8 +1,8 @@
 // OS Kernel v1.0.0
 
-#include "types.h"
-#include "platform.h"
 #include "cpu_idle.h"
+#include "platform.h"
+#include "types.h"
 
 #include "kernel/memory/memory_info.h"
 #include "kernel/memory/page_allocator.h"
@@ -11,30 +11,30 @@
 #include "lib/printk/printk.h"
 
 /*
-    TODO: NEON/FP Unit needs to be enabled 
-          It is currently disabled in the HW. Added -mgeneral-regs-only 
+    TODO: NEON/FP Unit needs to be enabled
+          It is currently disabled in the HW. Added -mgeneral-regs-only
           to the makefile so that the compiler doesn't use those units)
 */
 
-void kmain(void* dtb_ptr) {
-    (void)dtb_ptr;
-    printk("Kernel Started...\n");
-    init_memory_info();
-    print_memory_info();
+void kmain(void *dtb_ptr) {
+  (void)dtb_ptr;
+  printk("Kernel Started...\n");
+  init_memory_info();
+  print_memory_info();
 
-    init_page_allocator();
-    print_pages_metadata();
+  init_page_allocator();
+  print_pages_metadata();
 
-    allocate_root_page_table();
-    
-    extern page_table_t* root_page_table;
-    printk("Root page table allocated at: 0x%lx\n", (uint64_t)root_page_table);
-    
-    create_identity_map();
+  allocate_root_page_table();
 
-    // init_process();
+  extern page_table_t *root_page_table;
+  printk("Root page table allocated at: 0x%lx\n", (uint64_t)root_page_table);
 
-    printk("Virtual Memory Enabled and we are still running!\n");
+  create_kernel_map();
 
-    arch_wait();
+  // init_process();
+
+  printk("Virtual Memory Enabled and we are still running!\n");
+
+  arch_wait();
 }

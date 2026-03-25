@@ -74,6 +74,8 @@
 #define PT2_OFFSET(x) (((uint64_t)(x) >> 21) & 0x1FF) // VPN[1]
 #define PT3_OFFSET(x) (((uint64_t)(x) >> 12) & 0x1FF) // VPN[0]
 
+#define KERNEL_VIRTUAL_MEMORY_BASE 0xFFFFFFC000000000
+
 void enable_virtual_memory(uint64_t addr);
 
 #endif
