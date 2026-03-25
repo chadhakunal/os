@@ -17,6 +17,6 @@ page_table_t *allocate_page_table();
 void create_page_table_entry(uint64_t va, uint64_t pa);
 void remove_page_table_entry(uint64_t pa);
 
-void create_identity_map();
+void create_kernel_map();
 
 #endif
