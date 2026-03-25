@@ -18,7 +18,6 @@ void enable_virtual_memory(uint64_t addr) {
 
   // Flush all TLB entries
   asm volatile("sfence.vma zero, zero");
-  uart_print("sfence.vma done\n");
 
   // Now write our real value
   asm volatile("csrw satp, %0" ::"r"(satp) : "memory");
