@@ -39,9 +39,6 @@ void create_page_table_entry(uint64_t va) {
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
     root_page_table->page_table_entries[pt1_idx] =
         PTE_ADDR(pt2) | PTE_VALID | PTE_TABLE;
-    printk("Creating a pointer for the root table entry pointing to a page "
-           "table at pt2\nEntry: %lx\n",
-           root_page_table->page_table_entries[pt1_idx]);
   } else {
     pt2 = (page_table_t *)PTE_DECODE(
         root_page_table->page_table_entries[pt1_idx]);
@@ -52,16 +49,12 @@ void create_page_table_entry(uint64_t va) {
     if (!pt3)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
     pt2->page_table_entries[pt2_idx] = PTE_ADDR(pt3) | PTE_VALID | PTE_TABLE;
-    printk("Creating a pointer for the pt2 table entry pointing to a page "
-           "table at pt3\nEntry: %lx\n",
-           pt2->page_table_entries[pt2_idx]);
   } else {
     pt3 = (page_table_t *)PTE_DECODE(pt2->page_table_entries[pt2_idx]);
   }
 
   pt3->page_table_entries[pt3_idx] =
       PTE_ADDR(va) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
-  // printk("Final level pte, Entry: %lx\n", pt3->page_table_entries[pt3_idx]);
 }
 
 void remove_page_table_entry(uint64_t pa) {
