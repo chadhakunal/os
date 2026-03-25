@@ -30,7 +30,7 @@ void kmain(void *dtb_ptr) {
   extern page_table_t *root_page_table;
   printk("Root page table allocated at: 0x%lx\n", (uint64_t)root_page_table);
 
-  init_page_mapping();
+  // init_page_mapping();
 
   // init_process();
 
