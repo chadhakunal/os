@@ -35,6 +35,6 @@ void kmain(void* dtb_ptr) {
     // init_process();
 
     printk("Virtual Memory Enabled and we are still running!\n");
-    
+
     arch_wait();
 }
