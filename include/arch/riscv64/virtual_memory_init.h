@@ -74,7 +74,12 @@
 #define PT2_OFFSET(x) (((uint64_t)(x) >> 21) & 0x1FF) // VPN[1]
 #define PT3_OFFSET(x) (((uint64_t)(x) >> 12) & 0x1FF) // VPN[0]
 
-#define KERNEL_VIRTUAL_MEMORY_BASE 0xFFFFFFC000000000
+#define KERNEL_VIRTUAL_MEMORY_BASE                                             \
+  0xFFFFFFFF80000000ULL // 510 GB Mark ie 254 GB After kernel area start
+#define PHYS_VIRTUAL_MEMORY_BASE                                               \
+  0xFFFFFFC000000000ULL // 256 GB Mark ie 0 GB After kernel area start
+#define MMIO_VIRTUAL_MEMORY_BASE                                               \
+  0xFFFFFFD000000000ULL // 320 GB Mark ie 64 GB After kernel area start
 
 void enable_virtual_memory(uint64_t addr);
 

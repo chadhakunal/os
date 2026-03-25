@@ -4,12 +4,14 @@
 #include "types.h"
 
 typedef struct memory_info {
-    uint64_t kernel_start;
-    uint64_t kernel_end;
-    uint64_t kernel_size;
-    
-    uint64_t total_memory_base;
-    uint64_t total_memory_size;
+  uint64_t kernel_start;
+  uint64_t kernel_end;
+  uint64_t kernel_size;
+
+  uint64_t total_memory_base;
+  uint64_t total_memory_size;
+
+  uint64_t uart_memory_address;
 } memory_info_t;
 
 extern memory_info_t memory_info;
