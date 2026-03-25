@@ -1,5 +1,4 @@
 #include "kernel/drivers/uart.h"
-#include "kernel/memory/memory_info.h"
 #include "platform.h"
 #include "types.h"
 
@@ -11,7 +10,7 @@ static char hex_digit(const uint8_t c) {
 
 void uart_putc(const char c) {
   /* RISC-V virt UART (NS16550A) */
-  volatile uint8_t *uart = (volatile uint8_t *)memory_info.uart_memory_address;
+  volatile uint8_t *uart = (volatile uint8_t *)0x10000000;
 
   /* Just write to THR (offset 0x00) */
   uart[0] = c;
