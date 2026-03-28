@@ -52,6 +52,7 @@ void create_page_table_entry(uint64_t va, uint64_t pa) {
     if (!pt3)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
     pt2->page_table_entries[pt2_idx] = PTE_ADDR(pt3) | PTE_VALID | PTE_TABLE;
+    printk("already have a page for level 3\n");
   } else {
     pt3 = (page_table_t *)PTE_DECODE(pt2->page_table_entries[pt2_idx]);
   }
