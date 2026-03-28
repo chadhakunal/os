@@ -96,6 +96,23 @@ void init_page_mapping() {
   map_phys();
   map_mmio();
   enable_virtual_memory((uint64_t)root_page_table);
+  uint64 offset = KERNEL_VIRT_OFFSET;
 
-  *memory_info = KERNEL_VIRTUAL_MEMORY_BASE + &memory_info;
+  asm volatile("la t0, 1f\n"
+               "add t0, t0, %[off]\n"
+               "jr t0\n"
+
+               "1:\n"
+
+               /* fix stack pointer */
+               "add sp, sp, %[off]\n"
+
+               /* reload global pointer */
+               "la gp, __global_pointer$\n"
+
+               :
+               : [off] "r"(offset)
+               : "t0", "memory");
+
+  __builtin_unreachable();
 }
