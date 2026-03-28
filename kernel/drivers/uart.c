@@ -10,7 +10,15 @@ static char hex_digit(const uint8_t c) {
 
 void uart_putc(const char c) {
   /* RISC-V virt UART (NS16550A) */
-  volatile uint8_t *uart = (volatile uint8_t *)0x10000000;
+  volatile uint8_t *uart;
+  
+  /* After platform_init(), platform.uart.base should be populated from DTB.
+     Before that, use default RISC-V virt UART address. */
+  if (platform.uart.base != 0) {
+    uart = (volatile uint8_t *)platform.uart.base;
+  } else {
+    uart = (volatile uint8_t *)0x10000000;
+  }
 
   /* Just write to THR (offset 0x00) */
   uart[0] = c;

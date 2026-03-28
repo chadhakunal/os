@@ -96,28 +96,6 @@ void init_page_mapping() {
   map_phys();
   map_mmio();
   enable_virtual_memory((uint64_t)root_page_table);
-}
 
-// void create_kernel_map() {
-//   if (!root_page_table)
-//     allocate_root_page_table();
-//
-//   // Map EVERYTHING from 0x0 to end of RAM, including firmware space
-//   // This ensures no gaps in page table that could cause infinite walks
-//   uint64_t physical_memory_start = 0x0;
-//   uint64_t physical_memory_end =
-//       memory_info.total_memory_base + memory_info.total_memory_size;
-//
-//   printk("Creating identity map from 0x%lx to 0x%lx\n",
-//   physical_memory_start,
-//          physical_memory_end);
-//   uint64_t count = 0;
-//   for (uint64_t pa = physical_memory_start; pa < physical_memory_end;
-//        pa += DEFAULT_PAGE_SIZE) {
-//     create_page_table_entry(pa, pa);
-//     create_page_table_entry(pa + KERNEL_VIRTUAL_MEMORY_BASE, pa);
-//     count++;
-//   }
-//
-//   enable_virtual_memory((uint64_t)root_page_table);
-// }
+  *memory_info = KERNEL_VIRTUAL_MEMORY_BASE + &memory_info;
+}

@@ -12,7 +12,7 @@ void init_memory_info() {
   memory_info.total_memory_base = platform.ram.base;
   memory_info.total_memory_size = platform.ram.size;
 
-  memory_info.uart_memory_address = 0x10000000;
+  memory_info.uart_memory_address = platform.uart.base;
 }
 
 void print_memory_info() {
