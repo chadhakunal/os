@@ -35,6 +35,7 @@ void create_page_table_entry(uint64_t va, uint64_t pa) {
 
   // Root table (pt1 == root_page_table) is indexed by VPN[2]
   if (root_page_table->page_table_entries[pt1_idx] == 0) {
+    printk("Allocating page for level 2\n");
     pt2 = allocate_page_table();
     if (!pt2)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
@@ -46,6 +47,7 @@ void create_page_table_entry(uint64_t va, uint64_t pa) {
   }
 
   if (pt2->page_table_entries[pt2_idx] == 0) {
+    printk("Allocating page for level 3\n");
     pt3 = allocate_page_table();
     if (!pt3)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
