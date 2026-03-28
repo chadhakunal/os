@@ -86,24 +86,27 @@ void map_kernel() {
 
 void map_identity() {
   /* Only map the kernel region identity-mapped.
-     For Sv39, this covers the firmware and kernel code needed for MMU activation.
-     The full 128MB doesn't need identity mapping once we're past boot. */
-  map_region(memory_info.kernel_start, memory_info.kernel_end, memory_info.kernel_start);
+     For Sv39, this covers the firmware and kernel code needed for MMU
+     activation. The full 128MB doesn't need identity mapping once we're past
+     boot. */
+  map_region(memory_info.kernel_start, memory_info.kernel_end,
+             memory_info.kernel_start);
 }
 
 void init_page_mapping() {
   if (!root_page_table)
     allocate_root_page_table();
   map_identity();
-  
+
   /* Map UART device for MMIO access after MMU is enabled */
   if (platform.uart.base != 0) {
     /* Map one page containing the UART device */
-    uint64_t uart_phys = platform.uart.base & ~0xFFFULL;  /* align to page */
+    uint64_t uart_phys = platform.uart.base & ~0xFFFULL; /* align to page */
     uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
+    printk("uart_virt: %lx, uart_phys: %lx\n", uart_virt, uart_phys);
     create_page_table_entry(uart_virt, uart_phys);
   }
-  
+
   printk("About to enable virtual mem\n");
   enable_virtual_memory((uint64_t)root_page_table);
   printk("virt mem enabled\n");
