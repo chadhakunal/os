@@ -99,11 +99,11 @@ void init_page_mapping() {
   map_identity();
 
   /* Map UART device for MMIO access after MMU is enabled */
+  uint64_t uart_phys = platform.uart.base & ~0xFFFULL; /* align to page */
+  uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
+  printk("uart_virt: %lx, uart_phys: %lx\n", uart_virt, uart_phys);
   if (platform.uart.base != 0) {
     /* Map one page containing the UART device */
-    uint64_t uart_phys = platform.uart.base & ~0xFFFULL; /* align to page */
-    uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
-    printk("uart_virt: %lx, uart_phys: %lx\n", uart_virt, uart_phys);
     create_page_table_entry(uart_virt, uart_phys);
   }
 
