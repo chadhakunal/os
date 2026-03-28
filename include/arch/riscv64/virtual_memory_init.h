@@ -81,6 +81,8 @@
 #define MMIO_VIRTUAL_MEMORY_BASE                                               \
   0xFFFFFFD000000000ULL // 320 GB Mark ie 64 GB After kernel area start
 
+#define KERNEL_VIRT_OFFSET (KERNEL_VIRTUAL_MEMORY_BASE - KERNEL_PHYS_BASE)
+
 void enable_virtual_memory(uint64_t addr);
 
 #endif
