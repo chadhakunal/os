@@ -113,4 +113,5 @@ void init_page_mapping() {
                : "t0", "memory");
 
   __builtin_unreachable();
+  printk("after moving kernel\n");
 }
