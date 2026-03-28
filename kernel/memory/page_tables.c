@@ -97,6 +97,7 @@ void init_page_mapping() {
   map_mmio();
   printk("About to enable virtual mem\n");
   enable_virtual_memory((uint64_t)root_page_table);
+  printk("virt mem enabled\n");
   uint64_t offset = KERNEL_VIRT_OFFSET;
 
   asm volatile("la t0, 1f\n"
