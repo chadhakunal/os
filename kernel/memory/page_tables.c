@@ -96,7 +96,7 @@ void init_page_mapping() {
   map_phys();
   map_mmio();
   enable_virtual_memory((uint64_t)root_page_table);
-  uint64 offset = KERNEL_VIRTUAL_MEMORY_BASE;
+  uint64_t offset = KERNEL_VIRTUAL_MEMORY_BASE;
 
   asm volatile("la t0, 1f\n"
                "add t0, t0, %[off]\n"
