@@ -63,10 +63,11 @@ void remove_page_table_entry(uint64_t pa) {
 
 void map_region(uint64_t physical_memory_start, uint64_t physical_memory_end,
                 uint64_t virtual_memory_start) {
-  for (uint64_t pa = physical_memory_start; pa < physical_memory_end;
-       pa += DEFAULT_PAGE_SIZE) {
-    create_page_table_entry(pa, pa);
-    create_page_table_entry(pa + KERNEL_VIRTUAL_MEMORY_BASE, pa);
+  for (uint64_t iter = 0; iter < physical_memory_end - physical_memory_start;
+       iter += DEFAULT_PAGE_SIZE) {
+    uint64_t pa = iter + physical_memory_start;
+    uint64_t va = iter + virtual_memory_start;
+    create_page_table_entry(va, pa);
   }
 }
 void map_mmio() {
