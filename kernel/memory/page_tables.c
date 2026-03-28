@@ -107,9 +107,6 @@ void init_page_mapping() {
                /* fix stack pointer */
                "add sp, sp, %[off]\n"
 
-               /* reload global pointer */
-               "la gp, __global_pointer$\n"
-
                :
                : [off] "r"(offset)
                : "t0", "memory");
