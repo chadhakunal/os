@@ -97,9 +97,9 @@ void init_page_mapping() {
   if (!root_page_table)
     allocate_root_page_table();
   map_identity();
-  map_kernel();
-  map_phys();
-  map_mmio();
+  // map_kernel();
+  // map_phys();
+  // map_mmio();
   printk("About to enable virtual mem\n");
   enable_virtual_memory((uint64_t)root_page_table);
   printk("virt mem enabled\n");
