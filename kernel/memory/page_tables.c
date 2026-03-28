@@ -15,6 +15,7 @@ page_table_t *root_page_table = NULL;
 page_table_t *allocate_page_table() {
   page_table_t *pt = (page_table_t *)get_page(true);
   memset(pt, 0, DEFAULT_PAGE_SIZE);
+  printk("Got Page\n");
   return pt;
 };
 
