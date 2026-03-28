@@ -2,6 +2,9 @@
 #include "lib/printk/printk.h"
 #include "types.h"
 
+/* Flag to indicate virtual memory is enabled */
+int _virtual_memory_enabled = 0;
+
 void enable_virtual_memory(uint64_t addr) {
   uint64_t satp;
 
@@ -25,4 +28,7 @@ void enable_virtual_memory(uint64_t addr) {
   // Critical: TLB and instruction cache must be flushed after satp write
   asm volatile("sfence.vma zero, zero");
   asm volatile("fence.i");
+  
+  /* Mark that virtual memory is now active */
+  _virtual_memory_enabled = 1;
 }

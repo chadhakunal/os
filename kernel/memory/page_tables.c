@@ -15,7 +15,6 @@ page_table_t *root_page_table = NULL;
 page_table_t *allocate_page_table() {
   page_table_t *pt = (page_table_t *)get_page(true);
   memset(pt, 0, DEFAULT_PAGE_SIZE);
-  printk("Got Page\n");
   return pt;
 };
 
@@ -35,7 +34,6 @@ void create_page_table_entry(uint64_t va, uint64_t pa) {
 
   // Root table (pt1 == root_page_table) is indexed by VPN[2]
   if (root_page_table->page_table_entries[pt1_idx] == 0) {
-    printk("Allocating page for level 2\n");
     pt2 = allocate_page_table();
     if (!pt2)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
@@ -47,13 +45,11 @@ void create_page_table_entry(uint64_t va, uint64_t pa) {
   }
 
   if (pt2->page_table_entries[pt2_idx] == 0) {
-    printk("Allocating page for level 3\n");
     pt3 = allocate_page_table();
     if (!pt3)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
     pt2->page_table_entries[pt2_idx] = PTE_ADDR(pt3) | PTE_VALID | PTE_TABLE;
   } else {
-    printk("already have a page for level 3\n");
     pt3 = (page_table_t *)PTE_DECODE(pt2->page_table_entries[pt2_idx]);
   }
 
@@ -89,17 +85,25 @@ void map_kernel() {
 }
 
 void map_identity() {
-  map_region(0x0, memory_info.total_memory_base + memory_info.total_memory_size,
-             0x0);
+  /* Only map the kernel region identity-mapped.
+     For Sv39, this covers the firmware and kernel code needed for MMU activation.
+     The full 128MB doesn't need identity mapping once we're past boot. */
+  map_region(memory_info.kernel_start, memory_info.kernel_end, memory_info.kernel_start);
 }
 
 void init_page_mapping() {
   if (!root_page_table)
     allocate_root_page_table();
   map_identity();
-  // map_kernel();
-  // map_phys();
-  // map_mmio();
+  
+  /* Map UART device for MMIO access after MMU is enabled */
+  if (platform.uart.base != 0) {
+    /* Map one page containing the UART device */
+    uint64_t uart_phys = platform.uart.base & ~0xFFFULL;  /* align to page */
+    uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
+    create_page_table_entry(uart_virt, uart_phys);
+  }
+  
   printk("About to enable virtual mem\n");
   enable_virtual_memory((uint64_t)root_page_table);
   printk("virt mem enabled\n");
