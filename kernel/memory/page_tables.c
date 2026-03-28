@@ -95,6 +95,7 @@ void init_page_mapping() {
   map_kernel();
   map_phys();
   map_mmio();
+  printk("About to enable virtual mem\n");
   enable_virtual_memory((uint64_t)root_page_table);
   uint64_t offset = KERNEL_VIRTUAL_MEMORY_BASE;
 
