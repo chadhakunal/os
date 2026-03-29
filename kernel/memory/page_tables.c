@@ -107,6 +107,7 @@ void init_page_mapping() {
   if (platform.uart.base != 0) {
     /* Map one page containing the UART device */
     create_page_table_entry(uart_virt, uart_phys);
+    create_page_table_entry(uart_phys, uart_phys);
   }
 
   printk("About to enable virtual mem\n");
