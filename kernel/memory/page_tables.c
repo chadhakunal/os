@@ -6,6 +6,7 @@
 #include "kernel/memory/page_allocator.h"
 #include "kernel/memory/page_tables.h"
 
+#include "kernel/drivers/uart.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
 #include "virtual_memory_init.h"
