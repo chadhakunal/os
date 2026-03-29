@@ -107,6 +107,7 @@ void init_page_mapping() {
   printk("uart_virt: %llx, uart_phys: %llx\n", uart_virt, uart_phys);
   if (platform.uart.base != 0) {
     /* Map one page containing the UART device */
+    printk("in platform uart base != 0\n");
     create_page_table_entry(uart_virt, uart_phys);
     create_page_table_entry(uart_phys, uart_phys);
   }
