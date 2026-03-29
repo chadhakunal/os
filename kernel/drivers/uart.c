@@ -9,22 +9,22 @@ static char hex_digit(const uint8_t c) {
   return 'A' + (c - 10);
 }
 
-static volatile uint8_t *uart_get_base(void) {
+volatile uint8_t *uart_get_base(void) {
   /* After virtual memory is enabled, access UART through virtual MMIO address.
      Before that, use physical address directly. */
   extern int _virtual_memory_enabled;
-  
+
   if (platform.uart.base == 0) {
-    return (volatile uint8_t *)0x10000000;  /* fallback default */
+    return (volatile uint8_t *)0x10000000; /* fallback default */
   }
-  
+
   /* If virtual memory is enabled, map through MMIO virtual base */
   if (_virtual_memory_enabled) {
     uint64_t uart_phys = platform.uart.base & ~0xFFFULL;
     uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
     return (volatile uint8_t *)uart_virt;
   }
-  
+
   /* Before MMU: use physical address directly */
   return (volatile uint8_t *)platform.uart.base;
 }
@@ -33,7 +33,7 @@ void uart_putc(const char c) {
   /* RISC-V virt UART (NS16550A) */
   volatile uint8_t *uart = uart_get_base();
   uint32_t offset = platform.uart.base & 0xFFFULL;
-  
+
   /* Write to THR (offset 0x00) */
   uart[offset] = c;
   return;
