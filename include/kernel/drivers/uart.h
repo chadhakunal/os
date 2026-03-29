@@ -3,6 +3,7 @@
 
 #include "types.h"
 
+volatile uint8_t *uart_get_base(void);
 void uart_putc(const char c);
 void uart_print(const char *c);
 void uart_print_hex(const uint64_t value);
