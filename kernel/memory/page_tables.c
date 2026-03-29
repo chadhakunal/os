@@ -101,7 +101,7 @@ void init_page_mapping() {
 
   /* Map UART device for MMIO access after MMU is enabled */
   uint64_t uart_phys = (uint64_t)uart_get_base(); /* align to page */
-  uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
+  uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE;
   printk("uart_virt: %lx, uart_phys: %lx\n", uart_virt, uart_phys);
   if (platform.uart.base != 0) {
     /* Map one page containing the UART device */
