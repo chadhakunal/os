@@ -105,12 +105,14 @@ void init_page_mapping() {
   uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE;
   printk("MMIO base = %llx\n", 0xFFFFFFD000000000ULL);
   printk("uart_virt: %llx, uart_phys: %llx\n", uart_virt, uart_phys);
-  if (platform.uart.base != 0) {
-    /* Map one page containing the UART device */
-    printk("in platform uart base != 0\n");
-    create_page_table_entry(uart_virt, uart_phys);
-    create_page_table_entry(uart_phys, uart_phys);
-  }
+  create_page_table_entry(uart_virt, uart_phys);
+  create_page_table_entry(uart_phys, uart_phys);
+  // if (platform.uart.base != 0) {
+  //   /* Map one page containing the UART device */
+  //   printk("in platform uart base != 0\n");
+  //   create_page_table_entry(uart_virt, uart_phys);
+  //   create_page_table_entry(uart_phys, uart_phys);
+  // }
 
   printk("About to enable virtual mem\n");
   enable_virtual_memory((uint64_t)root_page_table);
