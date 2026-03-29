@@ -102,7 +102,7 @@ void init_page_mapping() {
   /* Map UART device for MMIO access after MMU is enabled */
   uint64_t uart_phys = (uint64_t)uart_get_base(); /* align to page */
   uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE;
-  printk("MMIO base = %lx\n", 0xFFFFFFD000000000ULL);
+  printk("MMIO base = %llx\n", 0xFFFFFFD000000000ULL);
   printk("uart_virt: %llu, uart_phys: %llu\n", uart_virt, uart_phys);
   printk("sizeof(void*) = %lu\n", sizeof(void *));
   printk("sizeof(uint64_t) = %lu\n", sizeof(uint64_t));
