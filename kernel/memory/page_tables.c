@@ -65,8 +65,6 @@ bool page_table_empty(page_table_t *pt) {
   }
 }
 
-void free_page_table(page_table_t *pt) { free_page(pt) };
-
 void remove_page_table_entry(uint64_t va) {
   uint64_t pt1_idx = PT1_OFFSET(va);
   uint64_t pt2_idx = PT2_OFFSET(va);
@@ -89,13 +87,13 @@ void remove_page_table_entry(uint64_t va) {
 
   /* free L0 table if empty */
   if (page_table_empty(pt3)) {
-    free_page_table(pt3);
+    free_page(pt3);
     pt2->page_table_entries[pt2_idx] = 0;
   }
 
   /* free L1 table if empty */
   if (page_table_empty(pt2)) {
-    free_page_table(pt2);
+    free_page(pt2);
     root_page_table->page_table_entries[pt1_idx] = 0;
   }
 }
