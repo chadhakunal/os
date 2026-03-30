@@ -59,9 +59,10 @@ void create_page_table_entry(uint64_t va, uint64_t pa) {
 }
 
 bool page_table_empty(page_table_t *pt) {
-  for (int i = 0; i < 512; i++)
+  for (int i = 0; i < 512; i++) {
     if (pt->page_table_entries[i] & PTE_VALID)
       return false;
+  }
 }
 
 void free_page_table(page_table_t *pt) { free_page(pt) };
