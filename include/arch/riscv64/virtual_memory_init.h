@@ -83,6 +83,8 @@
 
 #define KERNEL_PHYS_BASE 0x80200000ULL
 #define KERNEL_VIRT_OFFSET (KERNEL_VIRTUAL_MEMORY_BASE - KERNEL_PHYS_BASE)
+#define PHYS_TO_VIRT(pa) ((void *)((uint64_t)(pa) + KERNEL_VIRT_OFFSET))
+#define VIRT_TO_PHYS(va) ((uint64_t)(va) - KERNEL_VIRT_OFFSET)
 
 void enable_virtual_memory(uint64_t addr);
 

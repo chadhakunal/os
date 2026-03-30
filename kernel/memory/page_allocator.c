@@ -1,8 +1,8 @@
 #include "platform.h"
 #include "types.h"
 
-#include "kernel/memory/page_allocator.h"
 #include "kernel/memory/memory_info.h"
+#include "kernel/memory/page_allocator.h"
 
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
@@ -17,12 +17,15 @@ bool in_kernel_space(uintptr_t start, uintptr_t end) {
 
 void init_page_allocator() {
   pages_metadata.pages_in_use = 0;
-  pages_metadata.total_pages = memory_info.total_memory_size / DEFAULT_PAGE_SIZE;
-  pages_metadata.page_list_size = pages_metadata.total_pages * sizeof(struct page);
+  pages_metadata.total_pages =
+      memory_info.total_memory_size / DEFAULT_PAGE_SIZE;
+  pages_metadata.page_list_size =
+      pages_metadata.total_pages * sizeof(struct page);
 
   uintptr_t kernel_end = ALIGN_UP((uintptr_t)&_end, DEFAULT_PAGE_SIZE);
   page_t *last_free = NULL;
-  memory_info.kernel_end = ALIGN_UP(kernel_end + pages_metadata.page_list_size, DEFAULT_PAGE_SIZE);
+  memory_info.kernel_end =
+      ALIGN_UP(kernel_end + pages_metadata.page_list_size, DEFAULT_PAGE_SIZE);
   pages_metadata.page_list = (page_t *)kernel_end;
   for (uint64_t i = 0; i < pages_metadata.total_pages; i++) {
     pages_metadata.page_list[i].page_frame_id = i;
@@ -31,11 +34,13 @@ void init_page_allocator() {
     pages_metadata.page_list[i].is_kernel = false;
     pages_metadata.page_list[i].in_use = false;
     pages_metadata.page_list[i].next_free_page = NULL;
-    uintptr_t page_start = DEFAULT_PAGE_SIZE * i + memory_info.total_memory_base;
+    uintptr_t page_start =
+        DEFAULT_PAGE_SIZE * i + memory_info.total_memory_base;
     uintptr_t page_end = page_start + DEFAULT_PAGE_SIZE;
-    
+
     /* Mark page frame 0 and kernel pages as in-use */
-    if (i == 0 || in_kernel_space(page_start, page_end) || page_end <= memory_info.kernel_start) {
+    if (i == 0 || in_kernel_space(page_start, page_end) ||
+        page_end <= memory_info.kernel_start) {
       pages_metadata.page_list[i].is_kernel = true;
       pages_metadata.page_list[i].in_use = true;
       pages_metadata.pages_in_use++;
@@ -53,11 +58,13 @@ void init_page_allocator() {
 
 void print_pages_metadata() {
   printk("Pages Metadata\n");
-  printk("\tMemory Used for Page List: %lu KB\n", pages_metadata.page_list_size/1024);
+  printk("\tMemory Used for Page List: %lu KB\n",
+         pages_metadata.page_list_size / 1024);
   printk("\tTotal Pages: %lu\n", pages_metadata.total_pages);
   printk("\tPages in Use: %lu\n", pages_metadata.pages_in_use);
   printk("\tPage List Address: %lx\n", (uint64_t)pages_metadata.page_list);
-  printk("\tFirst Free Page Frame: %lu\n", (uint64_t)pages_metadata.free_page_head->page_frame_id);
+  printk("\tFirst Free Page Frame: %lu\n",
+         (uint64_t)pages_metadata.free_page_head->page_frame_id);
 }
 
 void *get_page(bool is_kernel) {
@@ -73,16 +80,17 @@ void *get_page(bool is_kernel) {
   return _get_page_address_from_page(first_free_page);
 }
 
-void* _get_page_address_from_page(page_t *p) {
-  return (void *)(memory_info.total_memory_base + ((uintptr_t)p->page_frame_id * DEFAULT_PAGE_SIZE));
+void *_get_page_address_from_page(page_t *p) {
+  return (void *)(memory_info.total_memory_base +
+                  ((uintptr_t)p->page_frame_id * DEFAULT_PAGE_SIZE));
 }
 
-page_t* _address_to_page(void *addr) {
-    uintptr_t offset = (uintptr_t)addr - memory_info.total_memory_base;
+page_t *_address_to_page(void *addr) {
+  uintptr_t offset = (uintptr_t)addr - memory_info.total_memory_base;
 
-    uint64_t pfn = offset / DEFAULT_PAGE_SIZE;
+  uint64_t pfn = offset / DEFAULT_PAGE_SIZE;
 
-    return &pages_metadata.page_list[pfn];
+  return &pages_metadata.page_list[pfn];
 }
 
 void free_page(void *p) {
@@ -95,4 +103,24 @@ void free_page(void *p) {
   pages_metadata.pages_in_use--;
   freed_page->next_free_page = pages_metadata.free_page_head;
   pages_metadata.free_page_head = freed_page;
+}
+
+void update_page_structs_to_vm() {
+  pages_metadata.page_list = PHYS_TO_VIRT(pages_metadata.page_list);
+  convert_free_list_to_virtual();
+}
+
+void convert_free_list_to_virtual() {
+  pages_metadata.page_list = PHYS_TO_VIRT(pages_metadata.page_list);
+
+  pages_metadata.free_page_head = PHYS_TO_VIRT(pages_metadata.free_page_head);
+
+  page_t *cur = pages_metadata.free_page_head;
+
+  while (cur) {
+    if (cur->next_free_page)
+      cur->next_free_page = PHYS_TO_VIRT(cur->next_free_page);
+
+    cur = cur->next_free_page;
+  }
 }

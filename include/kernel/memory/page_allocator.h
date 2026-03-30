@@ -10,7 +10,7 @@ typedef struct page {
   bool is_zeroed;
   bool is_disk_cache;
   bool in_use;
-  struct page* next_free_page;
+  struct page *next_free_page;
 } page_t;
 
 typedef struct pages_metadata_struct {
@@ -27,9 +27,11 @@ void init_page_allocator();
 void print_pages_metadata();
 
 void *get_page(bool is_kernel);
-void free_page(void* p); // Releases page that contains the address
+void free_page(void *p); // Releases page that contains the address
 
-void* _get_page_address_from_page(page_t* p);
-page_t* _address_to_page(void* addr);
+void update_page_structs_to_vm();
+
+void *_get_page_address_from_page(page_t *p);
+page_t *_address_to_page(void *addr);
 
 #endif
