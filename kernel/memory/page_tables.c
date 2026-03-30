@@ -98,6 +98,7 @@ void init_page_mapping() {
   if (!root_page_table)
     allocate_root_page_table();
   map_identity();
+  map_kernel();
 
   /* Map UART device for MMIO access after MMU is enabled */
   uint64_t uart_phys = (uint64_t)uart_get_base(); /* align to page */
@@ -118,7 +119,6 @@ void init_page_mapping() {
   enable_virtual_memory((uint64_t)root_page_table);
   printk("virt mem enabled\n");
   uint64_t offset = KERNEL_VIRT_OFFSET;
-  printk("label phys %llx\n", &&label);
 
   asm volatile("la t0, 1f\n"
                "add t0, t0, %[off]\n"
