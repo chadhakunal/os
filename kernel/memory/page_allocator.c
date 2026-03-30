@@ -105,11 +105,6 @@ void free_page(void *p) {
   pages_metadata.free_page_head = freed_page;
 }
 
-void update_page_structs_to_vm() {
-  pages_metadata.page_list = PHYS_TO_VIRT(pages_metadata.page_list);
-  convert_free_list_to_virtual();
-}
-
 void convert_free_list_to_virtual() {
   pages_metadata.page_list = PHYS_TO_VIRT(pages_metadata.page_list);
 
@@ -123,4 +118,9 @@ void convert_free_list_to_virtual() {
 
     cur = cur->next_free_page;
   }
+}
+
+void update_page_structs_to_vm() {
+  pages_metadata.page_list = PHYS_TO_VIRT(pages_metadata.page_list);
+  convert_free_list_to_virtual();
 }
