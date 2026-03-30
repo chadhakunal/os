@@ -64,7 +64,7 @@ bool page_table_empty(page_table_t *pt) {
       return false;
 }
 
-void free_page_table(page_table_t *pt) { free_page(pt) };
+// void free_page_table(page_table_t *pt) { free_page(pt) };
 
 void remove_page_table_entry(uint64_t va) {
   uint64_t pt1_idx = PT1_OFFSET(va);
