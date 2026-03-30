@@ -63,6 +63,7 @@ bool page_table_empty(page_table_t *pt) {
     if (pt->page_table_entries[i] & PTE_VALID)
       return false;
   }
+  return true;
 }
 
 void remove_page_table_entry(uint64_t va) {
