@@ -58,11 +58,11 @@ void create_page_table_entry(uint64_t va, uint64_t pa) {
       PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
 }
 
-bool page_table_empty(page_table_t *pt) {
-  for (int i = 0; i < 512; i++)
-    if (pt->page_table_entries[i] & PTE_VALID)
-      return false;
-}
+// bool page_table_empty(page_table_t *pt) {
+//   for (int i = 0; i < 512; i++)
+//     if (pt->page_table_entries[i] & PTE_VALID)
+//       return false;
+// }
 
 // void free_page_table(page_table_t *pt) { free_page(pt) };
 
