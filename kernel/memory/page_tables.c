@@ -58,47 +58,46 @@ void create_page_table_entry(uint64_t va, uint64_t pa) {
       PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
 }
 
-// bool page_table_empty(page_table_t *pt) {
-//   for (int i = 0; i < 512; i++)
-//     if (pt->page_table_entries[i] & PTE_VALID)
-//       return false;
-// }
+bool page_table_empty(page_table_t *pt) {
+  for (int i = 0; i < 512; i++)
+    if (pt->page_table_entries[i] & PTE_VALID)
+      return false;
+}
 
-// void free_page_table(page_table_t *pt) { free_page(pt) };
+void free_page_table(page_table_t *pt) { free_page(pt) };
 
-// void remove_page_table_entry(uint64_t va) {
-//   uint64_t pt1_idx = PT1_OFFSET(va);
-//   uint64_t pt2_idx = PT2_OFFSET(va);
-//   uint64_t pt3_idx = PT3_OFFSET(va);
-//
-//   if (!(root_page_table->page_table_entries[pt1_idx] & PTE_VALID))
-//     return;
-//
-//   page_table_t *pt2 =
-//       (page_table_t
-//       *)PTE_DECODE(root_page_table->page_table_entries[pt1_idx]);
-//
-//   if (!(pt2->page_table_entries[pt2_idx] & PTE_VALID))
-//     return;
-//
-//   page_table_t *pt3 =
-//       (page_table_t *)PTE_DECODE(pt2->page_table_entries[pt2_idx]);
-//
-//   /* clear leaf entry */
-//   pt3->page_table_entries[pt3_idx] = 0;
-//
-//   /* free L0 table if empty */
-//   if (page_table_empty(pt3)) {
-//     free_page_table(pt3);
-//     pt2->page_table_entries[pt2_idx] = 0;
-//   }
-//
-//   /* free L1 table if empty */
-//   if (page_table_empty(pt2)) {
-//     free_page_table(pt2);
-//     root_page_table->page_table_entries[pt1_idx] = 0;
-//   }
-// }
+void remove_page_table_entry(uint64_t va) {
+  uint64_t pt1_idx = PT1_OFFSET(va);
+  uint64_t pt2_idx = PT2_OFFSET(va);
+  uint64_t pt3_idx = PT3_OFFSET(va);
+
+  if (!(root_page_table->page_table_entries[pt1_idx] & PTE_VALID))
+    return;
+
+  page_table_t *pt2 =
+      (page_table_t *)PTE_DECODE(root_page_table->page_table_entries[pt1_idx]);
+
+  if (!(pt2->page_table_entries[pt2_idx] & PTE_VALID))
+    return;
+
+  page_table_t *pt3 =
+      (page_table_t *)PTE_DECODE(pt2->page_table_entries[pt2_idx]);
+
+  /* clear leaf entry */
+  pt3->page_table_entries[pt3_idx] = 0;
+
+  /* free L0 table if empty */
+  if (page_table_empty(pt3)) {
+    free_page_table(pt3);
+    pt2->page_table_entries[pt2_idx] = 0;
+  }
+
+  /* free L1 table if empty */
+  if (page_table_empty(pt2)) {
+    free_page_table(pt2);
+    root_page_table->page_table_entries[pt1_idx] = 0;
+  }
+}
 
 void map_region(uint64_t physical_memory_start, uint64_t physical_memory_end,
                 uint64_t virtual_memory_start) {
