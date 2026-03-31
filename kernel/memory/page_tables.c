@@ -74,28 +74,38 @@ void remove_page_table_entry(uint64_t va) {
   if (!(root_page_table->page_table_entries[pt1_idx] & PTE_VALID))
     return;
 
-  page_table_t *pt2 =
-      (page_table_t *)PTE_DECODE(root_page_table->page_table_entries[pt1_idx]);
+page_table_t *pt2 =
+    (page_table_t *)PHYS_TO_VIRT(
+        PTE_DECODE(root_page_table->page_table_entries[pt1_idx]));
 
   if (!(pt2->page_table_entries[pt2_idx] & PTE_VALID))
     return;
 
-  page_table_t *pt3 =
-      (page_table_t *)PTE_DECODE(pt2->page_table_entries[pt2_idx]);
+page_table_t *pt3 =
+    (page_table_t *)PHYS_TO_VIRT(
+        PTE_DECODE(pt2->page_table_entries[pt2_idx]));
 
   /* clear leaf entry */
   pt3->page_table_entries[pt3_idx] = 0;
 
   /* free L0 table if empty */
   if (page_table_empty(pt3)) {
-    free_page(pt3);
+    free_page(VIRT_TO_PHYS(pt3));
     pt2->page_table_entries[pt2_idx] = 0;
   }
 
   /* free L1 table if empty */
   if (page_table_empty(pt2)) {
-    free_page(pt2);
+    free_page(VIRT_TO_PHYS(pt2));
     root_page_table->page_table_entries[pt1_idx] = 0;
+  }
+}
+
+void unmap_region(uint64_t virtual_memory_start, uint64_t virtual_memory_end) {
+  for (uint64_t iter = 0; iter < virtual_memory_end-virtual_memory_start;
+       iter += DEFAULT_PAGE_SIZE) {
+    uint64_t va = iter + virtual_memory_start;
+    remove_page_table_entry(va);
   }
 }
 
@@ -172,5 +182,5 @@ void init_page_mapping() {
 
   printk("after moving kernel\n");
   update_page_structs_to_vm();
-  printk("Updated paging to virtual");
+  printk("Updated paging to virtual\n");
 }
