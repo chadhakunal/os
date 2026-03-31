@@ -90,13 +90,13 @@ page_table_t *pt3 =
 
   /* free L0 table if empty */
   if (page_table_empty(pt3)) {
-    free_page(VIRT_TO_PHYS(pt3));
+    free_page((void *)VIRT_TO_PHYS(pt3));
     pt2->page_table_entries[pt2_idx] = 0;
   }
 
   /* free L1 table if empty */
   if (page_table_empty(pt2)) {
-    free_page(VIRT_TO_PHYS(pt2));
+    free_page(void *) VIRT_TO_PHYS(pt2));
     root_page_table->page_table_entries[pt1_idx] = 0;
   }
 }
