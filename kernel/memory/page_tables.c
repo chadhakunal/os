@@ -188,6 +188,7 @@ void init_page_mapping() {
   after_jump:
   printk("after moving kernel\n");
   root_page_table = PHYS_TO_VIRT(root_page_table);
+  printk("root_page_table = %llx\n", root_page_table);
   unmap_identity();
   printk("Unmapped identity\n");
   update_page_structs_to_vm();
