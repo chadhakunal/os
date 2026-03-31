@@ -70,7 +70,7 @@ void remove_page_table_entry(uint64_t va) {
   uint64_t pt1_idx = PT1_OFFSET(va);
   uint64_t pt2_idx = PT2_OFFSET(va);
   uint64_t pt3_idx = PT3_OFFSET(va);
-
+  printk("start of remove page table entry\n");
   if (!(root_page_table->page_table_entries[pt1_idx] & PTE_VALID))
     return;
   printk("derefed root page table\n");
