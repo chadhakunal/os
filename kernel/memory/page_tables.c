@@ -105,7 +105,7 @@ void unmap_region(uint64_t virtual_memory_start, uint64_t virtual_memory_end) {
   for (uint64_t iter = 0; iter < virtual_memory_end-virtual_memory_start;
        iter += DEFAULT_PAGE_SIZE) {
     uint64_t va = iter + virtual_memory_start;
-    printk("Unmapping %lx\n", va);
+    printk("Unmapping %llx\n", va);
     remove_page_table_entry(va);
   }
 }
@@ -184,7 +184,8 @@ void init_page_mapping() {
                :
                : [off] "r"(offset)
                : "t0", "memory");
-
+  printk("PC label addr = %llx\n", (uint64_t)&&after_jump);
+  after_jump:
   printk("after moving kernel\n");
   unmap_identity();
   printk("Unmapped identity\n");
