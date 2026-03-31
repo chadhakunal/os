@@ -96,7 +96,7 @@ page_table_t *pt3 =
 
   /* free L1 table if empty */
   if (page_table_empty(pt2)) {
-    free_page(void *) VIRT_TO_PHYS(pt2));
+    free_page((void *) VIRT_TO_PHYS(pt2));
     root_page_table->page_table_entries[pt1_idx] = 0;
   }
 }
