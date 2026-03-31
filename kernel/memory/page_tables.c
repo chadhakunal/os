@@ -191,6 +191,8 @@ void init_page_mapping() {
   printk("root_page_table = %llx\n", root_page_table);
   printk("identity pt1 = %ld\n", PT1_OFFSET(0x80200000));
   printk("kernel   pt1 = %ld\n", PT1_OFFSET(0xFFFFFFFF80200000));
+  printk("root pt phys = %llx\n", root_page_table);
+  printk("kernel_end   = %llx\n", memory_info.kernel_end);
   unmap_identity();
   printk("Unmapped identity\n");
   update_page_structs_to_vm();
