@@ -187,6 +187,7 @@ void init_page_mapping() {
   printk("PC label addr = %llx\n", (uint64_t)&&after_jump);
   after_jump:
   printk("after moving kernel\n");
+  root_page_table = PHYS_TO_VIRT(root_page_table);
   unmap_identity();
   printk("Unmapped identity\n");
   update_page_structs_to_vm();
