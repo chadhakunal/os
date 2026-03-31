@@ -73,21 +73,21 @@ void remove_page_table_entry(uint64_t va) {
 
   if (!(root_page_table->page_table_entries[pt1_idx] & PTE_VALID))
     return;
-
-page_table_t *pt2 =
+  printk("derefed root page table\n");
+  page_table_t *pt2 =
     (page_table_t *)PHYS_TO_VIRT(
         PTE_DECODE(root_page_table->page_table_entries[pt1_idx]));
 
   if (!(pt2->page_table_entries[pt2_idx] & PTE_VALID))
     return;
-
-page_table_t *pt3 =
+  printk("derefed pt2\n");
+  page_table_t *pt3 =
     (page_table_t *)PHYS_TO_VIRT(
         PTE_DECODE(pt2->page_table_entries[pt2_idx]));
 
   /* clear leaf entry */
   pt3->page_table_entries[pt3_idx] = 0;
-
+  printk("derefed pt3\n");
   /* free L0 table if empty */
   if (page_table_empty(pt3)) {
     //free_page((void *)VIRT_TO_PHYS(pt3));
