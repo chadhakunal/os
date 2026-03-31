@@ -141,6 +141,10 @@ void map_identity() {
              memory_info.kernel_start);
 }
 
+void unmap_identity() {
+  unmap_region(memory_info.kernel_start, memory_info.kernel_end);
+}
+
 void init_page_mapping() {
   if (!root_page_table)
     allocate_root_page_table();
@@ -181,6 +185,7 @@ void init_page_mapping() {
                : "t0", "memory");
 
   printk("after moving kernel\n");
+  unmap_identity();
   update_page_structs_to_vm();
   printk("Updated paging to virtual\n");
 }
