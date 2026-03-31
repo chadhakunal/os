@@ -186,6 +186,7 @@ void init_page_mapping() {
 
   printk("after moving kernel\n");
   unmap_identity();
+  printk("Unmapped identity\n");
   update_page_structs_to_vm();
   printk("Updated paging to virtual\n");
 }
