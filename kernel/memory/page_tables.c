@@ -105,6 +105,7 @@ void unmap_region(uint64_t virtual_memory_start, uint64_t virtual_memory_end) {
   for (uint64_t iter = 0; iter < virtual_memory_end-virtual_memory_start;
        iter += DEFAULT_PAGE_SIZE) {
     uint64_t va = iter + virtual_memory_start;
+    printk("Unmapping %lx\n", va);
     remove_page_table_entry(va);
   }
 }
