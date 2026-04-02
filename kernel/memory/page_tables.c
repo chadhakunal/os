@@ -217,8 +217,9 @@ void init_page_mapping() {
 
                "1:\n"
 
-               /* fix stack pointer */
+               /* fix stack pointer and return address */
                "add sp, sp, %[off]\n"
+               "add ra, ra, %[off]\n"
 
                :
                : [off] "r"(offset)
