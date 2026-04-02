@@ -211,19 +211,23 @@ void init_page_mapping() {
   printk("virt mem enabled\n");
   uint64_t offset = KERNEL_VIRT_OFFSET;
 
+  /* Save return address before we relocate */
+  register uint64_t saved_ra asm("ra");
+  uint64_t old_ra = saved_ra;
+
   asm volatile("la t0, 1f\n"
                "add t0, t0, %[off]\n"
                "jr t0\n"
 
                "1:\n"
 
-               /* fix stack pointer and return address */
+               /* fix stack pointer */
                "add sp, sp, %[off]\n"
-               "add ra, ra, %[off]\n"
 
                :
                : [off] "r"(offset)
                : "t0", "memory");
+
   printk("PC label addr = %llx\n", (uint64_t)&&after_jump);
   after_jump:
   printk("after moving kernel\n");
@@ -233,5 +237,10 @@ void init_page_mapping() {
   printk("Unmapped identity\n");
   update_page_structs_to_vm();
   printk("Updated paging to virtual\n");
-  printk("About to return from init_page_mapping, ra = %llx\n", (uint64_t)__builtin_return_address(0));
+
+  /* Manually return by jumping to relocated return address */
+  uint64_t new_ra = old_ra + offset;
+  printk("Manually returning to %llx\n", new_ra);
+  asm volatile("jr %0" : : "r"(new_ra) : "memory");
+  __builtin_unreachable();
 }
