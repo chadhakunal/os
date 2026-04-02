@@ -108,24 +108,20 @@ void remove_page_table_entry(uint64_t va) {
   uint64_t pt1_idx = PT1_OFFSET(va);
   uint64_t pt2_idx = PT2_OFFSET(va);
   uint64_t pt3_idx = PT3_OFFSET(va);
-  printk("start of remove page table entry\n");
   if (!(root_page_table->page_table_entries[pt1_idx] & PTE_VALID))
     return;
-  printk("derefed root page table\n");
   page_table_t *pt2 =
     (page_table_t *)PHYS_TO_VIRT(
         PTE_DECODE(root_page_table->page_table_entries[pt1_idx]));
 
   if (!(pt2->page_table_entries[pt2_idx] & PTE_VALID))
     return;
-  printk("derefed pt2\n");
   page_table_t *pt3 =
     (page_table_t *)PHYS_TO_VIRT(
         PTE_DECODE(pt2->page_table_entries[pt2_idx]));
 
   /* clear leaf entry */
   pt3->page_table_entries[pt3_idx] = 0;
-  printk("derefed pt3\n");
   /* free L0 table if empty */
   if (page_table_empty(pt3)) {
     //free_page((void *)VIRT_TO_PHYS(pt3));
@@ -143,7 +139,6 @@ void unmap_region(uint64_t virtual_memory_start, uint64_t virtual_memory_end) {
   for (uint64_t iter = 0; iter < virtual_memory_end-virtual_memory_start;
        iter += DEFAULT_PAGE_SIZE) {
     uint64_t va = iter + virtual_memory_start;
-    printk("Unmapping %llx\n", va);
     remove_page_table_entry(va);
   }
 }
@@ -208,16 +203,8 @@ void init_page_mapping() {
   uint64_t uart_phys = (uint64_t)uart_get_base(); /* align to page */
   uart_phys &= ~(DEFAULT_PAGE_SIZE - 1);
   uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE;
-  printk("MMIO base = %llx\n", 0xFFFFFFD000000000ULL);
-  printk("uart_virt: %llx, uart_phys: %llx\n", uart_virt, uart_phys);
   boot_create_page_table_entry(uart_virt, uart_phys);
   boot_create_page_table_entry(uart_phys, uart_phys);
-  // if (platform.uart.base != 0) {
-  //   /* Map one page containing the UART device */
-  //   printk("in platform uart base != 0\n");
-  //   create_page_table_entry(uart_virt, uart_phys);
-  //   create_page_table_entry(uart_phys, uart_phys);
-  // }
 
   printk("About to enable virtual mem\n");
   enable_virtual_memory((uint64_t)root_page_table);
@@ -241,10 +228,6 @@ void init_page_mapping() {
   printk("after moving kernel\n");
   root_page_table = PHYS_TO_VIRT(root_page_table);
   printk("root_page_table = %llx\n", root_page_table);
-  printk("identity pt1 = %ld\n", PT1_OFFSET(0x80200000));
-  printk("kernel   pt1 = %ld\n", PT1_OFFSET(0xFFFFFFFF80200000));
-  printk("root pt phys = %llx\n", root_page_table);
-  printk("kernel_end   = %llx\n", memory_info.kernel_end);
   unmap_identity();
   printk("Unmapped identity\n");
   update_page_structs_to_vm();
