@@ -83,8 +83,13 @@
 
 #define KERNEL_PHYS_BASE 0x80200000ULL
 #define KERNEL_VIRT_OFFSET (KERNEL_VIRTUAL_MEMORY_BASE - KERNEL_PHYS_BASE)
-#define PHYS_TO_VIRT(pa) ((void *)((uint64_t)(pa) + KERNEL_VIRT_OFFSET))
-#define VIRT_TO_PHYS(va) ((uint64_t)(va) - KERNEL_VIRT_OFFSET)
+
+/* PHYS_TO_VIRT/VIRT_TO_PHYS: Convert between physical addresses and the
+ * direct physical memory mapping at PHYS_VIRTUAL_MEMORY_BASE.
+ * Assumes total_memory_base is 0x80000000 (standard RISC-V RAM base) */
+#define PHYS_MEMORY_BASE 0x80000000ULL
+#define PHYS_TO_VIRT(pa) ((void *)((uint64_t)(pa) - PHYS_MEMORY_BASE + PHYS_VIRTUAL_MEMORY_BASE))
+#define VIRT_TO_PHYS(va) ((uint64_t)(va) - PHYS_VIRTUAL_MEMORY_BASE + PHYS_MEMORY_BASE)
 
 void enable_virtual_memory(uint64_t addr);
 

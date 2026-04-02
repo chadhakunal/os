@@ -25,7 +25,8 @@ void allocate_root_page_table() {
     panic("FAILED TO ALLOCATE ROOT PAGE TABLE!");
 }
 
-void create_page_table_entry(uint64_t va, uint64_t pa) {
+/* Boot-time version: uses physical addresses directly (identity mapping active) */
+void boot_create_page_table_entry(uint64_t va, uint64_t pa) {
   uint64_t pt1_idx = PT1_OFFSET(va); // VPN[2]
   uint64_t pt2_idx = PT2_OFFSET(va); // VPN[1]
   uint64_t pt3_idx = PT3_OFFSET(va); // VPN[0]
@@ -52,6 +53,43 @@ void create_page_table_entry(uint64_t va, uint64_t pa) {
     pt2->page_table_entries[pt2_idx] = PTE_ADDR(pt3) | PTE_VALID | PTE_TABLE;
   } else {
     pt3 = (page_table_t *)PTE_DECODE(pt2->page_table_entries[pt2_idx]);
+  }
+
+  pt3->page_table_entries[pt3_idx] =
+      PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
+}
+
+/* Post-boot version: uses PHYS_TO_VIRT to access page tables */
+void create_page_table_entry(uint64_t va, uint64_t pa) {
+  uint64_t pt1_idx = PT1_OFFSET(va); // VPN[2]
+  uint64_t pt2_idx = PT2_OFFSET(va); // VPN[1]
+  uint64_t pt3_idx = PT3_OFFSET(va); // VPN[0]
+
+  page_table_t *pt2;
+  page_table_t *pt3;
+
+  // Root table (pt1 == root_page_table) is indexed by VPN[2]
+  if (root_page_table->page_table_entries[pt1_idx] == 0) {
+    page_table_t *pt2_phys = allocate_page_table(); /* Returns physical address */
+    if (!pt2_phys)
+      panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
+    root_page_table->page_table_entries[pt1_idx] =
+        PTE_ADDR(pt2_phys) | PTE_VALID | PTE_TABLE;
+    pt2 = (page_table_t *)PHYS_TO_VIRT(pt2_phys); /* Convert to virtual for access */
+  } else {
+    pt2 = (page_table_t *)PHYS_TO_VIRT(
+        PTE_DECODE(root_page_table->page_table_entries[pt1_idx]));
+  }
+
+  if (pt2->page_table_entries[pt2_idx] == 0) {
+    page_table_t *pt3_phys = allocate_page_table(); /* Returns physical address */
+    if (!pt3_phys)
+      panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
+    pt2->page_table_entries[pt2_idx] = PTE_ADDR(pt3_phys) | PTE_VALID | PTE_TABLE;
+    pt3 = (page_table_t *)PHYS_TO_VIRT(pt3_phys); /* Convert to virtual for access */
+  } else {
+    pt3 = (page_table_t *)PHYS_TO_VIRT(
+        PTE_DECODE(pt2->page_table_entries[pt2_idx]));
   }
 
   pt3->page_table_entries[pt3_idx] =
@@ -110,6 +148,18 @@ void unmap_region(uint64_t virtual_memory_start, uint64_t virtual_memory_end) {
   }
 }
 
+/* Boot-time version */
+void boot_map_region(uint64_t physical_memory_start, uint64_t physical_memory_end,
+                uint64_t virtual_memory_start) {
+  for (uint64_t iter = 0; iter < physical_memory_end - physical_memory_start;
+       iter += DEFAULT_PAGE_SIZE) {
+    uint64_t pa = iter + physical_memory_start;
+    uint64_t va = iter + virtual_memory_start;
+    boot_create_page_table_entry(va, pa);
+  }
+}
+
+/* Post-boot version */
 void map_region(uint64_t physical_memory_start, uint64_t physical_memory_end,
                 uint64_t virtual_memory_start) {
   for (uint64_t iter = 0; iter < physical_memory_end - physical_memory_start;
@@ -120,16 +170,16 @@ void map_region(uint64_t physical_memory_start, uint64_t physical_memory_end,
   }
 }
 void map_mmio() {
-  map_region(0x0, memory_info.total_memory_base, MMIO_VIRTUAL_MEMORY_BASE);
+  boot_map_region(0x0, memory_info.total_memory_base, MMIO_VIRTUAL_MEMORY_BASE);
 }
 
 void map_phys() {
-  map_region(memory_info.total_memory_base, memory_info.total_memory_size,
+  boot_map_region(memory_info.total_memory_base, memory_info.total_memory_size,
              PHYS_VIRTUAL_MEMORY_BASE);
 }
 
 void map_kernel() {
-  map_region(memory_info.kernel_start, memory_info.kernel_end,
+  boot_map_region(memory_info.kernel_start, memory_info.kernel_end,
              KERNEL_VIRTUAL_MEMORY_BASE);
 }
 
@@ -138,7 +188,7 @@ void map_identity() {
      For Sv39, this covers the firmware and kernel code needed for MMU
      activation. The full 128MB doesn't need identity mapping once we're past
      boot. */
-  map_region(memory_info.kernel_start, memory_info.kernel_end,
+  boot_map_region(memory_info.kernel_start, memory_info.kernel_end,
              memory_info.kernel_start);
 }
 
@@ -151,6 +201,7 @@ void init_page_mapping() {
     allocate_root_page_table();
   map_identity();
   map_kernel();
+  map_phys();  /* Map all physical RAM for accessing page tables and other phys mem */
 
   /* Map UART device for MMIO access after MMU is enabled */
   uint64_t uart_phys = (uint64_t)uart_get_base(); /* align to page */
@@ -158,8 +209,8 @@ void init_page_mapping() {
   uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE;
   printk("MMIO base = %llx\n", 0xFFFFFFD000000000ULL);
   printk("uart_virt: %llx, uart_phys: %llx\n", uart_virt, uart_phys);
-  create_page_table_entry(uart_virt, uart_phys);
-  create_page_table_entry(uart_phys, uart_phys);
+  boot_create_page_table_entry(uart_virt, uart_phys);
+  boot_create_page_table_entry(uart_phys, uart_phys);
   // if (platform.uart.base != 0) {
   //   /* Map one page containing the UART device */
   //   printk("in platform uart base != 0\n");
