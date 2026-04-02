@@ -233,4 +233,5 @@ void init_page_mapping() {
   printk("Unmapped identity\n");
   update_page_structs_to_vm();
   printk("Updated paging to virtual\n");
+  printk("About to return from init_page_mapping, ra = %llx\n", (uint64_t)__builtin_return_address(0));
 }
