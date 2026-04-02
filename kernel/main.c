@@ -32,9 +32,13 @@ void kmain(void *dtb_ptr) {
 
   init_page_mapping();
 
-  // init_process();
-
   printk("Virtual Memory Enabled and we are still running!\n");
+
+  remove_identity_mapping();
+
+  printk("Identity mapping removed and we are still running!\n");
+
+  // init_process();
 
   arch_wait();
 }

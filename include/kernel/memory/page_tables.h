@@ -23,5 +23,6 @@ void create_page_table_entry(uint64_t va, uint64_t pa);
 void remove_page_table_entry(uint64_t pa);
 
 void init_page_mapping();
+void remove_identity_mapping();
 
 #endif

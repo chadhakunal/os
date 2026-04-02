@@ -192,6 +192,13 @@ void unmap_identity() {
   unmap_region(memory_info.kernel_start, memory_info.kernel_end);
 }
 
+void remove_identity_mapping() {
+  printk("Removing identity mapping...\n");
+  unmap_identity();
+  printk("Identity mapping removed\n");
+  asm volatile("sfence.vma zero, zero" ::: "memory");
+}
+
 void init_page_mapping() {
   if (!root_page_table)
     allocate_root_page_table();
@@ -211,10 +218,6 @@ void init_page_mapping() {
   printk("virt mem enabled\n");
   uint64_t offset = KERNEL_VIRT_OFFSET;
 
-  /* Save return address before we relocate */
-  register uint64_t saved_ra asm("ra");
-  uint64_t old_ra = saved_ra;
-
   asm volatile("la t0, 1f\n"
                "add t0, t0, %[off]\n"
                "jr t0\n"
@@ -233,14 +236,6 @@ void init_page_mapping() {
   printk("after moving kernel\n");
   root_page_table = PHYS_TO_VIRT(root_page_table);
   printk("root_page_table = %llx\n", root_page_table);
-  unmap_identity();
-  printk("Unmapped identity\n");
   update_page_structs_to_vm();
   printk("Updated paging to virtual\n");
-
-  /* Manually return by jumping to relocated return address */
-  uint64_t new_ra = old_ra + offset;
-  printk("Manually returning to %llx\n", new_ra);
-  asm volatile("jr %0" : : "r"(new_ra) : "memory");
-  __builtin_unreachable();
 }
