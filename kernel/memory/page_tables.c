@@ -174,8 +174,9 @@ void map_mmio() {
 }
 
 void map_phys() {
-  boot_map_region(memory_info.total_memory_base, memory_info.total_memory_size,
-             PHYS_VIRTUAL_MEMORY_BASE);
+  boot_map_region(memory_info.total_memory_base,
+                  memory_info.total_memory_base + memory_info.total_memory_size,
+                  PHYS_VIRTUAL_MEMORY_BASE);
 }
 
 void map_kernel() {
