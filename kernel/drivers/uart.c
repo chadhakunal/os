@@ -12,7 +12,7 @@ static char hex_digit(const uint8_t c) {
 volatile uint8_t *uart_get_base(void) {
   /* After virtual memory is enabled, access UART through virtual MMIO address.
      Before that, use physical address directly. */
-  extern int _virtual_memory_enabled;
+  //extern int _virtual_memory_enabled;
 
   if (platform.uart.base == 0) {
     return (volatile uint8_t *)0x10000000; /* fallback default */
