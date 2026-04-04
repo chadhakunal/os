@@ -75,7 +75,7 @@ void kmain(void *dtb_ptr) {
     printk("Got free page at %llx\n", (uint64_t)page);
   }
 
-  for (uint64_t i = 0; i < 10000 i++) {
+  for (uint64_t i = 0; i < 10000; i++) {
     page = free_page((void *)((uint64_t) init_page) + 0x1000 * i);
     printk("freed page at %llx\n", (uint64_t)page);
   }
