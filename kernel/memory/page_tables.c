@@ -193,28 +193,25 @@ void unmap_identity() {
 }
 
 void remove_identity_mapping() {
-  /* Capture return address from ra register at function entry */
-  register uint64_t return_addr;
-  asm volatile("mv %0, ra" : "=r"(return_addr));
-
   printk("Removing identity mapping...\n");
-  printk("Return address in ra = %llx\n", return_addr);
-  printk("KERNEL_VIRT_OFFSET = %llx\n", KERNEL_VIRT_OFFSET);
-  printk("KERNEL_VIRTUAL_MEMORY_BASE = %llx\n", KERNEL_VIRTUAL_MEMORY_BASE);
-  printk("KERNEL_PHYS_BASE = %llx\n", KERNEL_PHYS_BASE);
-
-  /* Calculate relocated return address */
-  uint64_t new_ra = return_addr + KERNEL_VIRT_OFFSET;
-  printk("Relocated RA = %llx\n", new_ra);
 
   unmap_identity();
   printk("unmap_identity returned\n");
 
   asm volatile("sfence.vma zero, zero" ::: "memory");
-  printk("Identity mapping removed\n");
+  printk("sfence done\n");
 
-  /* Manually jump to relocated return address, bypassing normal return */
-  asm volatile("jr %0" : : "r"(new_ra) : "memory");
+  /* Fix return address: load from stack, relocate, and manually return */
+  uint64_t offset = KERNEL_VIRT_OFFSET;
+  asm volatile(
+    "ld t0, 8(sp)\n"           /* Load saved ra from stack */
+    "add t0, t0, %0\n"         /* Add offset to relocate */
+    "ld s0, 0(sp)\n"           /* Restore s0 from stack frame */
+    "addi sp, sp, 16\n"        /* Restore stack pointer */
+    "jr t0\n"                  /* Jump to relocated return address */
+    : : "r"(offset) : "t0", "memory"
+  );
+
   __builtin_unreachable();
 }
 
