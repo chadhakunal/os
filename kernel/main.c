@@ -67,6 +67,9 @@ void kmain(void *dtb_ptr) {
   asm volatile("auipc %0, 0" : "=r"(current_pc));
   printk("PC after function call: %llx\n", current_pc);
 
+  void *page = get_page();
+  printk("Got free page at %llx\n", (uint64_t)page);
+
   // init_process();
 
   arch_wait();
