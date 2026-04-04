@@ -68,7 +68,8 @@ void print_pages_metadata() {
          (uint64_t)pages_metadata.free_page_head->page_frame_id);
 }
 
-void *get_page(bool is_kernel) {
+/* Boot-time version: returns physical address */
+void *boot_get_page(bool is_kernel) {
   page_t *first_free_page = pages_metadata.free_page_head;
   if (first_free_page == NULL) {
     panic("ATTEMPTED TO get_page, RAN OUT OF FREE PAGES");
@@ -79,6 +80,12 @@ void *get_page(bool is_kernel) {
   first_free_page->next_free_page = NULL;
   pages_metadata.pages_in_use++;
   return _get_page_address_from_page(first_free_page);
+}
+
+/* Post-boot version: returns virtual address via PHYS mapping */
+void *get_page(bool is_kernel) {
+  void *page_phys = boot_get_page(is_kernel);
+  return PHYS_TO_VIRT(page_phys);
 }
 
 void *_get_page_address_from_page(page_t *p) {
@@ -94,7 +101,8 @@ page_t *_address_to_page(void *addr) {
   return &pages_metadata.page_list[pfn];
 }
 
-void free_page(void *p) {
+/* Boot-time version: accepts physical address */
+void boot_free_page(void *p) {
   page_t *freed_page = _address_to_page(p);
   if (!freed_page->in_use) {
     panic("DOUBLE FREE DETECTED");
@@ -104,6 +112,12 @@ void free_page(void *p) {
   pages_metadata.pages_in_use--;
   freed_page->next_free_page = pages_metadata.free_page_head;
   pages_metadata.free_page_head = freed_page;
+}
+
+/* Post-boot version: accepts virtual address from PHYS mapping */
+void free_page(void *p) {
+  void *p_phys = VIRT_TO_PHYS(p);
+  boot_free_page(p_phys);
 }
 
 void convert_free_list_to_virtual() {

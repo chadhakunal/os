@@ -13,8 +13,9 @@
 
 page_table_t *root_page_table = NULL;
 
+/* Always returns physical address (PTEs need physical addresses) */
 page_table_t *allocate_page_table() {
-  page_table_t *pt = (page_table_t *)get_page(true);
+  page_table_t *pt = (page_table_t *)boot_get_page(true);
   memset(pt, 0, DEFAULT_PAGE_SIZE);
   return pt;
 };
