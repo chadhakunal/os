@@ -58,6 +58,15 @@ void kmain(void *dtb_ptr) {
 
   printk("Identity mapping removed and we are still running!\n");
 
+  /* Test that function calls work in virtual space */
+  printk("Testing function calls in virtual space...\n");
+  print_memory_info();
+  printk("Function calls work!\n");
+
+  /* Check PC is still in higher-half */
+  asm volatile("auipc %0, 0" : "=r"(current_pc));
+  printk("PC after function call: %llx\n", current_pc);
+
   // init_process();
 
   arch_wait();
