@@ -193,22 +193,26 @@ void unmap_identity() {
 }
 
 void remove_identity_mapping() {
+  /* Capture return address from ra register at function entry */
+  register uint64_t return_addr;
+  asm volatile("mv %0, ra" : "=r"(return_addr));
+
   printk("Removing identity mapping...\n");
+  printk("Return address in ra = %llx\n", return_addr);
 
-  /* Relocate the saved return address on the stack to higher-half */
-  uint64_t saved_ra;
-  asm volatile("ld %0, 8(sp)" : "=r"(saved_ra));
-  printk("Old saved RA = %llx\n", saved_ra);
-
-  uint64_t new_ra = saved_ra + KERNEL_VIRT_OFFSET;
-  asm volatile("sd %0, 8(sp)" : : "r"(new_ra));
-  printk("New saved RA = %llx\n", new_ra);
+  /* Calculate relocated return address */
+  uint64_t new_ra = return_addr + KERNEL_VIRT_OFFSET;
+  printk("Relocated RA = %llx\n", new_ra);
 
   unmap_identity();
   printk("unmap_identity returned\n");
 
   asm volatile("sfence.vma zero, zero" ::: "memory");
   printk("Identity mapping removed\n");
+
+  /* Manually jump to relocated return address, bypassing normal return */
+  asm volatile("jr %0" : : "r"(new_ra) : "memory");
+  __builtin_unreachable();
 }
 
 void init_page_mapping() {
