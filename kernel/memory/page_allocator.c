@@ -116,7 +116,7 @@ void boot_free_page(void *p) {
 
 /* Post-boot version: accepts virtual address from PHYS mapping */
 void free_page(void *p) {
-  void *p_phys = VIRT_TO_PHYS(p);
+  void *p_phys = (void *)VIRT_TO_PHYS(p);
   boot_free_page(p_phys);
 }
 
