@@ -194,9 +194,20 @@ void unmap_identity() {
 
 void remove_identity_mapping() {
   printk("Removing identity mapping...\n");
-  printk("About to call unmap_identity, SP = %llx\n", ({ uint64_t sp; asm("mv %0, sp" : "=r"(sp)); sp; }));
+
+  /* Check what return address is saved on the stack */
+  uint64_t sp, saved_ra;
+  asm volatile("mv %0, sp" : "=r"(sp));
+  asm volatile("ld %0, 8(sp)" : "=r"(saved_ra));
+  printk("SP = %llx, saved RA on stack = %llx\n", sp, saved_ra);
+
   unmap_identity();
   printk("unmap_identity returned\n");
+
+  /* Check RA again after unmapping */
+  asm volatile("ld %0, 8(sp)" : "=r"(saved_ra));
+  printk("After unmap, saved RA = %llx\n", saved_ra);
+
   asm volatile("sfence.vma zero, zero" ::: "memory");
   printk("Identity mapping removed\n");
 }
