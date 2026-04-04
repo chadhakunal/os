@@ -76,7 +76,7 @@ void kmain(void *dtb_ptr) {
   for (int i = 0; i < 10000; i++) {
     page = get_page(true);
     printk("Got free page at %llx\n", (uint64_t)page);
-    printk("free pages: %llx\n", pages_metadata.total_pages - pages_metadata.pages_in_use);
+    printk("free pages: %llu\n", pages_metadata.total_pages - pages_metadata.pages_in_use);
   }
 
   for (uint64_t i = 0; i < 10000; i++) {
