@@ -67,11 +67,17 @@ void kmain(void *dtb_ptr) {
   asm volatile("auipc %0, 0" : "=r"(current_pc));
   printk("PC after function call: %llx\n", current_pc);
 
-  void *page = get_page(true);
+  void *init_page = get_page(true);
+  void *page;
   printk("Got free page at %llx\n", (uint64_t)page);
   for (int i = 0; i < 10000; i++) {
     page = get_page(true);
     printk("Got free page at %llx\n", (uint64_t)page);
+  }
+
+  for (uint64_t i = 0; i < 10000 i++) {
+    page = free_page((void *)((uint64_t) init_page) + 0x1000 * i);
+    printk("freed page at %llx\n", (uint64_t)page);
   }
 
   // init_process();
