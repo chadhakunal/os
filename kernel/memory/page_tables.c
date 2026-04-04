@@ -193,38 +193,10 @@ void unmap_identity() {
 }
 
 void remove_identity_mapping() {
-  /* Check where this function is executing from */
-  uint64_t current_pc;
-  asm volatile("auipc %0, 0" : "=r"(current_pc));
-  printk("remove_identity_mapping executing at PC = %llx\n", current_pc);
-
   printk("Removing identity mapping...\n");
-
   unmap_identity();
-  printk("unmap_identity returned\n");
-
-  /* Check PC again before sfence */
-  asm volatile("auipc %0, 0" : "=r"(current_pc));
-  printk("Before sfence, PC = %llx\n", current_pc);
-
   asm volatile("sfence.vma zero, zero" ::: "memory");
-
-  /* This won't print if we fault */
-  asm volatile("auipc %0, 0" : "=r"(current_pc));
-  printk("After sfence, PC = %llx\n", current_pc);
-
-  /* Fix return address: load from stack, relocate, and manually return */
-  uint64_t offset = KERNEL_VIRT_OFFSET;
-  asm volatile(
-    "ld t0, 8(sp)\n"           /* Load saved ra from stack */
-    "add t0, t0, %0\n"         /* Add offset to relocate */
-    "ld s0, 0(sp)\n"           /* Restore s0 from stack frame */
-    "addi sp, sp, 16\n"        /* Restore stack pointer */
-    "jr t0\n"                  /* Jump to relocated return address */
-    : : "r"(offset) : "t0", "memory"
-  );
-
-  __builtin_unreachable();
+  printk("Identity mapping removed!\n");
 }
 
 void init_page_mapping() {
@@ -259,6 +231,11 @@ void init_page_mapping() {
 
                /* fix stack pointer */
                "add sp, sp, %[off]\n"
+
+               /* fix return address saved on stack */
+               "ld t0, 8(sp)\n"      /* load saved ra */
+               "add t0, t0, %[off]\n" /* relocate it */
+               "sd t0, 8(sp)\n"       /* save back */
 
                :
                : [off] "r"(offset)
