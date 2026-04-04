@@ -17,13 +17,13 @@ volatile uint8_t *uart_get_base(void) {
   if (platform.uart.base == 0) {
     return (volatile uint8_t *)0x10000000; /* fallback default */
   }
-
+  return (volatile uint8_t *)0x10000000;
   /* If virtual memory is enabled, map through MMIO virtual base */
-  if (_virtual_memory_enabled) {
-    uint64_t uart_phys = platform.uart.base & ~0xFFFULL;
-    uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
-    return (volatile uint8_t *)uart_virt;
-  }
+  // if (_virtual_memory_enabled) {
+  //   uint64_t uart_phys = platform.uart.base & ~0xFFFULL;
+  //   uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
+  //   return (volatile uint8_t *)uart_virt;
+  // }
 
   /* Before MMU: use physical address directly */
   return (volatile uint8_t *)platform.uart.base;
