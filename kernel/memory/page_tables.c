@@ -232,11 +232,6 @@ void init_page_mapping() {
                /* fix stack pointer */
                "add sp, sp, %[off]\n"
 
-               /* fix return address saved on stack */
-               "ld t0, 8(sp)\n"      /* load saved ra */
-               "add t0, t0, %[off]\n" /* relocate it */
-               "sd t0, 8(sp)\n"       /* save back */
-
                :
                : [off] "r"(offset)
                : "t0", "memory");
