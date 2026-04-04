@@ -211,9 +211,10 @@ void init_page_mapping() {
   /* Map UART device for MMIO access after MMU is enabled */
   uint64_t uart_phys = (uint64_t)uart_get_base(); /* align to page */
   uart_phys &= ~(DEFAULT_PAGE_SIZE - 1);
-  uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE;
+  uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
+  printk("Mapping UART: virt %llx -> phys %llx\n", uart_virt, uart_phys);
   boot_create_page_table_entry(uart_virt, uart_phys);
-  boot_create_page_table_entry(uart_phys, uart_phys);
+  boot_create_page_table_entry(uart_phys, uart_phys); /* Temporary identity map for boot */
 
   printk("About to enable virtual mem\n");
   enable_virtual_memory((uint64_t)root_page_table);
