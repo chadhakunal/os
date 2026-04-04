@@ -194,9 +194,11 @@ void unmap_identity() {
 
 void remove_identity_mapping() {
   printk("Removing identity mapping...\n");
+  printk("About to call unmap_identity, SP = %llx\n", ({ uint64_t sp; asm("mv %0, sp" : "=r"(sp)); sp; }));
   unmap_identity();
-  printk("Identity mapping removed\n");
+  printk("unmap_identity returned\n");
   asm volatile("sfence.vma zero, zero" ::: "memory");
+  printk("Identity mapping removed\n");
 }
 
 void init_page_mapping() {
@@ -218,6 +220,10 @@ void init_page_mapping() {
   printk("virt mem enabled\n");
   uint64_t offset = KERNEL_VIRT_OFFSET;
 
+  uint64_t old_sp;
+  asm volatile("mv %0, sp" : "=r"(old_sp));
+  printk("Old SP before relocation: %llx\n", old_sp);
+
   asm volatile("la t0, 1f\n"
                "add t0, t0, %[off]\n"
                "jr t0\n"
@@ -231,6 +237,9 @@ void init_page_mapping() {
                : [off] "r"(offset)
                : "t0", "memory");
 
+  uint64_t new_sp;
+  asm volatile("mv %0, sp" : "=r"(new_sp));
+  printk("New SP after relocation: %llx\n", new_sp);
   printk("PC label addr = %llx\n", (uint64_t)&&after_jump);
   after_jump:
   printk("after moving kernel\n");
@@ -238,4 +247,5 @@ void init_page_mapping() {
   printk("root_page_table = %llx\n", root_page_table);
   update_page_structs_to_vm();
   printk("Updated paging to virtual\n");
+  printk("About to return from init_page_mapping\n");
 }
