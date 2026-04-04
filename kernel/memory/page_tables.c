@@ -199,6 +199,9 @@ void remove_identity_mapping() {
 
   printk("Removing identity mapping...\n");
   printk("Return address in ra = %llx\n", return_addr);
+  printk("KERNEL_VIRT_OFFSET = %llx\n", KERNEL_VIRT_OFFSET);
+  printk("KERNEL_VIRTUAL_MEMORY_BASE = %llx\n", KERNEL_VIRTUAL_MEMORY_BASE);
+  printk("KERNEL_PHYS_BASE = %llx\n", KERNEL_PHYS_BASE);
 
   /* Calculate relocated return address */
   uint64_t new_ra = return_addr + KERNEL_VIRT_OFFSET;
