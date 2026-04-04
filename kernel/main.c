@@ -35,8 +35,10 @@ void kmain(void *dtb_ptr) {
 
   printk("Virtual Memory Enabled and we are still running!\n");
 
-  uint64_t current_sp;
+  uint64_t current_sp, current_pc;
   asm volatile("mv %0, sp" : "=r"(current_sp));
+  asm volatile("auipc %0, 0" : "=r"(current_pc));
+  printk("Current PC in kmain: %llx\n", current_pc);
   printk("Current SP in kmain: %llx\n", current_sp);
   printk("Kernel mapped range: %llx to %llx\n",
          KERNEL_VIRTUAL_MEMORY_BASE,
