@@ -69,6 +69,10 @@ void kmain(void *dtb_ptr) {
 
   void *page = get_page(true);
   printk("Got free page at %llx\n", (uint64_t)page);
+  for (int i = 0; i < 10000, i++) {
+    page = get_page(true);
+    printk("Got free page at %llx\n", (uint64_t)page);
+  }
 
   // init_process();
 
