@@ -61,35 +61,6 @@ void kmain(void *dtb_ptr) {
 
   printk("Identity mapping removed and we are still running!\n");
 
-  /* Test that function calls work in virtual space */
-  printk("Testing function calls in virtual space...\n");
-  print_memory_info();
-  printk("Function calls work!\n");
-
-  /* Check PC is still in higher-half */
-  asm volatile("auipc %0, 0" : "=r"(current_pc));
-  printk("PC after function call: %llx\n", current_pc);
-
-  void *init_page = get_page(true);
-  void *page;
-  page = init_page;
-  printk("Got free page at %llx\n", (uint64_t)page);
-
-  // TODO: WE NEED TO CHECK WHY 10000 pages doesnt work ??? and i dont see a panic ??, check how many pages its allocating
-  for (int i = 0; i < 10000; i++) {
-    page = get_page(true);
-    printk("Got free page at %llx\n", (uint64_t)page);
-    printk("free pages: %llu\n", pages_metadata.total_pages - pages_metadata.pages_in_use);
-  }
-
-  for (uint64_t i = 0; i < 10000; i++) {
-    page = (void *)((uint64_t) init_page) + 0x1000 * i;
-    free_page(page);
-    printk("freed page at %llx\n", (uint64_t)page);
-  }
-  printk("Done freeing pages\n");
-  print_pages_metadata();
-
   // init_process();
 
   arch_wait();
