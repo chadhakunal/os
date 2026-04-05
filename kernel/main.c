@@ -88,7 +88,7 @@ void kmain(void *dtb_ptr) {
     printk("freed page at %llx\n", (uint64_t)page);
   }
   printk("Done freeing pages\n");
-  print_memory_info();
+  print_pages_metadata();
 
   // init_process();
 
