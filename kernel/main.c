@@ -8,6 +8,7 @@
 #include "kernel/memory/page_allocator.h"
 #include "kernel/memory/page_tables.h"
 #include "virtual_memory_init.h"
+#include "trap.h"
 
 #include "lib/printk/printk.h"
 
@@ -53,6 +54,8 @@ void kmain(void *dtb_ptr) {
   printk("Kernel mapped range: %llx to %llx\n",
          KERNEL_VIRTUAL_MEMORY_BASE,
          KERNEL_VIRTUAL_MEMORY_BASE + (memory_info.kernel_end - memory_info.kernel_start));
+
+  init_trap_handler();
 
   remove_identity_mapping();
 
