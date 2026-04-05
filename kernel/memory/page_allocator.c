@@ -136,6 +136,5 @@ void convert_free_list_to_virtual() {
 }
 
 void update_page_structs_to_vm() {
-  pages_metadata.page_list = PHYS_TO_VIRT(pages_metadata.page_list);
   convert_free_list_to_virtual();
 }
