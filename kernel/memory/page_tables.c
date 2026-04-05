@@ -13,15 +13,23 @@
 
 page_table_t *root_page_table = NULL;
 
-/* Always returns physical address (PTEs need physical addresses) */
-page_table_t *allocate_page_table() {
+/* Boot-time version: accesses physical address directly */
+page_table_t *boot_allocate_page_table() {
   page_table_t *pt = (page_table_t *)boot_get_page(true);
   memset(pt, 0, DEFAULT_PAGE_SIZE);
   return pt;
-};
+}
+
+/* Post-boot version: accesses via PHYS mapping, returns physical address */
+page_table_t *allocate_page_table() {
+  page_table_t *pt_phys = (page_table_t *)boot_get_page(true);
+  page_table_t *pt_virt = (page_table_t *)PHYS_TO_VIRT(pt_phys);
+  memset(pt_virt, 0, DEFAULT_PAGE_SIZE);
+  return pt_phys;  /* PTEs need physical addresses */
+}
 
 void allocate_root_page_table() {
-  root_page_table = allocate_page_table();
+  root_page_table = boot_allocate_page_table();
   if (!root_page_table)
     panic("FAILED TO ALLOCATE ROOT PAGE TABLE!");
 }
@@ -37,7 +45,7 @@ void boot_create_page_table_entry(uint64_t va, uint64_t pa) {
 
   // Root table (pt1 == root_page_table) is indexed by VPN[2]
   if (root_page_table->page_table_entries[pt1_idx] == 0) {
-    pt2 = allocate_page_table();
+    pt2 = boot_allocate_page_table();
     if (!pt2)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
     root_page_table->page_table_entries[pt1_idx] =
@@ -48,7 +56,7 @@ void boot_create_page_table_entry(uint64_t va, uint64_t pa) {
   }
 
   if (pt2->page_table_entries[pt2_idx] == 0) {
-    pt3 = allocate_page_table();
+    pt3 = boot_allocate_page_table();
     if (!pt3)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
     pt2->page_table_entries[pt2_idx] = PTE_ADDR(pt3) | PTE_VALID | PTE_TABLE;
