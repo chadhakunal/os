@@ -12,7 +12,7 @@ struct pool {
   uint64_t obj_size;
 };
 
-void *pool_alloc(struct pool);
+void *pool_alloc(struct pool *allocating_pool);
 void pool_free(void *obj);
 
 #define DEFINE_POOL(name, type) \
