@@ -2,6 +2,7 @@
 #define POOL_ALLOCATOR_H
 
 #include "types.h"
+#include "kernel/memory/page_allocator.h"
 
 struct pool_node {
   struct pool_node *next;
@@ -13,7 +14,7 @@ struct pool {
 };
 
 void *pool_alloc(struct pool *allocating_pool);
-void pool_free(void *obj);
+void pool_free(struct pool *allocating_pool, void *obj);
 
 #define DEFINE_POOL(name, type) \
   static struct pool name##_pool = { NULL, sizeof(type)}; \
