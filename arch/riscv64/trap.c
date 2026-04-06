@@ -1,6 +1,5 @@
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
-#include "trap_frame.h"
 #include "trap.h"
 
 /* NEVER RETURNS - either calls trap_return() or panic() */

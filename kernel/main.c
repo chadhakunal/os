@@ -60,8 +60,7 @@ void kmain(void *dtb_ptr) {
   remove_identity_mapping();
 
   printk("Identity mapping removed and we are still running!\n");
-  pages_metadata_struct_t* test = (void *)0x00004000;
-  printk("%llx\n",test->total_pages);
+
   // init_process();
 
   arch_wait();
