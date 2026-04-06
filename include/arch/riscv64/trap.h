@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-typedef struct trap_frame {
+struct trap_frame {
   /* General purpose registers */
   uint64_t ra;   // x1  - return address
   uint64_t sp;   // x2  - stack pointer
@@ -42,15 +42,15 @@ typedef struct trap_frame {
   uint64_t sstatus; // Status register
   uint64_t stval;   // Bad address or instruction
   uint64_t scause;  // Trap cause
-} trap_frame_t;
+};
 
 void init_trap_handler(void);
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
-void trap_handler(trap_frame_t *tf);
+void trap_handler(struct trap_frame *tf);
 
 /* Restore CPU state from trap frame and return to interrupted execution
  * NEVER RETURNS - does sret */
-void trap_return(trap_frame_t *tf) __attribute__((noreturn));
+void trap_return(struct trap_frame *tf) __attribute__((noreturn));
 
 #endif

@@ -3,7 +3,7 @@
 #include "trap.h"
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
-void trap_handler(trap_frame_t *tf) {
+void trap_handler(struct trap_frame *tf) {
   printk("\n=== TRAP ===\n");
   printk("scause:  %llx\n", tf->scause);
   printk("sepc:    %llx\n", tf->sepc);
