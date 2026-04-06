@@ -1,4 +1,4 @@
-#include "pool_allocator.h"
+#include "lib/pool_allocator.h"
 #include "kernel/memory/page_allocator.h"
 
 void *pool_alloc(struct pool *allocating_pool) {
