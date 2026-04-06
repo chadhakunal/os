@@ -12,7 +12,7 @@ void *pool_alloc(struct pool *allocating_pool) {
         pn->next = NULL;
       } else {
         pn->next = allocating_pool->free_list;
-        allocating_pool->pool_node = pn;
+        allocating_pool->free_list = pn;
       }
     }
   }
