@@ -9,9 +9,9 @@ void *pool_alloc(struct pool *allocating_pool) {
       struct pool_node *pn = (struct pool_node *) free_page + (i + allocating_pool->obj_size);
       if (allocating_pool->free_list == NULL) {
         allocating_pool->free_list = pn;
-        pool_node->next = NULL;
+        pn->next = NULL;
       } else {
-        pool_node->next = allocating_pool->free_list;
+        pn->next = allocating_pool->free_list;
         allocating_pool->pool_node = pn;
       }
     }
