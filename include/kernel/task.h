@@ -1,7 +1,7 @@
 #ifndef KERNEL_TASK
 #define KERNEL_TASK
 
-#include "trap"
+#include "trap.h"
 
 struct task_struct {
   trap_frame tf;
