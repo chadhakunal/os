@@ -2,6 +2,7 @@
 #define KERNEL_TASK
 
 #include "trap.h"
+#include "lib/pool_allocator.h"
 
 struct task_struct {
   struct trap_frame tf;
