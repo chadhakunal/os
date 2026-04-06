@@ -19,7 +19,7 @@ void pool_free(struct pool *allocating_pool, void *obj);
 #define DEFINE_POOL(name, type) \
   static struct pool name##_pool = { NULL, sizeof(type)}; \
   \
-  static inline type *name##_alloc(&name##_pool) { \
+  static inline type *name##_alloc() { \
     return (type *)pool_alloc(&name##_pool); \
   }; \
   \
