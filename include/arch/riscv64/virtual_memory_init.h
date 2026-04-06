@@ -91,6 +91,10 @@
 #define PHYS_TO_VIRT(pa) ((void *)((uint64_t)(pa) - PHYS_MEMORY_BASE + PHYS_VIRTUAL_MEMORY_BASE))
 #define VIRT_TO_PHYS(va) ((uint64_t)(va) - PHYS_VIRTUAL_MEMORY_BASE + PHYS_MEMORY_BASE)
 
+/* MMIO_PHYS_TO_VIRT: Convert MMIO device physical address to virtual address
+ * in the MMIO virtual memory region */
+#define MMIO_PHYS_TO_VIRT(pa) ((void *)((uint64_t)(pa) + MMIO_VIRTUAL_MEMORY_BASE))
+
 void enable_virtual_memory(uint64_t addr);
 
 #endif

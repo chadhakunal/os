@@ -12,21 +12,21 @@ static char hex_digit(const uint8_t c) {
 volatile uint8_t *uart_get_base(void) {
   /* After virtual memory is enabled, access UART through virtual MMIO address.
      Before that, use physical address directly. */
-  //extern int _virtual_memory_enabled;
+  extern int _virtual_memory_enabled;
 
-  if (platform.uart.base == 0) {
-    return (volatile uint8_t *)0x10000000; /* fallback default */
+  uint64_t uart_phys = platform.uart.base;
+  if (uart_phys == 0) {
+    uart_phys = 0x10000000; /* fallback default */
   }
-  return (volatile uint8_t *)0x10000000;
+
   /* If virtual memory is enabled, map through MMIO virtual base */
-  // if (_virtual_memory_enabled) {
-  //   uint64_t uart_phys = platform.uart.base & ~0xFFFULL;
-  //   uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
-  //   return (volatile uint8_t *)uart_virt;
-  // }
+  if (_virtual_memory_enabled) {
+    uint64_t uart_phys_aligned = uart_phys & ~0xFFFULL;
+    return (volatile uint8_t *)MMIO_PHYS_TO_VIRT(uart_phys_aligned);
+  }
 
   /* Before MMU: use physical address directly */
-  return (volatile uint8_t *)platform.uart.base;
+  return (volatile uint8_t *)uart_phys;
 }
 
 void uart_putc(const char c) {

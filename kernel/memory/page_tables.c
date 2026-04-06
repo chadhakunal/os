@@ -221,7 +221,6 @@ void init_page_mapping() {
   uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
   printk("Mapping UART: virt %llx -> phys %llx\n", uart_virt, uart_phys);
   boot_create_page_table_entry(uart_virt, uart_phys);
-  boot_create_page_table_entry(uart_phys, uart_phys); /* Temporary identity map for boot */
 
   printk("About to enable virtual mem\n");
   enable_virtual_memory((uint64_t)root_page_table);
