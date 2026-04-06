@@ -23,7 +23,7 @@ void pool_free(struct pool *allocating_pool, void *obj);
     return (type *)pool_alloc(&name##_pool); \
   }; \
   \
-  static inline name##_free(type *freeing_obj) { \
+  static inline void name##_free(type *freeing_obj) { \
     pool_free(&name##_pool, (void *)freeing_obj); \
   };
 
