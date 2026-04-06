@@ -4,7 +4,7 @@
 #include "trap.h"
 
 struct task_struct {
-  trap_frame tf;
+  struct trap_frame tf;
   void *kernel_stack;
   struct page_table_t *root_page_table;
   uint64_t pid;
