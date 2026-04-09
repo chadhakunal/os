@@ -1,6 +1,7 @@
 #ifndef SYSCALL_MACROS_H
 #define SYSCALL_MACROS_H
 
+#include "types.h"
 // tx = type of arg x
 // nx = name of arg x
 //

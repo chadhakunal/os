@@ -1,5 +1,8 @@
 #ifndef SYSCALLS_H
 #define SYSCALLS_H
+
+#include "types.h"
+
 #pragma once
 
 // RISC-V Linux syscall numbers

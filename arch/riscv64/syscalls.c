@@ -3,6 +3,7 @@
 #include "kernel/syscalls/read.h"
 #include "kernel/syscalls/write.h"
 #include "kernel/syscalls/open.h"
+#include "types.h"
 
 // a7:    syscall number
 // a0:    arg1 / return value
