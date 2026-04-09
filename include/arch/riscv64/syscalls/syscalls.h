@@ -2,6 +2,7 @@
 #define SYSCALLS_H
 
 #include "types.h"
+#include "trap.h"
 
 #pragma once
 
