@@ -1,6 +1,7 @@
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
 #include "trap.h"
+#include "syscalls.h"
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
 void trap_handler(struct trap_frame *tf) {
@@ -18,7 +19,6 @@ void trap_handler(struct trap_frame *tf) {
   } else {
     printk("Exception: ");
   }
-
   switch (cause_code) {
     case 0:  printk("Instruction address misaligned\n"); break;
     case 1:  printk("Instruction access fault\n"); break;
@@ -28,7 +28,10 @@ void trap_handler(struct trap_frame *tf) {
     case 5:  printk("Load access fault\n"); break;
     case 6:  printk("Store address misaligned\n"); break;
     case 7:  printk("Store access fault\n"); break;
-    case 8:  printk("Environment call from U-mode\n"); break;
+    case 8:
+      printk("Environment call from U-mode\n");
+      handle_syscall(tf);
+      break;
     case 9:  printk("Environment call from S-mode\n"); break;
     case 12: printk("Instruction page fault\n"); break;
     case 13: printk("Load page fault\n"); break;
