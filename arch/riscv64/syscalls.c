@@ -91,4 +91,5 @@ void handle_syscall(struct trap_frame *tf) {
 
   /* Advance PC past the ecall instruction */
   tf->sepc += 4;
+  tf->a0 = ret;
 }
