@@ -1,4 +1,4 @@
-#include "syscalls.h"
+#include "syscalls/syscalls.h"
 #include "lib/printk/printk.h"
 #include "kernel/syscalls/read.h"
 #include "kernel/syscalls/write.h"
