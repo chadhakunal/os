@@ -1,8 +1,5 @@
 #include "syscalls/syscalls.h"
 #include "lib/printk/printk.h"
-#include "kernel/syscalls/read.h"
-#include "kernel/syscalls/write.h"
-#include "kernel/syscalls/open.h"
 #include "types.h"
 
 // a7:    syscall number
