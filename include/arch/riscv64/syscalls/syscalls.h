@@ -24,8 +24,9 @@
 
 void handle_syscall(struct trap_frame *tf);
 
-uint64_t openat(const char *path, uint64_t flags, uint64_t mode);
-uint64_t read(uint64_t fd, void *buf, uint64_t size);
-uint64_t write(uint64_t fd, void *buff, uint64_t count);
+/* Syscall implementations */
+uint64_t sys_openat(struct trap_frame *tf);
+uint64_t sys_read(struct trap_frame *tf);
+uint64_t sys_write(struct trap_frame *tf);
 
 #endif
