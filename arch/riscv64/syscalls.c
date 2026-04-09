@@ -20,7 +20,6 @@ void handle_syscall(struct trap_frame *tf) {
     case SYS_read:
       printk("syscall: read(fd=%llu, buf=%llx, count=%llu)\n", tf->a0, tf->a1, tf->a2);
       tf->a0 = -1; // TODO: implement
-      read
       break;
 
     case SYS_write:
