@@ -1,7 +1,7 @@
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
 #include "trap.h"
-#include "syscalls.h"
+#include "syscalls/syscalls.h"
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
 void trap_handler(struct trap_frame *tf) {
