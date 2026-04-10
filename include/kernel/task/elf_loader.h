@@ -6,7 +6,7 @@
 enum Elf_types {
   ET_EXEC,
   ET_DYN
-}
+};
 
 struct elf_program_entry {
   uint64_t p_flags;
@@ -16,7 +16,7 @@ struct elf_program_entry {
   uint64_t p_filesz;
   uint64_t p_memsz;
   uint64_t p_align;
-}
+};
 
 struct elf_file {
   uint64_t e_phoff;
@@ -24,7 +24,7 @@ struct elf_file {
   uint64_t e_entry;
   enum Elf_types e_type;
   struct elf_program_entry *entries;
-}
+};
 
 struct elf_file *parse_elf_file(void *elf_file_start);
 
