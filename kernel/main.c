@@ -7,6 +7,7 @@
 #include "kernel/memory/memory_info.h"
 #include "kernel/memory/page_allocator.h"
 #include "kernel/memory/page_tables.h"
+#include "kernel/task/elf_loader.h"
 #include "virtual_memory_init.h"
 #include "trap.h"
 
@@ -62,6 +63,7 @@ void kmain(void *dtb_ptr) {
   printk("Identity mapping removed and we are still running!\n");
 
   // init_process();
+  struct elf_file *parsed = parse_elf_file((void *)0x000001);
 
   arch_wait();
 }
