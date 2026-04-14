@@ -41,7 +41,7 @@ struct superblock_t {
 
 struct mount_t {
   char root_path[256];
-  struct superblock_t superblock;
+  struct superblock_t *superblock;
   struct mount_t *next_mount;
 };
 
