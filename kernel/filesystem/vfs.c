@@ -1,6 +1,6 @@
 #include "kernel/filesystem/vfs.h"
 
-extern struct mount_t *base_mount = {0};
+struct mount_t *base_mount = NULL;
 
 void vfs_mount(char *path, struct superblock_t *superblock) {
   /*
@@ -20,6 +20,7 @@ void vfs_init() {
   *
   *
   */
-  extern struct mount_t *base_mount = mount_t_alloc();
-  base_mount->root_path = '/';
+  base_mount = mount_t_alloc();
+  base_mount->root_path[0] = '/';
+  base_mount->root_path[1] = '\0';
 }
