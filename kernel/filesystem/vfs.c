@@ -23,4 +23,6 @@ void vfs_init() {
   base_mount = mount_t_alloc();
   base_mount->root_path[0] = '/';
   base_mount->root_path[1] = '\0';
+  base_mount->superblock = tarfs_mount((void *) _tarfs_start, (uint64_t) _tarfs_size);
+  base_mount->next_mount = base_mount;
 }
