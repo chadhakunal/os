@@ -113,7 +113,7 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
   root_vnode->last_child_dentry = NULL;
   root_vnode->fs_private_vnode = (void *)root_tarfs_vnode;
 
-  struct dentry_t *root_dentry = alloc_dentry_t();
+  struct dentry_t *root_dentry = dentry_t_alloc();
   strncpy(root_dentry->name, "/", 256);
   root_dentry->vnode = root_vnode;
   root_dentry->parent = root_dentry;
