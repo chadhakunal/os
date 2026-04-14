@@ -31,7 +31,7 @@ inline struct dentry_t *search_children_and_create(const char* name, struct dent
 void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vnode, struct dentry_t *root_dentry, struct tar_header *header, uint32_t *last_id) {
   struct vnode_t *curr_vnode = root_vnode;
   struct dentry_t *curr_dentry = root_dentry;
-  char *current_path = path;
+  const char *current_path = path;
   char current_name[256];
   int name_len = str_tok(&current_path, current_name, '/', 256);
   // The first read will be '/' for the root path
