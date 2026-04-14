@@ -18,7 +18,7 @@ struct mount_t {
   char root_path[256];
   struct superblock_t superblock;
   struct mount_t *next_mount;
-}
+};
 
 struct superblock_t {
   struct fs_ops_t *ops;
@@ -26,7 +26,7 @@ struct superblock_t {
   struct dentry_t *root_dentry;
   uint64_t block_size;
   char device[32]; // Will probably just be tarfs or virtio block
-}
+};
 
 struct vnode_t {
   uint64_t size;
@@ -39,7 +39,7 @@ struct vnode_t {
   struct dentry_t *first_child_dentry; // points to the first dentry in a linked list only if the inode is a directory
   struct dentry_t *last_child_dentry;
   void *fs_private_vnode;
-}
+};
 
 struct dentry_t {
   char name[256];
@@ -47,11 +47,7 @@ struct dentry_t {
 
   struct dentry_t *parent;
   struct dentry_t *sibling_dentry;
-}
-
-struct fs_ops_t {
-  
-}
+};
 
 DEFINE_POOL(mount_t, struct mount_t)
 DEFINE_POOL(superblock_t, struct superblock_t)
@@ -62,6 +58,6 @@ void vfs_init();
 
 void vfs_mount(char *path, struct superblock_t *superblock);
 
-struct dentry_t *vfs_get_or_create_dentry(struct vnode_t *root_vnode)
+struct dentry_t *vfs_get_or_create_dentry(struct vnode_t *root_vnode);
 
 #endif
