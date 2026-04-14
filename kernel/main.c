@@ -9,6 +9,7 @@
 #include "kernel/memory/page_tables.h"
 #include "kernel/task/elf_loader.h"
 #include "virtual_memory_init.h"
+#include "kernel/filesystem/vfs.h"
 #include "trap.h"
 
 #include "lib/printk/printk.h"
@@ -64,6 +65,6 @@ void kmain(void *dtb_ptr) {
 
   // init_process();
   //struct elf_file *parsed = parse_elf_file((void *)0x000001);
-
+  vfs_init();
   arch_wait();
 }
