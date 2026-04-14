@@ -1,4 +1,5 @@
 #include "kernel/filesystem/vfs.h"
+#include "kernel/filesystem/tarfs/tarfs.h"
 
 struct mount_t *base_mount = NULL;
 
