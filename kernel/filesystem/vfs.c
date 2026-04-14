@@ -1,5 +1,7 @@
 #include "kernel/filesystem/vfs.h"
 
+extern struct mount_t *base_mount = {0};
+
 void vfs_mount(char *path, struct superblock_t *superblock) {
   /*
   * to mount an fs, we need to walk the path first
