@@ -54,6 +54,4 @@ void vfs_init();
 
 void vfs_mount(char *path, struct superblock_t *superblock);
 
-struct dentry_t *vfs_get_or_create_dentry(struct vnode_t *root_vnode);
-
 #endif

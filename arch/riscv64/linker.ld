@@ -13,6 +13,7 @@ SECTIONS
     _kernel_start = .;
 
     .text : {
+        *(.text.init)
         *(.text)
         *(.text.*)
     } :text
@@ -27,6 +28,10 @@ SECTIONS
         *(.data.*)
         *(.sdata)
         *(.sdata.*)
+    } :data
+
+    .tarfs : {
+        *(.tarfs)
     } :data
 
     .bss (NOLOAD) : {
