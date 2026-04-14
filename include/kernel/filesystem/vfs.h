@@ -7,11 +7,6 @@
 
 #define MAX_DENTRIES 256
 
-struct mount_t;
-struct superblock_t;
-struct vnode_t;
-struct dentry_t;
-
 extern struct mount_t *base_mount;
 
 struct mount_t {
