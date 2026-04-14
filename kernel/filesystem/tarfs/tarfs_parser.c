@@ -20,14 +20,6 @@ struct dentry_t *search_children(const char *name, struct dentry_t *first_dentry
   return NULL;
 }
 
-inline struct dentry_t *search_children_and_create(const char* name, struct dentry_t *first_dentry) {
-  struct dentry_t *found_dentry = search_children(name, first_dentry);
-  if (found_dentry == NULL) {
-    struct dentry_t *new_dentry = dentry_t_alloc();
-    strncpy(new_dentry->name, name, 256);
-  }
-}
-
 void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vnode, struct dentry_t *root_dentry, struct tar_header *header, uint32_t *last_id) {
   struct vnode_t *curr_vnode = root_vnode;
   struct dentry_t *curr_dentry = root_dentry;

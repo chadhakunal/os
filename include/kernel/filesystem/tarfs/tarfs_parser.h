@@ -2,6 +2,7 @@
 #define TARFS_PARSER_H
 
 #include "kernel/filesystem/tarfs/tarfs.h"
+#include "kernel/filesystem/vfs.h"
 
 #define TAR_TYPE_FILE     '0'
 #define TAR_TYPE_HARDLINK '1'
@@ -31,7 +32,7 @@ struct tar_header {
   char padding[12];
 };
 
-struct tarfs_vnode *parse_tar(void *data, uint64_t size);
+struct vnode_t *parse_tar(void *data, uint64_t size);
 
 static inline bool tar_is_dir(struct tar_header *header) {
   return header->typeflag == TAR_TYPE_DIR;
