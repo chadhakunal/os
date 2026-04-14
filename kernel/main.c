@@ -63,7 +63,7 @@ void kmain(void *dtb_ptr) {
   printk("Identity mapping removed and we are still running!\n");
 
   // init_process();
-  struct elf_file *parsed = parse_elf_file((void *)0x000001);
+  //struct elf_file *parsed = parse_elf_file((void *)0x000001);
 
   arch_wait();
 }
