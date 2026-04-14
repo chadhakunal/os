@@ -66,5 +66,6 @@ void kmain(void *dtb_ptr) {
   // init_process();
   //struct elf_file *parsed = parse_elf_file((void *)0x000001);
   vfs_init();
+  printk("Mounted tarfs?");
   arch_wait();
 }
