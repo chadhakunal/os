@@ -6,7 +6,7 @@
 #include "lib/pool_allocator.h"
 
 struct tarfs_vnode_t {
-  void *data_start;
+  void *data;
 };
 
 DEFINE_POOL(tarfs_vnode_t, struct tarfs_vnode_t)
