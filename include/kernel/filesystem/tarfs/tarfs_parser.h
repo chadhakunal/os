@@ -32,7 +32,7 @@ struct tar_header {
   char padding[12];
 };
 
-struct vnode_t *parse_tar(void *data, uint64_t size);
+struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb) {
 
 static inline bool tar_is_dir(struct tar_header *header) {
   return header->typeflag == TAR_TYPE_DIR;
