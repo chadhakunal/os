@@ -9,18 +9,13 @@
 
 extern struct mount_t *base_mount;
 
-struct mount_t {
-  char root_path[256];
-  struct superblock_t superblock;
-  struct mount_t *next_mount;
-};
 
-struct superblock_t {
-  struct fs_ops_t *ops;
-  struct vnode_t *root_vnode;
-  struct dentry_t *root_dentry;
-  uint64_t block_size;
-  char device[32]; // Will probably just be tarfs or virtio block
+struct dentry_t {
+  char name[256];
+  struct vnode_t *vnode;
+
+  struct dentry_t *parent;
+  struct dentry_t *sibling_dentry;
 };
 
 struct vnode_t {
@@ -36,12 +31,18 @@ struct vnode_t {
   void *fs_private_vnode;
 };
 
-struct dentry_t {
-  char name[256];
-  struct vnode_t *vnode;
+struct superblock_t {
+  struct fs_ops_t *ops;
+  struct vnode_t *root_vnode;
+  struct dentry_t *root_dentry;
+  uint64_t block_size;
+  char device[32]; // Will probably just be tarfs or virtio block
+};
 
-  struct dentry_t *parent;
-  struct dentry_t *sibling_dentry;
+struct mount_t {
+  char root_path[256];
+  struct superblock_t superblock;
+  struct mount_t *next_mount;
 };
 
 DEFINE_POOL(mount_t, struct mount_t)
