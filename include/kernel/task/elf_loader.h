@@ -4,8 +4,8 @@
 #include "lib/pool_allocator.h"
 
 enum Elf_types {
-  ET_EXEC,
-  ET_DYN
+  ET_EXEC = 2,  // Executable file
+  ET_DYN = 3    // Shared object / PIE
 };
 
 struct elf_program_entry {

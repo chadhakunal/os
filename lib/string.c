@@ -47,3 +47,37 @@ int strneq_prefix(const char *s1, const char *s2, int n) {
     return 1;
 }
 
+uint64_t parse_octal(const char *str, uint64_t max_len) {
+    uint64_t value = 0;
+
+    for (uint64_t i = 0; i < max_len && str[i] != '\0' && str[i] != ' '; i++) {
+        if (str[i] == ' ') continue;
+        if (str[i] < '0' || str[i] > '7') break;
+        value = (value * 8) + (str[i] - '0');
+    }
+
+    return value;
+}
+
+int str_tok(const char **src, char *dst, char delim, int max_len) {
+    const char *s = *src;
+    int i = 0;
+
+    while (i < max_len - 2 && s[i] != '\0' && s[i] != delim) {
+        dst[i] = s[i];
+        i++;
+    }
+
+    if (s[i] == delim) {
+        dst[i] = delim;
+        i++;
+        *src = &s[i];
+    } else {
+        *src = &s[i];
+    }
+
+    dst[i] = '\0';
+
+    return i;
+}
+

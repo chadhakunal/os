@@ -1,3 +1,4 @@
+OUTPUT_ARCH(riscv)
 ENTRY(_start)
 
 PHDRS
@@ -12,23 +13,35 @@ SECTIONS
     _kernel_start = .;
 
     .text : {
-        *(.text*)
+        *(.text)
+        *(.text.*)
     } :text
 
     .rodata : {
-        *(.rodata*)
+        *(.rodata)
+        *(.rodata.*)
     } :text
 
     .data : {
-        *(.data*)
+        *(.data)
+        *(.data.*)
+        *(.sdata)
+        *(.sdata.*)
     } :data
 
-    .bss : {
+    .bss (NOLOAD) : {
         __bss_start = .;
-        *(.bss*)
+        *(.bss)
+        *(.bss.*)
+        *(.sbss)
+        *(.sbss.*)
         *(COMMON)
         __bss_end = .;
     } :data
+
+    . = ALIGN(16);
+    . += 16384;
+    _stack_top = .;
 
     _end = .;
 }

@@ -9,4 +9,10 @@ void strncpy(char *dst, const char *src, int n);
 int strncmp(const char* s1, const char* s2);
 int strneq_prefix(const char *s1, const char *s2, int n);
 
+/* Parse an octal string to uint64_t (for tar format) */
+uint64_t parse_octal(const char *str, uint64_t max_len);
+
+/* Extract token before delimiter, advance src pointer past delimiter */
+int str_tok(const char **src, char *dst, char delim, int max_len);
+
 #endif
