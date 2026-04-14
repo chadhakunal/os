@@ -18,6 +18,6 @@ void vfs_init() {
   *
   *
   */
-  extern mount_t *base_mount = mount_t_alloc();
+  extern struct mount_t *base_mount = mount_t_alloc();
   base_mount->root_path = '/';
 }
