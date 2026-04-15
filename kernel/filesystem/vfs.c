@@ -77,7 +77,7 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_
     panic("vfs_lookup: parent_dir is NULL\n");
   }
   printk("vfs_lookup: parent_dir name: %s\n", parent_dir->name);
-  printk("vfs_lookup: parent_dir permisson_bits: %lld, is_dir: %lld\n", parent_dir->vnode->permission_mode, PERM_IS_DIR);
+  printk("vfs_lookup: parent_dir permisson_bits: %lld, is_dir: %lld, all_perms: %lld\n", parent_dir->vnode->permission_mode, PERM_IS_DIR, READ_EXECUTE_PERM | PERM_IS_DIR);
 
   if (!IS_DIR(parent_dir->vnode->permission_mode)) {
     panic("vfs_lookup: parent_dir is not a directory\n");
