@@ -52,7 +52,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         new_vnode->refcount = 1;
         new_vnode->owner_uid = 0;
         new_vnode->owner_gid = 0;
-        new_vnode->permission_mode = READ_EXECUTE_PERM;
+        new_vnode->permission_mode = READ_EXECUTE_PERM | PERM_IS_DIR;
         new_dentry->vnode = new_vnode;
         new_vnode->first_child_dentry = NULL;
         new_vnode->last_child_dentry = NULL;
@@ -107,7 +107,7 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
   root_vnode->refcount = 1;
   root_vnode->owner_uid = 0;
   root_vnode->owner_gid = 0;
-  root_vnode->permission_mode = READ_EXECUTE_PERM;
+  root_vnode->permission_mode = READ_EXECUTE_PERM | PERM_IS_DIR;
   root_vnode->superblock = sb;
   root_vnode->first_child_dentry = NULL;
   root_vnode->last_child_dentry = NULL;

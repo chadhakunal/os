@@ -67,5 +67,8 @@ void kmain(void *dtb_ptr) {
   //struct elf_file *parsed = parse_elf_file((void *)0x000001);
   vfs_init();
   printk("Mounted tarfs?");
+  struct dentry_t *target;
+  vfs_resolve_path("/bin");
+  printk("name %s\n", target->name);
   arch_wait();
 }

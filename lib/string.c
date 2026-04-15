@@ -81,3 +81,30 @@ int str_tok(const char **src, char *dst, char delim, int max_len) {
     return i;
 }
 
+int str_tok_no_delim(const char **src, char *dst, char delim, int max_len) {
+    const char *s = *src;
+    int i = 0;
+
+    while (i < max_len - 1 && s[i] != '\0' && s[i] != delim) {
+        dst[i] = s[i];
+        i++;
+    }
+
+    dst[i] = '\0';
+
+    if (s[i] == delim) {
+        *src = &s[i + 1];
+    } else {
+        *src = &s[i];
+    }
+
+    return i;
+}
+
+int str_len(const char *src, uint64_t max_len) {
+    int len = 0;
+    while (len < max_len && src[len] != '\0') {
+        len++;
+    }
+    return len;
+}

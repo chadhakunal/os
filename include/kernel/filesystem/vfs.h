@@ -9,7 +9,6 @@
 
 extern struct mount_t *base_mount;
 
-
 struct dentry_t {
   char name[256];
   struct vnode_t *vnode;
@@ -53,5 +52,9 @@ DEFINE_POOL(dentry_t, struct dentry_t)
 void vfs_init();
 
 void vfs_mount(char *path, struct superblock_t *superblock);
+
+int32_t vfs_resolve_path(const char *path, struct dentry_t **out);
+
+int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_t **out);
 
 #endif
