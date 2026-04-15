@@ -4,7 +4,7 @@
 #include "lib/printk/printk.h"
 #include "panic.h"
 
-struct mount_t *base_mount = NULL;
+struct mount_t *baseprintk/_mount = NULL;
 
 void vfs_mount(char *path, struct superblock_t *superblock) {
   /*
@@ -75,6 +75,7 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_
   if (parent_dir == NULL) {
     panic("vfs_lookup: parent_dir is NULL\n");
   }
+  printk("vfs_lookup: parent_dir name: %s\n", parent_dir->name);
 
   if (!IS_DIR(parent_dir->vnode->permission_mode)) {
     panic("vfs_lookup: parent_dir is not a directory\n");
