@@ -31,8 +31,8 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
   // The first read will be '/' for the root path
   while (name_len > 0) {
     name_len = str_tok(&current_path, current_name, '/', 256);
+    printk("parsing, directory name: %s for path %s\n", current_name, current_path);
     if (current_name[name_len-1] == '/' || tar_is_dir(header)) {
-      printk("parsing, directory name: %s\n", current_name);
       // This is a directory!
       struct dentry_t *new_dentry = search_children(current_name, curr_vnode->first_child_dentry);
       if (new_dentry == NULL) {
