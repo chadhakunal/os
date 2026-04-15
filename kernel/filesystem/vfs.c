@@ -103,7 +103,24 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_
       *out = dentry;
       return 0;
     }
-  } while (child_dentry != dentry);
+  } while (dentry != child_dentry);
   *out = NULL;
   return -1;
+}
+
+void vfs_print_vnode(struct vnode_t *vnode) {
+  if (vnode == NULL) {
+    printk("[vnode: NULL]\n");
+    return;
+  }
+  printk("[vnode id=%d, size=%lld, refcount=%d, uid=%d, gid=%d, mode=0x%x%s, first_child=%p, fs_private=%p]\n",
+         vnode->id,
+         vnode->size,
+         vnode->refcount,
+         vnode->owner_uid,
+         vnode->owner_gid,
+         vnode->permission_mode,
+         IS_DIR(vnode->permission_mode) ? " (DIR)" : "",
+         vnode->first_child_dentry,
+         vnode->fs_private_vnode);
 }
