@@ -70,6 +70,7 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
 }
 
 int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_t **out) {
+  printk("vfs_lookup: Looking up %s\n", name);
   if (parent_dir == NULL) {
     panic("vfs_lookup: parent_dir is NULL\n");
   }
