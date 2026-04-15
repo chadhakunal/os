@@ -72,5 +72,9 @@ void kmain(void *dtb_ptr) {
   printk("dentry addr: %llx\n", target);
   vfs_print_dentry(target);
   printk("Resolved Name %s\n", target->name);
+  vfs_resolve_path("/bin/echo", &target);
+  printk("dentry addr: %llx\n", target);
+  vfs_print_dentry(target);
+  printk("Resolved Name %s\n", target->name);
   arch_wait();
 }
