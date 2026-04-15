@@ -99,10 +99,13 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_
   }
   struct dentry_t *dentry = child_dentry;
   do {
+    printk("  vfs_lookup: checking dentry at %p\n", dentry);
+    vfs_print_dentry(dentry);
     if (strncmp(dentry->name, name) == 0) {
       *out = dentry;
       return 0;
     }
+    dentry = dentry->sibling_dentry;
   } while (dentry != child_dentry);
   *out = NULL;
   return -1;
