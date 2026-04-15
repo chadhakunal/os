@@ -23,7 +23,7 @@ typedef uint32_t mode_t;
 #define PERM_XOTH  0000001  /* Execute permission, other */
 #define PERM_RWXO  0000007  /* Read, write, execute - other */
 
-#define PERM_IS_DIR 1000000 /* The vnode is a directory */
+#define PERM_IS_DIR 01000000 /* The vnode is a directory */
 
 #define IS_DIR(mode) ((mode & PERM_IS_DIR) != 0)
 

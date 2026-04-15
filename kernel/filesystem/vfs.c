@@ -3,6 +3,7 @@
 #include "lib/string.h"
 #include "lib/printk/printk.h"
 #include "panic.h"
+#include "kernel/filesystem/mode.h"
 
 struct mount_t *base_mount = NULL;
 
@@ -76,6 +77,7 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_
     panic("vfs_lookup: parent_dir is NULL\n");
   }
   printk("vfs_lookup: parent_dir name: %s\n", parent_dir->name);
+  printk("vfs_lookup: parent_dir permisson_bits: %lld, is_dir: %lld\n", parent_dir->vnode->permission_mode, PERM_IS_DIR);
 
   if (!IS_DIR(parent_dir->vnode->permission_mode)) {
     panic("vfs_lookup: parent_dir is not a directory\n");
