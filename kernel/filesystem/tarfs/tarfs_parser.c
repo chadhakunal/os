@@ -36,6 +36,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
       // This is a directory!
       struct dentry_t *new_dentry = search_children(current_name, curr_vnode->first_child_dentry);
       if (new_dentry == NULL) {
+        printk("Creating new dentry with name: %s\n", current_name);
         new_dentry = dentry_t_alloc();
         strncpy(new_dentry->name, current_name, 256);
         new_dentry->parent = curr_dentry;
@@ -65,6 +66,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
       curr_dentry = new_dentry;
     } else {
       // This is the actual file
+      printk("Creating new dentry for file: %s\n", current_name);
       struct dentry_t *new_dentry = search_children(current_name, curr_vnode->first_child_dentry);
       if (new_dentry == NULL) {
         new_dentry = dentry_t_alloc();
