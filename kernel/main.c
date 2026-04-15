@@ -70,5 +70,6 @@ void kmain(void *dtb_ptr) {
   struct dentry_t *target;
   vfs_resolve_path("/bin", &target);
   printk("Resolved Name %s\n", target->name);
+  vfs_print_dentry(target);
   arch_wait();
 }

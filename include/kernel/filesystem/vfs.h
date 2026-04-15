@@ -58,5 +58,6 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out);
 int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_t **out);
 
 void vfs_print_vnode(struct vnode_t *vnode);
+void vfs_print_dentry(struct dentry_t *dentry);
 
 #endif
