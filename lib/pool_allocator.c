@@ -6,7 +6,7 @@ void *pool_alloc(struct pool *allocating_pool) {
     void *free_page = get_page(true);
     uint64_t num_objs = DEFAULT_PAGE_SIZE  / allocating_pool->obj_size;
     for (uint64_t i = 0; i < num_objs; i++) {
-      struct pool_node *pn = (struct pool_node *) free_page + (i + allocating_pool->obj_size);
+      struct pool_node *pn = (struct pool_node *) ((uint8_t *)free_page + (i * allocating_pool->obj_size));
       if (allocating_pool->free_list == NULL) {
         allocating_pool->free_list = pn;
         pn->next = NULL;
