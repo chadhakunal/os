@@ -97,4 +97,6 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_
       return 0;
     }
   } while (child_dentry != dentry);
+  *out = NULL;
+  return -1;
 }
