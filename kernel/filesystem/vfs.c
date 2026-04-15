@@ -7,6 +7,8 @@
 
 struct mount_t *base_mount = NULL;
 
+#define READ_EXECUTE_PERM PERM_RUSR | PERM_XUSR | PERM_RGRP | PERM_XGRP | PERM_ROTH | PERM_XOTH
+
 void vfs_mount(char *path, struct superblock_t *superblock) {
   /*
   * to mount an fs, we need to walk the path first
