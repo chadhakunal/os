@@ -4,6 +4,7 @@
 #include "kernel/filesystem/mode.h"
 #include "types.h"
 #include "lib/string.h"
+#include "lib/printk/printk.h"
 
 #define READ_EXECUTE_PERM PERM_RUSR | PERM_XUSR | PERM_RGRP | PERM_XGRP | PERM_ROTH | PERM_XOTH
 
@@ -113,6 +114,7 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
   root_vnode->first_child_dentry = NULL;
   root_vnode->last_child_dentry = NULL;
   root_vnode->fs_private_vnode = (void *)root_tarfs_vnode;
+  printk("SETTING root vnode: %lld\n", root_vnode->permisson_mode);
 
   struct dentry_t *root_dentry = dentry_t_alloc();
   strncpy(root_dentry->name, "/", 256);
