@@ -68,7 +68,7 @@ void kmain(void *dtb_ptr) {
   vfs_init();
   printk("Mounted tarfs?");
   struct dentry_t *target;
-  vfs_resolve_path("/bin");
+  vfs_resolve_path("/bin", target);
   printk("name %s\n", target->name);
   arch_wait();
 }
