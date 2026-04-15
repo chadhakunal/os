@@ -74,7 +74,7 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_
     panic("vfs_lookup: parent_dir is NULL\n");
   }
 
-  if (!IS_DIR(parent_dir)) {
+  if (!IS_DIR(parent_dir->vnode->permission_mode)) {
     panic("vfs_lookup: parent_dir is not a directory\n");
   }
 
