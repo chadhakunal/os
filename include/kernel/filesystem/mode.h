@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-typedef uint16_t mode_t;
+typedef uint32_t mode_t;
 
 /* Owner permissions */
 #define PERM_RUSR  0000400  /* Read permission, owner */
