@@ -1,6 +1,7 @@
 #include "kernel/filesystem/vfs.h"
 #include "kernel/filesystem/tarfs/tarfs.h"
 #include "lib/string.h"
+#include "lib/printk.h"
 #include "panic.h"
 
 struct mount_t *base_mount = NULL;
