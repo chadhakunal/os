@@ -69,7 +69,7 @@ void kmain(void *dtb_ptr) {
   printk("Mounted tarfs?");
   struct dentry_t *target;
   vfs_resolve_path("/bin", &target);
-  printk("dentry addr: llx\n", target);
+  printk("dentry addr: %llx\n", target);
   vfs_print_dentry(target);
   printk("Resolved Name %s\n", target->name);
   arch_wait();
