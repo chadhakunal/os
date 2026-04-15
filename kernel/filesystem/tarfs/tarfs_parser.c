@@ -54,6 +54,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         } else {
           new_dentry->sibling_dentry = curr_vnode->first_child_dentry;
           curr_vnode->last_child_dentry->sibling_dentry = new_dentry;
+          curr_vnode->last_child_dentry = new_dentry;
         }
         // If there is no dentry, there is also no inode!
         struct vnode_t *new_vnode = vnode_t_alloc();
@@ -86,6 +87,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         } else {
           new_dentry->sibling_dentry = curr_vnode->first_child_dentry;
           curr_vnode->last_child_dentry->sibling_dentry = new_dentry;
+          curr_vnode->last_child_dentry = new_dentry;
         }
       }
       if (new_dentry->vnode == NULL) {
