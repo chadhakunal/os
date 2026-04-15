@@ -32,7 +32,14 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
   printk("Parsing full_path: %s\n", path);
   while (name_len > 0) {
     printk("parsing, directory name: %s for path %s, name_len = %lld\n", current_name, current_path, name_len);
-    if (current_name[name_len-1] == '/' || tar_is_dir(header)) {
+
+    // Strip trailing '/' from the name for dentry storage
+    bool is_dir_path = (current_name[name_len-1] == '/');
+    if (is_dir_path) {
+      current_name[name_len-1] = '\0';
+    }
+
+    if (is_dir_path || tar_is_dir(header)) {
       // This is a directory!
       struct dentry_t *new_dentry = search_children(current_name, curr_vnode->first_child_dentry);
       if (new_dentry == NULL) {
