@@ -4,7 +4,7 @@
 #include "lib/printk/printk.h"
 #include "panic.h"
 
-struct mount_t *baseprintk/_mount = NULL;
+struct mount_t *base_mount = NULL;
 
 void vfs_mount(char *path, struct superblock_t *superblock) {
   /*
