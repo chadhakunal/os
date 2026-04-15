@@ -29,6 +29,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
   char current_name[256];
   int name_len = str_tok(&current_path, current_name, '/', 256);
   // The first read will be '/' for the root path
+  printk("Parsing full_path: %s\n", path);
   while (name_len > 0) {
     name_len = str_tok(&current_path, current_name, '/', 256);
     printk("parsing, directory name: %s for path %s\n", current_name, current_path);
