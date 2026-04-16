@@ -179,11 +179,6 @@ void boot_map_pages(page_table_t *pt, uint64_t physical_memory_start, uint64_t p
   }
 }
 
-void boot_map_region(uint64_t physical_memory_start, uint64_t physical_memory_end,
-                uint64_t virtual_memory_start) {
-  boot_map_pages(root_page_table, physical_memory_start, physical_memory_end, virtual_memory_start);
-}
-
 /* Post-boot version */
 void map_pages(page_table_t *pt, uint64_t physical_memory_start, uint64_t physical_memory_end,
                 uint64_t virtual_memory_start) {
