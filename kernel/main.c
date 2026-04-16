@@ -86,7 +86,7 @@ void kmain(void *dtb_ptr) {
 
   vfs_resolve_path("/etc/helloworld", &target);
   vnode->ops->read(target->vnode);
-  printk("/etc/helloworld:\n%s", buf);
+  printk("/etc/helloworld:\n%s", buf, 0, target->vnode->size);
 
 
   arch_wait();
