@@ -16,5 +16,9 @@ struct elf_file *parse_elf_file(void *elf_file_start) {
   printk("e_phoff:  0x%llx\n", parsed_elf_file->e_phoff);
   printk("e_phnum:  %llu\n", parsed_elf_file->e_phnum);
 
+  // We should go through each program entry
+  // for each entry
+  // allocate ceil(memsz/Page_size)
+
   return parsed_elf_file;
 }

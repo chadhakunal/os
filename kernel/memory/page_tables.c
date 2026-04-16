@@ -35,7 +35,7 @@ void allocate_root_page_table() {
 }
 
 /* Boot-time version: uses physical addresses directly (identity mapping active) */
-void boot_create_page_table_entry(uint64_t va, uint64_t pa) {
+void boot_map_page(page_table_t *pt, uint64_t va, uint64_t pa) {
   uint64_t pt1_idx = PT1_OFFSET(va); // VPN[2]
   uint64_t pt2_idx = PT2_OFFSET(va); // VPN[1]
   uint64_t pt3_idx = PT3_OFFSET(va); // VPN[0]
@@ -43,16 +43,16 @@ void boot_create_page_table_entry(uint64_t va, uint64_t pa) {
   page_table_t *pt2;
   page_table_t *pt3;
 
-  // Root table (pt1 == root_page_table) is indexed by VPN[2]
-  if (root_page_table->page_table_entries[pt1_idx] == 0) {
+  // Root table (pt1 == pt) is indexed by VPN[2]
+  if (pt->page_table_entries[pt1_idx] == 0) {
     pt2 = boot_allocate_page_table();
     if (!pt2)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
-    root_page_table->page_table_entries[pt1_idx] =
+    pt->page_table_entries[pt1_idx] =
         PTE_ADDR(pt2) | PTE_VALID | PTE_TABLE;
   } else {
     pt2 = (page_table_t *)PTE_DECODE(
-        root_page_table->page_table_entries[pt1_idx]);
+        pt->page_table_entries[pt1_idx]);
   }
 
   if (pt2->page_table_entries[pt2_idx] == 0) {
@@ -66,6 +66,10 @@ void boot_create_page_table_entry(uint64_t va, uint64_t pa) {
 
   pt3->page_table_entries[pt3_idx] =
       PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
+}
+
+void boot_create_page_table_entry(uint64_t va, uint64_t pa) {
+  boot_map_page(root_page_table, va, pa);
 }
 
 /* Post-boot version: uses PHYS_TO_VIRT to access page tables */
