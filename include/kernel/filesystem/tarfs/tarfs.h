@@ -1,7 +1,7 @@
 #ifndef TARFS_H
 #define TARFS_H
 
-#include "kernel/filesystem/vfs.h"
+#include "kernel/filesystem/vfs/vfs.h"
 #include "types.h"
 #include "lib/pool_allocator.h"
 

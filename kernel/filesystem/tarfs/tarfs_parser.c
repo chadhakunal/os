@@ -1,6 +1,6 @@
 #include "kernel/filesystem/tarfs/tarfs_parser.h"
 #include "kernel/filesystem/tarfs/tarfs.h"
-#include "kernel/filesystem/vfs.h"
+#include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/filesystem/mode.h"
 #include "types.h"
 #include "lib/string.h"
@@ -58,17 +58,9 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         }
         // If there is no dentry, there is also no inode!
         struct vnode_t *new_vnode = vnode_t_alloc();
-        new_vnode->size = 0;
-        new_vnode->id = *last_id + 1;
         *last_id += 1;
-        new_vnode->refcount = 1;
-        new_vnode->owner_uid = 0;
-        new_vnode->owner_gid = 0;
-        new_vnode->permission_mode = READ_EXECUTE_PERM | PERM_IS_DIR;
+        init_vnode(new_vnode, root_vnode->superblock, *last_id, READ_EXECUTE_PERM | PERM_IS_DIR, 0);
         new_dentry->vnode = new_vnode;
-        new_vnode->first_child_dentry = NULL;
-        new_vnode->last_child_dentry = NULL;
-        new_vnode->fs_private_vnode = NULL;
       }
       curr_vnode = new_dentry->vnode;
       curr_dentry = new_dentry;
@@ -92,14 +84,10 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
       }
       if (new_dentry->vnode == NULL) {
         struct vnode_t *new_vnode = vnode_t_alloc();
-        new_dentry->vnode = new_vnode;
-        new_vnode->size = parse_octal(header->size, 12);
-        new_vnode->id = *last_id + 1;
         *last_id += 1;
-        new_vnode->refcount = 1;
-        new_vnode->owner_uid = 0;
-        new_vnode->owner_gid = 0;
-        new_vnode->permission_mode = READ_EXECUTE_PERM;
+        uint64_t file_size = parse_octal(header->size, 12);
+        init_vnode(new_vnode, root_vnode->superblock, *last_id, READ_EXECUTE_PERM, file_size);
+        new_dentry->vnode = new_vnode;
         struct tarfs_vnode_t *tarfs_vnode = tarfs_vnode_t_alloc();
         tarfs_vnode->data = data;
         new_vnode->fs_private_vnode = (void *)tarfs_vnode;
@@ -116,16 +104,8 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
   uint32_t last_id = 0;
 
   struct vnode_t *root_vnode = vnode_t_alloc();
+  init_vnode(root_vnode, sb, 0, READ_EXECUTE_PERM | PERM_IS_DIR, 0);
   struct tarfs_vnode_t *root_tarfs_vnode = tarfs_vnode_t_alloc();
-  root_vnode->size = 0;
-  root_vnode->id = 0;
-  root_vnode->refcount = 1;
-  root_vnode->owner_uid = 0;
-  root_vnode->owner_gid = 0;
-  root_vnode->permission_mode = READ_EXECUTE_PERM | PERM_IS_DIR;
-  root_vnode->superblock = sb;
-  root_vnode->first_child_dentry = NULL;
-  root_vnode->last_child_dentry = NULL;
   root_vnode->fs_private_vnode = (void *)root_tarfs_vnode;
   printk("SETTING root vnode: %lld\n", root_vnode->permission_mode);
 

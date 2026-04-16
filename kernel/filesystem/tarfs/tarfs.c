@@ -1,6 +1,6 @@
 #include "kernel/filesystem/tarfs/tarfs.h"
 #include "kernel/filesystem/tarfs/tarfs_parser.h"
-#include "kernel/filesystem/vfs.h"
+#include "kernel/filesystem/vfs/vfs.h"
 #include "types.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"

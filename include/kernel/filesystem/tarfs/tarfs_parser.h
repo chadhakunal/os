@@ -2,7 +2,7 @@
 #define TARFS_PARSER_H
 
 #include "kernel/filesystem/tarfs/tarfs.h"
-#include "kernel/filesystem/vfs.h"
+#include "kernel/filesystem/vfs/vfs.h"
 
 #define TAR_TYPE_FILE     '0'
 #define TAR_TYPE_HARDLINK '1'
