@@ -80,11 +80,13 @@ void kmain(void *dtb_ptr) {
   vfs_print_dentry(target);
 
   char buf[64];
-  target->vnode->ops->read(target->vnode, buf, 0, target->vnode->size);
+  int64_t bytes_read = target->vnode->ops->read(target->vnode, buf, 64, target->vnode->size);
+  buf[bytes_read] = '\0';
   printk("size: %lld, /etc/rc:\n%s", target->vnode->size, buf);
 
   vfs_resolve_path("/etc/helloworld", &target);
-  target->vnode->ops->read(target->vnode, buf, 0, target->vnode->size);
+  bytes_read = target->vnode->ops->read(target->vnode, buf, 64, target->vnode->size);
+  buf[bytes_read] = '\0';
   printk("/etc/helloworld:\n%s", buf);
 
 
