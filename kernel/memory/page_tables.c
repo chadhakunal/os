@@ -68,10 +68,6 @@ void boot_map_page(page_table_t *pt, uint64_t va, uint64_t pa) {
       PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
 }
 
-void boot_create_page_table_entry(uint64_t va, uint64_t pa) {
-  boot_map_page(root_page_table, va, pa);
-}
-
 /* Post-boot version: uses PHYS_TO_VIRT to access page tables */
 void map_page(page_table_t *pt, uint64_t va, uint64_t pa) {
   uint64_t pt1_idx = PT1_OFFSET(va); // VPN[2]
@@ -107,10 +103,6 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa) {
 
   pt3->page_table_entries[pt3_idx] =
       PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
-}
-
-void create_page_table_entry(uint64_t va, uint64_t pa) {
-  map_page(root_page_table, va, pa);
 }
 
 bool page_table_empty(page_table_t *pt) {
@@ -152,20 +144,12 @@ void unmap_page(page_table_t *pt, uint64_t va) {
   }
 }
 
-void remove_page_table_entry(uint64_t va) {
-  unmap_page(root_page_table, va);
-}
-
 void unmap_pages(page_table_t *pt, uint64_t virtual_memory_start, uint64_t virtual_memory_end) {
   for (uint64_t iter = 0; iter < virtual_memory_end-virtual_memory_start;
        iter += DEFAULT_PAGE_SIZE) {
     uint64_t va = iter + virtual_memory_start;
     unmap_page(pt, va);
   }
-}
-
-void unmap_region(uint64_t virtual_memory_start, uint64_t virtual_memory_end) {
-  unmap_pages(root_page_table, virtual_memory_start, virtual_memory_end);
 }
 
 /* Boot-time version */
@@ -190,10 +174,6 @@ void map_pages(page_table_t *pt, uint64_t physical_memory_start, uint64_t physic
   }
 }
 
-void map_region(uint64_t physical_memory_start, uint64_t physical_memory_end,
-                uint64_t virtual_memory_start) {
-  map_pages(root_page_table, physical_memory_start, physical_memory_end, virtual_memory_start);
-}
 void map_mmio() {
   boot_map_pages(root_page_table, 0x0, memory_info.total_memory_base, MMIO_VIRTUAL_MEMORY_BASE);
 }
