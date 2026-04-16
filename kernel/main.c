@@ -79,6 +79,7 @@ void kmain(void *dtb_ptr) {
   vfs_resolve_path("/etc/rc", &target);
   vfs_print_dentry(target);
 
+  struct vnode_t *vnode = target->vnode;
   char buf[64];
   vnode->ops->read(target->vnode, buf, 0, vnode->size);
   printk("/etc/rc:\n%s", buf);
