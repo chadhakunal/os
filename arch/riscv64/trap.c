@@ -58,6 +58,4 @@ void init_trap_handler(void) {
 
   /* Set stvec to trap_vector */
   asm volatile("csrw stvec, %0" :: "r"(trap_vector));
-
-  printk("Trap handler installed\n");
 }
