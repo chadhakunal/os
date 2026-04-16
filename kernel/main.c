@@ -66,29 +66,15 @@ void kmain(void *dtb_ptr) {
   // init_process();
   //struct elf_file *parsed = parse_elf_file((void *)0x000001);
   vfs_init();
-  printk("Mounted tarfs?");
   struct dentry_t *target;
-  vfs_resolve_path("/bin", &target);
-  vfs_print_dentry(target);
 
   printk("RESOLVING NEXT -----------------------------\n");
   vfs_resolve_path("/bin/echo", &target);
-  vfs_print_dentry(target);
-
-  printk("RESOLVING NEXT -----------------------------\n");
-  vfs_resolve_path("/etc/rc", &target);
-  vfs_print_dentry(target);
 
   char buf[64];
   int64_t bytes_read = target->vnode->ops->read(target->vnode, buf, 0, 63);
   buf[bytes_read] = '\0';
-  printk("size: %lld, /etc/rc:\n%s", target->vnode->size, buf);
-
-  vfs_resolve_path("/etc/helloworld", &target);
-  bytes_read = target->vnode->ops->read(target->vnode, buf, 0, 63);
-  buf[bytes_read] = '\0';
-  printk("/etc/helloworld:\n%s", buf);
-
+  printk("size: %lld, /bin/echo:\n%s", target->vnode->size, buf);
 
   arch_wait();
 }
