@@ -121,15 +121,15 @@ bool page_table_empty(page_table_t *pt) {
   return true;
 }
 
-void remove_page_table_entry(uint64_t va) {
+void unmap_page(page_table_t *pt, uint64_t va) {
   uint64_t pt1_idx = PT1_OFFSET(va);
   uint64_t pt2_idx = PT2_OFFSET(va);
   uint64_t pt3_idx = PT3_OFFSET(va);
-  if (!(root_page_table->page_table_entries[pt1_idx] & PTE_VALID))
+  if (!(pt->page_table_entries[pt1_idx] & PTE_VALID))
     return;
   page_table_t *pt2 =
     (page_table_t *)PHYS_TO_VIRT(
-        PTE_DECODE(root_page_table->page_table_entries[pt1_idx]));
+        PTE_DECODE(pt->page_table_entries[pt1_idx]));
 
   if (!(pt2->page_table_entries[pt2_idx] & PTE_VALID))
     return;
@@ -148,8 +148,12 @@ void remove_page_table_entry(uint64_t va) {
   /* free L1 table if empty */
   if (page_table_empty(pt2)) {
     //free_page((void *) VIRT_TO_PHYS(pt2));
-    root_page_table->page_table_entries[pt1_idx] = 0;
+    pt->page_table_entries[pt1_idx] = 0;
   }
+}
+
+void remove_page_table_entry(uint64_t va) {
+  unmap_page(root_page_table, va);
 }
 
 void unmap_region(uint64_t virtual_memory_start, uint64_t virtual_memory_end) {

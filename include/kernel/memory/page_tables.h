@@ -22,7 +22,8 @@ void boot_create_page_table_entry(uint64_t va, uint64_t pa);
 page_table_t *allocate_page_table();
 void map_page(page_table_t *pt, uint64_t va, uint64_t pa);
 void create_page_table_entry(uint64_t va, uint64_t pa);
-void remove_page_table_entry(uint64_t pa);
+void unmap_page(page_table_t *pt, uint64_t va);
+void remove_page_table_entry(uint64_t va);
 
 void init_page_mapping();
 void remove_identity_mapping();
