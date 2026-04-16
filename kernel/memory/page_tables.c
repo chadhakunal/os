@@ -261,7 +261,6 @@ void init_page_mapping() {
 
   uint64_t new_sp;
   asm volatile("mv %0, sp" : "=r"(new_sp));
-  after_jump:
   root_page_table = PHYS_TO_VIRT(root_page_table);
   update_page_structs_to_vm();
 }
