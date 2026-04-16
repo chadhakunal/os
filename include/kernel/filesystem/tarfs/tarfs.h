@@ -17,4 +17,6 @@ DEFINE_POOL(tarfs_vnode_t, struct tarfs_vnode_t)
 
 struct superblock_t *tarfs_mount(void *data, uint64_t size);
 
+int64_t tarfs_vnode_read(struct vnode_t *vnode, void *buffer, uint64_t offset, uint64_t size);
+
 #endif

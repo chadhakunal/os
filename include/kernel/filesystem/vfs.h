@@ -9,6 +9,10 @@
 
 extern struct mount_t *base_mount;
 
+struct vnode_ops_t {
+  int64_t (*read)(struct vnode_t *vnode, void *buffer, uint64_t offset, uint64_t size);
+};
+
 struct dentry_t {
   char name[256];
   struct vnode_t *vnode;
@@ -27,11 +31,12 @@ struct vnode_t {
   struct superblock_t *superblock;
   struct dentry_t *first_child_dentry; // points to the first dentry in a linked list only if the inode is a directory
   struct dentry_t *last_child_dentry;
+  struct vnode_ops_t *ops;
   void *fs_private_vnode;
 };
 
 struct superblock_t {
-  struct fs_ops_t *ops;
+  struct vnode_ops_t vnode_ops;
   struct vnode_t *root_vnode;
   struct dentry_t *root_dentry;
   uint64_t block_size;
