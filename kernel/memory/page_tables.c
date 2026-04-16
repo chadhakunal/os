@@ -223,10 +223,8 @@ void unmap_identity() {
 }
 
 void remove_identity_mapping() {
-  printk("Removing identity mapping...\n");
   unmap_identity();
   asm volatile("sfence.vma zero, zero" ::: "memory");
-  printk("Identity mapping removed!\n");
 }
 
 void init_page_mapping() {
@@ -240,17 +238,13 @@ void init_page_mapping() {
   uint64_t uart_phys = (uint64_t)uart_get_base(); /* align to page */
   uart_phys &= ~(DEFAULT_PAGE_SIZE - 1);
   uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
-  printk("Mapping UART: virt %llx -> phys %llx\n", uart_virt, uart_phys);
   boot_map_page(root_page_table, uart_virt, uart_phys);
 
-  printk("About to enable virtual mem\n");
   enable_virtual_memory((uint64_t)root_page_table);
-  printk("virt mem enabled\n");
   uint64_t offset = KERNEL_VIRT_OFFSET;
 
   uint64_t old_sp;
   asm volatile("mv %0, sp" : "=r"(old_sp));
-  printk("Old SP before relocation: %llx\n", old_sp);
 
   asm volatile("la t0, 1f\n"
                "add t0, t0, %[off]\n"
@@ -267,13 +261,7 @@ void init_page_mapping() {
 
   uint64_t new_sp;
   asm volatile("mv %0, sp" : "=r"(new_sp));
-  printk("New SP after relocation: %llx\n", new_sp);
-  printk("PC label addr = %llx\n", (uint64_t)&&after_jump);
   after_jump:
-  printk("after moving kernel\n");
   root_page_table = PHYS_TO_VIRT(root_page_table);
-  printk("root_page_table = %llx\n", root_page_table);
   update_page_structs_to_vm();
-  printk("Updated paging to virtual\n");
-  printk("About to return from init_page_mapping\n");
 }
