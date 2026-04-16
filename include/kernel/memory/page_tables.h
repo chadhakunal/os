@@ -11,8 +11,6 @@ typedef struct page_table {
 
 extern page_table_t *root_page_table;
 
-void allocate_root_page_table();
-
 void init_kernel_page_mapping();
 void remove_identity_mapping();
 
@@ -22,8 +20,5 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa);
 void map_pages(page_table_t *pt, uint64_t pa_start, uint64_t pa_end, uint64_t va_start);
 void unmap_page(page_table_t *pt, uint64_t va);
 void unmap_pages(page_table_t *pt, uint64_t va_start, uint64_t va_end);
-
-
-
 
 #endif

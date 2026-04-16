@@ -208,8 +208,7 @@ void remove_identity_mapping() {
 }
 
 void init_kernel_page_mapping() {
-  if (!root_page_table)
-    allocate_root_page_table();
+  allocate_root_page_table();
   map_identity();
   map_kernel();
   map_phys();  /* Map all physical RAM for accessing page tables and other phys mem */
