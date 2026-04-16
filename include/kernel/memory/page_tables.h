@@ -13,10 +13,8 @@ extern page_table_t *root_page_table;
 
 void allocate_root_page_table();
 
-/* Boot-time functions (use physical addresses via identity mapping) */
-page_table_t *boot_allocate_page_table();
-void boot_map_page(page_table_t *pt, uint64_t va, uint64_t pa);
-void boot_map_pages(page_table_t *pt, uint64_t pa_start, uint64_t pa_end, uint64_t va_start);
+void init_kernel_page_mapping();
+void remove_identity_mapping();
 
 /* Post-boot functions (use PHYS_TO_VIRT for page table access) */
 page_table_t *allocate_page_table();
@@ -25,7 +23,7 @@ void map_pages(page_table_t *pt, uint64_t pa_start, uint64_t pa_end, uint64_t va
 void unmap_page(page_table_t *pt, uint64_t va);
 void unmap_pages(page_table_t *pt, uint64_t va_start, uint64_t va_end);
 
-void init_kernel_page_mapping();
-void remove_identity_mapping();
+
+
 
 #endif

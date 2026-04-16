@@ -18,7 +18,8 @@ struct elf_file *parse_elf_file(void *elf_file_start) {
 
   // We should go through each program entry
   // for each entry
-  // allocate ceil(memsz/Page_size)
+  // allocate ceil(memsz/Page_size) pages, these should be in user space! 
+  // we then read 
 
   return parsed_elf_file;
 }
