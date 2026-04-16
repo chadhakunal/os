@@ -15,7 +15,6 @@ void init_kernel_page_mapping();
 void remove_identity_mapping();
 
 /* Post-boot functions (use PHYS_TO_VIRT for page table access) */
-page_table_t *allocate_page_table();
 void map_page(page_table_t *pt, uint64_t va, uint64_t pa);
 void map_pages(page_table_t *pt, uint64_t pa_start, uint64_t pa_end, uint64_t va_start);
 void unmap_page(page_table_t *pt, uint64_t va);
