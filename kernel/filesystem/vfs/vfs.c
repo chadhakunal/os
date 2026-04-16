@@ -27,12 +27,9 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
 }
 
 int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_t **out) {
-  printk("vfs_lookup: Looking up %s\n", name);
   if (parent_dir == NULL) {
     panic("vfs_lookup: parent_dir is NULL\n");
   }
-  printk("vfs_lookup: parent_dir name: %s\n", parent_dir->name);
-  printk("vfs_lookup: parent_dir permisson_bits: %lld, is_dir: %lld, all_perms: %lld\n", parent_dir->vnode->permission_mode, PERM_IS_DIR, READ_EXECUTE_PERM | PERM_IS_DIR);
 
   if (!IS_DIR(parent_dir->vnode->permission_mode)) {
     panic("vfs_lookup: parent_dir is not a directory\n");
@@ -52,8 +49,6 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_
   }
   struct dentry_t *dentry = child_dentry;
   do {
-    printk("  vfs_lookup: checking dentry at %p\n", dentry);
-    vfs_print_dentry(dentry);
     if (strncmp(dentry->name, name) == 0) {
       *out = dentry;
       return 0;

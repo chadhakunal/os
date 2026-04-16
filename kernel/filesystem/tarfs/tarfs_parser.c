@@ -29,9 +29,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
   char current_name[256];
   int name_len = str_tok(&current_path, current_name, '/', 256);
   name_len = str_tok(&current_path, current_name, '/', 256);
-  printk("Parsing full_path: %s\n", path);
   while (name_len > 0) {
-    printk("parsing, directory name: %s for path %s, name_len = %lld\n", current_name, current_path, name_len);
 
     // Strip trailing '/' from the name for dentry storage
     bool is_dir_path = (current_name[name_len-1] == '/');
@@ -43,7 +41,6 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
       // This is a directory!
       struct dentry_t *new_dentry = search_children(current_name, curr_vnode->first_child_dentry);
       if (new_dentry == NULL) {
-        printk("Creating new dentry with name: %s\n", current_name);
         new_dentry = dentry_t_alloc();
         strncpy(new_dentry->name, current_name, 256);
         new_dentry->parent = curr_dentry;
@@ -66,7 +63,6 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
       curr_dentry = new_dentry;
     } else {
       // This is the actual file
-      printk("Creating new dentry for file: %s\n", current_name);
       struct dentry_t *new_dentry = search_children(current_name, curr_vnode->first_child_dentry);
       if (new_dentry == NULL) {
         new_dentry = dentry_t_alloc();
@@ -107,7 +103,6 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
   init_vnode(root_vnode, sb, 0, READ_EXECUTE_PERM | PERM_IS_DIR, 0);
   struct tarfs_vnode_t *root_tarfs_vnode = tarfs_vnode_t_alloc();
   root_vnode->fs_private_vnode = (void *)root_tarfs_vnode;
-  printk("SETTING root vnode: %lld\n", root_vnode->permission_mode);
 
   struct dentry_t *root_dentry = dentry_t_alloc();
   strncpy(root_dentry->name, "/", 256);
