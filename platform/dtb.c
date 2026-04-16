@@ -22,14 +22,14 @@ static inline uint32_t fdt_u32(const void *p)
     return bswap32(v);
 }
 
-static void uart_print_n(const char *s, int n)
-{
-    for (int i = 0; i < n; i++) {
-        char c = s[i];
-        if (c == '\0') break;
-        uart_putc(c);
-    }
-}
+// static void uart_print_n(const char *s, int n)
+// {
+//     for (int i = 0; i < n; i++) {
+//         char c = s[i];
+//         if (c == '\0') break;
+//         uart_putc(c);
+//     }
+// }
 
 void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t size_struct)
 {
