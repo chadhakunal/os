@@ -73,7 +73,7 @@ void boot_create_page_table_entry(uint64_t va, uint64_t pa) {
 }
 
 /* Post-boot version: uses PHYS_TO_VIRT to access page tables */
-void create_page_table_entry(uint64_t va, uint64_t pa) {
+void map_page(page_table_t *pt, uint64_t va, uint64_t pa) {
   uint64_t pt1_idx = PT1_OFFSET(va); // VPN[2]
   uint64_t pt2_idx = PT2_OFFSET(va); // VPN[1]
   uint64_t pt3_idx = PT3_OFFSET(va); // VPN[0]
@@ -81,17 +81,17 @@ void create_page_table_entry(uint64_t va, uint64_t pa) {
   page_table_t *pt2;
   page_table_t *pt3;
 
-  // Root table (pt1 == root_page_table) is indexed by VPN[2]
-  if (root_page_table->page_table_entries[pt1_idx] == 0) {
+  // Root table (pt1 == pt) is indexed by VPN[2]
+  if (pt->page_table_entries[pt1_idx] == 0) {
     page_table_t *pt2_phys = allocate_page_table(); /* Returns physical address */
     if (!pt2_phys)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
-    root_page_table->page_table_entries[pt1_idx] =
+    pt->page_table_entries[pt1_idx] =
         PTE_ADDR(pt2_phys) | PTE_VALID | PTE_TABLE;
     pt2 = (page_table_t *)PHYS_TO_VIRT(pt2_phys); /* Convert to virtual for access */
   } else {
     pt2 = (page_table_t *)PHYS_TO_VIRT(
-        PTE_DECODE(root_page_table->page_table_entries[pt1_idx]));
+        PTE_DECODE(pt->page_table_entries[pt1_idx]));
   }
 
   if (pt2->page_table_entries[pt2_idx] == 0) {
@@ -107,6 +107,10 @@ void create_page_table_entry(uint64_t va, uint64_t pa) {
 
   pt3->page_table_entries[pt3_idx] =
       PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
+}
+
+void create_page_table_entry(uint64_t va, uint64_t pa) {
+  map_page(root_page_table, va, pa);
 }
 
 bool page_table_empty(page_table_t *pt) {
