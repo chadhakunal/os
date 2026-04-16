@@ -200,17 +200,17 @@ void map_region(uint64_t physical_memory_start, uint64_t physical_memory_end,
   map_pages(root_page_table, physical_memory_start, physical_memory_end, virtual_memory_start);
 }
 void map_mmio() {
-  boot_map_region(0x0, memory_info.total_memory_base, MMIO_VIRTUAL_MEMORY_BASE);
+  boot_map_pages(root_page_table, 0x0, memory_info.total_memory_base, MMIO_VIRTUAL_MEMORY_BASE);
 }
 
 void map_phys() {
-  boot_map_region(memory_info.total_memory_base,
+  boot_map_pages(root_page_table, memory_info.total_memory_base,
                   memory_info.total_memory_base + memory_info.total_memory_size,
                   PHYS_VIRTUAL_MEMORY_BASE);
 }
 
 void map_kernel() {
-  boot_map_region(memory_info.kernel_start, memory_info.kernel_end,
+  boot_map_pages(root_page_table, memory_info.kernel_start, memory_info.kernel_end,
              KERNEL_VIRTUAL_MEMORY_BASE);
 }
 
@@ -219,12 +219,12 @@ void map_identity() {
      For Sv39, this covers the firmware and kernel code needed for MMU
      activation. The full 128MB doesn't need identity mapping once we're past
      boot. */
-  boot_map_region(memory_info.kernel_start, memory_info.kernel_end,
+  boot_map_pages(root_page_table, memory_info.kernel_start, memory_info.kernel_end,
              memory_info.kernel_start);
 }
 
 void unmap_identity() {
-  unmap_region(memory_info.kernel_start, memory_info.kernel_end);
+  unmap_pages(root_page_table, memory_info.kernel_start, memory_info.kernel_end);
 }
 
 void remove_identity_mapping() {
@@ -246,7 +246,7 @@ void init_page_mapping() {
   uart_phys &= ~(DEFAULT_PAGE_SIZE - 1);
   uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
   printk("Mapping UART: virt %llx -> phys %llx\n", uart_virt, uart_phys);
-  boot_create_page_table_entry(uart_virt, uart_phys);
+  boot_map_page(root_page_table, uart_virt, uart_phys);
 
   printk("About to enable virtual mem\n");
   enable_virtual_memory((uint64_t)root_page_table);
