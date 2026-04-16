@@ -29,7 +29,7 @@ void kmain(void *dtb_ptr) {
   print_pages_metadata();
 
   allocate_root_page_table();
-  init_page_mapping();
+  init_kernel_page_mapping();
 
   /* Jump to higher-half execution */
   uint64_t offset = KERNEL_VIRT_OFFSET;

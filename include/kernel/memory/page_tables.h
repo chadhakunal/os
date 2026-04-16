@@ -25,7 +25,7 @@ void map_pages(page_table_t *pt, uint64_t pa_start, uint64_t pa_end, uint64_t va
 void unmap_page(page_table_t *pt, uint64_t va);
 void unmap_pages(page_table_t *pt, uint64_t va_start, uint64_t va_end);
 
-void init_page_mapping();
+void init_kernel_page_mapping();
 void remove_identity_mapping();
 
 #endif

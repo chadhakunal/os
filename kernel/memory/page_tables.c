@@ -207,7 +207,7 @@ void remove_identity_mapping() {
   asm volatile("sfence.vma zero, zero" ::: "memory");
 }
 
-void init_page_mapping() {
+void init_kernel_page_mapping() {
   if (!root_page_table)
     allocate_root_page_table();
   map_identity();
