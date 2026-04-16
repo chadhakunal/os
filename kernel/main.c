@@ -79,13 +79,12 @@ void kmain(void *dtb_ptr) {
   vfs_resolve_path("/etc/rc", &target);
   vfs_print_dentry(target);
 
-  struct vnode_t *vnode = target->vnode;
   char buf[64];
-  vnode->ops->read(target->vnode, buf, 0, vnode->size);
+  target->vnode->ops->read(target->vnode, buf, 0, target->vnode->size);
   printk("/etc/rc:\n%s", buf);
 
   vfs_resolve_path("/etc/helloworld", &target);
-  vnode->ops->read(target->vnode);
+  target->vnode->ops->read(target->vnode);
   printk("/etc/helloworld:\n%s", buf, 0, target->vnode->size);
 
 
