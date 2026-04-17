@@ -20,6 +20,6 @@ void map_pages(page_table_t *pt, uint64_t pa_start, uint64_t pa_end, uint64_t va
 void unmap_page(page_table_t *pt, uint64_t va);
 void unmap_pages(page_table_t *pt, uint64_t va_start, uint64_t va_end);
 
-struct page_table_t *init_new_page_table();
+page_table_t *init_new_page_table();
 
 #endif
