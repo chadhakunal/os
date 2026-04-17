@@ -3,6 +3,7 @@
 
 #include "trap.h"
 #include "lib/pool_allocator.h"
+#include "kernel/memory/page_tables.h"
 
 struct vma_t {
   // TODO: Permissions
