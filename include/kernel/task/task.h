@@ -9,12 +9,12 @@ struct vma_t {
   void *start_addr;
   void *end_addr;
   struct vma *next_vma;
-}
+};
 
 struct mm_struct_t {
   page_table_t *root_satp;
   struct vma_t *vma_list;
-}
+};
 
 struct task_t {
   struct trap_frame tf;
