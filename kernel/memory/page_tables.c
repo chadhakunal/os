@@ -243,3 +243,15 @@ void init_kernel_page_mapping() {
   root_page_table = PHYS_TO_VIRT(root_page_table);
   update_page_structs_to_vm();
 }
+
+page_table_t *init_new_page_table() {
+  page_table_t *new_pt = (page_table_t *)get_page(true);
+
+  memset(new_pt, 0, DEFAULT_PAGE_SIZE);
+
+  for (uint64_t i = 256; i < 512; i++) {
+    new_pt->page_table_entries[i] = root_page_table->page_table_entries[i];
+  }
+
+  return (page_table_t *)VIRT_TO_PHYS(new_pt);
+}
