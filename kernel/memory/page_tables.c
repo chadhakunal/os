@@ -15,14 +15,14 @@ page_table_t *root_page_table = NULL;
 
 /* Boot-time version: accesses physical address directly */
 page_table_t *boot_allocate_page_table() {
-  page_table_t *pt = (page_table_t *)boot_get_page(true);
+  page_table_t *pt = (page_table_t *)get_page(true);
   memset(pt, 0, DEFAULT_PAGE_SIZE);
   return pt;
 }
 
 /* Post-boot version: accesses via PHYS mapping, returns physical address */
 page_table_t *allocate_page_table() {
-  page_table_t *pt_phys = (page_table_t *)boot_get_page(true);
+  page_table_t *pt_phys = (page_table_t *)get_page(true);
   page_table_t *pt_virt = (page_table_t *)PHYS_TO_VIRT(pt_phys);
   memset(pt_virt, 0, DEFAULT_PAGE_SIZE);
   return pt_phys;  /* PTEs need physical addresses */
@@ -245,13 +245,14 @@ void init_kernel_page_mapping() {
 }
 
 page_table_t *init_new_page_table() {
-  page_table_t *new_pt = (page_table_t *)get_page(true);
+  page_table_t *new_pt_phys = (page_table_t *)get_page(true);
+  page_table_t *new_pt_virt = (page_table_t *)PHYS_TO_VIRT(new_pt_phys);
 
-  memset(new_pt, 0, DEFAULT_PAGE_SIZE);
+  memset(new_pt_virt, 0, DEFAULT_PAGE_SIZE);
 
   for (uint64_t i = 256; i < 512; i++) {
-    new_pt->page_table_entries[i] = root_page_table->page_table_entries[i];
+    new_pt_virt->page_table_entries[i] = root_page_table->page_table_entries[i];
   }
 
-  return (page_table_t *)VIRT_TO_PHYS(new_pt);
+  return new_pt_phys;  /* Return physical address for satp */
 }

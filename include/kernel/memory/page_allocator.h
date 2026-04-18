@@ -26,11 +26,7 @@ extern pages_metadata_struct_t pages_metadata;
 void init_page_allocator();
 void print_pages_metadata();
 
-/* Boot-time functions (use physical addresses) */
-void *boot_get_page(bool is_kernel);
-void boot_free_page(void *p);
-
-/* Post-boot functions (use virtual addresses via PHYS mapping) */
+/* Page allocation (returns physical address) */
 void *get_page(bool is_kernel);
 void free_page(void *p);
 
