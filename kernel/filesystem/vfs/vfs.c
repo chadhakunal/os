@@ -44,7 +44,7 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_
   * if not found as neg dentry or pos dentry must ask underlying fs via method above
   */
 
-  list_for_each(parent_dir->vnode->children_dentries, pos) {
+  list_for_each(&parent_dir->vnode->children_dentries, pos) {
     struct dentry_t *dentry = container_of(pos, struct dentry_t, sibling_dentry);
     if (strncmp(dentry->name, name) == 0) {
       *out = dentry;
