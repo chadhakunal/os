@@ -57,12 +57,11 @@ void kmain(void *dtb_ptr) {
   struct dentry_t *target;
 
   printk("RESOLVING NEXT -----------------------------\n");
-  vfs_resolve_path("/bin/echo", &target);
+  vfs_resolve_path("/etc/rc", &target);
 
   char buf[64];
   int64_t bytes_read = target->vnode->ops->read(target->vnode, buf, 0, 63);
   buf[bytes_read] = '\0';
-  printk("size: %lld, /bin/echo:\n%s", target->vnode->size, buf);
-
+  printk("printing contents of /bin/rc\n%s", PHYS_TO_VIRT(vfs_get_page(target->vnode, 0));
   arch_wait();
 }
