@@ -5,6 +5,7 @@
 #include "kernel/filesystem/mode.h"
 #include "lib/list.h"
 #include "kernel/memory/page_allocator.h"
+#include "virtual_memory_init.h"
 
 #define READ_EXECUTE_PERM PERM_RUSR | PERM_XUSR | PERM_RGRP | PERM_XGRP | PERM_ROTH | PERM_XOTH
 
