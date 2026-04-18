@@ -60,7 +60,7 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_
 void *vfs_get_page(struct vnode_t *vnode, size_t offset){
   // Align offset to page boundary
   uint64_t page_offset = offset & ~(DEFAULT_PAGE_SIZE - 1);
-  printk("About to start search for page\n");
+
   // Search for page in address space
   list_for_each(&vnode->address_space.page_cache_list, pos) {
     struct page_cache_entry_t *page_cache_entry = container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
@@ -68,12 +68,10 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset){
       return page_cache_entry->physical_page;
     }
   }
-  printk("past looking for a cached page\n");
   // Couldnt find a page cache entry, pull it in
   void *phys_page = get_page(true);
   void *virt_page = PHYS_TO_VIRT(phys_page);
   int64_t ret = vnode->ops->read(vnode, virt_page, page_offset, DEFAULT_PAGE_SIZE);
-  printk("read data into allocated page\n");
   if (ret < 0) {
     printk("ERROR with reading from inode\n");
     free_page(phys_page);
