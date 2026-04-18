@@ -68,11 +68,12 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset){
       return page_cache_entry->physical_page;
     }
   }
-
+  printk("past looking for a cached page\n");
   // Couldnt find a page cache entry, pull it in
-  void *phys_page = get_page(false);
+  void *phys_page = get_page(true);
   void *virt_page = PHYS_TO_VIRT(phys_page);
   int64_t ret = vnode->ops->read(vnode, virt_page, page_offset, DEFAULT_PAGE_SIZE);
+  printk("read data into allocated page\n");
   if (ret < 0) {
     printk("ERROR with reading from inode\n");
     free_page(phys_page);
