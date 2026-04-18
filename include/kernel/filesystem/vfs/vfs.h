@@ -26,7 +26,6 @@ struct dentry_t {
 
 struct page_cache_entry_t {
   size_t offset;
-  size_t size;
   void *physical_page;
   size_t refcount;
   bool dirty;
@@ -70,6 +69,7 @@ DEFINE_POOL(mount_t, struct mount_t)
 DEFINE_POOL(superblock_t, struct superblock_t)
 DEFINE_POOL(vnode_t, struct vnode_t)
 DEFINE_POOL(dentry_t, struct dentry_t)
+DEFINE_POOL(page_cache_entry_t, struct page_cache_entry_t)
 
 void init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id, mode_t permission_mode, uint64_t size);
 void vfs_print_vnode(struct vnode_t *vnode);
