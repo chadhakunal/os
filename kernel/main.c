@@ -28,7 +28,6 @@ void kmain(void *dtb_ptr) {
   init_page_allocator();
   print_pages_metadata();
 
-  allocate_root_page_table();
   init_kernel_page_mapping();
 
   /* Jump to higher-half execution */
