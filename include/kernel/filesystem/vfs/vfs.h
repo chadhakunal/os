@@ -23,6 +23,19 @@ struct dentry_t {
   struct dentry_t *parent;
   struct list_node sibling_dentry;
 };
+struct page_cache_entry_t {
+  size_t offset;
+  size_t size;
+  void *physical_page;
+  size_t refcount;
+  bool dirty;
+  struct list_node sibling_page_cache_entry;
+}
+
+struct address_space_t { // struct which holds all pages cached in memory of file contents
+  size_t num_pages_used;
+  struct list_node page_cache_list;
+}
 
 struct vnode_t {
   uint64_t size;
@@ -32,8 +45,9 @@ struct vnode_t {
   uint32_t owner_gid;
   mode_t permission_mode;
   struct superblock_t *superblock;
-  struct list_node children_dentries; // Sentinel node into the dentry list of children, null if not a directory
+  struct list_node children_dentries; // Sentinel node into the dentry list of children, null if not a director
   struct vnode_ops_t *ops;
+  struct address_space_t address_space;
   void *fs_private_vnode;
 };
 
@@ -65,5 +79,6 @@ void vfs_mount(char *path, struct superblock_t *superblock);
 
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out);
 int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_t **out);
+void *vfs_get_page(struct vnode_t *vnode, size_t offset);
 
 #endif

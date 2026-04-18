@@ -4,6 +4,7 @@
 #include "panic.h"
 #include "kernel/filesystem/mode.h"
 #include "lib/list.h"
+#include "kernel/memory/page_allocator.h"
 
 #define READ_EXECUTE_PERM PERM_RUSR | PERM_XUSR | PERM_RGRP | PERM_XGRP | PERM_ROTH | PERM_XOTH
 
@@ -53,4 +54,17 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_
   }
   *out = NULL;
   return -1;
+}
+
+void *vfs_get_page(struct vnode_t *vnode, size_t offset){
+  // Search for page in address space
+  list_for_each(vnode->address_space.page_cache_list, pos) {
+    struct page_cache_entry_t *page_cache_entry = container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
+    if (page_cache_entry->offset <= offset && offset - page_cache_entry->offset < DEFAULT_PAGE_SIZE) {
+      return page_cache_entry->physical_page;
+    }
+  }
+  // Couldnt find a page cache entry, pull it in
+  void *page = get_page(false);
+
 }
