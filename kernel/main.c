@@ -61,6 +61,5 @@ void kmain(void *dtb_ptr) {
   char buf[64];
   int64_t bytes_read = target->vnode->ops->read(target->vnode, buf, 0, 63);
   buf[bytes_read] = '\0';
-  printk("printing contents of /bin/rc\n%s", PHYS_TO_VIRT(vfs_get_page(target->vnode, 0));
   arch_wait();
 }
