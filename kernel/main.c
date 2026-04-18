@@ -58,6 +58,7 @@ void kmain(void *dtb_ptr) {
   printk("RESOLVING NEXT -----------------------------\n");
   vfs_resolve_path("/etc/rc", &target);
   void *page = vfs_get_page(target->vnode, 0);
+  printk("%llx\n", page);
   // char buf[64];
   // int64_t bytes_read = target->vnode->ops->read(target->vnode, buf, 0, 63);
   // buf[bytes_read] = '\0';
