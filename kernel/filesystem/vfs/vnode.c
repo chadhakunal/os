@@ -11,8 +11,6 @@ void init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id, mod
   vnode->owner_gid = 0;
   vnode->permission_mode = permission_mode;
   vnode->size = size;
-  vnode->first_child_dentry = NULL;
-  vnode->last_child_dentry = NULL;
   vnode->children_dentries.next = &vnode->children_dentries;
   vnode->children_dentries.prev = &vnode->children_dentries;
   vnode->fs_private_vnode = NULL;
@@ -23,7 +21,7 @@ void vfs_print_vnode(struct vnode_t *vnode) {
     printk("[vnode: NULL]\n");
     return;
   }
-  printk("[vnode id=%d, size=%lld, refcount=%d, uid=%d, gid=%d, mode=0x%x%s, first_child=%p, fs_private=%p]\n",
+  printk("[vnode id=%d, size=%lld, refcount=%d, uid=%d, gid=%d, mode=0x%x%s, fs_private=%p]\n",
          vnode->id,
          vnode->size,
          vnode->refcount,
@@ -31,6 +29,5 @@ void vfs_print_vnode(struct vnode_t *vnode) {
          vnode->owner_gid,
          vnode->permission_mode,
          IS_DIR(vnode->permission_mode) ? " (DIR)" : "",
-         vnode->first_child_dentry,
          vnode->fs_private_vnode);
 }
