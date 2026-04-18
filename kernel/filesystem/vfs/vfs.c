@@ -66,6 +66,6 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset){
   }
   // Couldnt find a page cache entry, pull it in
   // TODO: Get zeroed out page
-  //void *page = get_page(false);
-
+  void *page = get_page(false);
+  return page;
 }
