@@ -21,7 +21,7 @@ static inline void list_append(struct list_node *sentinel, struct list_node *new
 }
 
 #define list_for_each(sentinel, pos) \
-  for (struct list_node *pos = sentinel->next; pos != sentinel; pos = pos->next)
+  for (struct list_node *pos = (sentinel)->next; pos != (sentinel); pos = pos->next)
 
 #define offset_of(type, member) ((size_t)(&((type *)0)->member))
 
