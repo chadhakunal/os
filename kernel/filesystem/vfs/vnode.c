@@ -14,8 +14,8 @@ void init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id, mod
   vnode->children_dentries.next = &vnode->children_dentries;
   vnode->children_dentries.prev = &vnode->children_dentries;
   vnode->address_space.num_pages_used = 0;
-  vnode->address_space.page_cache_list.next = &vnode->address_space.page_cache_list
-  vnode->address_space.page_cache_list.prev = &vnode->address_space.page_cache_list
+  vnode->address_space.page_cache_list.next = &vnode->address_space.page_cache_list;
+  vnode->address_space.page_cache_list.prev = &vnode->address_space.page_cache_list;
   vnode->fs_private_vnode = NULL;
 }
 
