@@ -5,20 +5,17 @@
 #include "types.h"
 #include "lib/string.h"
 #include "lib/printk/printk.h"
+#include "lib/list.h"
 
 #define READ_EXECUTE_PERM PERM_RUSR | PERM_XUSR | PERM_RGRP | PERM_XGRP | PERM_ROTH | PERM_XOTH
 
-struct dentry_t *search_children(const char *name, struct dentry_t *first_dentry) {
-  if (first_dentry == NULL) return NULL;
-
-  struct dentry_t *curr_dentry = first_dentry;
-  do {
-    if (strncmp(curr_dentry->name, name) == 0) {
-      return curr_dentry;
+struct dentry_t *search_children(const char *name, struct list_node *dentry_head) {
+  list_for_each(dentry_head, pos) {
+    struct dentry_t *dentry = container_of(pos, struct dentry_t, sibling_dentry);
+    if (strncmp(dentry->name, name) == 0) {
+      return dentry;
     }
-    curr_dentry = curr_dentry->sibling_dentry;
-  } while (curr_dentry != first_dentry);
-
+  }
   return NULL;
 }
 
@@ -39,20 +36,12 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
 
     if (is_dir_path || tar_is_dir(header)) {
       // This is a directory!
-      struct dentry_t *new_dentry = search_children(current_name, curr_vnode->first_child_dentry);
+      struct dentry_t *new_dentry = search_children(current_name, &curr_vnode->children_dentries);
       if (new_dentry == NULL) {
         new_dentry = dentry_t_alloc();
         strncpy(new_dentry->name, current_name, 256);
         new_dentry->parent = curr_dentry;
-        if (curr_vnode->first_child_dentry == NULL) {
-          curr_vnode->first_child_dentry = new_dentry;
-          curr_vnode->last_child_dentry = new_dentry;
-          new_dentry->sibling_dentry = new_dentry;
-        } else {
-          new_dentry->sibling_dentry = curr_vnode->first_child_dentry;
-          curr_vnode->last_child_dentry->sibling_dentry = new_dentry;
-          curr_vnode->last_child_dentry = new_dentry;
-        }
+        list_append(&curr_vnode->children_dentries, &new_dentry->sibling_dentry);
         // If there is no dentry, there is also no inode!
         struct vnode_t *new_vnode = vnode_t_alloc();
         *last_id += 1;
@@ -63,22 +52,12 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
       curr_dentry = new_dentry;
     } else {
       // This is the actual file
-      struct dentry_t *new_dentry = search_children(current_name, curr_vnode->first_child_dentry);
+      struct dentry_t *new_dentry = search_children(current_name, &curr_vnode->children_dentries);
       if (new_dentry == NULL) {
         new_dentry = dentry_t_alloc();
         strncpy(new_dentry->name, current_name, 256);
         new_dentry->parent = curr_dentry;
-        if (curr_vnode->first_child_dentry == NULL) {
-          curr_vnode->first_child_dentry = new_dentry;
-          curr_vnode->last_child_dentry = new_dentry;
-          new_dentry->sibling_dentry = new_dentry;
-        } else {
-          new_dentry->sibling_dentry = curr_vnode->first_child_dentry;
-          curr_vnode->last_child_dentry->sibling_dentry = new_dentry;
-          curr_vnode->last_child_dentry = new_dentry;
-        }
-      }
-      if (new_dentry->vnode == NULL) {
+        list_append(&curr_vnode->children_dentries, &new_dentry->sibling_dentry);
         struct vnode_t *new_vnode = vnode_t_alloc();
         *last_id += 1;
         uint64_t file_size = parse_octal(header->size, 12);
@@ -108,7 +87,6 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
   strncpy(root_dentry->name, "/", 256);
   root_dentry->vnode = root_vnode;
   root_dentry->parent = root_dentry;
-  root_dentry->sibling_dentry = NULL;
   sb->root_dentry = root_dentry;
   sb->root_vnode = root_vnode;
 

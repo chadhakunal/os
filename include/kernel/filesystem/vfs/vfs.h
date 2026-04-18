@@ -4,6 +4,7 @@
 #include "types.h"
 #include "kernel/filesystem/mode.h"
 #include "lib/pool_allocator.h"
+#include "lib/list.h"
 
 #define MAX_DENTRIES 256
 
@@ -20,7 +21,7 @@ struct dentry_t {
   struct vnode_t *vnode;
 
   struct dentry_t *parent;
-  struct dentry_t *sibling_dentry;
+  struct list_node sibling_dentry;
 };
 
 struct vnode_t {
@@ -31,8 +32,7 @@ struct vnode_t {
   uint32_t owner_gid;
   mode_t permission_mode;
   struct superblock_t *superblock;
-  struct dentry_t *first_child_dentry;
-  struct dentry_t *last_child_dentry;
+  struct list_node children_dentries; // Sentinel node into the dentry list of children, null if not a directory
   struct vnode_ops_t *ops;
   void *fs_private_vnode;
 };

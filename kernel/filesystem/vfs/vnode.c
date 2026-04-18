@@ -13,6 +13,8 @@ void init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id, mod
   vnode->size = size;
   vnode->first_child_dentry = NULL;
   vnode->last_child_dentry = NULL;
+  vnode->children_dentries.next = &vnode->children_dentries;
+  vnode->children_dentries.prev = &vnode->children_dentries;
   vnode->fs_private_vnode = NULL;
 }
 
