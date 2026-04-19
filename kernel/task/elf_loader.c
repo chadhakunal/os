@@ -1,5 +1,6 @@
 #include "kernel/task/elf_loader.h"
 #include "lib/printk/printk.h"
+#include "kernel/filesystem/vfs.h"
 
 void load_elf(struct task_t *task, const char *path) {
   struct dentry_t *dentry;
