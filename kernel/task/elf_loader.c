@@ -13,7 +13,7 @@ void load_elf(struct task_t *task, const char *path) {
 
   // Read ELF header
   struct Elf64_Ehdr header;
-  int32_t ret = vfs_vnode_read(dentry->vnode, &header, sizeof(header), 0);
+  ret = vfs_vnode_read(dentry->vnode, &header, sizeof(header), 0);
   if (ret > 0) {
     panic("load_elf: Could not load elf\n");
   }
