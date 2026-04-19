@@ -17,7 +17,7 @@ void load_elf(struct task_t *task, const char *path) {
 
   // Print ELF header information
   printk("=== ELF Header ===\n");
-  printk("Magic:   %02x %02x %02x %02x\n",
+  printk("Magic:   0x%x 0x%x 0x%x 0x%x\n",
          header.e_ident[EI_MAG0], header.e_ident[EI_MAG1],
          header.e_ident[EI_MAG2], header.e_ident[EI_MAG3]);
   printk("Class:   %d (%s)\n", header.e_ident[EI_CLASS],
