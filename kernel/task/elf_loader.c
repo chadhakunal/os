@@ -39,28 +39,29 @@ void load_elf(struct task_t *task, const char *path) {
          header.e_phoff, header.e_phnum, header.e_phentsize);
   printk("Section Headers: offset=0x%lx, count=%d, size=%d\n",
          header.e_shoff, header.e_shnum, header.e_shentsize);
-
   // Read first program header
   struct Elf64_Phdr program_header;
-  vfs_vnode_read(dentry->vnode, &program_header, sizeof(program_header), (size_t) header.e_phoff);
+  for (size_t pheader_idx = 0; pheader_idx < header->e_phnum; pheader_idx ++) {
+    vfs_vnode_read(dentry->vnode, &program_header, sizeof(program_header), (size_t) (header.e_phoff + sizeof(program_header) * pheader_idx));
 
-  // Print program header information
-  printk("\n=== Program Header 0 ===\n");
-  printk("Type:    %d (%s)\n", program_header.p_type,
-         program_header.p_type == PT_LOAD ? "LOAD" :
-         program_header.p_type == PT_DYNAMIC ? "DYNAMIC" :
-         program_header.p_type == PT_INTERP ? "INTERP" :
-         program_header.p_type == PT_PHDR ? "PHDR" : "Other");
-  printk("Offset:  0x%lx\n", program_header.p_offset);
-  printk("VirtAddr: 0x%lx\n", program_header.p_vaddr);
-  printk("PhysAddr: 0x%lx\n", program_header.p_paddr);
-  printk("FileSiz: 0x%lx (%lu bytes)\n", program_header.p_filesz, program_header.p_filesz);
-  printk("MemSiz:  0x%lx (%lu bytes)\n", program_header.p_memsz, program_header.p_memsz);
-  printk("Flags:   0x%x (", program_header.p_flags);
-  if (program_header.p_flags & PF_R) printk("R");
-  if (program_header.p_flags & PF_W) printk("W");
-  if (program_header.p_flags & PF_X) printk("X");
-  printk(")\n");
-  printk("Align:   0x%lx\n", program_header.p_align);
+    // Print program header information
+    printk("\n=== Program Header 0 ===\n");
+    printk("Type:    %d (%s)\n", program_header.p_type,
+          program_header.p_type == PT_LOAD ? "LOAD" :
+          program_header.p_type == PT_DYNAMIC ? "DYNAMIC" :
+          program_header.p_type == PT_INTERP ? "INTERP" :
+          program_header.p_type == PT_PHDR ? "PHDR" : "Other");
+    printk("Offset:  0x%lx\n", program_header.p_offset);
+    printk("VirtAddr: 0x%lx\n", program_header.p_vaddr);
+    printk("PhysAddr: 0x%lx\n", program_header.p_paddr);
+    printk("FileSiz: 0x%lx (%lu bytes)\n", program_header.p_filesz, program_header.p_filesz);
+    printk("MemSiz:  0x%lx (%lu bytes)\n", program_header.p_memsz, program_header.p_memsz);
+    printk("Flags:   0x%x (", program_header.p_flags);
+    if (program_header.p_flags & PF_R) printk("R");
+    if (program_header.p_flags & PF_W) printk("W");
+    if (program_header.p_flags & PF_X) printk("X");
+    printk(")\n");
+    printk("Align:   0x%lx\n", program_header.p_align);
+  }
 
 }
