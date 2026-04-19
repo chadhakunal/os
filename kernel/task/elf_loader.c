@@ -5,7 +5,7 @@
 
 void load_elf(struct task_t *task, const char *path) {
   struct dentry_t *dentry;
-  int64_t ret = vfs_resolve_path(path, &dentry);
+  int32_t ret = vfs_resolve_path(path, &dentry);
   if (ret != 0) {
     panic("load_elf: vfs_resolve_path returned with error\n");
     return;
