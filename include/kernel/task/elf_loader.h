@@ -96,6 +96,6 @@ struct Elf64_Shdr {
   uint64_t sh_entsize;    /* Entry size if section holds table */
 };
 
-void *load_elf(struct task_t *task, const char *path);
+void load_elf(struct task_t *task, const char *path);
 
 #endif
