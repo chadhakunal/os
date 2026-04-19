@@ -41,7 +41,7 @@ void load_elf(struct task_t *task, const char *path) {
          header.e_shoff, header.e_shnum, header.e_shentsize);
   // Read first program header
   struct Elf64_Phdr program_header;
-  for (size_t pheader_idx = 0; pheader_idx < header->e_phnum; pheader_idx ++) {
+  for (size_t pheader_idx = 0; pheader_idx < header.e_phnum; pheader_idx ++) {
     vfs_vnode_read(dentry->vnode, &program_header, sizeof(program_header), (size_t) (header.e_phoff + sizeof(program_header) * pheader_idx));
 
     // Print program header information
