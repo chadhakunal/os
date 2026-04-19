@@ -62,6 +62,13 @@ void load_elf(struct task_t *task, const char *path) {
     if (program_header.p_flags & PF_X) printk("X");
     printk(")\n");
     printk("Align:   0x%lx\n", program_header.p_align);
-  }
+    if (program_header.p_type == PT_LOAD) {
+      uint64_t vm_flags = 0;
+      if (program_header.p_flags & PF_R) vm_flags |= VM_READ;
+      if (program_header.p_flags & PF_W) vm_flags |= VM_WRITE;
+      if (program_header.p_flags & PF_X) vm_flags |= VM_EXEC;
 
+      file_backed_memory_map(task->mm_struct, program_header.p_vaddr, dentry->vnode, program_header.p_offset, program_header.p_memsz, vm_flags, true);
+    }
+  }
 }
