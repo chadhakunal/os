@@ -81,5 +81,6 @@ void vfs_mount(char *path, struct superblock_t *superblock);
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out);
 int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_t **out);
 void *vfs_get_page(struct vnode_t *vnode, size_t offset);
+int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t offset);
 
 #endif

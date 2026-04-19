@@ -63,5 +63,9 @@ void kmain(void *dtb_ptr) {
   char *page_content = (char *)PHYS_TO_VIRT(vfs_get_page(target->vnode, 0));
   //page_content [4095] = '\0';
   printk("printing contents of /bin/rc\n%s", page_content);
+
+  struct task_t *task = task_t_alloc();
+  load_elf(task, "/bin/echo");
+  
   arch_wait();
 }
