@@ -69,7 +69,7 @@ void boot_map_page(page_table_t *pt, uint64_t va, uint64_t pa) {
 }
 
 /* Post-boot version: uses PHYS_TO_VIRT to access page tables */
-void map_page(page_table_t *pt, uint64_t va, uint64_t pa) {
+void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
   uint64_t pt1_idx = PT1_OFFSET(va); // VPN[2]
   uint64_t pt2_idx = PT2_OFFSET(va); // VPN[1]
   uint64_t pt3_idx = PT3_OFFSET(va); // VPN[0]
@@ -101,8 +101,9 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa) {
         PTE_DECODE(pt2->page_table_entries[pt2_idx]));
   }
 
-  pt3->page_table_entries[pt3_idx] =
-      PTE_ADDR(pa) | PTE_VALID | PTE_R | PTE_W | PTE_X | PTE_A | PTE_D;
+  // Set leaf PTE: VALID + A (accessed) always set, pte_flags from caller
+  // PTE_D (dirty) starts at 0 - hardware sets it on write
+  pt3->page_table_entries[pt3_idx] = PTE_ADDR(pa) | PTE_VALID | PTE_A | pte_flags;
 }
 
 bool page_table_empty(page_table_t *pt) {
@@ -165,12 +166,12 @@ void boot_map_pages(page_table_t *pt, uint64_t physical_memory_start, uint64_t p
 
 /* Post-boot version */
 void map_pages(page_table_t *pt, uint64_t physical_memory_start, uint64_t physical_memory_end,
-                uint64_t virtual_memory_start) {
+                uint64_t virtual_memory_start, uint64_t pte_flags) {
   for (uint64_t iter = 0; iter < physical_memory_end - physical_memory_start;
        iter += DEFAULT_PAGE_SIZE) {
     uint64_t pa = iter + physical_memory_start;
     uint64_t va = iter + virtual_memory_start;
-    map_page(pt, va, pa);
+    map_page(pt, va, pa, pte_flags);
   }
 }
 
