@@ -45,7 +45,7 @@ void load_elf(struct task_t *task, const char *path) {
     vfs_vnode_read(dentry->vnode, &program_header, sizeof(program_header), (size_t) (header.e_phoff + sizeof(program_header) * pheader_idx));
 
     // Print program header information
-    printk("\n=== Program Header 0 ===\n");
+    printk("\n=== Program Header %d ===\n", pheader_idx);
     printk("Type:    %d (%s)\n", program_header.p_type,
           program_header.p_type == PT_LOAD ? "LOAD" :
           program_header.p_type == PT_DYNAMIC ? "DYNAMIC" :
