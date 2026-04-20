@@ -43,24 +43,16 @@ int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
     panic("file_backed_memory_map: invalid parameters\n");
   }
 
-  printk("file_backed_memory_map: vaddr=0x%lx, offset=0x%lx, size=0x%lx, vm_flags=0x%lx, eager=%d\n",
-         vaddr, offset, size, vm_flags, eager);
-
   size_t vaddr_aligned = vaddr & ~(DEFAULT_PAGE_SIZE - 1);
   size_t offset_aligned = offset & ~(DEFAULT_PAGE_SIZE - 1);
   size_t offset_in_page = vaddr - vaddr_aligned;
   size_t total_size = offset_in_page + size;
   size_t num_pages = (total_size + DEFAULT_PAGE_SIZE - 1) / DEFAULT_PAGE_SIZE;
   size_t vaddr_end = vaddr_aligned + (num_pages * DEFAULT_PAGE_SIZE);
-
-  printk("  Aligned: vaddr=0x%lx, offset=0x%lx, num_pages=%lu, vaddr_end=0x%lx\n",
-         vaddr_aligned, offset_aligned, num_pages, vaddr_end);
  
   for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
     struct vma_t *existing = find_vma(mm_struct, va);
     if (existing != NULL) {
-      printk("  ERROR: VMA already exists at 0x%lx (range 0x%lx-0x%lx)\n",
-             va, existing->start_addr, existing->end_addr);
       return -1;
     }
   }
@@ -73,19 +65,12 @@ int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
   new_vma->vm_flags = vm_flags;
 
   list_append(&mm_struct->vma_list, &new_vma->sibling_vma);
-  printk("  Created VMA: 0x%lx-0x%lx, file_offset=0x%lx, flags=0x%lx\n",
-         new_vma->start_addr, new_vma->end_addr, new_vma->offset, new_vma->vm_flags);
 
   // Eagerly load the pages into the page table from the file
   if (eager) {
-    printk("  Eagerly loading %lu pages...\n", num_pages);
     size_t file_offset = offset_aligned;
-    size_t page_idx = 0;
     for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
-      printk("    [Page %lu/%lu] va=0x%lx, file_offset=0x%lx\n", page_idx, num_pages, va, file_offset);
-      printk("      Calling vfs_get_page...\n");
       void *phys_page = vfs_get_page(vnode, file_offset);
-      printk("      vfs_get_page returned pa=0x%lx\n", (uint64_t)phys_page);
 
       // Convert VM flags to PTE flags
       // Note: map_page() sets PTE_VALID and PTE_A automatically
@@ -93,23 +78,11 @@ int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
       if (vm_flags & VM_READ)  pte_flags |= PTE_R;
       if (vm_flags & VM_WRITE) pte_flags |= PTE_W;
       if (vm_flags & VM_EXEC)  pte_flags |= PTE_X;
-      printk("      pte_flags=0x%lx (", pte_flags);
-      if (pte_flags & PTE_R) printk("R");
-      if (pte_flags & PTE_W) printk("W");
-      if (pte_flags & PTE_X) printk("X");
-      if (pte_flags & PTE_U) printk("U");
-      printk(")\n");
 
-      printk("      Calling map_page...\n");
       map_page(PHYS_TO_VIRT(mm_struct->root_satp), va, (uint64_t)phys_page, pte_flags);
-      printk("      map_page completed\n");
-
       file_offset += DEFAULT_PAGE_SIZE;
-      page_idx++;
     }
-    printk("  Eager loading complete\n");
   }
 
-  printk("  file_backed_memory_map: SUCCESS\n");
   return 0;
 }
