@@ -67,7 +67,7 @@ void kmain(void *dtb_ptr) {
   struct task_t *task = init_task();
 
   load_elf(task, "/bin/echo");
-
+  printk("Loaded elf\n");
   trap_return(&task->tf);
   
   arch_wait();
