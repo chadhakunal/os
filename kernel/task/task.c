@@ -5,6 +5,19 @@
 #include "virtual_memory_init.h"
 #include "panic.h"
 
+struct task_t *init_task() {
+  struct task_t *task = task_t_alloc();
+  task->kernel_stack = PHYS_TO_VIRT(get_page(true));
+  task->pid = 0;
+  task->uid = 0;
+  // Initialize page table with kernel mappings copied from root
+  task->mm_struct.root_satp = init_new_page_table();
+  // Initialize VMA list
+  task->mm_struct.vma_list.next = &task->mm_struct.vma_list;
+  task->mm_struct.vma_list.prev = &task->mm_struct.vma_list;
+  return task;
+}
+
 struct task_t *create_init_process() {
   struct task_t *init_task = task_t_alloc();
   return init_task;
@@ -35,7 +48,7 @@ int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
   size_t total_size = offset_in_page + size;
   size_t num_pages = (total_size + DEFAULT_PAGE_SIZE - 1) / DEFAULT_PAGE_SIZE;
   size_t vaddr_end = vaddr_aligned + (num_pages * DEFAULT_PAGE_SIZE);
-
+ 
   for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
     struct vma_t *existing = find_vma(mm_struct, va);
     if (existing != NULL) {

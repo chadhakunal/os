@@ -38,6 +38,9 @@ struct task_t {
 DEFINE_POOL(task_t, struct task_t)
 DEFINE_POOL(vma_t, struct vma_t)
 
+struct task_t *init_task();
+struct task_t *create_init_process();
+
 struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr);
 
 int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,

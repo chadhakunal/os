@@ -64,7 +64,8 @@ void kmain(void *dtb_ptr) {
   //page_content [4095] = '\0';
   printk("printing contents of /bin/rc\n%s", page_content);
 
-  struct task_t *task = task_t_alloc();
+  struct task_t *task = init_task();
+
   load_elf(task, "/bin/echo");
   
   arch_wait();
