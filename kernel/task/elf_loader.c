@@ -8,7 +8,6 @@ void load_elf(struct task_t *task, const char *path) {
   int32_t ret = vfs_resolve_path(path, &dentry);
   if (ret != 0) {
     panic("load_elf: vfs_resolve_path returned with error\n");
-    return;
   }
 
   // Read ELF header
@@ -17,6 +16,7 @@ void load_elf(struct task_t *task, const char *path) {
   if (ret < 0) {
     panic("load_elf: Could not load elf\n");
   }
+  task->mm_struct.entry_addr = (void *)header.e_entry;
 
   // Print ELF header information
   printk("=== ELF Header ===\n");
@@ -62,8 +62,9 @@ void load_elf(struct task_t *task, const char *path) {
     if (program_header.p_flags & PF_X) printk("X");
     printk(")\n");
     printk("Align:   0x%lx\n", program_header.p_align);
+
+    uint64_t vm_flags = 0;
     if (program_header.p_type == PT_LOAD) {
-      uint64_t vm_flags = 0;
       if (program_header.p_flags & PF_R) vm_flags |= VM_READ;
       if (program_header.p_flags & PF_W) vm_flags |= VM_WRITE;
       if (program_header.p_flags & PF_X) vm_flags |= VM_EXEC;
@@ -71,4 +72,12 @@ void load_elf(struct task_t *task, const char *path) {
       file_backed_memory_map(&task->mm_struct, program_header.p_vaddr, dentry->vnode, program_header.p_offset, program_header.p_memsz, vm_flags, true);
     }
   }
+
+  // Set up stack (read/write, no execute for security)
+  anon_memory_map(&task->mm_struct, DEFAULT_STACK_START, DEFAULT_PAGE_SIZE, VM_READ | VM_WRITE, true);
+
+  task->tf.sepc = header.e_entry;
+  task->tf.sp = DEFAULT_STACK_START + DEFAULT_PAGE_SIZE - 8;
+  task->tf.a0 = 0;
+  task->tf.sstatus = SSTATUS_SPIE | SSTATUS_UXL_64;
 }

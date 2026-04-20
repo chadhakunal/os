@@ -3,6 +3,22 @@
 
 #include "types.h"
 
+/* sstatus register bits */
+#define SSTATUS_SIE   (1UL << 1)  /* Supervisor Interrupt Enable */
+#define SSTATUS_SPIE  (1UL << 5)  /* Supervisor Previous Interrupt Enable */
+#define SSTATUS_UBE   (1UL << 6)  /* User Big-Endian */
+#define SSTATUS_SPP   (1UL << 8)  /* Supervisor Previous Privilege (0=User, 1=Supervisor) */
+#define SSTATUS_FS    (3UL << 13) /* Floating-point Status */
+#define SSTATUS_XS    (3UL << 15) /* Extension Status */
+#define SSTATUS_SUM   (1UL << 18) /* Permit Supervisor User Memory access */
+#define SSTATUS_MXR   (1UL << 19) /* Make eXecutable Readable */
+#define SSTATUS_UXL   (3UL << 32) /* User XLEN (10=64-bit, 01=32-bit) */
+#define SSTATUS_SD    (1UL << 63) /* State Dirty (FS/XS) */
+
+/* sstatus UXL field values */
+#define SSTATUS_UXL_32  (1UL << 32)
+#define SSTATUS_UXL_64  (2UL << 32)
+
 struct trap_frame {
   /* General purpose registers */
   uint64_t ra;   // x1  - return address

@@ -5,6 +5,7 @@
 #include "virtual_memory_init.h"
 #include "panic.h"
 #include "lib/printk/printk.h"
+#include "lib/string.h"
 
 struct task_t *init_task() {
   struct task_t *task = task_t_alloc();
@@ -81,6 +82,56 @@ int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
 
       map_page(PHYS_TO_VIRT(mm_struct->root_satp), va, (uint64_t)phys_page, pte_flags);
       file_offset += DEFAULT_PAGE_SIZE;
+    }
+  }
+
+  return 0;
+}
+
+int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
+                                size_t size, uint64_t vm_flags, bool eager) {
+
+  if (mm_struct == NULL || size == 0) {
+    panic("anon_memory_map: invalid parameters\n");
+  }
+
+  size_t vaddr_aligned = vaddr & ~(DEFAULT_PAGE_SIZE - 1);
+  size_t num_pages = (size + DEFAULT_PAGE_SIZE - 1) / DEFAULT_PAGE_SIZE;
+  size_t vaddr_end = vaddr_aligned + (num_pages * DEFAULT_PAGE_SIZE);
+
+  for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
+    struct vma_t *existing = find_vma(mm_struct, va);
+    if (existing != NULL) {
+      return -1;
+    }
+  }
+
+  struct vma_t *new_vma = vma_t_alloc();
+  new_vma->start_addr = vaddr_aligned;
+  new_vma->end_addr = vaddr_end;
+  new_vma->backing_file = NULL;
+  new_vma->offset = 0;
+  new_vma->vm_flags = vm_flags;
+
+  list_append(&mm_struct->vma_list, &new_vma->sibling_vma);
+
+  // Eagerly allocate and map anonymous pages
+  if (eager) {
+    for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
+      void *phys_page = get_page(false);
+
+      // Zero the page for security (prevent information leakage)
+      void *virt_page = PHYS_TO_VIRT(phys_page);
+      memset(virt_page, 0, DEFAULT_PAGE_SIZE);
+
+      // Convert VM flags to PTE flags
+      // Note: map_page() sets PTE_VALID and PTE_A automatically
+      uint64_t pte_flags = PTE_U;
+      if (vm_flags & VM_READ)  pte_flags |= PTE_R;
+      if (vm_flags & VM_WRITE) pte_flags |= PTE_W;
+      if (vm_flags & VM_EXEC)  pte_flags |= PTE_X;
+
+      map_page(PHYS_TO_VIRT(mm_struct->root_satp), va, (uint64_t)phys_page, pte_flags);
     }
   }
 

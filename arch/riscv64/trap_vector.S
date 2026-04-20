@@ -69,9 +69,11 @@ trap_return:
     # a0 = trap_frame pointer
     mv sp, a0
 
-    # Restore sepc
+    # Restore CSRs (sepc and sstatus)
     ld t0, 248(sp)
     csrw sepc, t0
+    ld t0, 256(sp)
+    csrw sstatus, t0
 
     # Restore all general purpose registers
     ld ra, 0(sp)
@@ -106,6 +108,6 @@ trap_return:
     ld t5, 232(sp)
     ld t6, 240(sp)
 
-    # Finally restore sp and return
+    # Finally restore sp and return to user mode
     ld sp, 8(sp)
     sret

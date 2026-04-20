@@ -23,6 +23,7 @@ struct vma_t {
 
 struct mm_struct_t {
   page_table_t *root_satp;
+  void *entry_addr;
   struct list_node vma_list;
 };
 
@@ -46,5 +47,8 @@ struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr);
 int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
                                 struct vnode_t *vnode, size_t offset,
                                 size_t size, uint64_t vm_flags, bool eager);
+
+int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
+                        size_t size, uint64_t vm_flags, bool eager);
 
 #endif

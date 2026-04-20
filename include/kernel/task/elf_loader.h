@@ -4,6 +4,8 @@
 #include "types.h"
 #include "kernel/task/task.h"
 
+#define DEFAULT_STACK_START 0x7FFFF000
+
 /* ELF magic number */
 #define ELF_MAGIC 0x464C457FU  /* "\x7fELF" in little endian */
 
