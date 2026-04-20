@@ -101,7 +101,7 @@ int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
       printk(")\n");
 
       printk("      Calling map_page...\n");
-      map_page(mm_struct->root_satp, va, (uint64_t)phys_page, pte_flags);
+      map_page(PHYS_TO_VIRT(mm_struct->root_satp), va, (uint64_t)phys_page, pte_flags);
       printk("      map_page completed\n");
 
       file_offset += DEFAULT_PAGE_SIZE;
