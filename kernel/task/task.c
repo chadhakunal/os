@@ -4,6 +4,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "virtual_memory_init.h"
 #include "panic.h"
+#include "lib/printk/printk.h"
 
 struct task_t *init_task() {
   struct task_t *task = task_t_alloc();
