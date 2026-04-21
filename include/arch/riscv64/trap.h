@@ -62,6 +62,12 @@ struct trap_frame {
 
 void init_trap_handler(void);
 
+/* Enable global interrupts (sstatus.SIE and sie register) */
+void enable_interrupts(void);
+
+/* Disable global interrupts (sstatus.SIE) */
+void disable_interrupts(void);
+
 /* NEVER RETURNS - either calls trap_return() or panic() */
 void trap_handler(struct trap_frame *tf);
 

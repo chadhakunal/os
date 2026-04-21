@@ -68,6 +68,7 @@ void kmain(void *dtb_ptr) {
 
   load_elf(task, "/bin/echo");
   printk("Loaded elf\n");
+  enable_interrupts();
   //trap_return(&task->tf);
   
   arch_wait();

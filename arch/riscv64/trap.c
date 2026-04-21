@@ -59,3 +59,29 @@ void init_trap_handler(void) {
   /* Set stvec to trap_vector */
   asm volatile("csrw stvec, %0" :: "r"(trap_vector));
 }
+
+void enable_interrupts(void) {
+  /* Enable supervisor interrupts in sstatus */
+  uint64_t sstatus;
+  asm volatile("csrr %0, sstatus" : "=r"(sstatus));
+  sstatus |= SSTATUS_SIE;  /* Set SIE bit to enable interrupts */
+  asm volatile("csrw sstatus, %0" :: "r"(sstatus));
+
+  /* Enable external, timer, and software interrupts in sie register */
+  uint64_t sie = (1UL << 9) |  /* SEIE - Supervisor external interrupt enable */
+                 (1UL << 5) |  /* STIE - Supervisor timer interrupt enable */
+                 (1UL << 1);   /* SSIE - Supervisor software interrupt enable */
+  asm volatile("csrw sie, %0" :: "r"(sie));
+
+  printk("Global interrupts enabled (sstatus.SIE=1, sie=0x%lx)\n", sie);
+}
+
+void disable_interrupts(void) {
+  /* Disable supervisor interrupts in sstatus */
+  uint64_t sstatus;
+  asm volatile("csrr %0, sstatus" : "=r"(sstatus));
+  sstatus &= ~SSTATUS_SIE;  /* Clear SIE bit to disable interrupts */
+  asm volatile("csrw sstatus, %0" :: "r"(sstatus));
+
+  printk("Global interrupts disabled (sstatus.SIE=0)\n");
+}
