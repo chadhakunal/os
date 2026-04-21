@@ -16,6 +16,28 @@ struct vnode_ops_t {
   int64_t (*read)(struct vnode_t *vnode, void *buffer, uint64_t offset, uint64_t size);
 };
 
+/* File open flags */
+#define O_RDONLY    0x0000  /* Open for reading only */
+#define O_WRONLY    0x0001  /* Open for writing only */
+#define O_RDWR      0x0002  /* Open for reading and writing */
+#define O_ACCMODE   0x0003  /* Mask for file access modes */
+
+/* File creation and status flags */
+#define O_CREAT     0x0040  /* Create file if it doesn't exist */
+#define O_EXCL      0x0080  /* Exclusive use (with O_CREAT) */
+#define O_TRUNC     0x0200  /* Truncate file to zero length */
+#define O_APPEND    0x0400  /* Append mode */
+
+/* File descriptor flags */
+#define O_CLOEXEC   0x0800  /* Close on exec */
+
+struct file_t {
+  struct vnode_t *vnode;
+  size_t offset;
+  size_t refcount;
+  int flags;  /* O_RDONLY, O_WRONLY, O_RDWR, etc. */
+};
+
 struct dentry_t {
   char name[256];
   struct vnode_t *vnode;
