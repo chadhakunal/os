@@ -61,7 +61,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         struct vnode_t *new_vnode = vnode_t_alloc();
         *last_id += 1;
         uint64_t file_size = parse_octal(header->size, 12);
-        init_vnode(new_vnode, root_vnode->superblock, *last_id, READ_EXECUTE_PERM, file_size);
+        init_vnode(new_vnode, root_vnode->superblock, *last_id, READ_EXECUTE_PERM | S_IFREG, file_size);
         new_dentry->vnode = new_vnode;
         struct tarfs_vnode_t *tarfs_vnode = tarfs_vnode_t_alloc();
         tarfs_vnode->data = data;
