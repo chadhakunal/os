@@ -45,7 +45,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         // If there is no dentry, there is also no inode!
         struct vnode_t *new_vnode = vnode_t_alloc();
         *last_id += 1;
-        init_vnode(new_vnode, root_vnode->superblock, *last_id, READ_EXECUTE_PERM | PERM_IS_DIR, 0);
+        init_vnode(new_vnode, root_vnode->superblock, *last_id, READ_EXECUTE_PERM | S_IFDIR, 0);
         new_dentry->vnode = new_vnode;
       }
       curr_vnode = new_dentry->vnode;
@@ -79,7 +79,7 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
   uint32_t last_id = 0;
 
   struct vnode_t *root_vnode = vnode_t_alloc();
-  init_vnode(root_vnode, sb, 0, READ_EXECUTE_PERM | PERM_IS_DIR, 0);
+  init_vnode(root_vnode, sb, 0, READ_EXECUTE_PERM | S_IFDIR, 0);
   struct tarfs_vnode_t *root_tarfs_vnode = tarfs_vnode_t_alloc();
   root_vnode->fs_private_vnode = (void *)root_tarfs_vnode;
 

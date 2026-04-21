@@ -23,8 +23,21 @@ typedef uint32_t mode_t;
 #define PERM_XOTH  0000001  /* Execute permission, other */
 #define PERM_RWXO  0000007  /* Read, write, execute - other */
 
-#define PERM_IS_DIR 01000000 /* The vnode is a directory */
+/* File type bits (upper bits of mode) */
+#define S_IFMT   0170000  /* File type mask */
+#define S_IFREG  0100000  /* Regular file */
+#define S_IFDIR  0040000  /* Directory */
+#define S_IFCHR  0020000  /* Character device */
+#define S_IFBLK  0060000  /* Block device */
+#define S_IFIFO  0010000  /* FIFO/pipe */
+#define S_IFLNK  0120000  /* Symbolic link */
 
-#define IS_DIR(mode) ((mode & PERM_IS_DIR) != 0)
+/* File type test macros */
+#define IS_REG(mode)  (((mode) & S_IFMT) == S_IFREG)   /* Regular file */
+#define IS_DIR(mode)  (((mode) & S_IFMT) == S_IFDIR)   /* Directory */
+#define IS_CHR(mode)  (((mode) & S_IFMT) == S_IFCHR)   /* Character device */
+#define IS_BLK(mode)  (((mode) & S_IFMT) == S_IFBLK)   /* Block device */
+#define IS_FIFO(mode) (((mode) & S_IFMT) == S_IFIFO)   /* FIFO/pipe */
+#define IS_LNK(mode)  (((mode) & S_IFMT) == S_IFLNK)   /* Symbolic link */
 
 #endif
