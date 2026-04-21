@@ -15,15 +15,15 @@ struct superblock_t *tarfs_mount(void *data, uint64_t size) {
 int64_t tarfs_vnode_read(struct vnode_t *vnode, void *buffer, uint64_t offset, uint64_t size) {
   struct tarfs_vnode_t *tarfs_vnode = vnode->fs_private_vnode;
 
-  if (tarfs_vnode == NULL) {
-    printk("tarfs_vnode_read: fs_private_vnode is NULL!\n");
-    return -1;
-  }
-
-  if (tarfs_vnode->data == NULL) {
-    printk("tarfs_vnode_read: tarfs_vnode->data is NULL for vnode id=%d!\n", vnode->id);
-    return -1;
-  }
+  // if (tarfs_vnode == NULL) {
+  //   printk("tarfs_vnode_read: fs_private_vnode is NULL!\n");
+  //   return -1;
+  // }
+  //
+  // if (tarfs_vnode->data == NULL) {
+  //   printk("tarfs_vnode_read: tarfs_vnode->data is NULL for vnode id=%d!\n", vnode->id);
+  //   return -1;
+  // }
 
   if (offset >= vnode->size) {
     return 0;
