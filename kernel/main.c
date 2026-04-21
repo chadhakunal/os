@@ -11,6 +11,7 @@
 #include "virtual_memory_init.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "trap.h"
+#include "kernel/drivers/uart.h"
 
 #include "lib/printk/printk.h"
 
@@ -69,6 +70,7 @@ void kmain(void *dtb_ptr) {
   load_elf(task, "/bin/echo");
   printk("Loaded elf\n");
   enable_interrupts();
+  uart_enable_interrupts();
   //trap_return(&task->tf);
   
   arch_wait();

@@ -13,4 +13,7 @@ void uart_print_long_int(int64_t value);
 void uart_println(const char *s);
 void uart_indent(const int depth);
 
+/* Enable UART receive interrupts - must be called AFTER virtual memory is enabled */
+void uart_enable_interrupts(void);
+
 #endif
