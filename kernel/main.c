@@ -61,8 +61,6 @@ void kmain(void *dtb_ptr) {
   // char buf[64];
   // int64_t bytes_read = target->vnode->ops->read(target->vnode, buf, 0, 63);
   // buf[bytes_read] = '\0';
-  printk("Resolved /etc/rc:\n");
-  vfs_print_vnode(target->vnode);
   char *page_content = (char *)PHYS_TO_VIRT(vfs_get_page(target->vnode, 0));
   //page_content [4095] = '\0';
   printk("printing contents of /bin/rc\n%s", page_content);

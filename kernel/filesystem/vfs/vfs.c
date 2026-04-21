@@ -30,10 +30,6 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
 }
 
 int32_t vfs_lookup(const char *name, struct dentry_t *parent_dir, struct dentry_t **out) {
-  printk("vfs_lookup: looking up '%s' in parent '%s'\n", name, parent_dir->name);
-  printk("  parent mode=0x%x, IS_DIR=%d\n",
-         parent_dir->vnode->permission_mode, IS_DIR(parent_dir->vnode->permission_mode));
-
   if (parent_dir == NULL) {
     panic("vfs_lookup: parent_dir is NULL\n");
   }
