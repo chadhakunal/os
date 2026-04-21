@@ -16,27 +16,33 @@ void trap_handler(struct trap_frame *tf) {
 
   if (is_interrupt) {
     printk("Interrupt: ");
+    switch (cause_code) {
+      case 1:  printk("Supervisor software interrupt\n"); break;
+      case 5:  printk("Supervisor timer interrupt\n"); break;
+      case 9:  printk("Supervisor external interrupt (UART)\n"); break;
+      default: printk("Unknown interrupt: %llu\n", cause_code); break;
+    }
   } else {
     printk("Exception: ");
-  }
-  switch (cause_code) {
-    case 0:  printk("Instruction address misaligned\n"); break;
-    case 1:  printk("Instruction access fault\n"); break;
-    case 2:  printk("Illegal instruction\n"); break;
-    case 3:  printk("Breakpoint\n"); break;
-    case 4:  printk("Load address misaligned\n"); break;
-    case 5:  printk("Load access fault\n"); break;
-    case 6:  printk("Store address misaligned\n"); break;
-    case 7:  printk("Store access fault\n"); break;
-    case 8:
-      printk("Environment call from U-mode\n");
-      handle_syscall(tf);
-      break;
-    case 9:  printk("Environment call from S-mode\n"); break;
-    case 12: printk("Instruction page fault\n"); break;
-    case 13: printk("Load page fault\n"); break;
-    case 15: printk("Store page fault\n"); break;
-    default: printk("Unknown cause: %llu\n", cause_code); break;
+    switch (cause_code) {
+      case 0:  printk("Instruction address misaligned\n"); break;
+      case 1:  printk("Instruction access fault\n"); break;
+      case 2:  printk("Illegal instruction\n"); break;
+      case 3:  printk("Breakpoint\n"); break;
+      case 4:  printk("Load address misaligned\n"); break;
+      case 5:  printk("Load access fault\n"); break;
+      case 6:  printk("Store address misaligned\n"); break;
+      case 7:  printk("Store access fault\n"); break;
+      case 8:
+        printk("Environment call from U-mode\n");
+        handle_syscall(tf);
+        break;
+      case 9:  printk("Environment call from S-mode\n"); break;
+      case 12: printk("Instruction page fault\n"); break;
+      case 13: printk("Load page fault\n"); break;
+      case 15: printk("Store page fault\n"); break;
+      default: printk("Unknown exception: %llu\n", cause_code); break;
+    }
   }
 
   printk("\nRegisters:\n");
