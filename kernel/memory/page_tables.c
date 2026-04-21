@@ -220,6 +220,16 @@ void init_kernel_page_mapping() {
   uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
   boot_map_page(root_page_table, uart_virt, uart_phys);
 
+  /* Map PLIC (Platform-Level Interrupt Controller) pages
+   * Only map the pages we actually use (3 pages = 12KB):
+   * - 0x0c000000: Interrupt priorities
+   * - 0x0c002000: Interrupt enables
+   * - 0x0c201000: Priority threshold and claim/complete */
+  #define PLIC_BASE 0x0c000000UL
+  boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + PLIC_BASE, PLIC_BASE);
+  boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + PLIC_BASE + 0x2000, PLIC_BASE + 0x2000);
+  boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + PLIC_BASE + 0x201000, PLIC_BASE + 0x201000);
+
   enable_virtual_memory((uint64_t)root_page_table);
   uint64_t offset = KERNEL_VIRT_OFFSET;
 
