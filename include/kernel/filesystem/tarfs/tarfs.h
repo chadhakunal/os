@@ -13,7 +13,12 @@ struct tarfs_vnode_t {
   void *data;
 };
 
+struct tarfs_superblock_t {
+  int64_t last_vnode_id;
+}
+
 DEFINE_POOL(tarfs_vnode_t, struct tarfs_vnode_t)
+DEFINE_POOL(tarfs_superblock_t, struct tarfs_superblock_t)
 
 struct superblock_t *tarfs_mount(void *data, uint64_t size);
 

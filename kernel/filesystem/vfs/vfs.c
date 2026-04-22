@@ -42,12 +42,10 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset){
     }
   }
   // Couldnt find a page cache entry, pull it in
-  void *phys_page = get_page(true);
-  void *virt_page = PHYS_TO_VIRT(phys_page);
-  int64_t ret = vnode->ops->read(vnode, virt_page, page_offset, DEFAULT_PAGE_SIZE);
+  void *phys_page;
+  int ret = vnode->address_space->address_space_ops->fill_page(vnode, offset, &phys_page);
   if (ret < 0) {
-    printk("ERROR with reading from inode\n");
-    free_page(phys_page);
+    printk("vfs_get_page: Error filling page with address_space_ops\n");
     return NULL;
   }
 
@@ -61,3 +59,41 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset){
 
   return phys_page;
 }
+
+struct file_t *vfs_init_file(struct vnode_t *vnode, int flags) {
+  struct file_t *file = file_t_alloc();
+  file->vnode = vnode;
+  file->file_ops = &vnode->superblock.file_ops;
+  file->offset = 0;
+  file->refcount = 0;
+  file->flags = flags;
+  return file;
+}
+
+int64_t vfs_read(struct file_struct_t *file, uint64_t offset, void *buffer, uint64_t size) {
+  if (file == NULL) {
+    panic("vfs_read: File is NULL\n");
+  }
+  if (file->vnode->address_space == NULL || file->vnode->address_space->address_space_ops->fill_page == NULL) {
+    return file->file_ops->read(file, offset, buffer, size);
+  }
+  // Address_space and fill page is available
+  int ret = vfs_vnode_read(file->vnode, buffer, size, offset);
+  
+  return ret;
+}
+
+int64_t vfs_open(const char *path, int flags, struct file_t **file) {
+  if (path == NULL || *path == 0) {
+    panic("vfs_open: invalid path\n");
+  }
+  struct dentry_t *dentry;
+  int ret = vfs_resolve_path(path, &dentry);
+  if (ret < 0) {
+    panic("vfs_open: something went wrong resolving path!\n");
+  }
+  
+  *file = vfs_init_file(dentry->vnode, flags);
+  return 0;
+}
+

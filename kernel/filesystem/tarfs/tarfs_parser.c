@@ -19,7 +19,7 @@ struct dentry_t *search_children(const char *name, struct list_node *dentry_head
   return NULL;
 }
 
-void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vnode, struct dentry_t *root_dentry, struct tar_header *header, uint32_t *last_id) {
+void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vnode, struct dentry_t *root_dentry, struct tar_header *header) {
   struct vnode_t *curr_vnode = root_vnode;
   struct dentry_t *curr_dentry = root_dentry;
   const char *current_path = path;
@@ -43,9 +43,8 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         new_dentry->parent = curr_dentry;
         list_append(&curr_vnode->children_dentries, &new_dentry->sibling_dentry);
         // If there is no dentry, there is also no inode!
-        struct vnode_t *new_vnode = vnode_t_alloc();
-        *last_id += 1;
-        init_vnode(new_vnode, root_vnode->superblock, *last_id, READ_EXECUTE_PERM | S_IFDIR, 0);
+        struct vnode_t *new_vnode = tarfs_vnode_t_alloc(root_vnode->superblock);
+        new_vnode->mode = READ_EXECUTE_PERM | S_IFDIR;
         new_dentry->vnode = new_vnode;
       }
       curr_vnode = new_dentry->vnode;
@@ -58,14 +57,13 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         strncpy(new_dentry->name, current_name, 256);
         new_dentry->parent = curr_dentry;
         list_append(&curr_vnode->children_dentries, &new_dentry->sibling_dentry);
-        struct vnode_t *new_vnode = vnode_t_alloc();
-        *last_id += 1;
+        struct vnode_t *new_vnode = tarfs_vnode_t_alloc(root_vnode->superblock);
         uint64_t file_size = parse_octal(header->size, 12);
-        init_vnode(new_vnode, root_vnode->superblock, *last_id, READ_EXECUTE_PERM | S_IFREG, file_size);
+        new_vnode->mode = READ_EXECUTE_PERM | S_IFREG;
+        new_vnode->size = file_size;
         new_dentry->vnode = new_vnode;
-        struct tarfs_vnode_t *tarfs_vnode = tarfs_vnode_t_alloc();
+        struct tarfs_vnode_t *tarfs_vnode = (tarfs_vnode_t *)new_vnode->fs_private_data;
         tarfs_vnode->data = data;
-        new_vnode->fs_private_vnode = (void *)tarfs_vnode;
       }
       return;
     }
@@ -76,12 +74,10 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
 struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb) {
   uint8_t *tar_ptr = (uint8_t *)data;
   uint8_t *tar_end = tar_ptr + tar_size;
-  uint32_t last_id = 0;
 
-  struct vnode_t *root_vnode = vnode_t_alloc();
-  init_vnode(root_vnode, sb, 0, READ_EXECUTE_PERM | S_IFDIR, 0);
-  struct tarfs_vnode_t *root_tarfs_vnode = tarfs_vnode_t_alloc();
-  root_vnode->fs_private_vnode = (void *)root_tarfs_vnode;
+  struct vnode_t *root_vnode = tarfs_alloc_vnode(sb);
+  root_vnode->mode = READ_EXECUTE_PERM | S_IFDIR;
+  struct tarfs_vnode_t *root_tarfs_vnode = (tarfs_vnode_t *)root_vnode->fs_private_data;
 
   struct dentry_t *root_dentry = dentry_t_alloc();
   strncpy(root_dentry->name, "/", 256);
@@ -98,7 +94,7 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
     uint64_t file_size = parse_octal(header->size, 12);
     void *file_data = (void *)(tar_ptr + 512);
 
-    walk_and_create_path(header->name, file_data, root_vnode, root_dentry, header, &last_id);
+    walk_and_create_path(header->name, file_data, root_vnode, root_dentry, header);
 
     uint64_t data_blocks = (file_size + 511) / 512;
     tar_ptr += 512 + (data_blocks * 512);

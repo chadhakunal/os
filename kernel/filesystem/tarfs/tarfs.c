@@ -4,10 +4,12 @@
 #include "types.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
+#include "kernel/memory/page_allocator.h"
+#include "virtual_memory_init.h"
 
-int64_t tarfs_vnode_read(struct vnode_t *vnode, void *buffer, uint64_t offset, uint64_t size) {
+int64_t tarfs_fill_page(struct vnode_t *vnode,  size_t offset, void **phys_page) {
   struct tarfs_vnode_t *tarfs_vnode = vnode->fs_private_vnode;
-
+  
   if (offset >= vnode->size) {
     return 0;
   }
@@ -15,10 +17,11 @@ int64_t tarfs_vnode_read(struct vnode_t *vnode, void *buffer, uint64_t offset, u
   if (offset + size > vnode->size) {
     size = vnode->size - offset;
   }
-
+  void *new_page = get_page(true);
   uint8_t *data_start = (uint8_t *)tarfs_vnode->data + offset;
-  memcpy(buffer, data_start, size);
-  return (int64_t)size;
+  memcpy(PHYS_TO_VIRT(new_page), data_start, size);
+  *phys_page = new_page;
+  return 0;
 }
 
 int64_t tarfs_vnode_lookup(const char *name, struct vnode_t *parent_dir, struct dentry_t **out) {
@@ -27,10 +30,28 @@ int64_t tarfs_vnode_lookup(const char *name, struct vnode_t *parent_dir, struct 
   return -1;
 }
 
+
+struct vnode_t *tarfs_alloc_vnode(struct superblock_t superblock) {
+  struct vnode_t vnode = vnode_t_alloc();
+  vfs_init_vnode(vnode, superblock, superblock->last_vnode_id, READ_EXECUTE_PERM, 0);
+  superblock->last_vnode_id += 1;
+  vnode->address_space = address_space_t_alloc();
+  vnode->address_space->num_pages_used = 0;
+  vnode->address_space->page_cache_list.next = &vnode->address_space->page_cache_list;
+  vnode->address_space->page_cache_list.prev = &vnode->address_space->page_cache_list;
+  vnode->fs_private_vnode = tarfs_vnode_t_alloc();
+  return vnode;
+}
+
 struct superblock_t *tarfs_mount(void *data, uint64_t size) {
-  struct superblock_t *tarfs_superblock = superblock_t_alloc();
-  tarfs_superblock->vnode_ops.read = tarfs_vnode_read;
+  struct superblock_t *superblock = superblock_t_alloc();
+  superblock->private_data = (void *)tarfs_superblock_t_alloc();
+  (tarfs_superblock_t *)superblock->last_vnode_id = 0;
+  tarfs_superblock->file_ops = NULL;
+  tarfs_superblock->superblock_ops.alloc_vnode = tarfs_alloc_vnode;
   tarfs_superblock->vnode_ops.lookup = tarfs_vnode_lookup;
+  tarfs_superblock->address_space_ops.fill_page = tarfs_fill_page;
+
   parse_tar(data, size, tarfs_superblock);
   return tarfs_superblock;
 }

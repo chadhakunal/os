@@ -57,13 +57,27 @@ void kmain(void *dtb_ptr) {
   struct dentry_t *target;
 
   printk("RESOLVING NEXT -----------------------------\n");
-  vfs_resolve_path("/etc/rc", &target);
-  // char buf[64];
-  // int64_t bytes_read = target->vnode->ops->read(target->vnode, buf, 0, 63);
-  // buf[bytes_read] = '\0';
-  char *page_content = (char *)PHYS_TO_VIRT(vfs_get_page(target->vnode, 0));
-  //page_content [4095] = '\0';
-  printk("printing contents of /bin/rc\n%s", page_content);
+
+  // Test vfs_read with a loop
+  struct file_t *file;
+  int64_t ret = vfs_open("/etc/rc", O_RDONLY, &file);
+  if (ret == 0 && file != NULL) {
+    printk("Reading /etc/rc in chunks:\n");
+    char buffer[32];
+    size_t offset = 0;
+    int64_t bytes_read;
+
+    while ((bytes_read = vfs_read(file, offset, buffer, sizeof(buffer) - 1)) > 0) {
+      buffer[bytes_read] = '\0';  // Null terminate
+      printk("%s", buffer);
+      offset += bytes_read;
+
+      if (bytes_read < sizeof(buffer) - 1) {
+        break;  // EOF reached
+      }
+    }
+    printk("\n--- End of file ---\n");
+  }
 
   struct task_t *task = init_task();
 
