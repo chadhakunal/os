@@ -34,7 +34,7 @@ void vfs_init() {
   mount_list.next = &mount_list;
   mount_list.prev = &mount_list;
 
-  struct mount_t tarfs_mount = mount_t_alloc();
+  struct mount_t *tarfs_mount = mount_t_alloc();
   tarfs_mount->root_path[0] = '/';
   tarfs_mount->root_path[1] = '\0';
   tarfs_mount->superblock = tarfs_mount((void *) _tarfs_start, (uint64_t) _tarfs_size);
