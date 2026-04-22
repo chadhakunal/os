@@ -7,13 +7,13 @@
 #include "kernel/memory/page_allocator.h"
 #include "virtual_memory_init.h"
 
-int64_t tarfs_fill_page(struct vnode_t *vnode,  size_t offset, void **phys_page) {
+int64_t tarfs_fill_page(struct vnode_t *vnode, size_t offset, void **phys_page) {
   struct tarfs_vnode_t *tarfs_vnode = vnode->fs_private_vnode;
   
   if (offset >= vnode->size) {
     return 0;
   }
-
+  size_t size DEFAULT_PAGE_SIZE;
   if (offset + size > vnode->size) {
     size = vnode->size - offset;
   }
