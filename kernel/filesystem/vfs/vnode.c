@@ -6,7 +6,7 @@
 #include "panic.h"
 #include "kernel/memory/page_allocator.h"
 
-void init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id) {
+void vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id) {
   vnode->superblock = sb;
   vnode->vnode_ops = &sb->vnode_ops;
   vnode->id = id;
