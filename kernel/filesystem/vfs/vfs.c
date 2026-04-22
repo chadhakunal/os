@@ -7,8 +7,6 @@
 #include "kernel/memory/page_allocator.h"
 #include "virtual_memory_init.h"
 
-#define READ_EXECUTE_PERM PERM_RUSR | PERM_XUSR | PERM_RGRP | PERM_XGRP | PERM_ROTH | PERM_XOTH
-
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   struct dentry_t *curr_dentry = base_mount->superblock->root_dentry;
   struct dentry_t *next_dentry;
@@ -18,7 +16,7 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   int name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
   name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
   while (name_len > 0) {
-    ret = vfs_lookup(current_name, curr_dentry->vnode, &next_dentry);
+    ret = vfs_lookup(current_name, curr_dentry->vnode->mounted_vnode != NULL ? curr_dentry->vnode->mounted_vnode : curr_dentry->vnode, &next_dentry);
     if (ret != 0 || next_dentry == NULL) {
       return ret;
     }
@@ -63,7 +61,7 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset){
 struct file_t *vfs_init_file(struct vnode_t *vnode, int flags) {
   struct file_t *file = file_t_alloc();
   file->vnode = vnode;
-  file->file_ops = &vnode->superblock->file_ops;
+  file->file_ops = vnode->file_ops;
   file->offset = 0;
   file->refcount = 0;
   file->flags = flags;
@@ -91,6 +89,15 @@ int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
   printk("  vfs_vnode_read returned %ld\n", ret);
 
   return ret;
+}
+
+int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
+  if (file == NULL) {
+    panic("vfs_write: file is null");
+  }
+
+  //TODO: Implement better vfs_write
+  return file->file_ops->write(file, offset, buffer, size);
 }
 
 int64_t vfs_open(const char *path, int flags, struct file_t **file) {

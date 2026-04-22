@@ -9,6 +9,7 @@
 void vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id) {
   vnode->superblock = sb;
   vnode->vnode_ops = &sb->vnode_ops;
+  vnode->file_ops = &sb->file_ops;
   vnode->id = id;
   vnode->refcount = 1;
   vnode->owner_uid = 0;

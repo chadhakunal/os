@@ -23,6 +23,9 @@ typedef uint32_t mode_t;
 #define PERM_XOTH  0000001  /* Execute permission, other */
 #define PERM_RWXO  0000007  /* Read, write, execute - other */
 
+#define READ_EXECUTE_PERM PERM_RUSR | PERM_XUSR | PERM_RGRP | PERM_XGRP | PERM_ROTH | PERM_XOTH
+#define RWX_PERM PERM_RWXO PERM_RWXG PERM_RWXU
+#define RW_PERM PERM_ROTH | PERMWOTH | PERM_RGRP | PERM_WGRP | PERM_RUSR | PERM_WUSR
 /* File type bits (upper bits of mode) */
 #define S_IFMT   0170000  /* File type mask */
 #define S_IFREG  0100000  /* Regular file */

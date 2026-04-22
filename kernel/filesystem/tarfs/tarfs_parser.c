@@ -7,8 +7,6 @@
 #include "lib/printk/printk.h"
 #include "lib/list.h"
 
-#define READ_EXECUTE_PERM PERM_RUSR | PERM_XUSR | PERM_RGRP | PERM_XGRP | PERM_ROTH | PERM_XOTH
-
 struct dentry_t *search_children(const char *name, struct list_node *dentry_head) {
   list_for_each(dentry_head, pos) {
     struct dentry_t *dentry = container_of(pos, struct dentry_t, sibling_dentry);

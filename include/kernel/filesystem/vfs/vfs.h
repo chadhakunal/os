@@ -32,6 +32,7 @@ struct superblock_t;
 
 struct file_ops_t {
   int64_t (*read)(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
+  int64_t (*write)(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 };
 
 struct vnode_ops_t {
@@ -84,9 +85,11 @@ struct vnode_t {
   uint32_t owner_uid;
   uint32_t owner_gid;
   mode_t permission_mode;
+  struct vnode_t *mounted_vnode;
   struct superblock_t *superblock;
-  struct list_node children_dentries; // Sentinel node into the dentry list of children, null if not a director
+  struct list_node children_dentries; // Sentinel node into the dentry list of children, null if not a directory
   struct vnode_ops_t *vnode_ops;
+  struct file_ops_t *file_ops;
   struct address_space_t *address_space;
   void *fs_private_vnode;
 };
@@ -106,7 +109,7 @@ struct superblock_t {
 struct mount_t {
   char root_path[256];
   struct superblock_t *superblock;
-  struct mount_t *next_mount;
+  struct list_node sibling_mount;
 };
 
 DEFINE_POOL(mount_t, struct mount_t)
@@ -123,7 +126,7 @@ void vfs_print_vnode(struct vnode_t *vnode);
 void vfs_print_dentry(struct dentry_t *dentry);
 
 void vfs_init();
-void vfs_mount(char *path, struct superblock_t *superblock);
+int32_t vfs_mount(char *path, struct superblock_t *superblock);
 
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out);
 int32_t vfs_lookup(const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
@@ -131,6 +134,7 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset);
 int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t offset);
 int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 int64_t vfs_open(const char *path, int flags, struct file_t **file);
+int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
 struct file_t *vfs_init_file(struct vnode_t *vnode, int flags);
 
 #endif
