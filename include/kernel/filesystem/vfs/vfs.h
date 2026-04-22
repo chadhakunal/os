@@ -32,7 +32,7 @@ struct superblock_t;
 
 struct file_ops_t {
   int64_t (*read)(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
-}
+};
 
 struct vnode_ops_t {
   //int64_t (*read)(struct vnode_t *vnode, void *buffer, uint64_t offset, uint64_t size);
@@ -41,11 +41,11 @@ struct vnode_ops_t {
 
 struct address_space_ops_t {
   int64_t (*fill_page)(struct vnode_t *vnode,  size_t offset, void **phys_page);
-}
+};
 
 struct superblock_ops {
   struct vnode_t *(*alloc_vnode)(struct superblock_t superblock);
-}
+};
 
 struct file_t {
   struct vnode_t *vnode;
