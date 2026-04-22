@@ -11,6 +11,7 @@
 extern struct mount_t *base_mount;
 
 struct vnode_t;
+struct dentry_t;
 
 struct vnode_ops_t {
   int64_t (*read)(struct vnode_t *vnode, void *buffer, uint64_t offset, uint64_t size);

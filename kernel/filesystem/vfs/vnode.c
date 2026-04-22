@@ -104,7 +104,7 @@ int32_t vfs_lookup(const char *name, struct vnode_t *parent_dir, struct dentry_t
   if (*out == NULL) {
     // Create negative dentry
     *out = dentry_t_alloc();
-    strncpy(&(*out)->name, name, str_len(name, 256));
+    strncpy((*out)->name, name, str_len(name, 256));
     (*out)->vnode = NULL;
   }
   return -1; // Not found
