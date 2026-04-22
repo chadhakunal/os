@@ -63,7 +63,7 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset){
 struct file_t *vfs_init_file(struct vnode_t *vnode, int flags) {
   struct file_t *file = file_t_alloc();
   file->vnode = vnode;
-  file->file_ops = &vnode->superblock.file_ops;
+  file->file_ops = &vnode->superblock->file_ops;
   file->offset = 0;
   file->refcount = 0;
   file->flags = flags;
