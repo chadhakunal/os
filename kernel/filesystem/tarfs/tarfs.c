@@ -13,7 +13,7 @@ int64_t tarfs_fill_page(struct vnode_t *vnode, size_t offset, void **phys_page) 
   if (offset >= vnode->size) {
     return 0;
   }
-  size_t size DEFAULT_PAGE_SIZE;
+  size_t size = DEFAULT_PAGE_SIZE;
   if (offset + size > vnode->size) {
     size = vnode->size - offset;
   }
