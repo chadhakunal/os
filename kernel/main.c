@@ -77,6 +77,11 @@ void kmain(void *dtb_ptr) {
     printk("\n--- End of file ---\n");
   }
 
+  struct file *tty;
+  int64_t ret = vfs_open("/dev/tty", O_RDWR, &file);
+  char hello[32] = "Hello World!";
+  vfs_write(tty, 0, hello, 32);
+
   struct task_t *task = init_task();
 
   load_elf(task, "/bin/echo");
