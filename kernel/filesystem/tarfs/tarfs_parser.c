@@ -77,7 +77,6 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
 
   struct vnode_t *root_vnode = tarfs_alloc_vnode(sb);
   root_vnode->permission_mode = READ_EXECUTE_PERM | S_IFDIR;
-  struct tarfs_vnode_t *root_tarfs_vnode = (struct tarfs_vnode_t *)root_vnode->fs_private_vnode;
 
   struct dentry_t *root_dentry = dentry_t_alloc();
   strncpy(root_dentry->name, "/", 256);
