@@ -49,7 +49,7 @@ struct superblock_ops_t {
 
 struct file_t {
   struct vnode_t *vnode;
-  struct file_t_ops *file_ops;
+  struct file_ops_t *file_ops;
   size_t offset;
   size_t refcount;
   int flags;  /* O_RDONLY, O_WRONLY, O_RDWR, etc. */
