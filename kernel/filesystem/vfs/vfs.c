@@ -80,7 +80,7 @@ int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
   printk("  file->vnode=%p\n", file->vnode);
   printk("  file->vnode->address_space=%p\n", file->vnode->address_space);
 
-  if (file->vnode->address_space == NULL || file->vnode->address_space->address_space_ops->fill_page == NULL) {
+  if (file->vnode->address_space == NULL || file->vnode->address_space->address_space_ops == NULL || file->vnode->address_space->address_space_ops->fill_page == NULL) {
     printk("  Using file_ops->read\n");
     return file->file_ops->read(file, offset, buffer, size);
   }
