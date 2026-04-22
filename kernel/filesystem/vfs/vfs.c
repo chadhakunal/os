@@ -55,7 +55,7 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset){
   page_cache_entry->physical_page = phys_page;
   page_cache_entry->refcount = 1;
   page_cache_entry->dirty = false;
-  list_append(&vnode->address_space.page_cache_list, &page_cache_entry->sibling_page_cache_entry);
+  list_append(&vnode->address_space->page_cache_list, &page_cache_entry->sibling_page_cache_entry);
 
   return phys_page;
 }

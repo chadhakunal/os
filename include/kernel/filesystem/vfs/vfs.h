@@ -116,6 +116,7 @@ DEFINE_POOL(dentry_t, struct dentry_t)
 DEFINE_POOL(page_cache_entry_t, struct page_cache_entry_t)
 DEFINE_POOL(address_space_t, struct address_space_t)
 DEFINE_POOL(address_space_ops_t, struct address_space_ops_t)
+DEFINE_POOL(file_t, struct file_t)
 
 void init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id);
 void vfs_print_vnode(struct vnode_t *vnode);
