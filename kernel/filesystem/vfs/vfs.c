@@ -70,7 +70,7 @@ struct file_t *vfs_init_file(struct vnode_t *vnode, int flags) {
   return file;
 }
 
-int64_t vfs_read(struct file_struct_t *file, uint64_t offset, void *buffer, uint64_t size) {
+int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   if (file == NULL) {
     panic("vfs_read: File is NULL\n");
   }
