@@ -32,7 +32,7 @@ int64_t tarfs_vnode_lookup(const char *name, struct vnode_t *parent_dir, struct 
 
 
 struct vnode_t *tarfs_alloc_vnode(struct superblock_t superblock) {
-  struct vnode_t vnode = vnode_t_alloc();
+  struct vnode_t *vnode = vnode_t_alloc();
   vfs_init_vnode(vnode, superblock, superblock->last_vnode_id, READ_EXECUTE_PERM, 0);
   superblock->last_vnode_id += 1;
   vnode->address_space = address_space_t_alloc();
