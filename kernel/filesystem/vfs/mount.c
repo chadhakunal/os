@@ -34,7 +34,7 @@ void vfs_init() {
   mount_list.next = &mount_list;
   mount_list.prev = &mount_list;
 
-  tarfs_mount = mount_t_alloc();
+  struct mount_t tarfs_mount = mount_t_alloc();
   tarfs_mount->root_path[0] = '/';
   tarfs_mount->root_path[1] = '\0';
   tarfs_mount->superblock = tarfs_mount((void *) _tarfs_start, (uint64_t) _tarfs_size);
@@ -42,7 +42,7 @@ void vfs_init() {
   // Add to mount list
   list_append(&mount_list, &tarfs_mount->sibling_mount);
 
-  devfs_mount = mount_t_alloc();
+  struct mount_t *devfs_mount = mount_t_alloc();
   devfs_mount->root_path = "/dev";
   devfs_mount->superblock = devfs_mount();
 }
