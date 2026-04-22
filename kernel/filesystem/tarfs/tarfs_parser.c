@@ -62,7 +62,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         new_vnode->permission_mode = READ_EXECUTE_PERM | S_IFREG;
         new_vnode->size = file_size;
         new_dentry->vnode = new_vnode;
-        struct tarfs_vnode_t *tarfs_vnode = (tarfs_vnode_t *)new_vnode->fs_private_data;
+        struct tarfs_vnode_t *tarfs_vnode = (struct tarfs_vnode_t *)new_vnode->fs_private_data;
         tarfs_vnode->data = data;
       }
       return;
@@ -77,7 +77,7 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
 
   struct vnode_t *root_vnode = tarfs_alloc_vnode(sb);
   root_vnode->permission_mode = READ_EXECUTE_PERM | S_IFDIR;
-  struct tarfs_vnode_t *root_tarfs_vnode = (tarfs_vnode_t *)root_vnode->fs_private_data;
+  struct tarfs_vnode_t *root_tarfs_vnode = (struct tarfs_vnode_t *)root_vnode->fs_private_data;
 
   struct dentry_t *root_dentry = dentry_t_alloc();
   strncpy(root_dentry->name, "/", 256);
