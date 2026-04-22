@@ -44,7 +44,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         list_append(&curr_vnode->children_dentries, &new_dentry->sibling_dentry);
         // If there is no dentry, there is also no inode!
         struct vnode_t *new_vnode = tarfs_alloc_vnode(root_vnode->superblock);
-        new_vnode->mode = READ_EXECUTE_PERM | S_IFDIR;
+        new_vnode->permission_mode = READ_EXECUTE_PERM | S_IFDIR;
         new_dentry->vnode = new_vnode;
       }
       curr_vnode = new_dentry->vnode;
@@ -59,7 +59,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         list_append(&curr_vnode->children_dentries, &new_dentry->sibling_dentry);
         struct vnode_t *new_vnode = tarfs_alloc_vnode(root_vnode->superblock);
         uint64_t file_size = parse_octal(header->size, 12);
-        new_vnode->mode = READ_EXECUTE_PERM | S_IFREG;
+        new_vnode->permission_mode = READ_EXECUTE_PERM | S_IFREG;
         new_vnode->size = file_size;
         new_dentry->vnode = new_vnode;
         struct tarfs_vnode_t *tarfs_vnode = (tarfs_vnode_t *)new_vnode->fs_private_data;
@@ -76,7 +76,7 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
   uint8_t *tar_end = tar_ptr + tar_size;
 
   struct vnode_t *root_vnode = tarfs_alloc_vnode(sb);
-  root_vnode->mode = READ_EXECUTE_PERM | S_IFDIR;
+  root_vnode->permission_mode = READ_EXECUTE_PERM | S_IFDIR;
   struct tarfs_vnode_t *root_tarfs_vnode = (tarfs_vnode_t *)root_vnode->fs_private_data;
 
   struct dentry_t *root_dentry = dentry_t_alloc();
