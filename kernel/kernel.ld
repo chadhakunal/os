@@ -40,7 +40,7 @@ SECTIONS
     } :data
 
     . = ALIGN(16);
-    . += 16384;
+    . += 32768;
     _stack_top = .;
 
     _end = .;
