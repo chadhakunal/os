@@ -43,7 +43,7 @@ struct address_space_ops_t {
   int64_t (*fill_page)(struct vnode_t *vnode,  size_t offset, void **phys_page);
 };
 
-struct superblock_ops {
+struct superblock_ops_t {
   struct vnode_t *(*alloc_vnode)(struct superblock_t superblock);
 };
 
@@ -128,7 +128,7 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out);
 int32_t vfs_lookup(const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
 void *vfs_get_page(struct vnode_t *vnode, size_t offset);
 int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t offset);
-int64_t vfs_read(struct file_struct_t *file, uint64_t offset, void *buffer, uint64_t size);
+int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 int64_t vfs_open(const char *path, int flags, struct file_t **file);
 struct file_t *vfs_init_file(struct vnode_t *vnode, int flags);
 
