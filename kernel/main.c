@@ -77,7 +77,7 @@ void kmain(void *dtb_ptr) {
     printk("\n--- End of file ---\n");
   }
 
-  struct file *tty;
+  struct file_t *tty;
   ret = vfs_open("/dev/tty", O_RDWR, &tty);
   char hello[32] = "Hello World!";
   vfs_write(tty, 0, hello, 32);
