@@ -3,13 +3,6 @@
 #include "kernel/drivers/tty.h"
 #include "lib/list.h"
 
-struct superblock_t *devfs_mount() {
-  struct superblock_t *superblock = superblock_t_alloc();
-  superblock->root_vnode = build_devfs(superblock);
-
-  return superblock;
-}
-
 struct vnode_t *build_devfs(struct superblock_t *superblock) {
   struct vnode_t *root_vnode = vnode_t_alloc();
   uint32_t id = 0;
@@ -30,4 +23,11 @@ struct vnode_t *build_devfs(struct superblock_t *superblock) {
   list_append(&root_vnode->children_dentries, &tty_dentry->sibling_dentry);
 
   return root_vnode;
+}
+
+struct superblock_t *devfs_mount() {
+  struct superblock_t *superblock = superblock_t_alloc();
+  superblock->root_vnode = build_devfs(superblock);
+
+  return superblock;
 }
