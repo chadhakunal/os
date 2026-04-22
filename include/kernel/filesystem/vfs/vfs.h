@@ -134,7 +134,7 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset);
 int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t offset);
 int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 int64_t vfs_open(const char *path, int flags, struct file_t **file);
-int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
+int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 struct file_t *vfs_init_file(struct vnode_t *vnode, int flags);
 
 #endif
