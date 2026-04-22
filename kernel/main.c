@@ -54,10 +54,8 @@ void kmain(void *dtb_ptr) {
   //struct elf_file *parsed = parse_elf_file((void *)0x000001);
   vfs_init();
   printk("Initialized vfs and mounted tarfs\n");
-  struct dentry_t *target;
 
-  printk("RESOLVING NEXT -----------------------------\n");
-
+  printk("Starting read of /etc/rc\n");
   // Test vfs_read with a loop
   struct file_t *file;
   int64_t ret = vfs_open("/etc/rc", O_RDONLY, &file);
