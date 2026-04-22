@@ -8,7 +8,7 @@
 
 void init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id) {
   vnode->superblock = sb;
-  vnode->ops = &sb->vnode_ops;
+  vnode->vnode_ops = &sb->vnode_ops;
   vnode->id = id;
   vnode->refcount = 1;
   vnode->owner_uid = 0;
@@ -97,7 +97,7 @@ int32_t vfs_lookup(const char *name, struct vnode_t *parent_dir, struct dentry_t
       return 0;
     }
   }
-  parent_dir->ops->lookup(name, parent_dir, out);
+  parent_dir->vnode_ops->lookup(name, parent_dir, out);
   if (*out == NULL) {
     // Create negative dentry
     *out = dentry_t_alloc();
