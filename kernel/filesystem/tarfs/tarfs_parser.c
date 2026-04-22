@@ -62,7 +62,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         new_vnode->permission_mode = READ_EXECUTE_PERM | S_IFREG;
         new_vnode->size = file_size;
         new_dentry->vnode = new_vnode;
-        struct tarfs_vnode_t *tarfs_vnode = (struct tarfs_vnode_t *)new_vnode->fs_private_data;
+        struct tarfs_vnode_t *tarfs_vnode = (struct tarfs_vnode_t *)new_vnode->fs_private_vnode;
         tarfs_vnode->data = data;
       }
       return;
