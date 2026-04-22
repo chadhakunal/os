@@ -8,21 +8,30 @@
 #include "virtual_memory_init.h"
 
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
+  printk("vfs_resolve_path: path=%s\n", path);
   struct dentry_t *curr_dentry = base_mount->superblock->root_dentry;
+  printk("vfs_resolve_path: root_dentry=%p\n", curr_dentry);
   struct dentry_t *next_dentry;
   uint32_t ret;
   const char *current_path = path;
   char current_name[256];
   int name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
   name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
+  printk("vfs_resolve_path: first component='%s', len=%d\n", current_name, name_len);
   while (name_len > 0) {
+    printk("vfs_resolve_path: looking up '%s' in vnode=%p\n", current_name, curr_dentry->vnode);
+    printk("vfs_resolve_path: mounted_vnode=%p\n", curr_dentry->vnode->mounted_vnode);
     ret = vfs_lookup(current_name, curr_dentry->vnode->mounted_vnode != NULL ? curr_dentry->vnode->mounted_vnode : curr_dentry->vnode, &next_dentry);
+    printk("vfs_resolve_path: vfs_lookup returned %d, next_dentry=%p\n", ret, next_dentry);
     if (ret != 0 || next_dentry == NULL) {
+      printk("vfs_resolve_path: lookup failed, returning %d\n", ret);
       return ret;
     }
     curr_dentry = next_dentry;
     name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
+    printk("vfs_resolve_path: next component='%s', len=%d\n", current_name, name_len);
   }
+  printk("vfs_resolve_path: success, returning dentry=%p\n", curr_dentry);
   *out = curr_dentry;
   return 0;
 }
