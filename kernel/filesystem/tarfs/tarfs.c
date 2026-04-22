@@ -33,7 +33,7 @@ int64_t tarfs_vnode_lookup(const char *name, struct vnode_t *parent_dir, struct 
 
 struct vnode_t *tarfs_alloc_vnode(struct superblock_t *superblock) {
   struct vnode_t *vnode = vnode_t_alloc();
-  vfs_init_vnode(vnode, superblock, ((struct tarfs_superblock_t *)superblock->private_data)->last_vnode_id, READ_EXECUTE_PERM, 0);
+  vfs_init_vnode(vnode, superblock, ((struct tarfs_superblock_t *)superblock->private_data)->last_vnode_id);
   ((struct tarfs_superblock_t *)superblock->private_data)->last_vnode_id += 1;
   vnode->address_space = address_space_t_alloc();
   vnode->address_space->num_pages_used = 0;
