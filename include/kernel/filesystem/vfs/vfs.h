@@ -14,6 +14,7 @@ struct vnode_t;
 
 struct vnode_ops_t {
   int64_t (*read)(struct vnode_t *vnode, void *buffer, uint64_t offset, uint64_t size);
+  int64_t (*lookup)(const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
 };
 
 /* File open flags */

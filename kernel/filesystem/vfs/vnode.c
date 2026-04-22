@@ -83,3 +83,29 @@ int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t off
 
   return total_copied;
 }
+
+int32_t vfs_lookup(const char *name, struct vnode_t *parent_dir, struct dentry_t **out) {
+  if (parent_dir == NULL) {
+    panic("vfs_lookup: parent_dir is NULL\n");
+  }
+
+  if (!IS_DIR(parent_dir->permission_mode)) {
+    panic("vfs_lookup: parent_dir is not a directory\n");
+  }
+
+  list_for_each(&parent_dir->children_dentries, pos) {
+    struct dentry_t *dentry = container_of(pos, struct dentry_t, sibling_dentry);
+    if (strncmp(dentry->name, name) == 0) {
+      *out = dentry;
+      return 0;
+    }
+  }
+  parent_dir->ops->lookup(name, parent_dir, out);
+  if (*out == NULL) {
+    // Create negative dentry
+    *out = dentry_t_alloc();
+    strncpy(&(*out)->name, name, str_len(name, 256));
+    (*out)->vnode = NULL;
+  }
+  return -1; // Not found
+}
