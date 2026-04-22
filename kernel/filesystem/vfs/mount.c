@@ -49,8 +49,7 @@ void vfs_init() {
   // Add to mount list
   list_append(&mount_list, &base_mount->sibling_mount);
 
-  struct mount_t *devfs_mount_obj = mount_t_alloc();
-  strncpy(devfs_mount_obj->root_path, "/dev", 256);
-  devfs_mount_obj->superblock = devfs_mount();
-  list_append(&mount_list, &devfs_mount_obj->sibling_mount);
+  // Mount devfs at /dev
+  struct superblock_t *devfs_sb = devfs_mount();
+  vfs_mount("/dev", devfs_sb);
 }

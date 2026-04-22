@@ -31,5 +31,12 @@ struct superblock_t *devfs_mount() {
   struct superblock_t *superblock = superblock_t_alloc();
   superblock->root_vnode = build_devfs(superblock);
 
+  // Create root dentry for devfs
+  struct dentry_t *root_dentry = dentry_t_alloc();
+  strncpy(root_dentry->name, "dev", 256);
+  root_dentry->vnode = superblock->root_vnode;
+  root_dentry->parent = NULL;  // Will be set at mount time
+  superblock->root_dentry = root_dentry;
+
   return superblock;
 }
