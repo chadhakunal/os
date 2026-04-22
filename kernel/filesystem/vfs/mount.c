@@ -1,5 +1,6 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/filesystem/tarfs/tarfs.h"
+#include "kernel/filesystem/devfs/devfs.h"
 #include "lib/list.h"
 #include "lib/string.h"
 
@@ -43,7 +44,7 @@ void vfs_init() {
   list_append(&mount_list, &tarfs_mount_obj->sibling_mount);
 
   struct mount_t *devfs_mount_obj = mount_t_alloc();
-  devfs_mount_obj->root_path = "/dev";
+  strncpy(devfs_mount_obj->root_path, "/dev", 256);
   devfs_mount_obj->superblock = devfs_mount();
   list_append(&mount_list, &devfs_mount_obj->sibling_mount);
 }
