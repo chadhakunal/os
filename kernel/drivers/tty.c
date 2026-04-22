@@ -7,8 +7,9 @@ int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 }
 
 int64_t tty_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
-  buffer[size-1] = '\0';
-  printk("%s", buffer);
+  char *buf = (char *)buffer;
+  buf[size-1] = '\0';
+  printk("%s", buf);
   return size;
 }
 
