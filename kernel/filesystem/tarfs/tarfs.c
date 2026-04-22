@@ -50,7 +50,7 @@ struct superblock_t *tarfs_mount(void *data, uint64_t size) {
   superblock->vnode_ops.lookup = tarfs_vnode_lookup;
   superblock->address_space_ops.fill_page = tarfs_fill_page;
 
-  parse_tar(data, size, tarfs_superblock);
+  parse_tar(data, size, superblock);
   return tarfs_superblock;
 }
 
