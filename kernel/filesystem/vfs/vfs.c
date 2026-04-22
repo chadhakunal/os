@@ -101,16 +101,21 @@ int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
 }
 
 int64_t vfs_open(const char *path, int flags, struct file_t **file) {
+  printk("vfs_open: path=%s\n", path);
   if (path == NULL || *path == 0) {
     panic("vfs_open: invalid path\n");
   }
   struct dentry_t *dentry;
+  printk("vfs_open: calling vfs_resolve_path\n");
   int ret = vfs_resolve_path(path, &dentry);
+  printk("vfs_open: vfs_resolve_path returned %d, dentry=%p\n", ret, dentry);
   if (ret < 0) {
     panic("vfs_open: something went wrong resolving path!\n");
   }
-  
+
+  printk("vfs_open: dentry->vnode=%p\n", dentry->vnode);
   *file = vfs_init_file(dentry->vnode, flags);
+  printk("vfs_open: file=%p\n", *file);
   return 0;
 }
 
