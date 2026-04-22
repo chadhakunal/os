@@ -16,6 +16,12 @@ int32_t vfs_mount(char *path, struct superblock_t *superblock) {
 
   dentry->vnode->mounted_vnode = superblock->root_vnode;
 
+  // Set parent dentry for all children in the mounted filesystem's root
+  list_for_each(&superblock->root_vnode->children_dentries, pos) {
+    struct dentry_t *child_dentry = container_of(pos, struct dentry_t, sibling_dentry);
+    child_dentry->parent = dentry;
+  }
+
   // Add mount to mount list
   struct mount_t *mount = mount_t_alloc();
   strncpy(mount->root_path, path, 256);

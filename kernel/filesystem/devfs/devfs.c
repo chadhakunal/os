@@ -2,6 +2,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/drivers/tty.h"
 #include "lib/list.h"
+#include "lib/string.h"
 
 struct vnode_t *build_devfs(struct superblock_t *superblock) {
   struct vnode_t *root_vnode = vnode_t_alloc();
@@ -17,8 +18,9 @@ struct vnode_t *build_devfs(struct superblock_t *superblock) {
   tty_vnode->file_ops = &tty_driver.file_ops;
 
   struct dentry_t *tty_dentry = dentry_t_alloc();
+  strncpy(tty_dentry->name, "tty", 256);
   tty_dentry->vnode = tty_vnode;
-  tty_dentry->parent = root_vnode;
+  tty_dentry->parent = NULL;  // Will be set at mount time
 
   list_append(&root_vnode->children_dentries, &tty_dentry->sibling_dentry);
 
