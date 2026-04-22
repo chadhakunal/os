@@ -78,7 +78,7 @@ void kmain(void *dtb_ptr) {
   }
 
   struct file *tty;
-  ret = vfs_open("/dev/tty", O_RDWR, &file);
+  ret = vfs_open("/dev/tty", O_RDWR, &tty);
   char hello[32] = "Hello World!";
   vfs_write(tty, 0, hello, 32);
 
