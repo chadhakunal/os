@@ -35,7 +35,7 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset){
   uint64_t page_offset = offset & ~(DEFAULT_PAGE_SIZE - 1);
 
   // Search for page in address space
-  list_for_each(&vnode->address_space.page_cache_list, pos) {
+  list_for_each(&vnode->address_space->page_cache_list, pos) {
     struct page_cache_entry_t *page_cache_entry = container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
     if (page_cache_entry->offset == page_offset) {
       return page_cache_entry->physical_page;

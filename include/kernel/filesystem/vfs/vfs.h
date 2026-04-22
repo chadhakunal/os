@@ -74,7 +74,7 @@ struct page_cache_entry_t {
 struct address_space_t { // struct which holds all pages cached in memory of file contents
   size_t num_pages_used;
   struct list_node page_cache_list;
-  struct address_space_ops_tt *address_space_ops;
+  struct address_space_ops_t *address_space_ops;
 };
 
 struct vnode_t {
