@@ -43,7 +43,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         new_dentry->parent = curr_dentry;
         list_append(&curr_vnode->children_dentries, &new_dentry->sibling_dentry);
         // If there is no dentry, there is also no inode!
-        struct vnode_t *new_vnode = tarfs_vnode_t_alloc(root_vnode->superblock);
+        struct vnode_t *new_vnode = tarfs_alloc_vnode(root_vnode->superblock);
         new_vnode->mode = READ_EXECUTE_PERM | S_IFDIR;
         new_dentry->vnode = new_vnode;
       }
@@ -57,7 +57,7 @@ void walk_and_create_path(const char *path, void *data, struct vnode_t *root_vno
         strncpy(new_dentry->name, current_name, 256);
         new_dentry->parent = curr_dentry;
         list_append(&curr_vnode->children_dentries, &new_dentry->sibling_dentry);
-        struct vnode_t *new_vnode = tarfs_vnode_t_alloc(root_vnode->superblock);
+        struct vnode_t *new_vnode = tarfs_alloc_vnode(root_vnode->superblock);
         uint64_t file_size = parse_octal(header->size, 12);
         new_vnode->mode = READ_EXECUTE_PERM | S_IFREG;
         new_vnode->size = file_size;
