@@ -40,6 +40,7 @@ struct vnode_t *tarfs_alloc_vnode(struct superblock_t *superblock) {
   vnode->address_space->page_cache_list.next = &vnode->address_space->page_cache_list;
   vnode->address_space->page_cache_list.prev = &vnode->address_space->page_cache_list;
   vnode->fs_private_vnode = tarfs_vnode_t_alloc();
+  vnode->address_space_ops = &superblock.address_space_ops;
   return vnode;
 }
 
