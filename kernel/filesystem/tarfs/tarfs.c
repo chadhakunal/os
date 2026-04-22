@@ -46,7 +46,7 @@ struct vnode_t *tarfs_alloc_vnode(struct superblock_t *superblock) {
 struct superblock_t *tarfs_mount(void *data, uint64_t size) {
   struct superblock_t *superblock = superblock_t_alloc();
   superblock->private_data = (void *)tarfs_superblock_t_alloc();
-  (struct tarfs_superblock_t *)superblock->last_vnode_id = 0;
+  ((struct tarfs_superblock_t *)superblock->private_data)->last_vnode_id = 0;
   superblock->file_ops = NULL;
   superblock->superblock_ops.alloc_vnode = tarfs_alloc_vnode;
   superblock->vnode_ops.lookup = tarfs_vnode_lookup;
