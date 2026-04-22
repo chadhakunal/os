@@ -51,6 +51,6 @@ struct superblock_t *tarfs_mount(void *data, uint64_t size) {
   superblock->address_space_ops.fill_page = tarfs_fill_page;
 
   parse_tar(data, size, superblock);
-  return tarfs_superblock;
+  return superblock;
 }
 
