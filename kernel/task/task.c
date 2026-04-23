@@ -7,19 +7,28 @@
 #include "lib/printk/printk.h"
 #include "lib/string.h"
 
-void init_files(struct files_table_t **files_table) {
+void init_files(struct files_table_t *files_table) {
+  // Initialize the files_list sentinel as a circular list
+  files_table->files_list.next = &files_table->files_list;
+  files_table->files_list.prev = &files_table->files_list;
+
+  // Allocate first chunk to hold file descriptors
   struct files_list_t *files_list = files_list_t_alloc();
-  list_append(&(*files_table)->files_list, &files_list->files_list);
-  files_list->used_file_bitmap = 1 | 1 << 1 | 1 << 2;
+  files_list->used_file_bitmap = 1 | 1 << 1 | 1 << 2;  // Mark FDs 0, 1, 2 as used
+
+  // Open stdin, stdout, stderr
   struct file_t *stdin, *stdout, *stderr;
   vfs_open("/dev/tty", O_RDONLY, &stdin);
-  vfs_open("/dev/tty", O_WRONLY, &stdin);
-  vfs_open("/dev/tty", O_WRONLY, &stdin);
-  files_list[0] = stdin;
-  files_list[1] = stdout;
-  files_list[2] = stderr;
+  vfs_open("/dev/tty", O_WRONLY, &stdout);
+  vfs_open("/dev/tty", O_WRONLY, &stderr);
 
-  (*files_table)->files_list = files_list;
+  // Store in the files array
+  files_list->files[0] = stdin;
+  files_list->files[1] = stdout;
+  files_list->files[2] = stderr;
+
+  // Append this chunk to the files_table list
+  list_append(&files_table->files_list, &files_list->files_list);
 }
 
 struct task_t *init_task() {
@@ -37,7 +46,7 @@ struct task_t *init_task() {
   task->task_list.next = &task->task_list;
   task->task_list.prev = &task->task_list;
 
-  init_files(&task->file_table);
+  init_files(&(task->file_table));
   
   return task;
 }
