@@ -32,14 +32,14 @@ void init_files(struct files_table_t **files_table) {
   list_append(&files_table->files_list, &files_list->files_list);
   files_list->used_file_bitmap = 1 | 1 << 1 | 1 << 2;
   struct file_t *stdin, *stdout, *stderr;
-  vfs_open('/dev/tty', O_RDONLY, &stdin);
-  vfs_open('/dev/tty', O_WRONLY, &stdin);
-  vfs_open('/dev/tty', O_WRONLY, &stdin);
+  vfs_open("/dev/tty", O_RDONLY, &stdin);
+  vfs_open("/dev/tty", O_WRONLY, &stdin);
+  vfs_open("/dev/tty", O_WRONLY, &stdin);
   files_list[0] = stdin;
   files_list[1] = stdout;
   files_list[2] = stderr;
 
-  *files_table->files = file_list;
+  (*files_table)->files = file_list;
 }
 
 struct task_t *create_init_process() {
