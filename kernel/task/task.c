@@ -31,9 +31,10 @@ void init_files(struct files_table_t **files_table) {
   struct files_list_t *file_list = files_list_t_alloc();
   list_append(&files_table->files_list, &files_list->files_list);
   files_list->used_file_bitmap = 1 | 1 << 1 | 1 << 2;
-  struct file_t *stdin = vfs_open('/dev/tty', O_RDONLY, &stdin);
-  struct file_t *stdout = vfs_open('/dev/tty', O_WRONLY, &stdin);
-  struct file_t *stderr = vfs_open('/dev/tty', O_WRONLY, &stdin);
+  struct file_t *stdin, *stdout, *stderr;
+  vfs_open('/dev/tty', O_RDONLY, &stdin);
+  vfs_open('/dev/tty', O_WRONLY, &stdin);
+  vfs_open('/dev/tty', O_WRONLY, &stdin);
   files_list[0] = stdin;
   files_list[1] = stdout;
   files_list[2] = stderr;
