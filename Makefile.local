@@ -46,13 +46,16 @@ build/lib/%.c.o: lib/%.c
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+# LIBC_CFLAGS: Base CFLAGS without kernel includes for libc compilation
+LIBC_CFLAGS := -gdwarf-4 -Wall -Werror -Os -ffreestanding -fno-builtin -nostdlib -nostdinc -isystem $(shell $(CC) -print-file-name=include) -mcmodel=medany -march=rv64imac_zicsr_zifencei -mabi=lp64 -ffunction-sections -fdata-sections -fno-tree-switch-conversion
+
 build/libc/%.c.o: libc/%.c
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -Ilibc/include -c $< -o $@
+	$(CC) $(LIBC_CFLAGS) -Ilibc/include -c $< -o $@
 
 build/libc/%.S.o: libc/%.S
 	@mkdir -p $(@D)
-	$(CC) $(CFLAGS) -Ilibc/include -c $< -o $@
+	$(CC) $(LIBC_CFLAGS) -Ilibc/include -c $< -o $@
 
 # Append arch, platform, and lib objects to be linked
 override KERN_ALL := $(ARCH_OBJS) $(PLAT_OBJS) $(LIB_OBJS) $(KERN_ALL)
