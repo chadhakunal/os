@@ -8,7 +8,7 @@
 #include "lib/string.h"
 
 void init_files(struct files_table_t **files_table) {
-  struct files_list_t *file_list = files_list_t_alloc();
+  struct files_list_t *files_list = files_list_t_alloc();
   list_append(&(*files_table)->files_list, &files_list->files_list);
   files_list->used_file_bitmap = 1 | 1 << 1 | 1 << 2;
   struct file_t *stdin, *stdout, *stderr;
@@ -19,7 +19,7 @@ void init_files(struct files_table_t **files_table) {
   files_list[1] = stdout;
   files_list[2] = stderr;
 
-  (*files_table)->files_list = file_list;
+  (*files_table)->files_list = files_list;
 }
 
 struct task_t *init_task() {
