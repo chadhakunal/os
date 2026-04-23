@@ -3,6 +3,7 @@
 #include "kernel/filesystem/devfs/devfs.h"
 #include "lib/list.h"
 #include "lib/string.h"
+#include "lib/printk/printk.h"
 
 struct mount_t *base_mount = NULL;
 struct list_node mount_list;
