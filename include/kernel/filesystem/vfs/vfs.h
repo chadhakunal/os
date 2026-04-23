@@ -59,7 +59,6 @@ struct file_t {
 struct dentry_t {
   char name[256];
   struct vnode_t *vnode;
-
   struct dentry_t *parent;
   struct list_node sibling_dentry;
 };
