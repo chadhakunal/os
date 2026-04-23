@@ -6,17 +6,20 @@
 typedef uint64_t pte_t;
 
 typedef struct page_table {
-    pte_t page_table_entries[NUM_PTE];
+  pte_t page_table_entries[NUM_PTE];
 } page_table_t;
 
-extern page_table_t* root_page_table;
+extern page_table_t *root_page_table;
 
-void allocate_root_page_table();
+void init_kernel_page_mapping();
+void remove_identity_mapping();
 
-page_table_t* allocate_page_table();
-void create_page_table_entry(uint64_t pa);
-void remove_page_table_entry(uint64_t pa);
+/* Post-boot functions (use PHYS_TO_VIRT for page table access) */
+void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags);
+void map_pages(page_table_t *pt, uint64_t pa_start, uint64_t pa_end, uint64_t va_start, uint64_t pte_flags);
+void unmap_page(page_table_t *pt, uint64_t va);
+void unmap_pages(page_table_t *pt, uint64_t va_start, uint64_t va_end);
 
-void create_identity_map();
+page_table_t *init_new_page_table();
 
 #endif

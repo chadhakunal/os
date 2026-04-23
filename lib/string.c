@@ -13,11 +13,8 @@ void memcpy(void* dst, const void* src, int len) {
 void *memset(void *dest, int value, uint64_t n) {
     // TODO: Optimize
     unsigned char *d = dest;
-    uart_print("HERE: ");
-    uart_print_hex((uint64_t)d);
 
     for (uint64_t i = 0; i < n; i++) {
-        // uart_print_hex(i);
         d[i] = (unsigned char)value;
     }
 
@@ -50,3 +47,64 @@ int strneq_prefix(const char *s1, const char *s2, int n) {
     return 1;
 }
 
+uint64_t parse_octal(const char *str, uint64_t max_len) {
+    uint64_t value = 0;
+
+    for (uint64_t i = 0; i < max_len && str[i] != '\0' && str[i] != ' '; i++) {
+        if (str[i] == ' ') continue;
+        if (str[i] < '0' || str[i] > '7') break;
+        value = (value * 8) + (str[i] - '0');
+    }
+
+    return value;
+}
+
+int str_tok(const char **src, char *dst, char delim, int max_len) {
+    const char *s = *src;
+    int i = 0;
+
+    while (i < max_len - 2 && s[i] != '\0' && s[i] != delim) {
+        dst[i] = s[i];
+        i++;
+    }
+
+    if (s[i] == delim) {
+        dst[i] = delim;
+        i++;
+        *src = &s[i];
+    } else {
+        *src = &s[i];
+    }
+
+    dst[i] = '\0';
+
+    return i;
+}
+
+int str_tok_no_delim(const char **src, char *dst, char delim, int max_len) {
+    const char *s = *src;
+    int i = 0;
+
+    while (i < max_len - 1 && s[i] != '\0' && s[i] != delim) {
+        dst[i] = s[i];
+        i++;
+    }
+
+    dst[i] = '\0';
+
+    if (s[i] == delim) {
+        *src = &s[i + 1];
+    } else {
+        *src = &s[i];
+    }
+
+    return i;
+}
+
+int str_len(const char *src, uint64_t max_len) {
+    int len = 0;
+    while (len < max_len && src[len] != '\0') {
+        len++;
+    }
+    return len;
+}

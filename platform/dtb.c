@@ -3,25 +3,33 @@
 #include "kernel/drivers/uart.h"
 #include "lib/string.h"
 
-#define DEBUG_DTB 1
+#define DEBUG_DTB 0
 
 volatile struct platform_info platform = {0};
+
+static inline uint32_t bswap32(uint32_t x)
+{
+    return ((x & 0xff000000) >> 24) |
+           ((x & 0x00ff0000) >> 8)  |
+           ((x & 0x0000ff00) << 8)  |
+           ((x & 0x000000ff) << 24);
+}
 
 static inline uint32_t fdt_u32(const void *p)
 {
     uint32_t v;
     memcpy(&v, p, 4);
-    return __builtin_bswap32(v);
+    return bswap32(v);
 }
 
-static void uart_print_n(const char *s, int n)
-{
-    for (int i = 0; i < n; i++) {
-        char c = s[i];
-        if (c == '\0') break;
-        uart_putc(c);
-    }
-}
+// static void uart_print_n(const char *s, int n)
+// {
+//     for (int i = 0; i < n; i++) {
+//         char c = s[i];
+//         if (c == '\0') break;
+//         uart_putc(c);
+//     }
+// }
 
 void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t size_struct)
 {
@@ -34,7 +42,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
     bool in_virtio = false;
     bool in_uart   = false;
 
-    uart_print("DTB WALK START\n");
+    //uart_print("DTB WALK START\n");
 
     while (i < size_struct) {
 
@@ -45,9 +53,9 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 
             char *name = (char*)(struct_base + i);
 
-            uart_print("NODE: ");
-            uart_print_n(name, 64);
-            uart_print("\n");
+            // uart_print("NODE: ");
+            // uart_print_n(name, 64);
+            // uart_print("\n");
 
             if (strneq_prefix(name, "memory", 6))
                 in_memory = true;
@@ -71,7 +79,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
             in_virtio = false;
             in_uart   = false;
 
-            uart_print("END NODE\n");
+            // uart_print("END NODE\n");
         }
 
         else if (token == FDT_PROP) {
@@ -85,9 +93,9 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
             char *prop_name = (char*)(strings_base + name_off);
             uint8_t *value  = struct_base + i;
 
-            uart_print("  PROP: ");
-            uart_print(prop_name);
-            uart_print("\n");
+            // uart_print("  PROP: ");
+            // uart_print(prop_name);
+            // uart_print("\n");
 
             /* ---------------- REG PROPERTY ---------------- */
 
@@ -109,11 +117,11 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
                         platform.ram.base = base;
                         platform.ram.size = size;
 
-                        uart_print("    RAM base: ");
-                        uart_print_hex(base);
-
-                        uart_print("    RAM size: ");
-                        uart_print_hex(size);
+                        // uart_print("    RAM base: ");
+                        // uart_print_hex(base);
+                        //
+                        // uart_print("    RAM size: ");
+                        // uart_print_hex(size);
                     }
                 }
 
@@ -128,16 +136,16 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 
                         platform.virtio[idx].base = base;
 
-                        uart_print("    VIRTIO base: ");
-                        uart_print_hex(base);
+                        // uart_print("    VIRTIO base: ");
+                        // uart_print_hex(base);
                     }
 
                     if (in_uart) {
 
                         platform.uart.base = base;
 
-                        uart_print("    UART base: ");
-                        uart_print_hex(base);
+                        // uart_print("    UART base: ");
+                        // uart_print_hex(base);
                     }
                 }
             }
@@ -146,9 +154,9 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 
             if (strneq_prefix(prop_name, "compatible", 10)) {
 
-                uart_print("    compatible: ");
-                uart_print_n((char*)value, len);
-                uart_print("\n");
+                // uart_print("    compatible: ");
+                // uart_print_n((char*)value, len);
+                // uart_print("\n");
             }
 
             /* ---------------- INTERRUPTS PROPERTY ---------------- */
@@ -164,16 +172,16 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
                         int idx = platform.virtio_count - 1;
                         platform.virtio[idx].irq = irq;
 
-                        uart_print("    VIRTIO IRQ: ");
-                        uart_print_hex(irq);
+                        // uart_print("    VIRTIO IRQ: ");
+                        // uart_print_hex(irq);
                     }
 
                     if (in_uart) {
 
                         // platform.uart.irq = irq;
 
-                        uart_print("    UART IRQ: ");
-                        uart_print_hex(irq);
+                        // uart_print("    UART IRQ: ");
+                        // uart_print_hex(irq);
                     }
                 }
             }
@@ -188,33 +196,30 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
         }
 
         else if (token == FDT_END) {
-            uart_print("DTB END\n");
+            // uart_print("DTB END\n");
             break;
         }
 
         else {
-            uart_print("UNKNOWN TOKEN\n");
+            // uart_print("UNKNOWN TOKEN\n");
             break;
         }
     }
 }
 
 uint32_t platform_init(void* dtb) {
-    uart_print("Platform Init...\n");
-
+    if (!dtb) {
+        return 0;
+    }
+    
     struct fdt_header* hdr = (struct fdt_header*)dtb;
 
-    uint32_t magic = __builtin_bswap32(hdr->magic);
-    
-    uint32_t off_dt_struct = __builtin_bswap32(hdr->off_dt_struct);
-    uint32_t size_dt_struct = __builtin_bswap32(hdr->size_dt_struct);
+    uint32_t magic = bswap32(hdr->magic);
+    uint32_t off_dt_struct = bswap32(hdr->off_dt_struct);
+    uint32_t size_dt_struct = bswap32(hdr->size_dt_struct);
+    uint32_t off_dt_strings = bswap32(hdr->off_dt_strings);
 
-    uint32_t off_dt_strings = __builtin_bswap32(hdr->off_dt_strings);
-
-    if(magic == EXPECTED_MAGIC) {
-        uart_print("DTB Magic Matched...\n");
-    } else {
-        uart_print("DTB Magic Did Not Match...\n");
+    if(magic != EXPECTED_MAGIC) {
         return -1;
     }
 

@@ -1,0 +1,61 @@
+# Makefile.local - RISC-V64 architecture-specific build rules
+# Auto-included by Makefile-RISC via "-include Makefile.local"
+
+# Add architecture-specific include paths to CFLAGS
+CFLAGS += -Iinclude -Iinclude/arch/riscv64 -Iinclude/kernel -Iinclude/platform
+
+# Architecture-specific sources for RISC-V64
+ARCH_SRCS    := $(wildcard arch/riscv64/*.S) $(wildcard arch/riscv64/*.c)
+ARCH_OBJS    := $(patsubst %,build/%.o,$(ARCH_SRCS))
+
+# Platform sources
+PLAT_SRCS    := $(wildcard platform/*.c)
+PLAT_OBJS    := $(patsubst %,build/%.o,$(PLAT_SRCS))
+
+# Lib sources (printk, string)
+LIB_SRCS     := $(wildcard lib/*.c)
+LIB_OBJS     := $(patsubst %,build/%.o,$(LIB_SRCS))
+
+# Linker script location - used by Makefile-RISC rule
+ARCH_LD := arch/riscv64/linker.ld
+
+# Make sure the linker script is copied to where Makefile-RISC expects it
+kernel/kernel.ld: $(ARCH_LD)
+	@mkdir -p $(@D)
+	@cp $(ARCH_LD) $@
+
+# Make all depend on this being set up
+all: kernel/kernel.ld
+
+# Compilation rules for arch/riscv64/
+build/arch/riscv64/%.S.o: arch/riscv64/%.S
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/arch/riscv64/%.c.o: arch/riscv64/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compilation rules for platform/
+build/platform/%.c.o: platform/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Compilation rules for lib/
+build/lib/%.c.o: lib/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+build/libc/%.c.o: libc/%.c
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Ilibc/include -c $< -o $@
+
+build/libc/%.S.o: libc/%.S
+	@mkdir -p $(@D)
+	$(CC) $(CFLAGS) -Ilibc/include -c $< -o $@
+
+# Append arch, platform, and lib objects to be linked
+override KERN_ALL := $(ARCH_OBJS) $(PLAT_OBJS) $(LIB_OBJS) $(KERN_ALL)
+
+# Override just the linker script variable used by Makefile-RISC
+override KERN_LD_SCRIPT := $(ARCH_LD)
