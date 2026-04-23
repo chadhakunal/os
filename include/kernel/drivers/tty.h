@@ -12,6 +12,7 @@ DEFINE_POOL(tty_driver_t, struct tty_driver_t)
 
 int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 int64_t tty_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
+void tty_init(void);
 
 extern struct tty_driver_t tty_driver;
 

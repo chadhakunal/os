@@ -12,6 +12,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "trap.h"
 #include "kernel/drivers/uart.h"
+#include "kernel/drivers/tty.h"
 
 #include "lib/printk/printk.h"
 
@@ -52,6 +53,8 @@ void kmain(void *dtb_ptr) {
   printk("Initialized Trap Handler\n");
   // init_process();
   //struct elf_file *parsed = parse_elf_file((void *)0x000001);
+  tty_init();
+  printk("Initialized TTY driver\n");
   vfs_init();
   printk("Initialized vfs and mounted tarfs\n");
 

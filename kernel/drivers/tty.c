@@ -13,9 +13,9 @@ int64_t tty_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
   return size;
 }
 
-struct tty_driver_t tty_driver = {
-  .file_ops = {
-    .read = tty_read,
-    .write = tty_write
-  }
-};
+struct tty_driver_t tty_driver;
+
+void tty_init(void) {
+  tty_driver.file_ops.read = tty_read;
+  tty_driver.file_ops.write = tty_write;
+}
