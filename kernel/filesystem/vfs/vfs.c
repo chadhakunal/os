@@ -107,10 +107,20 @@ int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 }
 
 int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
+  printk("vfs_write: file=%p, offset=%lu, size=%lu\n", file, offset, size);
   if (file == NULL) {
     panic("vfs_write: file is null");
   }
 
+  printk("  file->vnode=%p\n", file->vnode);
+  printk("  file->file_ops=%p\n", file->file_ops);
+
+  if (file->file_ops == NULL || file->file_ops->write == NULL) {
+    printk("  ERROR: file_ops or write function is NULL\n");
+    panic("vfs_write: file_ops or write function is NULL\n");
+  }
+
+  printk("  file->file_ops->write=%p\n", file->file_ops->write);
   //TODO: Implement better vfs_write
   return file->file_ops->write(file, offset, buffer, size);
 }
