@@ -10,7 +10,7 @@
 #include "kernel/task/elf_loader.h"
 #include "virtual_memory_init.h"
 #include "kernel/filesystem/vfs/vfs.h"
-#include "trap.h"
+#include "arch/riscv64/trap.h"
 #include "kernel/drivers/uart.h"
 #include "kernel/drivers/tty.h"
 

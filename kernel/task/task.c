@@ -3,7 +3,7 @@
 #include "kernel/memory/page_allocator.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "virtual_memory_init.h"
-#include "panic.h"
+#include "kernel/panic.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
 

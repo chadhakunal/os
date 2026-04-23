@@ -1,6 +1,6 @@
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
-#include "trap.h"
+#include "arch/riscv64/trap.h"
 #include "syscalls/syscalls.h"
 
 /* NEVER RETURNS - either calls trap_return() or panic() */

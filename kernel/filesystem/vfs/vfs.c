@@ -1,7 +1,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "lib/string.h"
 #include "lib/printk/printk.h"
-#include "panic.h"
+#include "kernel/panic.h"
 #include "kernel/filesystem/mode.h"
 #include "lib/list.h"
 #include "kernel/memory/page_allocator.h"

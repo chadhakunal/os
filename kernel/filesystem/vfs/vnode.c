@@ -3,7 +3,7 @@
 #include "kernel/filesystem/mode.h"
 #include "lib/string.h"
 #include "virtual_memory_init.h"
-#include "panic.h"
+#include "kernel/panic.h"
 #include "kernel/memory/page_allocator.h"
 
 void vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id) {

@@ -1,7 +1,7 @@
 #ifndef KERNEL_TASK
 #define KERNEL_TASK
 
-#include "trap.h"
+#include "arch/riscv64/trap.h"
 #include "lib/pool_allocator.h"
 #include "kernel/memory/page_tables.h"
 #include "lib/list.h"
