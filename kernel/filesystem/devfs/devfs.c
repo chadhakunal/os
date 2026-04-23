@@ -29,6 +29,10 @@ struct vnode_t *build_devfs(struct superblock_t *superblock) {
 
 struct superblock_t *devfs_mount() {
   struct superblock_t *superblock = superblock_t_alloc();
+  // devfs doesn't use superblock file_ops (devices override per-vnode)
+  superblock->file_ops.read = NULL;
+  superblock->file_ops.write = NULL;
+
   superblock->root_vnode = build_devfs(superblock);
 
   // Create root dentry for devfs

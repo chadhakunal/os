@@ -50,6 +50,9 @@ struct superblock_t *tarfs_mount(void *data, uint64_t size) {
   ((struct tarfs_superblock_t *)superblock->private_data)->last_vnode_id = 0;
   superblock->vnode_ops.lookup = tarfs_vnode_lookup;
   superblock->address_space_ops.fill_page = tarfs_fill_page;
+  // tarfs uses address_space_ops for file I/O, so file_ops are NULL
+  superblock->file_ops.read = NULL;
+  superblock->file_ops.write = NULL;
 
   parse_tar(data, size, superblock);
   return superblock;
