@@ -104,6 +104,10 @@ int32_t vfs_lookup(const char *name, struct vnode_t *parent_dir, struct dentry_t
     *out = dentry_t_alloc();
     strncpy((*out)->name, name, str_len(name, 256));
     (*out)->vnode = NULL;
+    return -1;
   }
-  return -1; // Not found
+
+  // Lookup succeeded, add dentry to parent's children list for caching
+  list_append(&parent_dir->children_dentries, &(*out)->sibling_dentry);
+  return 0;
 }
