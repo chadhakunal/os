@@ -53,12 +53,12 @@ void vfs_init() {
   list_append(&mount_list, &base_mount->sibling_mount);
 
   // Mount devfs at /dev
-  struct vnode_t *vnode = tarfs_alloc_vnode(base_mount->superblock);
+  struct vnode_t *dev_vnode = tarfs_alloc_vnode(base_mount->superblock);
   struct dentry_t *dentry = dentry_t_alloc();
   dentry->name = "dev";
   dentry->vnode = dev_vnode;
   dentry->parent = base_mount->superblock->root_vnode;
-  list_append(&base_mount->superblock->root_vnode->children_entries, &dentry->sibling_dentry);
+  list_append(&base_mount->superblock->root_vnode->children_dentries, &dentry->sibling_dentry);
   base_mount->superblock->root_vnode;
   struct superblock_t *devfs_sb = devfs_mount();
   vfs_mount("/dev", devfs_sb);
