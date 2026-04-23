@@ -9,7 +9,7 @@
 #include "kernel/drivers/uart.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
-#include "virtual_memory_init.h"
+#include "arch/riscv64/virtual_memory_init.h"
 
 page_table_t *root_page_table = NULL;
 

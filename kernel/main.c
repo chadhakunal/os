@@ -8,7 +8,7 @@
 #include "kernel/memory/page_allocator.h"
 #include "kernel/memory/page_tables.h"
 #include "kernel/task/elf_loader.h"
-#include "virtual_memory_init.h"
+#include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "arch/riscv64/trap.h"
 #include "kernel/drivers/uart.h"

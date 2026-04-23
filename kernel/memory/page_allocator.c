@@ -6,7 +6,7 @@
 
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
-#include "virtual_memory_init.h"
+#include "arch/riscv64/virtual_memory_init.h"
 
 #define ALIGN_UP(x, a) (((uintptr_t)(x) + ((a) - 1)) & ~((uintptr_t)((a) - 1)))
 

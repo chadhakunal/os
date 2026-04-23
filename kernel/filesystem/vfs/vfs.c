@@ -5,7 +5,7 @@
 #include "kernel/filesystem/mode.h"
 #include "lib/list.h"
 #include "kernel/memory/page_allocator.h"
-#include "virtual_memory_init.h"
+#include "arch/riscv64/virtual_memory_init.h"
 
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   printk("vfs_resolve_path: path=%s\n", path);

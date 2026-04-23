@@ -5,7 +5,7 @@
 #include "lib/printk/printk.h"
 #include "lib/string.h"
 #include "kernel/memory/page_allocator.h"
-#include "virtual_memory_init.h"
+#include "arch/riscv64/virtual_memory_init.h"
 
 int64_t tarfs_fill_page(struct vnode_t *vnode, size_t offset, void **phys_page) {
   struct tarfs_vnode_t *tarfs_vnode = vnode->fs_private_vnode;
