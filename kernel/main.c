@@ -82,7 +82,7 @@ void kmain(void *dtb_ptr) {
 
   struct file_t *tty;
   ret = vfs_open("/dev/tty", O_RDWR, &tty);
-  char hello[32] = "Hello World!";
+  char hello[32] = "Hello World!\n";
   vfs_write(tty, 0, hello, 32);
 
   struct task_t *task = init_task();

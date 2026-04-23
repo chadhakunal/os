@@ -17,7 +17,28 @@ struct task_t *init_task() {
   // Initialize VMA list
   task->mm_struct.vma_list.next = &task->mm_struct.vma_list;
   task->mm_struct.vma_list.prev = &task->mm_struct.vma_list;
+
+  //TODO: Integrate this with the base process
+  task->task_list.next = &task->task_list;
+  task->task_list.prev = &task->task_list;
+
+  init_files(&task->file_table);
+  
   return task;
+}
+
+void init_files(struct files_table_t **files_table) {
+  struct files_list_t *file_list = files_list_t_alloc();
+  list_append(&files_table->files_list, &files_list->files_list);
+  files_list->used_file_bitmap = 1 | 1 << 1 | 1 << 2;
+  struct file_t *stdin = vfs_open('/dev/tty', O_RDONLY, &stdin);
+  struct file_t *stdout = vfs_open('/dev/tty', O_WRONLY, &stdin);
+  struct file_t *stderr = vfs_open('/dev/tty', O_WRONLY, &stdin);
+  files_list[0] = stdin;
+  files_list[1] = stdout;
+  files_list[2] = stderr;
+
+  *files_table->files = file_list;
 }
 
 struct task_t *create_init_process() {
