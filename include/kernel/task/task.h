@@ -30,13 +30,13 @@ struct mm_struct_t {
 
 struct files_table_t {
   struct list_node files_list;
-}
+};
 
 struct files_list_t {
   struct file_t *files[32];
   uint32_t used_file_bitmap;
   struct list_node files_list;
-}
+};
 
 struct task_t {
   struct trap_frame tf;
