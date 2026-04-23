@@ -86,9 +86,15 @@ int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 
   printk("  file->vnode=%p\n", file->vnode);
   printk("  file->vnode->address_space=%p\n", file->vnode->address_space);
+  printk("  file->file_ops=%p\n", file->file_ops);
 
   if (file->vnode->address_space == NULL || file->vnode->address_space->address_space_ops == NULL || file->vnode->address_space->address_space_ops->fill_page == NULL) {
     printk("  Using file_ops->read\n");
+    if (file->file_ops == NULL || file->file_ops->read == NULL) {
+      printk("  ERROR: file_ops or read function is NULL\n");
+      panic("vfs_read: file_ops or read function is NULL\n");
+    }
+    printk("  file->file_ops->read=%p\n", file->file_ops->read);
     return file->file_ops->read(file, offset, buffer, size);
   }
 
