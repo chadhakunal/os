@@ -9,7 +9,9 @@ struct list_node mount_list;
 
 int32_t vfs_mount(char *path, struct superblock_t *superblock) {
   struct dentry_t *dentry;
+  printk("mounting: %s\n", path);
   int32_t ret = vfs_resolve_path(path, &dentry);
+  printk("mounting resolve path return: %ld\n", ret);
   if (ret < 0) {
     return ret;
   }
