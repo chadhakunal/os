@@ -7,6 +7,21 @@
 #include "lib/printk/printk.h"
 #include "lib/string.h"
 
+void init_files(struct files_table_t **files_table) {
+  struct files_list_t *file_list = files_list_t_alloc();
+  list_append(&files_table->files_list, &files_list->files_list);
+  files_list->used_file_bitmap = 1 | 1 << 1 | 1 << 2;
+  struct file_t *stdin, *stdout, *stderr;
+  vfs_open("/dev/tty", O_RDONLY, &stdin);
+  vfs_open("/dev/tty", O_WRONLY, &stdin);
+  vfs_open("/dev/tty", O_WRONLY, &stdin);
+  files_list[0] = stdin;
+  files_list[1] = stdout;
+  files_list[2] = stderr;
+
+  (*files_table)->files_list = file_list;
+}
+
 struct task_t *init_task() {
   struct task_t *task = task_t_alloc();
   task->kernel_stack = PHYS_TO_VIRT(get_page(true));
@@ -25,21 +40,6 @@ struct task_t *init_task() {
   init_files(&task->file_table);
   
   return task;
-}
-
-void init_files(struct files_table_t **files_table) {
-  struct files_list_t *file_list = files_list_t_alloc();
-  list_append(&files_table->files_list, &files_list->files_list);
-  files_list->used_file_bitmap = 1 | 1 << 1 | 1 << 2;
-  struct file_t *stdin, *stdout, *stderr;
-  vfs_open("/dev/tty", O_RDONLY, &stdin);
-  vfs_open("/dev/tty", O_WRONLY, &stdin);
-  vfs_open("/dev/tty", O_WRONLY, &stdin);
-  files_list[0] = stdin;
-  files_list[1] = stdout;
-  files_list[2] = stderr;
-
-  (*files_table)->files = file_list;
 }
 
 struct task_t *create_init_process() {
