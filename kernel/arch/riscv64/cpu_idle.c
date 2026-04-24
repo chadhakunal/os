@@ -1,4 +1,4 @@
-#include "cpu_idle.h"
+#include "arch/riscv64/cpu_idle.h"
 
 inline void arch_wait() {
     while (1) {

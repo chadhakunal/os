@@ -1,6 +1,6 @@
 // OS Kernel v1.0.0
 
-#include "cpu_idle.h"
+#include "arch/riscv64/cpu_idle.h"
 #include "platform.h"
 #include "types.h"
 
