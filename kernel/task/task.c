@@ -17,7 +17,6 @@ void init_task_system() {
   // Initialize global task list (must be called after virtual memory is enabled)
   task_list.next = &task_list;
   task_list.prev = &task_list;
-  printk("init_task_system: task_list initialized at %p\n", &task_list);
 }
 
 void init_files(struct files_table_t *files_table) {
@@ -40,9 +39,7 @@ void init_files(struct files_table_t *files_table) {
 }
 
 struct task_t *task_init() {
-  printk("task_init: Starting...\n");
   struct task_t *task = task_t_alloc();
-  printk("task_init: task_t_alloc done, task=%p\n", task);
   task->pid = 0;
   task->uid = 0;
 
@@ -64,20 +61,11 @@ struct task_t *task_init() {
 
 // Populates the init_task
 void create_init_process() {
-  printk("create_init_process: Starting...\n");
   init_task_system();  // Initialize task_list with virtual addresses
   init_task = task_init();
-  printk("create_init_process: task_init done, root_satp=%p\n", init_task->mm_struct.root_satp);
-  printk("create_init_process: root_satp (virt)=%p\n", PHYS_TO_VIRT(init_task->mm_struct.root_satp));
   load_elf(init_task , "/bin/init");
-  printk("create_init_process: load_elf done\n");
-  printk("create_init_process: &task_list=%p, task_list.next=%p, task_list.prev=%p\n",
-         &task_list, task_list.next, task_list.prev);
-  printk("create_init_process: init_task=%p, &init_task->task_list=%p\n",
-         init_task, &init_task->task_list);
   list_append(&task_list, &init_task->task_list);
   current_task = init_task;
-  printk("create_init_process: Done\n");
 }
 
 struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr) {
