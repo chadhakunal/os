@@ -55,7 +55,6 @@ struct kernel_context_t {
 
 struct task_t {
   struct trap_frame tf;
-  void *kernel_stack;
   struct kernel_context_t kernel_context;
   uint64_t pid;
   uint32_t uid;

@@ -34,11 +34,12 @@ void init_files(struct files_table_t *files_table) {
 
 struct task_t *task_init() {
   struct task_t *task = task_t_alloc();
-  task->kernel_stack = PHYS_TO_VIRT(get_page(true));
   task->pid = 0;
   task->uid = 0;
+
   // Initialize page table with kernel mappings copied from root
   task->mm_struct.root_satp = init_new_page_table();
+
   // Initialize VMA list
   task->mm_struct.vma_list.next = &task->mm_struct.vma_list;
   task->mm_struct.vma_list.prev = &task->mm_struct.vma_list;
@@ -48,8 +49,10 @@ struct task_t *task_init() {
   task->task_list.prev = &task->task_list;
 
   init_files(&(task->file_table));
-  task->kernel_context.stack_start = (uint64_t) PHYS_TO_VIRT(get_page(true));
-  task->kernel_context.sp = task->kernel_context.stack_start;
+
+  // Allocate kernel stack and set SP to TOP (stacks grow down)
+  task->kernel_context.stack_start = (uint64_t)PHYS_TO_VIRT(get_page(true));
+  task->kernel_context.sp = task->kernel_context.stack_start + 4096;  // Point to top
 
   return task;
 }
