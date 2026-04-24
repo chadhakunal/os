@@ -1,4 +1,0 @@
-# Makefile.local - Fix assembly file search for nested directories
-
-# Override KERN_ASM to search recursively for .S files (exclude aarch64)
-KERN_ASM := $(patsubst %,build/%.o,$(shell find kernel -name '*.S' ! -path '*/arch/aarch64/*'))
