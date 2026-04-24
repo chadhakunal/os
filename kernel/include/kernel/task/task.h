@@ -50,6 +50,7 @@ struct kernel_context_t {
   uint64_t ra;
   uint64_t sp;
   uint64_t s[12];
+  uint64_t stack_start;
 };
 
 struct task_t {
