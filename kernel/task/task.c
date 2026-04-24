@@ -6,6 +6,7 @@
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
+#include "kernel/task/elf_loader.h"
 
 extern struct task_t *current_task;  // Currently running task
 extern struct task_t *init_task;     // First task (PID 0 or 1)
