@@ -13,6 +13,14 @@
 #define VM_EXEC     0x0004
 #define VM_SHARED   0x0008
 
+enum task_state {
+  TASK_RUNNING,
+  TASK_READY,
+  TASK_BLOCKED,
+  TASK_ZOMBIE,
+  TASK_TERMINATED
+};
+
 struct vma_t {
   size_t start_addr; // Virtual address Start
   size_t end_addr; // Virtual address end (can span multiple pages)
@@ -38,14 +46,22 @@ struct files_list_t {
   struct list_node files_list;
 };
 
+struct kernel_context_t {
+  uint64_t ra;
+  uint64_t sp;
+  uint64_t s[12];
+}
+
 struct task_t {
   struct trap_frame tf;
   void *kernel_stack;
+  struct kernel_context_t kernel_context;
   uint64_t pid;
   uint32_t uid;
   struct mm_struct_t mm_struct;
   struct list_node task_list;
   struct files_table_t file_table;
+  enum task_state state;
 };
 
 DEFINE_POOL(task_t, struct task_t)
