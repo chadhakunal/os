@@ -8,9 +8,10 @@
 #include "lib/string.h"
 #include "kernel/task/elf_loader.h"
 
-extern struct task_t *current_task;  // Currently running task
-extern struct task_t *init_task;     // First task (PID 0 or 1)
-extern struct list_node task_list;   // Global list of all tasks
+// Global task tracking
+struct task_t *current_task = NULL;  // Currently running task
+struct task_t *init_task = NULL;     // First task (PID 0 or 1)
+struct list_node task_list;          // Global list of all tasks
 
 void init_files(struct files_table_t *files_table) {
   files_table->files_list.next = &files_table->files_list;

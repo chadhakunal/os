@@ -69,6 +69,11 @@ DEFINE_POOL(vma_t, struct vma_t)
 DEFINE_POOL(files_list_t, struct files_list_t)
 DEFINE_POOL(files_table_t, struct files_table_t)
 
+// Global task tracking (defined in task.c)
+extern struct task_t *current_task;  // Currently running task
+extern struct task_t *init_task;     // First task (PID 0 or 1)
+extern struct list_node task_list;   // Global list of all tasks
+
 void create_init_process();
 
 struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr);
