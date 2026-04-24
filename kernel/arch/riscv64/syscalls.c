@@ -1,4 +1,4 @@
-#include "syscalls/syscalls.h"
+#include "arch/riscv64/syscalls/syscalls.h"
 #include "lib/printk/printk.h"
 #include "types.h"
 
