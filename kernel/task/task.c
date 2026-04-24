@@ -7,6 +7,10 @@
 #include "lib/printk/printk.h"
 #include "lib/string.h"
 
+extern struct task_t *current_task;  // Currently running task
+extern struct task_t *init_task;     // First task (PID 0 or 1)
+extern struct list_node task_list;   // Global list of all tasks
+
 void init_files(struct files_table_t *files_table) {
   files_table->files_list.next = &files_table->files_list;
   files_table->files_list.prev = &files_table->files_list;
@@ -26,7 +30,7 @@ void init_files(struct files_table_t *files_table) {
   list_append(&files_table->files_list, &files_list->files_list);
 }
 
-struct task_t *init_task() {
+struct task_t *task_init() {
   struct task_t *task = task_t_alloc();
   task->kernel_stack = PHYS_TO_VIRT(get_page(true));
   task->pid = 0;
@@ -46,9 +50,10 @@ struct task_t *init_task() {
   return task;
 }
 
-struct task_t *create_init_process() {
-  struct task_t *init_task = task_t_alloc();
-  return init_task;
+// Populates the init_task
+void create_init_process() {
+  init_task = task_init();
+  load_elf(init_task , "/bin/init");
 }
 
 struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr) {

@@ -85,13 +85,10 @@ void kmain(void *dtb_ptr) {
   char hello[32] = "Hello World!\n";
   vfs_write(tty, 0, hello, 32);
 
-  struct task_t *task = init_task();
+  // enable_interrupts();
+  // uart_enable_interrupts();
 
-  load_elf(task, "/bin/init");
-  printk("Loaded elf\n");
-  enable_interrupts();
-  uart_enable_interrupts();
-  trap_return(&task->tf);
+  create_init_process();
   
   arch_wait();
 }

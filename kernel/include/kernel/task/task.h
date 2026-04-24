@@ -69,7 +69,6 @@ DEFINE_POOL(vma_t, struct vma_t)
 DEFINE_POOL(files_list_t, struct files_list_t)
 DEFINE_POOL(files_table_t, struct files_table_t)
 
-struct task_t *init_task();
 struct task_t *create_init_process();
 
 struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr);
