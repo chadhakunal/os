@@ -66,6 +66,10 @@ void create_init_process() {
   printk("create_init_process: root_satp (virt)=%p\n", PHYS_TO_VIRT(init_task->mm_struct.root_satp));
   load_elf(init_task , "/bin/init");
   printk("create_init_process: load_elf done\n");
+  printk("create_init_process: &task_list=%p, task_list.next=%p, task_list.prev=%p\n",
+         &task_list, task_list.next, task_list.prev);
+  printk("create_init_process: init_task=%p, &init_task->task_list=%p\n",
+         init_task, &init_task->task_list);
   list_append(&task_list, &init_task->task_list);
   current_task = init_task;
   printk("create_init_process: Done\n");
