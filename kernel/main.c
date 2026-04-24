@@ -87,11 +87,11 @@ void kmain(void *dtb_ptr) {
 
   struct task_t *task = init_task();
 
-  load_elf(task, "/bin/echo");
+  load_elf(task, "/bin/init");
   printk("Loaded elf\n");
   enable_interrupts();
   uart_enable_interrupts();
-  //trap_return(&task->tf);
+  trap_return(&task->tf);
   
   arch_wait();
 }
