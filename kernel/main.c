@@ -89,6 +89,7 @@ void kmain(void *dtb_ptr) {
   // uart_enable_interrupts();
 
   create_init_process();
+  printk("Done creating init_process\n");
   
   arch_wait();
 }
