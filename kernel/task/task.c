@@ -48,7 +48,7 @@ struct task_t *task_init() {
   task->task_list.prev = &task->task_list;
 
   init_files(&(task->file_table));
-  task->kernel_context.stack_start = PHYS_TO_VIRT(get_page(true));
+  task->kernel_context.stack_start = (uint64_t) PHYS_TO_VIRT(get_page(true));
   task->kernel_context.sp = task->kernel_context.stack_start;
 
   return task;
