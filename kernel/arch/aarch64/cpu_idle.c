@@ -1,4 +1,4 @@
-#include "cpu_idle.h"
+#include "arch/aarch64/cpu_idle.h"
 
 inline void arch_wait() {
     // TODO: Check if we need WFE
