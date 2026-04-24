@@ -45,13 +45,9 @@ struct task_t *task_init() {
   // Initialize page table with kernel mappings copied from root
   task->mm_struct.root_satp = init_new_page_table();
 
-  // Initialize VMA list
+  // Initialize VMA list (empty circular list)
   task->mm_struct.vma_list.next = &task->mm_struct.vma_list;
   task->mm_struct.vma_list.prev = &task->mm_struct.vma_list;
-
-  //TODO: Integrate this with the base process
-  task->task_list.next = &task->task_list;
-  task->task_list.prev = &task->task_list;
 
   init_files(&(task->file_table));
 
