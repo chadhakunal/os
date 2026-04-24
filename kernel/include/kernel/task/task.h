@@ -50,7 +50,7 @@ struct kernel_context_t {
   uint64_t ra;
   uint64_t sp;
   uint64_t s[12];
-}
+};
 
 struct task_t {
   struct trap_frame tf;
