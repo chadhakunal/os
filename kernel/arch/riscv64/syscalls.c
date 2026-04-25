@@ -16,6 +16,13 @@ void handle_syscall(struct trap_frame *tf) {
   uint64_t ret = -1;
   uint64_t syscall_num = tf->a7;
 
+  // Enable supervisor access to user memory (SUM bit in sstatus)
+  // This allows kernel to read/write user buffers during syscalls
+  uint64_t old_sstatus;
+  asm volatile("csrr %0, sstatus" : "=r"(old_sstatus));
+  asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
+
+
   switch (syscall_num) {
     case SYS_read:
       printk("syscall: read(fd=%llu, buf=%llx, count=%llu)\n", tf->a0, tf->a1, tf->a2);
@@ -92,4 +99,7 @@ void handle_syscall(struct trap_frame *tf) {
   /* Advance PC past the ecall instruction */
   tf->sepc += 4;
   tf->a0 = ret;
+
+  // Restore original sstatus (disable SUM for security)
+  asm volatile("csrw sstatus, %0" :: "r"(old_sstatus));
 }
