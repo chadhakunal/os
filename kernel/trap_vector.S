@@ -67,6 +67,8 @@ trap_vector:
 .global trap_return
 trap_return:
     # a0 = trap_frame pointer
+    # DEBUG: Write a marker value to show we entered trap_return
+    li t0, 0xDEADBEEF
     mv sp, a0
 
     # Restore CSRs (sepc and sstatus)

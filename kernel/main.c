@@ -97,18 +97,18 @@ void kmain(void *dtb_ptr) {
 
   printk("\nTrap frame contents:\n");
   printk("  GPRs:\n");
-  printk("    ra:  %016llx  sp:  %016llx  gp:  %016llx  tp:  %016llx\n",
+  printk("    ra:  %llx  sp:  %llx  gp:  %llx  tp:  %llx\n",
          current_task->tf.ra, current_task->tf.sp, current_task->tf.gp, current_task->tf.tp);
-  printk("    a0:  %016llx  a1:  %016llx  a2:  %016llx  a7:  %016llx\n",
+  printk("    a0:  %llx  a1:  %llx  a2:  %llx  a7:  %llx\n",
          current_task->tf.a0, current_task->tf.a1, current_task->tf.a2, current_task->tf.a7);
 
   printk("  CSRs:\n");
-  printk("    sepc (entry):    %016llx\n", current_task->tf.sepc);
-  printk("    sp (stack):      %016llx\n", current_task->tf.sp);
-  printk("    sstatus:         %016llx\n", current_task->tf.sstatus);
-  printk("    scause:          %016llx\n", current_task->tf.scause);
-  printk("    stval:           %016llx\n", current_task->tf.stval);
-  printk("    padding:         %016llx\n", current_task->tf.padding);
+  printk("    sepc (entry):    %llx\n", current_task->tf.sepc);
+  printk("    sp (stack):      %llx\n", current_task->tf.sp);
+  printk("    sstatus:         %llx\n", current_task->tf.sstatus);
+  printk("    scause:          %llx\n", current_task->tf.scause);
+  printk("    stval:           %llx\n", current_task->tf.stval);
+  printk("    padding:         %llx\n", current_task->tf.padding);
 
   printk("\nDecoded sstatus (0x%llx):\n", current_task->tf.sstatus);
   printk("  SPP  (bit 8):     %d (return to %s mode)\n",
@@ -124,10 +124,11 @@ void kmain(void *dtb_ptr) {
   printk("\nKernel SP check:\n");
   uint64_t kernel_sp;
   asm volatile("mv %0, sp" : "=r"(kernel_sp));
-  printk("  Current kernel SP: %016llx\n", kernel_sp);
-  printk("  Kernel start:      %016llx\n", (uint64_t)0xFFFFFFFF80000000);
-  printk("  Kernel end (+100KB): %016llx\n", (uint64_t)0xFFFFFFFF80019160);
-  printk("  SP offset from start: %lld KB\n", (kernel_sp - 0xFFFFFFFF80000000) / 1024);
+  extern char _kernel_start, _end;
+  printk("  Current kernel SP:   %llx\n", kernel_sp);
+  printk("  _kernel_start:       %llx\n", (uint64_t)&_kernel_start);
+  printk("  _end:                %llx\n", (uint64_t)&_end);
+  printk("  Kernel size:         %llu KB\n", ((uint64_t)&_end - (uint64_t)&_kernel_start) / 1024);
 
   printk("\nJumping to user mode now...\n");
   trap_return(&current_task->tf);
