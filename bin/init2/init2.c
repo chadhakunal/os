@@ -2,7 +2,7 @@
 
 int main() {
   while (1) {
-    printf("init.c\n");
+    printf("init2-----------.c\n");
   }
   return 0;
 }

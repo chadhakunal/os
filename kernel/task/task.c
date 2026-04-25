@@ -68,6 +68,8 @@ void create_init_process() {
   current_task = init_task;
 }
 
+void start_init_process();
+
 struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr) {
   size_t vaddr_aligned = vaddr & ~(DEFAULT_PAGE_SIZE - 1);
   list_for_each(&mm_struct->vma_list, pos) {

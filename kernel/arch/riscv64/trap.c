@@ -45,6 +45,14 @@ void trap_handler(struct trap_frame *tf) {
     }
   }
 
+  // For syscalls, return to user mode
+  if (!is_interrupt && cause_code == 8) {
+    extern void trap_return(struct trap_frame *tf);
+    trap_return(tf);
+    // Never returns
+  }
+
+  // For all other traps, print registers and panic
   printk("\nRegisters:\n");
   printk("ra:  %llx  sp:  %llx  gp:  %llx  tp:  %llx\n", tf->ra, tf->sp, tf->gp, tf->tp);
   printk("t0:  %llx  t1:  %llx  t2:  %llx\n", tf->t0, tf->t1, tf->t2);
