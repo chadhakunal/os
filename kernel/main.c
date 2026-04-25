@@ -127,7 +127,16 @@ void kmain(void *dtb_ptr) {
   printk("  Current kernel SP:   %llx\n", kernel_sp);
 
   printk("\nJumping to user mode now...\n");
+  printk("About to call trap_return at %p with arg %p\n", trap_return, &current_task->tf);
+
+  // Check sp one more time right before call
+  uint64_t sp_before_call;
+  asm volatile("mv %0, sp" : "=r"(sp_before_call));
+  printk("SP right before trap_return call: %llx\n", sp_before_call);
+
   trap_return(&current_task->tf);
+
+  printk("ERROR: trap_return returned! This should never happen\n");
   
   arch_wait();
 }
