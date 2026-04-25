@@ -134,6 +134,10 @@ void kmain(void *dtb_ptr) {
   asm volatile("mv %0, sp" : "=r"(sp_before_call));
   printk("SP right before trap_return call: %llx\n", sp_before_call);
 
+  // Set sscratch to kernel stack top so future traps can swap to it
+  printk("Setting sscratch to kernel stack top: %llx\n", current_task->kernel_context.sp);
+  asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
+
   trap_return(&current_task->tf);
 
   printk("ERROR: trap_return returned! This should never happen\n");

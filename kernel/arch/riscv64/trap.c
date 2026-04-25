@@ -48,6 +48,10 @@ void trap_handler(struct trap_frame *tf) {
   // For syscalls, return to user mode
   if (!is_interrupt && cause_code == 8) {
     extern void trap_return(struct trap_frame *tf);
+    // Set sscratch to kernel stack top (trap frame is on kernel stack)
+    // This prepares for the next trap to swap to the kernel stack
+    uint64_t kernel_stack_top = (uint64_t)tf + sizeof(struct trap_frame);
+    asm volatile("csrw sscratch, %0" :: "r"(kernel_stack_top));
     trap_return(tf);
     // Never returns
   }

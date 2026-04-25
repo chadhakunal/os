@@ -3,12 +3,20 @@
 .align 4
 
 trap_vector:
-    # Allocate space for trap_frame on stack (36 * 8 = 288 bytes)
+    # When coming from user mode, sscratch contains the kernel stack top
+    # When coming from kernel mode, sscratch is 0 (for now, we don't handle this)
+    # Swap sp with sscratch to switch to kernel stack
+    csrrw sp, sscratch, sp
+    # Now: sp = kernel stack top, sscratch = user stack pointer
+
+    # Allocate space for trap_frame on kernel stack (36 * 8 = 288 bytes)
     addi sp, sp, -288
 
     # Save all general purpose registers
     sd ra, 0(sp)
-    sd sp, 8(sp)     # Save original sp (will fix later)
+    # Save user sp (currently in sscratch) to trap frame
+    csrr t0, sscratch
+    sd t0, 8(sp)
     sd gp, 16(sp)
     sd tp, 24(sp)
     sd t0, 32(sp)
@@ -49,10 +57,6 @@ trap_vector:
     csrr t0, scause
     sd t0, 272(sp)
 
-    # Fix saved sp (original was sp + 288)
-    addi t0, sp, 288
-    sd t0, 8(sp)
-
     # Pass trap_frame pointer as first argument (a0 = sp)
     mv a0, sp
 
@@ -64,11 +68,10 @@ trap_vector:
 
 # trap_return(trap_frame_t *tf)
 # Restores CPU state from trap frame and returns to interrupted execution
+# NOTE: Caller must set sscratch to kernel stack top before calling this
 .global trap_return
 trap_return:
     # a0 = trap_frame pointer
-    # DEBUG: Write a marker value to show we entered trap_return
-    li t0, 0xDEADBEEF
     mv sp, a0
 
     # Restore CSRs (sepc and sstatus)
@@ -110,6 +113,6 @@ trap_return:
     ld t5, 232(sp)
     ld t6, 240(sp)
 
-    # Finally restore sp and return to user mode
+    # Finally restore user sp and return to user mode
     ld sp, 8(sp)
     sret
