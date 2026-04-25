@@ -91,23 +91,38 @@ void kmain(void *dtb_ptr) {
   create_init_process();
   printk("Done creating init_process\n");
   printk("About to jump to user mode:\n");
-  printk("  current_task:     %p\n", current_task);
-  printk("  &current_task->tf: %p\n", &current_task->tf);
-  printk("  sizeof(trap_frame): %lu\n", sizeof(struct trap_frame));
-  printk("  sepc (entry): %llx\n", current_task->tf.sepc);
-  printk("  sp (stack):   %llx\n", current_task->tf.sp);
-  printk("  sstatus:      %llx\n", current_task->tf.sstatus);
+  printk("  current_task:       %p\n", current_task);
+  printk("  &current_task->tf:  %p\n", &current_task->tf);
+  printk("  sizeof(trap_frame): %lu bytes\n", sizeof(struct trap_frame));
 
-  // Test if we can read from the trap frame
-  volatile uint64_t test = current_task->tf.sepc;
-  printk("  test read sepc: %llx\n", test);
+  printk("\nTrap frame contents:\n");
+  printk("  GPRs:\n");
+  printk("    ra:  %016llx  sp:  %016llx  gp:  %016llx  tp:  %016llx\n",
+         current_task->tf.ra, current_task->tf.sp, current_task->tf.gp, current_task->tf.tp);
+  printk("    a0:  %016llx  a1:  %016llx  a2:  %016llx  a7:  %016llx\n",
+         current_task->tf.a0, current_task->tf.a1, current_task->tf.a2, current_task->tf.a7);
 
-  printk("Jumping to user mode now...\n");
+  printk("  CSRs:\n");
+  printk("    sepc (entry):    %016llx\n", current_task->tf.sepc);
+  printk("    sp (stack):      %016llx\n", current_task->tf.sp);
+  printk("    sstatus:         %016llx\n", current_task->tf.sstatus);
+  printk("    scause:          %016llx\n", current_task->tf.scause);
+  printk("    stval:           %016llx\n", current_task->tf.stval);
+  printk("    padding:         %016llx\n", current_task->tf.padding);
 
-  // Call trap_return with explicit address
-  struct trap_frame *tf_ptr = &current_task->tf;
-  printk("  tf_ptr = %p\n", tf_ptr);
-  trap_return(tf_ptr);
+  printk("\nDecoded sstatus (0x%llx):\n", current_task->tf.sstatus);
+  printk("  SPP  (bit 8):     %d (return to %s mode)\n",
+         (current_task->tf.sstatus >> 8) & 1,
+         ((current_task->tf.sstatus >> 8) & 1) ? "supervisor" : "user");
+  printk("  SPIE (bit 5):     %d (interrupts %s on sret)\n",
+         (current_task->tf.sstatus >> 5) & 1,
+         ((current_task->tf.sstatus >> 5) & 1) ? "enabled" : "disabled");
+  printk("  UXL  (bits 32-33): %lld (user mode %s-bit)\n",
+         (current_task->tf.sstatus >> 32) & 3,
+         ((current_task->tf.sstatus >> 32) & 3) == 2 ? "64" : "other");
+
+  printk("\nJumping to user mode now...\n");
+  trap_return(&current_task->tf);
   
   arch_wait();
 }
