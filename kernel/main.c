@@ -93,11 +93,21 @@ void kmain(void *dtb_ptr) {
   printk("About to jump to user mode:\n");
   printk("  current_task:     %p\n", current_task);
   printk("  &current_task->tf: %p\n", &current_task->tf);
+  printk("  sizeof(trap_frame): %lu\n", sizeof(struct trap_frame));
   printk("  sepc (entry): %llx\n", current_task->tf.sepc);
   printk("  sp (stack):   %llx\n", current_task->tf.sp);
   printk("  sstatus:      %llx\n", current_task->tf.sstatus);
+
+  // Test if we can read from the trap frame
+  volatile uint64_t test = current_task->tf.sepc;
+  printk("  test read sepc: %llx\n", test);
+
   printk("Jumping to user mode now...\n");
-  trap_return(&current_task->tf);
+
+  // Call trap_return with explicit address
+  struct trap_frame *tf_ptr = &current_task->tf;
+  printk("  tf_ptr = %p\n", tf_ptr);
+  trap_return(tf_ptr);
   
   arch_wait();
 }
