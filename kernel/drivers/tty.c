@@ -8,8 +8,10 @@ int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 
 int64_t tty_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   char *buf = (char *)buffer;
-  buf[size-1] = '\0';
-  printk("%s", buf);
+  // Write each character directly to UART without null-terminating
+  for (uint64_t i = 0; i < size; i++) {
+    printk("%c", buf[i]);
+  }
   return size;
 }
 
