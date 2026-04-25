@@ -138,6 +138,15 @@ void kmain(void *dtb_ptr) {
   printk("Setting sscratch to kernel stack top: %llx\n", current_task->kernel_context.sp);
   asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
 
+  // Switch to user's page table
+  uint64_t user_satp = (8ULL << 60) | ((uint64_t)current_task->mm_struct.root_satp >> 12);
+  printk("Switching to user page table: satp=0x%llx (root_satp=%p)\n",
+         user_satp, current_task->mm_struct.root_satp);
+  asm volatile("sfence.vma zero, zero");
+  asm volatile("csrw satp, %0" :: "r"(user_satp) : "memory");
+  asm volatile("sfence.vma zero, zero");
+  asm volatile("fence.i");
+
   trap_return(&current_task->tf);
 
   printk("ERROR: trap_return returned! This should never happen\n");
