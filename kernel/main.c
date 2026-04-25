@@ -126,9 +126,6 @@ void kmain(void *dtb_ptr) {
   asm volatile("mv %0, sp" : "=r"(kernel_sp));
   extern char _kernel_start, _end;
   printk("  Current kernel SP:   %llx\n", kernel_sp);
-  printk("  _kernel_start:       %llx\n", (uint64_t)&_kernel_start);
-  printk("  _end:                %llx\n", (uint64_t)&_end);
-  printk("  Kernel size:         %llu KB\n", ((uint64_t)&_end - (uint64_t)&_kernel_start) / 1024);
 
   printk("\nJumping to user mode now...\n");
   trap_return(&current_task->tf);
