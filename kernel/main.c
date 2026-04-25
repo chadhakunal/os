@@ -121,6 +121,14 @@ void kmain(void *dtb_ptr) {
          (current_task->tf.sstatus >> 32) & 3,
          ((current_task->tf.sstatus >> 32) & 3) == 2 ? "64" : "other");
 
+  printk("\nKernel SP check:\n");
+  uint64_t kernel_sp;
+  asm volatile("mv %0, sp" : "=r"(kernel_sp));
+  printk("  Current kernel SP: %016llx\n", kernel_sp);
+  printk("  Kernel start:      %016llx\n", (uint64_t)0xFFFFFFFF80000000);
+  printk("  Kernel end (+100KB): %016llx\n", (uint64_t)0xFFFFFFFF80019160);
+  printk("  SP offset from start: %lld KB\n", (kernel_sp - 0xFFFFFFFF80000000) / 1024);
+
   printk("\nJumping to user mode now...\n");
   trap_return(&current_task->tf);
   
