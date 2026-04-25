@@ -58,6 +58,7 @@ struct trap_frame {
   uint64_t sstatus; // Status register
   uint64_t stval;   // Bad address or instruction
   uint64_t scause;  // Trap cause
+  uint64_t padding; // Padding to match assembly's 288 bytes (36 * 8)
 };
 
 void init_trap_handler(void);
