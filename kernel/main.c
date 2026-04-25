@@ -90,6 +90,7 @@ void kmain(void *dtb_ptr) {
 
   create_init_process();
   printk("Done creating init_process\n");
+  trap_return(&current_task->tf);
   
   arch_wait();
 }
