@@ -91,6 +91,8 @@ void kmain(void *dtb_ptr) {
   create_init_process();
   printk("Done creating init_process\n");
   printk("About to jump to user mode:\n");
+  printk("  current_task:     %p\n", current_task);
+  printk("  &current_task->tf: %p\n", &current_task->tf);
   printk("  sepc (entry): %llx\n", current_task->tf.sepc);
   printk("  sp (stack):   %llx\n", current_task->tf.sp);
   printk("  sstatus:      %llx\n", current_task->tf.sstatus);
