@@ -124,7 +124,6 @@ void kmain(void *dtb_ptr) {
   printk("\nKernel SP check:\n");
   uint64_t kernel_sp;
   asm volatile("mv %0, sp" : "=r"(kernel_sp));
-  extern char _kernel_start, _end;
   printk("  Current kernel SP:   %llx\n", kernel_sp);
 
   printk("\nJumping to user mode now...\n");
