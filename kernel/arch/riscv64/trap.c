@@ -10,11 +10,11 @@ void trap_handler(void) {
   // Access trap frame from current_task (tp register points to it)
   struct trap_frame *tf = &current_task->tf;
 
-  // printk("\n=== TRAP ===\n");
-  // printk("scause:  %llx\n", tf->scause);
-  // printk("sepc:    %llx\n", tf->sepc);
-  // printk("stval:   %llx\n", tf->stval);
-  // printk("sstatus: %llx\n", tf->sstatus);
+  printk("\n=== TRAP ===\n");
+  printk("scause:  %llx\n", tf->scause);
+  printk("sepc:    %llx\n", tf->sepc);
+  printk("stval:   %llx\n", tf->stval);
+  printk("sstatus: %llx\n", tf->sstatus);
 
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
   bool is_interrupt = (tf->scause >> 63) & 1;
