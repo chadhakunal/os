@@ -53,6 +53,12 @@ switch_to:
     ld s10, 96(a1)    # s10 = next->kernel_context.s[10]
     ld s11, 104(a1)   # s11 = next->kernel_context.s[11]
 
+    # Update sscratch with next task's kernel stack top
+    # sscratch is used by trap_vector to swap to kernel stack
+    # stack_start is at offset 112, we want sp (top) which is at offset 0
+    ld t0, 0(a1)      # t0 = next->kernel_context.sp (kernel stack top)
+    csrw sscratch, t0 # sscratch = kernel stack top for this task
+
     # Return to next task (jumps to address in ra)
     # This will resume next task at the point where it was switched out
     ret
