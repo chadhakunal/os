@@ -77,6 +77,8 @@ DEFINE_POOL(files_table_t, struct files_table_t)
 
 void create_init_process();
 
+void create_second_task();
+
 /* Set the current task and update tp register */
 void set_current_task(struct task_t *task);
 

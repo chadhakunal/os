@@ -95,6 +95,14 @@ void create_init_process() {
   init_task->state = TASK_RUNNING;
 }
 
+void create_second_task() {
+  struct task_t *task2 = task_init();
+  task2->pid = 1;  // Different PID from init (which is 0)
+  load_elf(task2, "/bin/init2");
+  list_append(&task_list, &task2->task_list);
+  // State is already TASK_READY from task_init()
+}
+
 void start_init_process();
 
 struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr) {
