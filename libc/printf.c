@@ -2,62 +2,68 @@
 #include <unistd.h>
 #include <stdarg.h>
 
-// Simple helper to write a string
-static int puts_noln(const char *s) {
-  int count = 0;
-  while (s[count]) count++;
-  return write(1, s, count);
+#define PRINTF_BUF_SIZE 256
+
+// Helper to add char to buffer, flushing if full
+static void buf_putchar(char *buf, int *pos, char c) {
+  buf[(*pos)++] = c;
+  if (*pos >= PRINTF_BUF_SIZE) {
+    write(1, buf, PRINTF_BUF_SIZE);
+    *pos = 0;
+  }
 }
 
-// Simple helper to write a single char
-static void putchar(char c) {
-  write(1, &c, 1);
+// Helper to add string to buffer
+static void buf_puts(char *buf, int *pos, const char *s) {
+  while (*s) {
+    buf_putchar(buf, pos, *s++);
+  }
 }
 
-// Simple helper to print a number
-static void print_num(long num) {
+// Helper to print a number into buffer
+static void buf_print_num(char *buf, int *pos, long num) {
   if (num < 0) {
-    putchar('-');
+    buf_putchar(buf, pos, '-');
     num = -num;
   }
 
   if (num == 0) {
-    putchar('0');
+    buf_putchar(buf, pos, '0');
     return;
   }
 
-  char buf[32];
+  char tmp[32];
   int i = 0;
   while (num > 0) {
-    buf[i++] = '0' + (num % 10);
+    tmp[i++] = '0' + (num % 10);
     num /= 10;
   }
 
-  // Print in reverse
+  // Add to buffer in reverse
   while (i > 0) {
-    putchar(buf[--i]);
+    buf_putchar(buf, pos, tmp[--i]);
   }
 }
 
-// Simple helper to print hex
-static void print_hex(unsigned long num) {
+// Helper to print hex into buffer
+static void buf_print_hex(char *buf, int *pos, unsigned long num) {
   const char *hex = "0123456789abcdef";
-  char buf[32];
+  char tmp[32];
   int i = 0;
 
   if (num == 0) {
-    putchar('0');
+    buf_putchar(buf, pos, '0');
     return;
   }
 
   while (num > 0) {
-    buf[i++] = hex[num % 16];
+    tmp[i++] = hex[num % 16];
     num /= 16;
   }
 
-  // Print in reverse
+  // Add to buffer in reverse
   while (i > 0) {
-    putchar(buf[--i]);
+    buf_putchar(buf, pos, tmp[--i]);
   }
 }
 
@@ -65,6 +71,8 @@ int printf(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
 
+  char buffer[PRINTF_BUF_SIZE];
+  int pos = 0;
   int written = 0;
 
   for (const char *p = fmt; *p; p++) {
@@ -74,58 +82,55 @@ int printf(const char *fmt, ...) {
         case 's': {
           const char *s = va_arg(args, const char *);
           if (s) {
-            written += puts_noln(s);
+            buf_puts(buffer, &pos, s);
           } else {
-            written += puts_noln("(null)");
+            buf_puts(buffer, &pos, "(null)");
           }
           break;
         }
         case 'd':
         case 'i': {
           int val = va_arg(args, int);
-          print_num(val);
-          written += 1; // Approximation
+          buf_print_num(buffer, &pos, val);
           break;
         }
         case 'u': {
           unsigned int val = va_arg(args, unsigned int);
-          print_num(val);
-          written += 1;
+          buf_print_num(buffer, &pos, val);
           break;
         }
         case 'x': {
           unsigned int val = va_arg(args, unsigned int);
-          print_hex(val);
-          written += 1;
+          buf_print_hex(buffer, &pos, val);
           break;
         }
         case 'p': {
           void *ptr = va_arg(args, void *);
-          puts_noln("0x");
-          print_hex((unsigned long)ptr);
-          written += 3;
+          buf_puts(buffer, &pos, "0x");
+          buf_print_hex(buffer, &pos, (unsigned long)ptr);
           break;
         }
         case 'c': {
           char c = (char)va_arg(args, int);
-          putchar(c);
-          written += 1;
+          buf_putchar(buffer, &pos, c);
           break;
         }
         case '%':
-          putchar('%');
-          written += 1;
+          buf_putchar(buffer, &pos, '%');
           break;
         default:
-          putchar('%');
-          putchar(*p);
-          written += 2;
+          buf_putchar(buffer, &pos, '%');
+          buf_putchar(buffer, &pos, *p);
           break;
       }
     } else {
-      putchar(*p);
-      written += 1;
+      buf_putchar(buffer, &pos, *p);
     }
+  }
+
+  // Flush any remaining data in buffer
+  if (pos > 0) {
+    write(1, buffer, pos);
   }
 
   va_end(args);
