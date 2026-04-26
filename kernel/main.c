@@ -102,10 +102,16 @@ void kmain(void *dtb_ptr) {
   asm volatile("csrw satp, %0" :: "r"(user_satp) : "memory");
   asm volatile("sfence.vma zero, zero");
   asm volatile("fence.i");
-  printk("Swapped page table, trap return to current_task\n");
-  trap_return(&current_task->tf);
 
-  printk("ERROR: trap_return returned! This should never happen\n");
+  // Switch to init task's kernel stack and enter user mode
+  // This properly sets up the init task so it can be scheduled later
+  printk("Switching to init task's kernel stack: %llx\n", current_task->kernel_context.sp);
+  printk("Entering user mode...\n");
+
+  extern void start_init_task(struct trap_frame *tf, uint64_t kernel_sp);
+  start_init_task(&current_task->tf, current_task->kernel_context.sp);
+
+  printk("ERROR: start_init_task returned! This should never happen\n");
   
   arch_wait();
 }
