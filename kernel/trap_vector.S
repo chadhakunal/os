@@ -81,7 +81,7 @@ trap_return:
   ld ra, 0(sp)
   # Don't restore sp yet, we need it to access the frame
   ld gp, 16(sp)
-  ld tp, 24(sp)
+  # Don't restore tp - it must always point to current_task
   ld t0, 32(sp)
   ld t1, 40(sp)
   ld t2, 48(sp)
