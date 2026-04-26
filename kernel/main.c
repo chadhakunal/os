@@ -102,7 +102,7 @@ void kmain(void *dtb_ptr) {
   asm volatile("csrw satp, %0" :: "r"(user_satp) : "memory");
   asm volatile("sfence.vma zero, zero");
   asm volatile("fence.i");
-
+  printk("Swapped page table, trap return to current_task\n");
   trap_return(&current_task->tf);
 
   printk("ERROR: trap_return returned! This should never happen\n");
