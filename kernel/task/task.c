@@ -7,6 +7,7 @@
 #include "lib/printk/printk.h"
 #include "lib/string.h"
 #include "kernel/task/elf_loader.h"
+#include "kernel/task/schedule.h"
 
 // Global task tracking
 struct task_t *current_task = NULL;  // Currently running task
@@ -79,6 +80,11 @@ struct task_t *task_init() {
   // Allocate kernel stack and set SP to TOP (stacks grow down)
   task->kernel_context.stack_start = (uint64_t)PHYS_TO_VIRT(get_page(true));
   task->kernel_context.sp = task->kernel_context.stack_start + 4096;  // Point to top
+
+  // Set return address for when this task is first scheduled
+  // switch_to() will load this ra and ret to it
+  // task_entry doesn't try to return - it directly calls trap_return()
+  task->kernel_context.ra = (uint64_t)task_entry;
 
   return task;
 }
