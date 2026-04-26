@@ -182,8 +182,3 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
 
   return 0;
 }
-
-void switch_to(struct task_t *me, struct task_t *next, struct task_t **last) {
-
-}
-
