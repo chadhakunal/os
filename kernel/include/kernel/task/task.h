@@ -47,8 +47,8 @@ struct files_list_t {
 };
 
 struct kernel_context_t {
-  uint64_t ra;
   uint64_t sp;
+  uint64_t ra;
   uint64_t s[12];
   uint64_t stack_start;
 };
@@ -85,6 +85,6 @@ int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
 int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
                         size_t size, uint64_t vm_flags, bool eager);
 
-void switch_to(struct task_t *me, struct task_t *next, struct task_t **last);
+void switch_to(struct task_t *me, struct task_t *next);
 
 #endif
