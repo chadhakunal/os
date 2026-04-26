@@ -52,8 +52,8 @@ void trap_handler(void) {
 
   // For syscalls, return to user mode
   if (!is_interrupt && cause_code == 8) {
-    extern void trap_return(struct trap_frame *tf);
     schedule();
+    extern void trap_return(struct trap_frame *tf);
     trap_return(&current_task->tf);
     // Never returns
   }
