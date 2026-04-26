@@ -63,6 +63,7 @@ void trap_handler(void) {
   }
 
   // For all other traps, print registers and panic
+  printk("current_task = %p, pid = %llu\n", current_task, current_task->pid);
   // printk("\nRegisters:\n");
   // printk("ra:  %llx  sp:  %llx  gp:  %llx  tp:  %llx\n", tf->ra, tf->sp, tf->gp, tf->tp);
   // printk("t0:  %llx  t1:  %llx  t2:  %llx\n", tf->t0, tf->t1, tf->t2);
