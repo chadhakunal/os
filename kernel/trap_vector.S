@@ -71,10 +71,10 @@ trap_return:
   # a0 = trap_frame pointer
   mv sp, a0
 
-  # Restore CSRs (sepc and sstatus)
-  ld t0, 248(sp)
-  csrw sepc, t0
+  # Restore CSRs (sepc at offset 256, sstatus at offset 264)
   ld t0, 256(sp)
+  csrw sepc, t0
+  ld t0, 264(sp)
   csrw sstatus, t0
 
   # Restore all general purpose registers
