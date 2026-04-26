@@ -2,6 +2,7 @@
 #include "kernel/panic.h"
 #include "arch/riscv64/trap.h"
 #include "arch/riscv64/syscalls/syscalls.h"
+#include "kernel/task/task.h"
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
 void trap_handler(void) {
