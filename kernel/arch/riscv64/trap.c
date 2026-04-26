@@ -3,6 +3,7 @@
 #include "arch/riscv64/trap.h"
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "kernel/task/task.h"
+#include "kernel/task/schedule.h"
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
 void trap_handler(void) {
@@ -52,9 +53,7 @@ void trap_handler(void) {
   // For syscalls, return to user mode
   if (!is_interrupt && cause_code == 8) {
     extern void trap_return(struct trap_frame *tf);
-    // Set sscratch to kernel stack top
-    // This prepares for the next trap to swap to the kernel stack
-    asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
+    schedule();
     trap_return(&current_task->tf);
     // Never returns
   }
