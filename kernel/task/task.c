@@ -19,6 +19,29 @@ void init_task_system() {
   task_list.prev = &task_list;
 }
 
+/* Set the current task and update tp register */
+void set_current_task(struct task_t *task) {
+  current_task = task;
+  // Update tp register to point to current_task
+  // This allows trap_vector to access current_task->tf directly
+  asm volatile("mv tp, %0" :: "r"(current_task));
+}
+
+/* Switch to a task's page table */
+void switch_to_page_table(struct task_t *task) {
+  // Build satp value: mode (Sv39 = 8) in bits [63:60], PPN in bits [43:0]
+  uint64_t satp = (8ULL << 60) | ((uint64_t)task->mm_struct.root_satp >> 12);
+
+  // Flush TLB before switching
+  asm volatile("sfence.vma zero, zero");
+
+  // Switch page table
+  asm volatile("csrw satp, %0" :: "r"(satp) : "memory");
+
+  // Flush TLB after switching
+  asm volatile("sfence.vma zero, zero");
+}
+
 void init_files(struct files_table_t *files_table) {
   files_table->files_list.next = &files_table->files_list;
   files_table->files_list.prev = &files_table->files_list;
@@ -42,6 +65,7 @@ struct task_t *task_init() {
   struct task_t *task = task_t_alloc();
   task->pid = 0;
   task->uid = 0;
+  task->state = TASK_READY;
 
   // Initialize page table with kernel mappings copied from root
   task->mm_struct.root_satp = init_new_page_table();
@@ -65,11 +89,10 @@ void create_init_process() {
   init_task = task_init();
   load_elf(init_task , "/bin/init");
   list_append(&task_list, &init_task->task_list);
-  current_task = init_task;
 
-  // Set tp register to point to current_task
-  // This allows trap_vector to access current_task->tf directly
-  asm volatile("mv tp, %0" :: "r"(current_task));
+  // Set current_task and update tp register
+  set_current_task(init_task);
+  init_task->state = TASK_RUNNING;
 }
 
 void start_init_process();

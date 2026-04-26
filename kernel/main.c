@@ -8,6 +8,7 @@
 #include "kernel/memory/page_allocator.h"
 #include "kernel/memory/page_tables.h"
 #include "kernel/task/elf_loader.h"
+#include "kernel/task/task.h"
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "arch/riscv64/trap.h"
@@ -42,9 +43,6 @@ void kmain(void *dtb_ptr) {
                : [off] "r"(offset)
                : "t0", "memory");
 
-  uint64_t current_sp, current_pc;
-  asm volatile("mv %0, sp" : "=r"(current_sp));
-  asm volatile("auipc %0, 0" : "=r"(current_pc));
   remove_identity_mapping();
 
   printk("Initialized Paging, Virtual Memory and Moved Kernel to Upper Region\n");
@@ -58,55 +56,42 @@ void kmain(void *dtb_ptr) {
   vfs_init();
   printk("Initialized vfs and mounted tarfs\n");
 
-  printk("Starting read of /etc/rc\n");
-  // Test vfs_read with a loop
-  struct file_t *file;
-  int64_t ret = vfs_open("/etc/rc", O_RDONLY, &file);
-  if (ret == 0 && file != NULL) {
-    printk("Reading /etc/rc in chunks:\n");
-    char buffer[32];
-    size_t offset = 0;
-    int64_t bytes_read;
+  // printk("Starting read of /etc/rc\n");
+  // // Test vfs_read with a loop
+  // struct file_t *file;
+  // int64_t ret = vfs_open("/etc/rc", O_RDONLY, &file);
+  // if (ret == 0 && file != NULL) {
+  //   printk("Reading /etc/rc in chunks:\n");
+  //   char buffer[32];
+  //   size_t offset = 0;
+  //   int64_t bytes_read;
+  //
+  //   while ((bytes_read = vfs_read(file, offset, buffer, sizeof(buffer) - 1)) > 0) {
+  //     buffer[bytes_read] = '\0';  // Null terminate
+  //     printk("%s", buffer);
+  //     offset += bytes_read;
+  //
+  //     if (bytes_read < sizeof(buffer) - 1) {
+  //       break;  // EOF reached
+  //     }
+  //   }
+  //   printk("\n--- End of file ---\n");
+  // }
 
-    while ((bytes_read = vfs_read(file, offset, buffer, sizeof(buffer) - 1)) > 0) {
-      buffer[bytes_read] = '\0';  // Null terminate
-      printk("%s", buffer);
-      offset += bytes_read;
-
-      if (bytes_read < sizeof(buffer) - 1) {
-        break;  // EOF reached
-      }
-    }
-    printk("\n--- End of file ---\n");
-  }
-
-  struct file_t *tty;
-  ret = vfs_open("/dev/tty", O_RDWR, &tty);
-  char hello[32] = "Hello World!\n";
-  vfs_write(tty, 0, hello, 32);
+  // struct file_t *tty;
+  // ret = vfs_open("/dev/tty", O_RDWR, &tty);
+  // char hello[32] = "Hello World!\n";
+  // vfs_write(tty, 0, hello, 32);
 
   // enable_interrupts();
   // uart_enable_interrupts();
 
   create_init_process();
-  printk("Done creating init_process\n");
+  printk("Created init process from /bin/init\n");
 
-  printk("Setting sscratch to kernel stack top: %llx\n", current_task->kernel_context.sp);
   asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
-
-  // Switch to user's page table
-  uint64_t user_satp = (8ULL << 60) | ((uint64_t)current_task->mm_struct.root_satp >> 12);
-  printk("Switching to user page table: satp=0x%llx (root_satp=%p)\n",
-         user_satp, current_task->mm_struct.root_satp);
-  asm volatile("sfence.vma zero, zero");
-  asm volatile("csrw satp, %0" :: "r"(user_satp) : "memory");
-  asm volatile("sfence.vma zero, zero");
+  switch_to_page_table(current_task);
   asm volatile("fence.i");
-
-  // Switch to init task's kernel stack and enter user mode
-  // This properly sets up the init task so it can be scheduled later
-  printk("Switching to init task's kernel stack: %llx\n", current_task->kernel_context.sp);
-  printk("Entering user mode...\n");
 
   extern void start_init_task(struct trap_frame *tf, uint64_t kernel_sp);
   start_init_task(&current_task->tf, current_task->kernel_context.sp);

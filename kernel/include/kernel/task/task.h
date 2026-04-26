@@ -7,6 +7,11 @@
 #include "lib/list.h"
 #include "kernel/filesystem/vfs/vfs.h"
 
+// Global task tracking (defined in task.c)
+extern struct task_t *current_task;  // Currently running task
+extern struct task_t *init_task;     // First task (PID 0 or 1)
+extern struct list_node task_list;   // Global list of all tasks
+
 // VMA flags
 #define VM_READ     0x0001
 #define VM_WRITE    0x0002
@@ -69,12 +74,14 @@ DEFINE_POOL(vma_t, struct vma_t)
 DEFINE_POOL(files_list_t, struct files_list_t)
 DEFINE_POOL(files_table_t, struct files_table_t)
 
-// Global task tracking (defined in task.c)
-extern struct task_t *current_task;  // Currently running task
-extern struct task_t *init_task;     // First task (PID 0 or 1)
-extern struct list_node task_list;   // Global list of all tasks
 
 void create_init_process();
+
+/* Set the current task and update tp register */
+void set_current_task(struct task_t *task);
+
+/* Switch to a task's page table */
+void switch_to_page_table(struct task_t *task);
 
 struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr);
 
