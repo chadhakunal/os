@@ -66,6 +66,10 @@ void create_init_process() {
   load_elf(init_task , "/bin/init");
   list_append(&task_list, &init_task->task_list);
   current_task = init_task;
+
+  // Set tp register to point to current_task
+  // This allows trap_vector to access current_task->tf directly
+  asm volatile("mv tp, %0" :: "r"(current_task));
 }
 
 void start_init_process();

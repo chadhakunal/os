@@ -4,7 +4,10 @@
 #include "arch/riscv64/syscalls/syscalls.h"
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
-void trap_handler(struct trap_frame *tf) {
+void trap_handler(void) {
+  // Access trap frame from current_task (tp register points to it)
+  struct trap_frame *tf = &current_task->tf;
+
   // printk("\n=== TRAP ===\n");
   // printk("scause:  %llx\n", tf->scause);
   // printk("sepc:    %llx\n", tf->sepc);
@@ -48,11 +51,10 @@ void trap_handler(struct trap_frame *tf) {
   // For syscalls, return to user mode
   if (!is_interrupt && cause_code == 8) {
     extern void trap_return(struct trap_frame *tf);
-    // Set sscratch to kernel stack top (trap frame is on kernel stack)
+    // Set sscratch to kernel stack top
     // This prepares for the next trap to swap to the kernel stack
-    uint64_t kernel_stack_top = (uint64_t)tf + sizeof(struct trap_frame);
-    asm volatile("csrw sscratch, %0" :: "r"(kernel_stack_top));
-    trap_return(tf);
+    asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
+    trap_return(&current_task->tf);
     // Never returns
   }
 

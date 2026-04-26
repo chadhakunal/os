@@ -3,64 +3,61 @@
 .align 4
 
 trap_vector:
-  # When coming from user mode, sscratch contains the kernel stack top
-  # When coming from kernel mode, sscratch is 0 (for now, we don't handle this)
-  # Swap sp with sscratch to switch to kernel stack
+  # tp register points to current_task (task_t*)
+  # task_t.kernel_context is at offset 0 (120 bytes)
+  # task_t.tf is at offset 120 (288 bytes)
+
+  # Swap sp with sscratch to get kernel stack
   csrrw sp, sscratch, sp
   # Now: sp = kernel stack top, sscratch = user stack pointer
 
-  # Allocate space for trap_frame on kernel stack (36 * 8 = 288 bytes)
-  addi sp, sp, -288
-
-  # Save all general purpose registers
-  sd ra, 0(sp)
-  # Save user sp (currently in sscratch) to trap frame
+  # Save all general purpose registers to current_task->tf (at tp + 120)
+  sd ra, 120(tp)
+  # Save user sp (currently in sscratch)
   csrr t0, sscratch
-  sd t0, 8(sp)
-  sd gp, 16(sp)
-  sd tp, 24(sp)
-  sd t0, 32(sp)
-  sd t1, 40(sp)
-  sd t2, 48(sp)
-  sd s0, 56(sp)
-  sd s1, 64(sp)
-  sd a0, 72(sp)
-  sd a1, 80(sp)
-  sd a2, 88(sp)
-  sd a3, 96(sp)
-  sd a4, 104(sp)
-  sd a5, 112(sp)
-  sd a6, 120(sp)
-  sd a7, 128(sp)
-  sd s2, 136(sp)
-  sd s3, 144(sp)
-  sd s4, 152(sp)
-  sd s5, 160(sp)
-  sd s6, 168(sp)
-  sd s7, 176(sp)
-  sd s8, 184(sp)
-  sd s9, 192(sp)
-  sd s10, 200(sp)
-  sd s11, 208(sp)
-  sd t3, 216(sp)
-  sd t4, 224(sp)
-  sd t5, 232(sp)
-  sd t6, 240(sp)
+  sd t0, 128(tp)
+  sd gp, 136(tp)
+  # Note: We don't save tp itself - it always points to current_task
+  sd t0, 152(tp)     # Save t0 (we're using it as scratch)
+  sd t1, 160(tp)
+  sd t2, 168(tp)
+  sd s0, 176(tp)
+  sd s1, 184(tp)
+  sd a0, 192(tp)
+  sd a1, 200(tp)
+  sd a2, 208(tp)
+  sd a3, 216(tp)
+  sd a4, 224(tp)
+  sd a5, 232(tp)
+  sd a6, 240(tp)
+  sd a7, 248(tp)
+  sd s2, 256(tp)
+  sd s3, 264(tp)
+  sd s4, 272(tp)
+  sd s5, 280(tp)
+  sd s6, 288(tp)
+  sd s7, 296(tp)
+  sd s8, 304(tp)
+  sd s9, 312(tp)
+  sd s10, 320(tp)
+  sd s11, 328(tp)
+  sd t3, 336(tp)
+  sd t4, 344(tp)
+  sd t5, 352(tp)
+  sd t6, 360(tp)
 
   # Save CSRs
   csrr t0, sepc
-  sd t0, 248(sp)
+  sd t0, 368(tp)
   csrr t0, sstatus
-  sd t0, 256(sp)
+  sd t0, 376(tp)
   csrr t0, stval
-  sd t0, 264(sp)
+  sd t0, 384(tp)
   csrr t0, scause
-  sd t0, 272(sp)
-
-  # Pass trap_frame pointer as first argument (a0 = sp)
-  mv a0, sp
+  sd t0, 392(tp)
 
   # Call C trap handler (NEVER RETURNS - it calls trap_return or panics)
+  # No arguments needed - trap_handler accesses current_task->tf directly
   call trap_handler
 
   # Should never reach here
