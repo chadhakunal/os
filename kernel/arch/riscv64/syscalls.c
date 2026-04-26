@@ -30,7 +30,7 @@ void handle_syscall(struct trap_frame *tf) {
       break;
 
     case SYS_write:
-      printk("syscall: write(fd=%llu, buf=%llx, count=%llu)\n", tf->a0, tf->a1, tf->a2);
+      // printk("syscall: write(fd=%llu, buf=%llx, count=%llu)\n", tf->a0, tf->a1, tf->a2);
       ret = sys_write(tf);
       break;
 

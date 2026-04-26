@@ -23,7 +23,7 @@ void trap_handler(struct trap_frame *tf) {
       default: printk("Unknown interrupt: %llu\n", cause_code); break;
     }
   } else {
-    printk("Exception: ");
+    // printk("Exception: ");
     switch (cause_code) {
       case 0:  printk("Instruction address misaligned\n"); break;
       case 1:  printk("Instruction access fault\n"); break;
