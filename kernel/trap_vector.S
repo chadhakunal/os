@@ -110,6 +110,16 @@ trap_return:
   ld t5, 232(sp)
   ld t6, 240(sp)
 
+  # Restore sscratch to kernel stack before returning to user mode
+  # This is critical! When the next trap occurs, trap_vector will do:
+  #   csrrw sp, sscratch, sp
+  # which swaps sp (user stack) with sscratch (must be kernel stack)
+  #
+  # The kernel stack top is stored in current_task->kernel_context.sp
+  # We can get it via: tp + 0 (since kernel_context is at offset 0)
+  ld t0, 0(tp)
+  csrw sscratch, t0
+
   # Finally restore user sp and return to user mode
   ld sp, 8(sp)
   sret
