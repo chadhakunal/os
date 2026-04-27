@@ -58,8 +58,8 @@ trap_vector:
 
   # DEBUG: Print that we entered trap_vector with PID and scause
   la a0, trap_vector_entry_msg
-  ld a1, 64(tp)     # Load current_task->pid (assuming pid at offset 64)
-  ld a2, 392(tp)    # Load scause (we just saved it)
+  ld a1, 408(tp)    # Load current_task->pid (kernel_context=120 + tf=288 = 408)
+  ld a2, 392(tp)    # Load scause (we just saved it at tf.scause)
   call printk
 
   # Call C trap handler (NEVER RETURNS - it calls trap_return or panics)

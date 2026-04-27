@@ -11,6 +11,9 @@ void trap_handler(void) {
   // Access trap frame from current_task (tp register points to it)
   struct trap_frame *tf = &current_task->tf;
 
+  printk("[trap_handler] current_task=%p, pid=%llu\n",
+         current_task, current_task->pid);
+
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
   bool is_interrupt = (tf->scause >> 63) & 1;
 
