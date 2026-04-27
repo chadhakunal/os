@@ -13,9 +13,14 @@ void trap_handler(void) {
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
   bool is_interrupt = (tf->scause >> 63) & 1;
 
-  // Only print trap info for non-syscall traps to avoid infinite recursion
-  // (printk uses write() syscall which would cause another trap)
-  if (is_interrupt || cause_code != 8) {
+  if (is_interrupt) {
+    printk("\n=== TRAP ===\n");
+    printk("scause:  %llx\n", tf->scause);
+    printk("sepc:    %llx\n", tf->sepc);
+    printk("stval:   %llx\n", tf->stval);
+    printk("sstatus: %llx\n", tf->sstatus);
+  } else if (cause_code != 8) {
+    // Print for non-syscall exceptions
     printk("\n=== TRAP ===\n");
     printk("scause:  %llx\n", tf->scause);
     printk("sepc:    %llx\n", tf->sepc);
@@ -57,8 +62,6 @@ void trap_handler(void) {
   // For syscalls, return to user mode
   if (!is_interrupt && cause_code == 8) {
     schedule();
-    printk("[trap_handler] PID %llu returning to user at sepc=%llx\n",
-           current_task->pid, current_task->tf.sepc);
     extern void trap_return(struct trap_frame *tf);
     trap_return(&current_task->tf);
     // Never returns
