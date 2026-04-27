@@ -83,14 +83,13 @@ struct task_t *task_init() {
   // Allocate 2 physical pages
   void *phys_page1 = get_page(true);
   void *phys_page2 = get_page(true);
-  printk("Mapping pages for kernel stack\n");
   // Map them to the kernel stack virtual address in this task's page table
   // KERNEL_STACK_VIRTUAL_BASE is the same for all tasks
   map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE,
            (uint64_t)phys_page1, PTE_VALID | PTE_R | PTE_W);
   map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE + 4096,
            (uint64_t)phys_page2, PTE_VALID | PTE_R | PTE_W);
-
+  printk("Mapping pages for kernel stack\n");
   // Set stack_start to the virtual address (not physical)
   task->kernel_context.stack_start = KERNEL_STACK_VIRTUAL_BASE;
   // SP points to TOP of stack (stacks grow down)
