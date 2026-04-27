@@ -77,6 +77,7 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
   page_table_t *pt2;
   page_table_t *pt3;
 
+  printk("Mapping pages for kernel stack\n");
   // Root table (pt1 == pt) is indexed by VPN[2]
   if (pt->page_table_entries[pt1_idx] == 0) {
     page_table_t *pt2_phys = allocate_page_table(); /* Returns physical address */
@@ -101,7 +102,6 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
         PTE_DECODE(pt2->page_table_entries[pt2_idx]));
   }
 
-  printk("Mapping pages for kernel stack\n");
   // Set leaf PTE: VALID + A (accessed) always set, pte_flags from caller
   // PTE_D (dirty) starts at 0 - hardware sets it on write
   pt3->page_table_entries[pt3_idx] = PTE_ADDR(pa) | PTE_VALID | PTE_A | pte_flags;
