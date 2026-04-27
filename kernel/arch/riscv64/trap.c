@@ -7,6 +7,7 @@
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
 void trap_handler(void) {
+  printk("Trapped!\n");
   // Access trap frame from current_task (tp register points to it)
   struct trap_frame *tf = &current_task->tf;
 
