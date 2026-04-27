@@ -9,7 +9,11 @@ trap_vector:
 
   # Swap sp with sscratch to get kernel stack
   csrrw sp, sscratch, sp
-  # Now: sp = kernel stack top, sscratch = user stack pointer
+  # Now: sp = kernel stack, sscratch = user stack pointer
+
+  # Save current kernel sp to kernel_context.sp (offset 0)
+  # This ensures trap_return can restore sscratch correctly even without a context switch
+  sd sp, 0(tp)
 
   # Save all general purpose registers to current_task->tf (at tp + 120)
   sd ra, 120(tp)
