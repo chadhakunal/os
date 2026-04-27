@@ -89,7 +89,7 @@ void kmain(void *dtb_ptr) {
   create_init_process();
   printk("Created init process from /bin/init\n");
 
-  create_second_task();
+  //create_second_task();
   printk("Created second process from /bin/init2\n");
 
   asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
