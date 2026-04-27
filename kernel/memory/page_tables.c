@@ -261,7 +261,14 @@ page_table_t *init_new_page_table() {
 
   memset(new_pt_virt, 0, DEFAULT_PAGE_SIZE);
 
+  // Copy kernel mappings from root page table (upper half: 256-511)
+  // BUT skip the kernel stack entry (VPN[2] = 384 = 0x180)
+  // Each process gets its own kernel stack mapped at the same VA
   for (uint64_t i = 256; i < 512; i++) {
+    if (i == 384) {
+      // Skip kernel stack entry - each process has its own kernel stack
+      continue;
+    }
     new_pt_virt->page_table_entries[i] = root_page_table->page_table_entries[i];
   }
 

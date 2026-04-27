@@ -1,6 +1,7 @@
 #include "kernel/task/task.h"
 #include "lib/list.h"
 #include "kernel/memory/page_allocator.h"
+#include "kernel/memory/page_tables.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/panic.h"
@@ -77,9 +78,23 @@ struct task_t *task_init() {
 
   init_files(&(task->file_table));
 
-  // Allocate kernel stack and set SP to TOP (stacks grow down)
-  task->kernel_context.stack_start = (uint64_t)PHYS_TO_VIRT(get_page(true));
-  task->kernel_context.sp = task->kernel_context.stack_start + 4096;  // Point to top
+  // Allocate kernel stack (8KB = 2 pages) mapped at fixed virtual address
+  // All processes have their kernel stack at the same VA, but different physical pages
+  // Allocate 2 physical pages
+  void *phys_page1 = get_page(true);
+  void *phys_page2 = get_page(true);
+
+  // Map them to the kernel stack virtual address in this task's page table
+  // KERNEL_STACK_VIRTUAL_BASE is the same for all tasks
+  map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE,
+           (uint64_t)phys_page1, PTE_VALID | PTE_R | PTE_W);
+  map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE + 4096,
+           (uint64_t)phys_page2, PTE_VALID | PTE_R | PTE_W);
+
+  // Set stack_start to the virtual address (not physical)
+  task->kernel_context.stack_start = KERNEL_STACK_VIRTUAL_BASE;
+  // SP points to TOP of stack (stacks grow down)
+  task->kernel_context.sp = KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE;
 
   // Set return address for when this task is first scheduled
   // switch_to() will load this ra and ret to it

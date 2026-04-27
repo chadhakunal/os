@@ -80,6 +80,9 @@
   0xFFFFFFC000000000ULL // 256 GB Mark ie 0 GB After kernel area start
 #define MMIO_VIRTUAL_MEMORY_BASE                                               \
   0xFFFFFFD000000000ULL // 320 GB Mark ie 64 GB After kernel area start
+#define KERNEL_STACK_VIRTUAL_BASE                                              \
+  0xFFFFFFE000000000ULL // 384 GB Mark - Per-process kernel stacks
+#define KERNEL_STACK_SIZE 8192 // 8KB = 2 pages
 
 #define KERNEL_PHYS_BASE 0x80200000ULL
 #define KERNEL_VIRT_OFFSET (KERNEL_VIRTUAL_MEMORY_BASE - KERNEL_PHYS_BASE)
