@@ -56,8 +56,10 @@ trap_vector:
   csrr t0, scause
   sd t0, 392(tp)
 
-  # DEBUG: Print that we entered trap_vector
+  # DEBUG: Print that we entered trap_vector with PID and scause
   la a0, trap_vector_entry_msg
+  ld a1, 64(tp)     # Load current_task->pid (assuming pid at offset 64)
+  ld a2, 392(tp)    # Load scause (we just saved it)
   call printk
 
   # Call C trap handler (NEVER RETURNS - it calls trap_return or panics)
@@ -132,4 +134,4 @@ trap_return:
 
 .section .rodata
 trap_vector_entry_msg:
-  .string "[TRAP_VECTOR] Entered\n"
+  .string "[TRAP_VECTOR] PID=%llu scause=%llx\n"
