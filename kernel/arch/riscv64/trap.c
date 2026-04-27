@@ -61,6 +61,12 @@ void trap_handler(void) {
 
   // For syscalls, return to user mode
   if (!is_interrupt && cause_code == 8) {
+    static int syscall_count = 0;
+    syscall_count++;
+    if (syscall_count % 10 == 0) {
+      printk("[DEBUG] Syscall count: %d, PID: %llu\n", syscall_count, current_task->pid);
+    }
+
     schedule();
     extern void trap_return(struct trap_frame *tf);
     trap_return(&current_task->tf);
