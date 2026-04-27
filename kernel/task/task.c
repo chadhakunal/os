@@ -83,7 +83,7 @@ struct task_t *task_init() {
   // Allocate 2 physical pages
   void *phys_page1 = get_page(true);
   void *phys_page2 = get_page(true);
-
+  printk("Mapping pages for kernel stack\n");
   // Map them to the kernel stack virtual address in this task's page table
   // KERNEL_STACK_VIRTUAL_BASE is the same for all tasks
   map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE,
