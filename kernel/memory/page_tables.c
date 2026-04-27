@@ -79,8 +79,8 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
 
   // Root table (pt1 == pt) is indexed by VPN[2]
   if (pt->page_table_entries[pt1_idx] == 0) {
-    page_table_t *pt2_phys = allocate_page_table(); /* Returns physical address */
     printk("Mapping pages for kernel stack\n");
+    page_table_t *pt2_phys = allocate_page_table(); /* Returns physical address */
     if (!pt2_phys)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
     pt->page_table_entries[pt1_idx] =
