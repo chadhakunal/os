@@ -56,6 +56,10 @@ trap_vector:
   csrr t0, scause
   sd t0, 392(tp)
 
+  # DEBUG: Print that we entered trap_vector
+  la a0, trap_vector_entry_msg
+  call printk
+
   # Call C trap handler (NEVER RETURNS - it calls trap_return or panics)
   # No arguments needed - trap_handler accesses current_task->tf directly
   call trap_handler
@@ -125,3 +129,7 @@ trap_return:
   # (sscratch was already set earlier, before we restored general regs)
   ld sp, 8(sp)
   sret
+
+.section .rodata
+trap_vector_entry_msg:
+  .string "[TRAP_VECTOR] Entered\n"
