@@ -71,6 +71,17 @@ trap_return:
   # a0 = trap_frame pointer
   mv sp, a0
 
+  # Restore sscratch to kernel stack FIRST, before restoring general regs
+  # This is critical! When the next trap occurs, trap_vector will do:
+  #   csrrw sp, sscratch, sp
+  # which swaps sp (user stack) with sscratch (must be kernel stack)
+  #
+  # The kernel stack top is stored in current_task->kernel_context.sp
+  # We can get it via: tp + 0 (since kernel_context is at offset 0)
+  # We use t0 as scratch, but restore it later from the trap frame
+  ld t0, 0(tp)
+  csrw sscratch, t0
+
   # Restore CSRs (sepc and sstatus)
   ld t0, 248(sp)
   csrw sepc, t0
@@ -110,16 +121,7 @@ trap_return:
   ld t5, 232(sp)
   ld t6, 240(sp)
 
-  # Restore sscratch to kernel stack before returning to user mode
-  # This is critical! When the next trap occurs, trap_vector will do:
-  #   csrrw sp, sscratch, sp
-  # which swaps sp (user stack) with sscratch (must be kernel stack)
-  #
-  # The kernel stack top is stored in current_task->kernel_context.sp
-  # We can get it via: tp + 0 (since kernel_context is at offset 0)
-  ld t0, 0(tp)
-  csrw sscratch, t0
-
   # Finally restore user sp and return to user mode
+  # (sscratch was already set earlier, before we restored general regs)
   ld sp, 8(sp)
   sret
