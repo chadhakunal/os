@@ -63,8 +63,13 @@ void trap_handler(void) {
   if (!is_interrupt && cause_code == 8) {
     static int syscall_count = 0;
     syscall_count++;
-    if (syscall_count % 10 == 0) {
-      printk("[DEBUG] Syscall count: %d, PID: %llu\n", syscall_count, current_task->pid);
+    if (syscall_count % 50 == 0) {
+      printk("[DEBUG] Syscall #%d from PID %llu, sepc=%llx\n",
+             syscall_count, current_task->pid, tf->sepc);
+    }
+    if (syscall_count == 250) {
+      printk("[DEBUG] Reached 250 syscalls - about to hang?\n");
+      printk("[DEBUG] current_task=%p, next syscall will be #251\n", current_task);
     }
 
     schedule();
