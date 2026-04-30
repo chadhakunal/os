@@ -85,10 +85,12 @@ struct task_t *task_init() {
   void *phys_page2 = get_page(true);
   // Map them to the kernel stack virtual address in this task's page table
   // KERNEL_STACK_VIRTUAL_BASE is the same for all tasks
+  printk("About to map pages for the process stacks!\n");
   map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE,
            (uint64_t)phys_page1, PTE_VALID | PTE_R | PTE_W);
   map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE + 4096,
            (uint64_t)phys_page2, PTE_VALID | PTE_R | PTE_W);
+  printk("Mapped pages for the process stacks!\n");
   // Set stack_start to the virtual address (not physical)
   task->kernel_context.stack_start = KERNEL_STACK_VIRTUAL_BASE;
   // SP points to TOP of stack (stacks grow down)
@@ -110,7 +112,6 @@ void create_init_process() {
   load_elf(init_task , "/bin/init");
   list_append(&task_list, &init_task->task_list);
 
-  printk("Loaded elf and appended task to main task list\n");
   // Set current_task and update tp register
   set_current_task(init_task);
   init_task->state = TASK_RUNNING;
