@@ -70,7 +70,6 @@ void boot_map_page(page_table_t *pt, uint64_t va, uint64_t pa) {
 
 /* Post-boot version: uses PHYS_TO_VIRT to access page tables */
 void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
-  printk("About to map pages\n");
   uint64_t pt1_idx = PT1_OFFSET(va); // VPN[2]
   uint64_t pt2_idx = PT2_OFFSET(va); // VPN[1]
   uint64_t pt3_idx = PT3_OFFSET(va); // VPN[0]
@@ -78,6 +77,7 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
   page_table_t *pt2;
   page_table_t *pt3;
 
+  printk("allocated page pointer space on stack\n");
   // Root table (pt1 == pt) is indexed by VPN[2]
   if (pt->page_table_entries[pt1_idx] == 0) {
     printk("Mapping pages for kernel stack\n");
