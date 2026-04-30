@@ -8,6 +8,8 @@
 #include "kernel/memory/page_allocator.h"
 #include "kernel/memory/page_tables.h"
 
+#include "kernel/fs/initfs.h"
+
 #include "lib/printk/printk.h"
 
 /*
@@ -32,5 +34,7 @@ void kmain(void* dtb_ptr) {
 
     printk("Virtual Memory Enabled and we are still running!\n");
     
+    init_fs();
+
     arch_wait();
 }
