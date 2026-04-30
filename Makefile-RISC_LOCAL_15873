@@ -27,7 +27,7 @@ else ifeq ($(KLANG),zig)
   KERN_ALL := $(KERN_ASM) $(KERN_LIB)
 endif
 
-DISK_SIZE ?= 32
+DISK_SIZE ?= 16
 DISK_IMG  := build/disk.img
 
 -include Makefile.local

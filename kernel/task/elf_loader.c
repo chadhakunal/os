@@ -1,7 +1,8 @@
 #include "kernel/task/elf_loader.h"
 #include "lib/printk/printk.h"
 #include "kernel/filesystem/vfs/vfs.h"
-#include "panic.h"
+#include "kernel/panic.h"
+#include "lib/string.h"
 
 void load_elf(struct task_t *task, const char *path) {
   struct dentry_t *dentry;
@@ -74,10 +75,14 @@ void load_elf(struct task_t *task, const char *path) {
   }
 
   // Set up stack (read/write, no execute for security)
-  anon_memory_map(&task->mm_struct, DEFAULT_STACK_START, DEFAULT_PAGE_SIZE, VM_READ | VM_WRITE, true);
+  // 4 pages = 16KB, stack grows down from DEFAULT_STACK_TOP
+  anon_memory_map(&task->mm_struct, DEFAULT_STACK_START, DEFAULT_STACK_SIZE, VM_READ | VM_WRITE, true);
 
+  // Initialize trap frame - zero everything first
+  memset(&task->tf, 0, sizeof(task->tf));
+
+  // Set up user mode entry
   task->tf.sepc = header.e_entry;
-  task->tf.sp = DEFAULT_STACK_START + DEFAULT_PAGE_SIZE - 8;
-  task->tf.a0 = 0;
+  task->tf.sp = DEFAULT_STACK_TOP;  // 16-byte aligned (RISC-V ABI requirement)
   task->tf.sstatus = SSTATUS_SPIE | SSTATUS_UXL_64;
 }

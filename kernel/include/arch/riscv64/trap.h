@@ -58,6 +58,7 @@ struct trap_frame {
   uint64_t sstatus; // Status register
   uint64_t stval;   // Bad address or instruction
   uint64_t scause;  // Trap cause
+  uint64_t padding; // Padding to match assembly's 288 bytes (36 * 8)
 };
 
 void init_trap_handler(void);
@@ -69,7 +70,7 @@ void enable_interrupts(void);
 void disable_interrupts(void);
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
-void trap_handler(struct trap_frame *tf);
+void trap_handler(void);
 
 /* Restore CPU state from trap frame and return to interrupted execution
  * NEVER RETURNS - does sret */

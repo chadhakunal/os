@@ -1,6 +1,6 @@
 // OS Kernel v1.0.0
 
-#include "cpu_idle.h"
+#include "arch/riscv64/cpu_idle.h"
 #include "platform.h"
 #include "types.h"
 
@@ -8,9 +8,10 @@
 #include "kernel/memory/page_allocator.h"
 #include "kernel/memory/page_tables.h"
 #include "kernel/task/elf_loader.h"
-#include "virtual_memory_init.h"
+#include "kernel/task/task.h"
+#include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/filesystem/vfs/vfs.h"
-#include "trap.h"
+#include "arch/riscv64/trap.h"
 #include "kernel/drivers/uart.h"
 #include "kernel/drivers/tty.h"
 
@@ -42,9 +43,6 @@ void kmain(void *dtb_ptr) {
                : [off] "r"(offset)
                : "t0", "memory");
 
-  uint64_t current_sp, current_pc;
-  asm volatile("mv %0, sp" : "=r"(current_sp));
-  asm volatile("auipc %0, 0" : "=r"(current_pc));
   remove_identity_mapping();
 
   printk("Initialized Paging, Virtual Memory and Moved Kernel to Upper Region\n");
@@ -58,40 +56,50 @@ void kmain(void *dtb_ptr) {
   vfs_init();
   printk("Initialized vfs and mounted tarfs\n");
 
-  printk("Starting read of /etc/rc\n");
-  // Test vfs_read with a loop
-  struct file_t *file;
-  int64_t ret = vfs_open("/etc/rc", O_RDONLY, &file);
-  if (ret == 0 && file != NULL) {
-    printk("Reading /etc/rc in chunks:\n");
-    char buffer[32];
-    size_t offset = 0;
-    int64_t bytes_read;
+  // printk("Starting read of /etc/rc\n");
+  // // Test vfs_read with a loop
+  // struct file_t *file;
+  // int64_t ret = vfs_open("/etc/rc", O_RDONLY, &file);
+  // if (ret == 0 && file != NULL) {
+  //   printk("Reading /etc/rc in chunks:\n");
+  //   char buffer[32];
+  //   size_t offset = 0;
+  //   int64_t bytes_read;
+  //
+  //   while ((bytes_read = vfs_read(file, offset, buffer, sizeof(buffer) - 1)) > 0) {
+  //     buffer[bytes_read] = '\0';  // Null terminate
+  //     printk("%s", buffer);
+  //     offset += bytes_read;
+  //
+  //     if (bytes_read < sizeof(buffer) - 1) {
+  //       break;  // EOF reached
+  //     }
+  //   }
+  //   printk("\n--- End of file ---\n");
+  // }
 
-    while ((bytes_read = vfs_read(file, offset, buffer, sizeof(buffer) - 1)) > 0) {
-      buffer[bytes_read] = '\0';  // Null terminate
-      printk("%s", buffer);
-      offset += bytes_read;
+  // struct file_t *tty;
+  // ret = vfs_open("/dev/tty", O_RDWR, &tty);
+  // char hello[32] = "Hello World!\n";
+  // vfs_write(tty, 0, hello, 32);
 
-      if (bytes_read < sizeof(buffer) - 1) {
-        break;  // EOF reached
-      }
-    }
-    printk("\n--- End of file ---\n");
-  }
+  // enable_interrupts();
+  // uart_enable_interrupts();
 
-  struct file_t *tty;
-  ret = vfs_open("/dev/tty", O_RDWR, &tty);
-  char hello[32] = "Hello World!";
-  vfs_write(tty, 0, hello, 32);
+  create_init_process();
+  printk("Created init process from /bin/init\n");
 
-  struct task_t *task = init_task();
+  create_second_task();
+  printk("Created second process from /bin/init2\n");
 
-  load_elf(task, "/bin/echo");
-  printk("Loaded elf\n");
-  enable_interrupts();
-  uart_enable_interrupts();
-  //trap_return(&task->tf);
+  asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
+  switch_to_page_table(current_task);
+  asm volatile("fence.i");
+
+  extern void start_init_task(struct trap_frame *tf, uint64_t kernel_sp);
+  start_init_task(&current_task->tf, current_task->kernel_context.sp);
+
+  printk("ERROR: start_init_task returned! This should never happen\n");
   
   arch_wait();
 }

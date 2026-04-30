@@ -1,4 +1,4 @@
-#include "virtual_memory_init.h"
+#include "arch/aarch64/virtual_memory_init.h"
 #include "types.h"
 
 #include "kernel/drivers/uart.h"

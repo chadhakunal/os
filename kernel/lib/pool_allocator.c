@@ -1,6 +1,6 @@
 #include "lib/pool_allocator.h"
 #include "kernel/memory/page_allocator.h"
-#include "virtual_memory_init.h"
+#include "arch/riscv64/virtual_memory_init.h"
 
 void *pool_alloc(struct pool *allocating_pool) {
   if (allocating_pool->free_list == NULL) {

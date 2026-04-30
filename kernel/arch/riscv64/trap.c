@@ -1,18 +1,36 @@
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
-#include "trap.h"
-#include "syscalls/syscalls.h"
+#include "arch/riscv64/trap.h"
+#include "arch/riscv64/syscalls/syscalls.h"
+#include "kernel/task/task.h"
+#include "kernel/task/schedule.h"
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
-void trap_handler(struct trap_frame *tf) {
-  printk("\n=== TRAP ===\n");
-  printk("scause:  %llx\n", tf->scause);
-  printk("sepc:    %llx\n", tf->sepc);
-  printk("stval:   %llx\n", tf->stval);
-  printk("sstatus: %llx\n", tf->sstatus);
+void trap_handler(void) {
+  printk("Trapped!\n");
+  // Access trap frame from current_task (tp register points to it)
+  struct trap_frame *tf = &current_task->tf;
+
+  printk("[trap_handler] current_task=%p, pid=%llu\n",
+         current_task, current_task->pid);
 
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
   bool is_interrupt = (tf->scause >> 63) & 1;
+
+  if (is_interrupt) {
+    printk("\n=== TRAP ===\n");
+    printk("scause:  %llx\n", tf->scause);
+    printk("sepc:    %llx\n", tf->sepc);
+    printk("stval:   %llx\n", tf->stval);
+    printk("sstatus: %llx\n", tf->sstatus);
+  } else if (cause_code != 8) {
+    // Print for non-syscall exceptions
+    printk("\n=== TRAP ===\n");
+    printk("scause:  %llx\n", tf->scause);
+    printk("sepc:    %llx\n", tf->sepc);
+    printk("stval:   %llx\n", tf->stval);
+    printk("sstatus: %llx\n", tf->sstatus);
+  }
 
   if (is_interrupt) {
     printk("Interrupt: ");
@@ -23,7 +41,7 @@ void trap_handler(struct trap_frame *tf) {
       default: printk("Unknown interrupt: %llu\n", cause_code); break;
     }
   } else {
-    printk("Exception: ");
+    // printk("Exception: ");
     switch (cause_code) {
       case 0:  printk("Instruction address misaligned\n"); break;
       case 1:  printk("Instruction access fault\n"); break;
@@ -34,7 +52,7 @@ void trap_handler(struct trap_frame *tf) {
       case 6:  printk("Store address misaligned\n"); break;
       case 7:  printk("Store access fault\n"); break;
       case 8:
-        printk("Environment call from U-mode\n");
+        // printk("Environment call from U-mode\n");
         handle_syscall(tf);
         break;
       case 9:  printk("Environment call from S-mode\n"); break;
@@ -45,17 +63,38 @@ void trap_handler(struct trap_frame *tf) {
     }
   }
 
-  printk("\nRegisters:\n");
-  printk("ra:  %llx  sp:  %llx  gp:  %llx  tp:  %llx\n", tf->ra, tf->sp, tf->gp, tf->tp);
-  printk("t0:  %llx  t1:  %llx  t2:  %llx\n", tf->t0, tf->t1, tf->t2);
-  printk("s0:  %llx  s1:  %llx\n", tf->s0, tf->s1);
-  printk("a0:  %llx  a1:  %llx  a2:  %llx  a3:  %llx\n", tf->a0, tf->a1, tf->a2, tf->a3);
-  printk("a4:  %llx  a5:  %llx  a6:  %llx  a7:  %llx\n", tf->a4, tf->a5, tf->a6, tf->a7);
-  printk("s2:  %llx  s3:  %llx  s4:  %llx  s5:  %llx\n", tf->s2, tf->s3, tf->s4, tf->s5);
-  printk("s6:  %llx  s7:  %llx  s8:  %llx  s9:  %llx\n", tf->s6, tf->s7, tf->s8, tf->s9);
-  printk("s10: %llx  s11: %llx\n", tf->s10, tf->s11);
-  printk("t3:  %llx  t4:  %llx  t5:  %llx  t6:  %llx\n", tf->t3, tf->t4, tf->t5, tf->t6);
+  // For syscalls, return to user mode
+  if (!is_interrupt && cause_code == 8) {
+    static int syscall_count = 0;
+    syscall_count++;
+    if (syscall_count % 50 == 0) {
+      printk("[DEBUG] Syscall #%d from PID %llu, sepc=%llx\n",
+             syscall_count, current_task->pid, tf->sepc);
+    }
+    if (syscall_count == 250) {
+      printk("[DEBUG] Reached 250 syscalls - about to hang?\n");
+      printk("[DEBUG] current_task=%p, next syscall will be #251\n", current_task);
+    }
 
+    schedule();
+    extern void trap_return(struct trap_frame *tf);
+    trap_return(&current_task->tf);
+    // Never returns
+  }
+
+  // For all other traps, print registers and panic
+  printk("current_task = %p, pid = %llu\n", current_task, current_task->pid);
+  // printk("\nRegisters:\n");
+  // printk("ra:  %llx  sp:  %llx  gp:  %llx  tp:  %llx\n", tf->ra, tf->sp, tf->gp, tf->tp);
+  // printk("t0:  %llx  t1:  %llx  t2:  %llx\n", tf->t0, tf->t1, tf->t2);
+  // printk("s0:  %llx  s1:  %llx\n", tf->s0, tf->s1);
+  // printk("a0:  %llx  a1:  %llx  a2:  %llx  a3:  %llx\n", tf->a0, tf->a1, tf->a2, tf->a3);
+  // printk("a4:  %llx  a5:  %llx  a6:  %llx  a7:  %llx\n", tf->a4, tf->a5, tf->a6, tf->a7);
+  // printk("s2:  %llx  s3:  %llx  s4:  %llx  s5:  %llx\n", tf->s2, tf->s3, tf->s4, tf->s5);
+  // printk("s6:  %llx  s7:  %llx  s8:  %llx  s9:  %llx\n", tf->s6, tf->s7, tf->s8, tf->s9);
+  // printk("s10: %llx  s11: %llx\n", tf->s10, tf->s11);
+  // printk("t3:  %llx  t4:  %llx  t5:  %llx  t6:  %llx\n", tf->t3, tf->t4, tf->t5, tf->t6);
+  //
   panic("TRAP OCCURRED");
 }
 

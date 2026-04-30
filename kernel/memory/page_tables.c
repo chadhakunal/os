@@ -9,7 +9,7 @@
 #include "kernel/drivers/uart.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
-#include "virtual_memory_init.h"
+#include "arch/riscv64/virtual_memory_init.h"
 
 page_table_t *root_page_table = NULL;
 
@@ -79,6 +79,7 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
 
   // Root table (pt1 == pt) is indexed by VPN[2]
   if (pt->page_table_entries[pt1_idx] == 0) {
+    printk("Mapping pages for kernel stack\n");
     page_table_t *pt2_phys = allocate_page_table(); /* Returns physical address */
     if (!pt2_phys)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
@@ -261,7 +262,14 @@ page_table_t *init_new_page_table() {
 
   memset(new_pt_virt, 0, DEFAULT_PAGE_SIZE);
 
+  // Copy kernel mappings from root page table (upper half: 256-511)
+  // BUT skip the kernel stack entry (VPN[2] = 384 = 0x180)
+  // Each process gets its own kernel stack mapped at the same VA
   for (uint64_t i = 256; i < 512; i++) {
+    if (i == 384) {
+      // Skip kernel stack entry - each process has its own kernel stack
+      continue;
+    }
     new_pt_virt->page_table_entries[i] = root_page_table->page_table_entries[i];
   }
 

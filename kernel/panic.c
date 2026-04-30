@@ -1,5 +1,5 @@
 #include "types.h"
-#include "cpu_idle.h"
+#include "arch/riscv64/cpu_idle.h"
 #include "kernel/drivers/uart.h"
 
 void panic(const char *msg) {
