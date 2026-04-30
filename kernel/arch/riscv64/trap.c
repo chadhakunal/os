@@ -17,6 +17,11 @@ void trap_handler(void) {
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
   bool is_interrupt = (tf->scause >> 63) & 1;
 
+  printk("\n=== TRAP ===\n");
+  printk("scause:  %llx\n", tf->scause);
+  printk("sepc:    %llx\n", tf->sepc);
+  printk("stval:   %llx\n", tf->stval);
+  printk("sstatus: %llx\n", tf->sstatus);
   if (is_interrupt) {
     printk("\n=== TRAP ===\n");
     printk("scause:  %llx\n", tf->scause);
