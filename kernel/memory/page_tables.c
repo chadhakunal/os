@@ -70,6 +70,8 @@ void boot_map_page(page_table_t *pt, uint64_t va, uint64_t pa) {
 
 /* Post-boot version: uses PHYS_TO_VIRT to access page tables */
 void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
+  page_table_t *pt1_virt = (page_table_t *)PHYS_TO_VIRT(pt);
+
   uint64_t pt1_idx = PT1_OFFSET(va); // VPN[2]
   uint64_t pt2_idx = PT2_OFFSET(va); // VPN[1]
   uint64_t pt3_idx = PT3_OFFSET(va); // VPN[0]
@@ -79,18 +81,18 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
 
   // Root table (pt1 == pt) is indexed by VPN[2]
   printk("Going into finding the first table\n");
-  if (pt->page_table_entries[pt1_idx] == 0) {
+  if (pt1_virt->page_table_entries[pt1_idx] == 0) {
     printk("Mapping pages for kernel stack\n");
     page_table_t *pt2_phys = allocate_page_table(); /* Returns physical address */
     if (!pt2_phys)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
-    pt->page_table_entries[pt1_idx] =
+    pt1_virt->page_table_entries[pt1_idx] =
         PTE_ADDR(pt2_phys) | PTE_VALID | PTE_TABLE;
     pt2 = (page_table_t *)PHYS_TO_VIRT(pt2_phys); /* Convert to virtual for access */
   } else {
     printk("Found the page table for the next page table\n");
     pt2 = (page_table_t *)PHYS_TO_VIRT(
-        PTE_DECODE(pt->page_table_entries[pt1_idx]));
+        PTE_DECODE(pt1_virt->page_table_entries[pt1_idx]));
   }
 
   printk("Got past the first table\n");
