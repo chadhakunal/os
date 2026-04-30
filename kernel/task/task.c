@@ -104,6 +104,7 @@ struct task_t *task_init() {
 
 // Populates the init_task
 void create_init_process() {
+  printk("creating init process\n");
   init_task_system();  // Initialize task_list with virtual addresses
   init_task = task_init();
   printk("Loading elf for /bin/init\n");
