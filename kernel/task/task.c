@@ -152,7 +152,6 @@ int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
   size_t total_size = offset_in_page + size;
   size_t num_pages = (total_size + DEFAULT_PAGE_SIZE - 1) / DEFAULT_PAGE_SIZE;
   size_t vaddr_end = vaddr_aligned + (num_pages * DEFAULT_PAGE_SIZE);
-  printk("file_backed_memory_map: about to map file\n");
   for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
     struct vma_t *existing = find_vma(mm_struct, va);
     if (existing != NULL) {
@@ -182,7 +181,7 @@ int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
       if (vm_flags & VM_WRITE) pte_flags |= PTE_W;
       if (vm_flags & VM_EXEC)  pte_flags |= PTE_X;
 
-      map_page(PHYS_TO_VIRT(mm_struct->root_satp), va, (uint64_t)phys_page, pte_flags);
+      map_page(mm_struct->root_satp, va, (uint64_t)phys_page, pte_flags);
       file_offset += DEFAULT_PAGE_SIZE;
     }
   }
@@ -233,7 +232,7 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
       if (vm_flags & VM_WRITE) pte_flags |= PTE_W;
       if (vm_flags & VM_EXEC)  pte_flags |= PTE_X;
 
-      map_page(PHYS_TO_VIRT(mm_struct->root_satp), va, (uint64_t)phys_page, pte_flags);
+      map_page(mm_struct->root_satp, va, (uint64_t)phys_page, pte_flags);
     }
   }
 
