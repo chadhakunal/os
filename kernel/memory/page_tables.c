@@ -87,6 +87,7 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
         PTE_ADDR(pt2_phys) | PTE_VALID | PTE_TABLE;
     pt2 = (page_table_t *)PHYS_TO_VIRT(pt2_phys); /* Convert to virtual for access */
   } else {
+    printk("Found the page table for the next page table\n");
     pt2 = (page_table_t *)PHYS_TO_VIRT(
         PTE_DECODE(pt->page_table_entries[pt1_idx]));
   }
