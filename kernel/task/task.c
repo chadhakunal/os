@@ -104,13 +104,13 @@ struct task_t *task_init() {
 
 // Populates the init_task
 void create_init_process() {
-  printk("creating init process\n");
   init_task_system();  // Initialize task_list with virtual addresses
   init_task = task_init();
   printk("Loading elf for /bin/init\n");
   load_elf(init_task , "/bin/init");
   list_append(&task_list, &init_task->task_list);
 
+  printk("Loaded elf and appended task to main task list\n");
   // Set current_task and update tp register
   set_current_task(init_task);
   init_task->state = TASK_RUNNING;
