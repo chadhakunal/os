@@ -22,6 +22,7 @@ void trap_handler(struct trap_frame *tf) {
   printk("sepc:    %llx\n", tf->sepc);
   printk("stval:   %llx\n", tf->stval);
   printk("sstatus: %llx\n", tf->sstatus);
+  printk("sstatus: %llx\n", tf->sstatus);
   if (is_interrupt) {
     printk("\n=== TRAP ===\n");
     printk("scause:  %llx\n", tf->scause);
