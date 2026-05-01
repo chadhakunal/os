@@ -69,7 +69,7 @@ void trap_handler(struct trap_frame *tf) {
     }
   }
 
-  // For syscalls, return to user mode
+  // For syscalls, schedule and return to user mode
   if (!is_interrupt && cause_code == 8) {
     static int syscall_count = 0;
     syscall_count++;
@@ -83,9 +83,10 @@ void trap_handler(struct trap_frame *tf) {
     }
 
     schedule();
+    // schedule() returns here (possibly as a different task)
+    // Return to user space
     extern void trap_return(struct trap_frame *tf);
     trap_return(&current_task->tf);
-    // Never returns
   }
 
   // For all other traps, print registers and panic

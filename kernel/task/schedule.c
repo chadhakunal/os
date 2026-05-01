@@ -31,5 +31,17 @@ void schedule() {
   set_current_task(next_task);
   switch_to_page_table(next_task);
   switch_to(prev, next_task);
+
+  // When we return here, we've been rescheduled
+  // Just return to caller (either trap_handler or kernel code)
+}
+
+// Called when a newly created task is first scheduled
+// This is the fake "return address" set up on new task's kernel stack
+void fresh_task_jump(void) {
+  // New task starts here after its first switch_to
+  // Jump to user space
+  extern void trap_return(struct trap_frame *tf);
+  trap_return(&current_task->tf);
 }
 

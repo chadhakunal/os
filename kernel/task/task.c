@@ -97,9 +97,9 @@ struct task_t *task_init() {
   task->kernel_context.sp = KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE;
 
   // Set return address for when this task is first scheduled
-  // switch_to() will load this ra and ret to it
-  // task_entry doesn't try to return - it directly calls trap_return()
-  task->kernel_context.ra = (uint64_t)task_entry;
+  // switch_to() will restore this ra and ret to it
+  // This makes new tasks jump to fresh_task_jump() on first schedule
+  task->kernel_context.ra = (uint64_t)fresh_task_jump;
 
   return task;
 }
