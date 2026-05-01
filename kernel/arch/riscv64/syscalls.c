@@ -91,8 +91,12 @@ void handle_syscall(struct trap_frame *tf) {
       break;
     case SYS_fork:
       printk("syscall: fork()\n");
-      ret = sys_fork(tf);
-      break;
+      ret = sys_fork(tf); // Note: This is not used! tf->a0 is set manually in fork_off();
+      tf->sepc += 4;
+      // tf->a0 will be set in the fork func for the task at this point
+      asm volatile("csrw sstatus, %0" :: "r"(old_sstatus));
+      return;
+      break
 
     case SYS_sched_yield:
       printk("syscall: sched_yield()\n");

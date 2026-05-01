@@ -328,7 +328,7 @@ uint64_t fork_off() {
   copy_mm(current_task, new_task);
 
   memcpy(&new_task->tf, &current_task->tf, sizeof(struct trap_frame));
-
+  current_task->tf.a0 = new_task->pid;
   new_task->tf.a0 = 0;
 
   new_task->state = TASK_READY;
