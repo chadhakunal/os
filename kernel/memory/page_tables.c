@@ -159,6 +159,30 @@ void unmap_pages(page_table_t *pt, uint64_t virtual_memory_start, uint64_t virtu
   }
 }
 
+uint64_t get_pte(page_table_t *pt, uint64_t va) {
+  page_table_t *pt1_virt = (page_table_t *)PHYS_TO_VIRT(pt);
+
+  uint64_t pt1_idx = PT1_OFFSET(va); // VPN[2]
+  uint64_t pt2_idx = PT2_OFFSET(va); // VPN[1]
+  uint64_t pt3_idx = PT3_OFFSET(va); // VPN[0]
+
+  if (!(pt1_virt->page_table_entries[pt1_idx] & PTE_VALID)) {
+    return 0;
+  }
+
+  page_table_t *pt2 = (page_table_t *)PHYS_TO_VIRT(
+      PTE_DECODE(pt1_virt->page_table_entries[pt1_idx]));
+
+  if (!(pt2->page_table_entries[pt2_idx] & PTE_VALID)) {
+    return 0;
+  }
+
+  page_table_t *pt3 = (page_table_t *)PHYS_TO_VIRT(
+      PTE_DECODE(pt2->page_table_entries[pt2_idx]));
+
+  return pt3->page_table_entries[pt3_idx];
+}
+
 /* Boot-time version */
 void boot_map_pages(page_table_t *pt, uint64_t physical_memory_start, uint64_t physical_memory_end,
                 uint64_t virtual_memory_start) {

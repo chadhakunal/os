@@ -21,6 +21,7 @@
 #define SYS_wait4           260
 #define SYS_getpid          172
 #define SYS_kill            129
+#define SYS_fork            220
 
 void handle_syscall(struct trap_frame *tf);
 

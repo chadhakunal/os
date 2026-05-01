@@ -14,6 +14,7 @@
 struct task_t *current_task = NULL;  // Currently running task
 struct task_t *init_task = NULL;     // First task (PID 0 or 1)
 struct list_node task_list;          // Global list of all tasks
+uint64_t latest_pid = 0;
 
 void init_task_system() {
   // Initialize global task list (must be called after virtual memory is enabled)
@@ -63,6 +64,20 @@ void init_files(struct files_table_t *files_table) {
   list_append(&files_table->files_list, &files_list->files_list);
 }
 
+void allocate_kernel_stack(struct task_t *task) {
+  // All processes have their kernel stack at the same VA, but different physical pages
+  void *phys_page1 = get_page(true);
+  void *phys_page2 = get_page(true);
+
+  map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE,
+           (uint64_t)phys_page1, PTE_VALID | PTE_R | PTE_W);
+  map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE + 4096,
+           (uint64_t)phys_page2, PTE_VALID | PTE_R | PTE_W);
+
+  task->kernel_context.stack_start = KERNEL_STACK_VIRTUAL_BASE;
+  task->kernel_context.sp = KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE;
+}
+
 struct task_t *task_init() {
   struct task_t *task = task_t_alloc();
   task->pid = 0;
@@ -78,23 +93,8 @@ struct task_t *task_init() {
 
   init_files(&(task->file_table));
 
-  // Allocate kernel stack (8KB = 2 pages) mapped at fixed virtual address
-  // All processes have their kernel stack at the same VA, but different physical pages
-  // Allocate 2 physical pages
-  void *phys_page1 = get_page(true);
-  void *phys_page2 = get_page(true);
-  // Map them to the kernel stack virtual address in this task's page table
-  // KERNEL_STACK_VIRTUAL_BASE is the same for all tasks
-  printk("About to map pages for the process stacks!\n");
-  map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE,
-           (uint64_t)phys_page1, PTE_VALID | PTE_R | PTE_W);
-  map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE + 4096,
-           (uint64_t)phys_page2, PTE_VALID | PTE_R | PTE_W);
-  printk("Mapped pages for the process stacks!\n");
-  // Set stack_start to the virtual address (not physical)
-  task->kernel_context.stack_start = KERNEL_STACK_VIRTUAL_BASE;
-  // SP points to TOP of stack (stacks grow down)
-  task->kernel_context.sp = KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE;
+  // Allocate kernel stack
+  allocate_kernel_stack(task);
 
   // Set return address for when this task is first scheduled
   // switch_to() will restore this ra and ret to it
@@ -237,4 +237,103 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
   }
 
   return 0;
+}
+
+struct vma_t *copy_vma(struct vma_t *vma, struct task_t *old_task, struct task_t *new_task) {
+  struct vma_t *new_vma = vma_t_alloc();
+  new_vma->start_addr = vma->start_addr;
+  new_vma->end_addr = vma->end_addr;
+  new_vma->vm_flags = vma->vm_flags;
+  new_vma->backing_file = vma->backing_file;
+  new_vma->offset = vma->offset;
+
+  for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
+    uint64_t old_pte = get_pte(old_task->mm_struct.root_satp, va);
+
+    if (!(old_pte & PTE_VALID)) {
+      continue;
+    }
+
+    void *new_phys_page = get_page(false);
+    if (!new_phys_page) {
+      panic("copy_vma: failed to allocate page");
+    }
+
+    void *old_phys_page = (void *)PTE_DECODE(old_pte);
+
+    void *old_virt = PHYS_TO_VIRT(old_phys_page);
+    void *new_virt = PHYS_TO_VIRT(new_phys_page);
+    memcpy(new_virt, old_virt, DEFAULT_PAGE_SIZE);
+
+    uint64_t pte_flags = old_pte & (PTE_R | PTE_W | PTE_X | PTE_U);
+    map_page(new_task->mm_struct.root_satp, va, (uint64_t)new_phys_page, pte_flags);
+  }
+
+  return new_vma;
+}
+
+void copy_mm(struct task_t *old_task, struct task_t *new_task) {
+  // the root_satp in the mm_struct should be setup before this
+  list_for_each(&old_task->mm_struct.vma_list, pos) {
+    struct vma_t *old_vma = container_of(pos, struct vma_t, sibling_vma);
+    struct vma_t *new_vma = copy_vma(old_vma, old_task, new_task);
+    list_append(&new_task->mm_struct.vma_list, &new_vma->sibling_vma);
+  }
+  new_task->mm_struct.entry_addr = old_task->mm_struct.entry_addr;
+}
+
+void copy_file_table(struct files_table_t *old_table, struct files_table_t *new_table) {
+  new_table->files_list.next = &new_table->files_list;
+  new_table->files_list.prev = &new_table->files_list;
+
+  list_for_each(&old_table->files_list, pos) {
+    struct files_list_t *old_files_list = container_of(pos, struct files_list_t, files_list);
+
+    struct files_list_t *new_files_list = files_list_t_alloc();
+
+    new_files_list->used_file_bitmap = old_files_list->used_file_bitmap;
+
+    for (int i = 0; i < 32; i++) {
+      new_files_list->files[i] = old_files_list->files[i];
+
+      if (old_files_list->files[i] != NULL) {
+        old_files_list->files[i]->refcount++;
+      }
+    }
+
+    list_append(&new_table->files_list, &new_files_list->files_list);
+  }
+}
+
+uint64_t fork_off() {
+  // Should create a complete copy of the address space of the current task
+  // For now we will manually copy over everything on this call  TODO: add copy on write
+  struct task_t *new_task = task_t_alloc();
+  new_task->ppid = current_task->pid;
+  new_task->pid = ++latest_pid;
+  new_task->uid = current_task->uid;
+
+  new_task->mm_struct.root_satp = init_new_page_table();
+  new_task->mm_struct.vma_list.next = &new_task->mm_struct.vma_list;
+  new_task->mm_struct.vma_list.prev = &new_task->mm_struct.vma_list;
+
+  allocate_kernel_stack(new_task);
+
+  new_task->kernel_context.ra = (uint64_t)fresh_task_jump;
+  for (int i = 0; i < 12; i++) {
+    new_task->kernel_context.s[i] = 0;
+  }
+
+  copy_file_table(&current_task->file_table, &new_task->file_table);
+  copy_mm(current_task, new_task);
+
+  memcpy(&new_task->tf, &current_task->tf, sizeof(struct trap_frame));
+
+  new_task->tf.a0 = 0;
+
+  // Mark task as ready to run
+  new_task->state = TASK_READY;
+  list_append(&task_list, &new_task->task_list);
+
+  return new_task->pid;
 }

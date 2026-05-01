@@ -67,6 +67,7 @@ struct task_t {
   struct list_node task_list;
   struct files_table_t file_table;
   enum task_state state;
+  uint64_t ppid;
 };
 
 DEFINE_POOL(task_t, struct task_t)
@@ -78,6 +79,8 @@ DEFINE_POOL(files_table_t, struct files_table_t)
 void create_init_process();
 
 void create_second_task();
+
+uint64_t fork_off();
 
 /* Set the current task and update tp register */
 void set_current_task(struct task_t *task);
