@@ -13,9 +13,9 @@ void trap_handler(struct trap_frame *tf) {
   // tf points to either:
   // - &current_task->tf for user traps
   // - kernel stack for kernel traps
-
-  printk("[trap_handler] current_task=%p, pid=%llu\n",
-         current_task, current_task->pid);
+  printk("Trapped!\n");
+  // printk("[trap_handler] current_task=%p, pid=%llu\n",
+  //        current_task, current_task->pid);
 
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
   bool is_interrupt = (tf->scause >> 63) & 1;
