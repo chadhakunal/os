@@ -1,8 +1,9 @@
 #include <stdio.h>
+#include <uinstd.h>
+#include <types.h>
 
 int main() {
-  while (1) {
-    printf("init.c\n");
-  }
+  pid_t pid = fork();
+  printf("pid = %llu, init.c\n", pid);
   return 0;
 }
