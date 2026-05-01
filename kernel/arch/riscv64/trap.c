@@ -18,7 +18,6 @@ void trap_handler(struct trap_frame *tf) {
 
   // Don't print for timer interrupts
   if (!(is_interrupt && cause_code == 5)) {
-    printk("Trapped!\n");
     // printk("[trap_handler] current_task=%p, pid=%llu\n",
     //        current_task, current_task->pid);
 
@@ -77,7 +76,7 @@ void trap_handler(struct trap_frame *tf) {
       case 7:  printk("Store access fault\n"); break;
       case 8:
         // printk("Environment call from U-mode\n");
-        printk("About to call syscall\n");
+        printk("Syscall from %llu\n", current_task->pid);
         handle_syscall(tf);
         break;
       case 9:  printk("Environment call from S-mode\n"); break;
@@ -92,14 +91,6 @@ void trap_handler(struct trap_frame *tf) {
   if (!is_interrupt && cause_code == 8) {
     static int syscall_count = 0;
     syscall_count++;
-    if (syscall_count % 50 == 0) {
-      printk("[DEBUG] Syscall #%d from PID %llu, sepc=%llx\n",
-             syscall_count, current_task->pid, tf->sepc);
-    }
-    if (syscall_count == 250) {
-      printk("[DEBUG] Reached 250 syscalls - about to hang?\n");
-      printk("[DEBUG] current_task=%p, next syscall will be #251\n", current_task);
-    }
 
     schedule();
     // schedule() returns here (possibly as a different task)
@@ -109,7 +100,7 @@ void trap_handler(struct trap_frame *tf) {
   }
 
   // For all other traps, print registers and panic
-  printk("current_task = %p, pid = %llu\n", current_task, current_task->pid);
+  // printk("current_task = %p, pid = %llu\n", current_task, current_task->pid);
   // printk("\nRegisters:\n");
   // printk("ra:  %llx  sp:  %llx  gp:  %llx  tp:  %llx\n", tf->ra, tf->sp, tf->gp, tf->tp);
   // printk("t0:  %llx  t1:  %llx  t2:  %llx\n", tf->t0, tf->t1, tf->t2);
