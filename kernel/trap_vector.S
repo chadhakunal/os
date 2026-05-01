@@ -193,16 +193,17 @@ trap_return:
   # a0 = trap_frame pointer
   mv sp, a0
 
-  # Restore sscratch to kernel stack FIRST, before restoring general regs
+  # Restore sscratch to kernel stack TOP, before restoring general regs
   # This is critical! When the next trap occurs, trap_vector will do:
   #   csrrw sp, sscratch, sp
-  # which swaps sp (user stack) with sscratch (must be kernel stack)
+  # which swaps sp (user stack) with sscratch (must be kernel stack TOP)
   #
-  # The kernel stack top is stored in current_task->kernel_context.sp
-  # We can get it via: tp + 0 (since kernel_context is at offset 0)
+  # The kernel stack TOP is stored in current_task->kernel_context.stack_start + KERNEL_STACK_SIZE
+  # kernel_context.stack_start is at offset 112
   # We use t0 as scratch, but restore it later from the trap frame
-  ld t0, 0(tp)
-  csrw sscratch, t0
+  ld t0, 112(tp)       # t0 = kernel_context.stack_start
+  addi t0, t0, 8192    # t0 = stack_start + KERNEL_STACK_SIZE (8KB = 8192 bytes)
+  csrw sscratch, t0    # sscratch = kernel stack TOP
 
   # Restore CSRs (sepc and sstatus)
   ld t0, 248(sp)
