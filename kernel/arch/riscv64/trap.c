@@ -22,7 +22,6 @@ void trap_handler(struct trap_frame *tf) {
   printk("sepc:    %llx\n", tf->sepc);
   printk("stval:   %llx\n", tf->stval);
   printk("sstatus: %llx\n", tf->sstatus);
-  printk("sstatus: %llx\n", tf->sstatus);
   if (is_interrupt) {
     printk("\n=== TRAP ===\n");
     printk("scause:  %llx\n", tf->scause);
@@ -59,6 +58,7 @@ void trap_handler(struct trap_frame *tf) {
       case 7:  printk("Store access fault\n"); break;
       case 8:
         // printk("Environment call from U-mode\n");
+        printk("About to call syscall\n");
         handle_syscall(tf);
         break;
       case 9:  printk("Environment call from S-mode\n"); break;
