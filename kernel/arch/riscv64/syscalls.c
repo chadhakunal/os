@@ -93,6 +93,7 @@ void handle_syscall(struct trap_frame *tf) {
       printk("syscall: fork()\n");
       ret = sys_fork(tf); // Note: This is not used! tf->a0 is set manually in fork_off();
       tf->sepc += 4;
+      printk("pid: %llu, tf->a0: %llu, ret: %llu\n", current_task->llu, current_task->tf.a0, ret);
       // tf->a0 will be set in the fork func for the task at this point
       asm volatile("csrw sstatus, %0" :: "r"(old_sstatus));
       return;
