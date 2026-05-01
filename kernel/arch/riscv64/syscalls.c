@@ -1,6 +1,7 @@
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "lib/printk/printk.h"
 #include "types.h"
+#include "kernel/task/task.h"
 
 // a7:    syscall number
 // a0:    arg1 / return value
@@ -90,11 +91,14 @@ void handle_syscall(struct trap_frame *tf) {
       tf->a0 = -1; // TODO: implement
       break;
     case SYS_fork:
-      printk("syscall: fork()\n");
-      ret = sys_fork(tf); // Note: This is not used! tf->a0 is set manually in fork_off();
+      printk("syscall: fork() from PID %llu\n", current_task->pid);
+      // Increment sepc BEFORE fork so child gets the incremented value
       tf->sepc += 4;
-      printk("pid: %llu, tf->a0: %llu, ret: %llu\n", current_task->llu, current_task->tf.a0, ret);
-      // tf->a0 will be set in the fork func for the task at this point
+      ret = sys_fork(tf);
+      // fork_off() sets child's tf.a0 = 0, we need to set parent's tf.a0 = child PID
+      tf->a0 = ret;
+      printk("fork() returning %llu to parent PID %llu\n", ret, current_task->pid);
+      // Don't run the common tf->a0 = ret code at the end, we already did it
       asm volatile("csrw sstatus, %0" :: "r"(old_sstatus));
       return;
       break;
