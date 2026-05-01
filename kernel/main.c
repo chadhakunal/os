@@ -51,12 +51,6 @@ void kmain(void *dtb_ptr) {
   init_trap_handler();
   printk("Initialized Trap Handler\n");
 
-  init_timer();
-  printk("Initialized Timer\n");
-
-  enable_interrupts();
-  printk("Enabled Interrupts\n");
-
   uint64_t current = read_time();
   printk("Current time after enable_interrupts: %llu\n", current);
 
@@ -95,18 +89,25 @@ void kmain(void *dtb_ptr) {
   // enable_interrupts();
   // uart_enable_interrupts();
 
-  // create_init_process();
-  // printk("Created init process from /bin/init\n");
-  //
-  // create_second_task();
-  // printk("Created second process from /bin/init2\n");
-  //
-  // asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
-  // switch_to_page_table(current_task);
-  // asm volatile("fence.i");
-  //
-  // extern void start_init_task(struct trap_frame *tf, uint64_t kernel_sp);
-  // start_init_task(&current_task->tf, current_task->kernel_context.sp);
+  create_init_process();
+  printk("Created init process from /bin/init\n");
+
+  create_second_task();
+  printk("Created second process from /bin/init2\n");
+
+  asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
+  switch_to_page_table(current_task);
+  asm volatile("fence.i");
+
+
+  init_timer();
+  printk("Initialized Timer\n");
+
+  enable_interrupts();
+  printk("Enabled Interrupts\n");
+
+  extern void start_init_task(struct trap_frame *tf, uint64_t kernel_sp);
+  start_init_task(&current_task->tf, current_task->kernel_context.sp);
   //
   // printk("ERROR: start_init_task returned! This should never happen\n");
   
