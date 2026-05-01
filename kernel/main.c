@@ -57,6 +57,9 @@ void kmain(void *dtb_ptr) {
   enable_interrupts();
   printk("Enabled Interrupts\n");
 
+  uint64_t current = read_time();
+  printk("Current time after enable_interrupts: %llu\n", current);
+
   tty_init();
   printk("Initialized TTY driver\n");
   vfs_init();
