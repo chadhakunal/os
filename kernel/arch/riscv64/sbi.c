@@ -4,7 +4,7 @@
 
 void sbi_set_timer(uint64_t stime_value) {
   register uint64_t a0 asm("a0") = stime_value;
-  register uint64_t a7 asm("a7") = 0;  // Legacy SBI v0.1 SET_TIMER call
+  register uint64_t a7 asm("a7") = 0;
   asm volatile("ecall" : "+r"(a0) : "r"(a7) : "memory");
 }
 
