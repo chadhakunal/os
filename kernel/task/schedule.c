@@ -29,7 +29,7 @@ void schedule() {
   next_task->state = TASK_RUNNING;
 
   set_current_task(next_task);
-  switch_to_page_table(next_task);
+  // Page table switch happens inside switch_to, after saving prev's context
   switch_to(prev, next_task);
 
   // When we return here, we've been rescheduled
