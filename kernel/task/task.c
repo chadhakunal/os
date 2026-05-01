@@ -331,7 +331,6 @@ uint64_t fork_off() {
 
   new_task->tf.a0 = 0;
 
-  // Mark task as ready to run
   new_task->state = TASK_READY;
   list_append(&task_list, &new_task->task_list);
 

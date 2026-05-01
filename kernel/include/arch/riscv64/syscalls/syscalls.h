@@ -22,6 +22,7 @@
 #define SYS_getpid          172
 #define SYS_kill            129
 #define SYS_fork            220
+#define SYS_sched_yield     124
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -29,5 +30,7 @@ void handle_syscall(struct trap_frame *tf);
 uint64_t sys_openat(struct trap_frame *tf);
 uint64_t sys_read(struct trap_frame *tf);
 uint64_t sys_write(struct trap_frame *tf);
+uint64_t sys_fork(struct trap_frame *tf);
+uint64_t sys_sched_yield(struct trap_frame *tf);
 
 #endif

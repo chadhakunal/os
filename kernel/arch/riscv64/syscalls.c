@@ -89,6 +89,15 @@ void handle_syscall(struct trap_frame *tf) {
       printk("syscall: kill(pid=%lld, sig=%lld)\n", (int64_t)tf->a0, (int64_t)tf->a1);
       tf->a0 = -1; // TODO: implement
       break;
+    case SYS_fork:
+      printk("syscall: fork()\n");
+      ret = sys_fork(tf);
+      break;
+
+    case SYS_sched_yield:
+      printk("syscall: sched_yield()\n");
+      ret = sys_sched_yield(tf);
+      break;
 
     default:
       printk("syscall: unknown syscall %llu\n", syscall_num);
