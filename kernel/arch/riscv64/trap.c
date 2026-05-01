@@ -13,44 +13,52 @@ void trap_handler(struct trap_frame *tf) {
   // tf points to either:
   // - &current_task->tf for user traps
   // - kernel stack for kernel traps
-  printk("Trapped!\n");
-  // printk("[trap_handler] current_task=%p, pid=%llu\n",
-  //        current_task, current_task->pid);
-
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
   bool is_interrupt = (tf->scause >> 63) & 1;
 
-  printk("\n=== TRAP ===\n");
-  printk("scause:  %llx\n", tf->scause);
-  printk("sepc:    %llx\n", tf->sepc);
-  printk("stval:   %llx\n", tf->stval);
-  printk("sstatus: %llx\n", tf->sstatus);
-  if (is_interrupt) {
-    printk("\n=== TRAP ===\n");
-    printk("scause:  %llx\n", tf->scause);
-    printk("sepc:    %llx\n", tf->sepc);
-    printk("stval:   %llx\n", tf->stval);
-    printk("sstatus: %llx\n", tf->sstatus);
-  } else if (cause_code != 8) {
-    // Print for non-syscall exceptions
-    printk("\n=== TRAP ===\n");
-    printk("scause:  %llx\n", tf->scause);
-    printk("sepc:    %llx\n", tf->sepc);
-    printk("stval:   %llx\n", tf->stval);
-    printk("sstatus: %llx\n", tf->sstatus);
+  // Don't print for timer interrupts
+  if (!(is_interrupt && cause_code == 5)) {
+    printk("Trapped!\n");
+    // printk("[trap_handler] current_task=%p, pid=%llu\n",
+    //        current_task, current_task->pid);
+
+    // printk("\n=== TRAP ===\n");
+    // printk("scause:  %llx\n", tf->scause);
+    // printk("sepc:    %llx\n", tf->sepc);
+    // printk("stval:   %llx\n", tf->stval);
+    // printk("sstatus: %llx\n", tf->sstatus);
+    if (is_interrupt) {
+      printk("\n=== TRAP ===\n");
+      printk("scause:  %llx\n", tf->scause);
+      printk("sepc:    %llx\n", tf->sepc);
+      printk("stval:   %llx\n", tf->stval);
+      printk("sstatus: %llx\n", tf->sstatus);
+    } else if (cause_code != 8) {
+      // Print for non-syscall exceptions
+      printk("\n=== TRAP ===\n");
+      printk("scause:  %llx\n", tf->scause);
+      printk("sepc:    %llx\n", tf->sepc);
+      printk("stval:   %llx\n", tf->stval);
+      printk("sstatus: %llx\n", tf->sstatus);
+    }
   }
 
   if (is_interrupt) {
-    printk("Interrupt: ");
     switch (cause_code) {
-      case 1:  printk("Supervisor software interrupt\n"); break;
+      case 1:
+        printk("Interrupt: Supervisor software interrupt\n");
+        break;
       case 5:
-        printk("Supervisor timer interrupt\n");
+        // Timer interrupt - silently reschedule next timer
         uint64_t next_timer = read_time() + TIMER_INTERVAL_CYCLES;
         sbi_set_timer(next_timer);
         break;
-      case 9:  printk("Supervisor external interrupt (UART)\n"); break;
-      default: printk("Unknown interrupt: %llu\n", cause_code); break;
+      case 9:
+        printk("Interrupt: Supervisor external interrupt (UART)\n");
+        break;
+      default:
+        printk("Interrupt: Unknown interrupt: %llu\n", cause_code);
+        break;
     }
   } else {
     // printk("Exception: ");
