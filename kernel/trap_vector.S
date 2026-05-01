@@ -200,9 +200,10 @@ trap_return:
   #
   # The kernel stack TOP is stored in current_task->kernel_context.stack_start + KERNEL_STACK_SIZE
   # kernel_context.stack_start is at offset 112
-  # We use t0 as scratch, but restore it later from the trap frame
+  # We use t0 and t1 as scratch, but restore them later from the trap frame
   ld t0, 112(tp)       # t0 = kernel_context.stack_start
-  addi t0, t0, 8192    # t0 = stack_start + KERNEL_STACK_SIZE (8KB = 8192 bytes)
+  li t1, 8192          # t1 = KERNEL_STACK_SIZE (8KB = 8192 bytes)
+  add t0, t0, t1       # t0 = stack_start + KERNEL_STACK_SIZE
   csrw sscratch, t0    # sscratch = kernel stack TOP
 
   # Restore CSRs (sepc and sstatus)
