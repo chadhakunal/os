@@ -2,8 +2,11 @@
 #include "kernel/panic.h"
 #include "arch/riscv64/trap.h"
 #include "arch/riscv64/syscalls/syscalls.h"
+#include "arch/riscv64/sbi.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
+
+#define TIMER_INTERVAL_CYCLES 100000
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
 void trap_handler(struct trap_frame *tf) {
@@ -41,7 +44,11 @@ void trap_handler(struct trap_frame *tf) {
     printk("Interrupt: ");
     switch (cause_code) {
       case 1:  printk("Supervisor software interrupt\n"); break;
-      case 5:  printk("Supervisor timer interrupt\n"); break;
+      case 5:
+        printk("Supervisor timer interrupt\n");
+        uint64_t next_timer = read_time() + TIMER_INTERVAL_CYCLES;
+        sbi_set_timer(next_timer);
+        break;
       case 9:  printk("Supervisor external interrupt (UART)\n"); break;
       default: printk("Unknown interrupt: %llu\n", cause_code); break;
     }

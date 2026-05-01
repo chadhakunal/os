@@ -12,6 +12,7 @@
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "arch/riscv64/trap.h"
+#include "arch/riscv64/sbi.h"
 #include "kernel/drivers/uart.h"
 #include "kernel/drivers/tty.h"
 
@@ -49,8 +50,13 @@ void kmain(void *dtb_ptr) {
 
   init_trap_handler();
   printk("Initialized Trap Handler\n");
-  // init_process();
-  //struct elf_file *parsed = parse_elf_file((void *)0x000001);
+
+  init_timer();
+  printk("Initialized Timer\n");
+
+  enable_interrupts();
+  printk("Enabled Interrupts\n");
+
   tty_init();
   printk("Initialized TTY driver\n");
   vfs_init();
