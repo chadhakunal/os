@@ -6,10 +6,11 @@
 #include "kernel/task/schedule.h"
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
-void trap_handler(void) {
+void trap_handler(struct trap_frame *tf) {
   printk("Trapped!\n");
-  // Access trap frame from current_task (tp register points to it)
-  struct trap_frame *tf = &current_task->tf;
+  // tf points to either:
+  // - &current_task->tf for user traps
+  // - kernel stack for kernel traps
 
   printk("[trap_handler] current_task=%p, pid=%llu\n",
          current_task, current_task->pid);

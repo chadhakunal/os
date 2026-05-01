@@ -70,7 +70,7 @@ void enable_interrupts(void);
 void disable_interrupts(void);
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
-void trap_handler(void);
+void trap_handler(struct trap_frame *tf);
 
 /* Restore CPU state from trap frame and return to interrupted execution
  * NEVER RETURNS - does sret */
