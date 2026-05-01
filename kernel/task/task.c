@@ -12,9 +12,9 @@
 
 // Global task tracking
 struct task_t *current_task = NULL;  // Currently running task
-struct task_t *init_task = NULL;     // First task (PID 0 or 1)
+struct task_t *init_task = NULL;     // First task (PID 1)
 struct list_node task_list;          // Global list of all tasks
-uint64_t latest_pid = 0;
+uint64_t latest_pid = 1;             // Start at 1 since init has PID 1
 
 void init_task_system() {
   // Initialize global task list (must be called after virtual memory is enabled)
@@ -80,7 +80,7 @@ void allocate_kernel_stack(struct task_t *task) {
 
 struct task_t *task_init() {
   struct task_t *task = task_t_alloc();
-  task->pid = 0;
+  task->pid = 1;
   task->uid = 0;
   task->state = TASK_READY;
 
