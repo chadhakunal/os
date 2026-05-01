@@ -18,6 +18,7 @@ void schedule() {
   struct task_t *next_task = pick_next_task();
 
   if (next_task == current_task) {
+    printk("next task is current task\n");
     return;
   }
 
@@ -27,7 +28,7 @@ void schedule() {
     prev->state = TASK_READY;
   }
   next_task->state = TASK_RUNNING;
-
+  printk("Updated task\n");
   set_current_task(next_task);
   // Page table switch happens inside switch_to, after saving prev's context
   switch_to(prev, next_task);

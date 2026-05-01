@@ -7,7 +7,6 @@
 
 /* NEVER RETURNS - either calls trap_return() or panic() */
 void trap_handler(struct trap_frame *tf) {
-  printk("Trapped!\n");
   // tf points to either:
   // - &current_task->tf for user traps
   // - kernel stack for kernel traps
