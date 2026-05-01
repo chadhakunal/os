@@ -120,19 +120,21 @@ void init_trap_handler(void) {
 }
 
 void enable_interrupts(void) {
-  /* Enable supervisor interrupts in sstatus */
   uint64_t sstatus;
   asm volatile("csrr %0, sstatus" : "=r"(sstatus));
-  sstatus |= SSTATUS_SIE;  /* Set SIE bit to enable interrupts */
+  sstatus |= SSTATUS_SIE;
   asm volatile("csrw sstatus, %0" :: "r"(sstatus));
 
-  /* Enable external, timer, and software interrupts in sie register */
-  uint64_t sie = (1UL << 9) |  /* SEIE - Supervisor external interrupt enable */
-                 (1UL << 5) |  /* STIE - Supervisor timer interrupt enable */
-                 (1UL << 1);   /* SSIE - Supervisor software interrupt enable */
+  uint64_t sie = (1UL << 9) |
+                 (1UL << 5) |
+                 (1UL << 1);
   asm volatile("csrw sie, %0" :: "r"(sie));
 
-  printk("Global interrupts enabled (sstatus.SIE=1, sie=0x%lx)\n", sie);
+  uint64_t sip, sstatus_check, sie_check;
+  asm volatile("csrr %0, sstatus" : "=r"(sstatus_check));
+  asm volatile("csrr %0, sie" : "=r"(sie_check));
+  asm volatile("csrr %0, sip" : "=r"(sip));
+  printk("Interrupts enabled: sstatus=0x%llx, sie=0x%llx, sip=0x%llx\n", sstatus_check, sie_check, sip);
 }
 
 void disable_interrupts(void) {

@@ -51,11 +51,11 @@ void kmain(void *dtb_ptr) {
   init_trap_handler();
   printk("Initialized Trap Handler\n");
 
-  enable_interrupts();
-  printk("Enabled Interrupts\n");
-
   init_timer();
   printk("Initialized Timer\n");
+
+  enable_interrupts();
+  printk("Enabled Interrupts\n");
 
   tty_init();
   printk("Initialized TTY driver\n");
