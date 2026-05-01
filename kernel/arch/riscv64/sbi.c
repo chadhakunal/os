@@ -16,8 +16,15 @@ uint64_t read_time(void) {
 }
 
 void init_timer(void) {
+  uint64_t sie, sip;
+  asm volatile("csrr %0, sie" : "=r"(sie));
+  asm volatile("csrr %0, sip" : "=r"(sip));
+  printk("Before init_timer: sie=0x%llx, sip=0x%llx\n", sie, sip);
+
   uint64_t current_time = read_time();
   uint64_t next_timer = current_time + TIMER_INTERVAL_CYCLES;
   sbi_set_timer(next_timer);
-  printk("Timer initialized: current=%llu, next=%llu\n", current_time, next_timer);
+
+  asm volatile("csrr %0, sip" : "=r"(sip));
+  printk("Timer initialized: current=%llu, next=%llu, sip=0x%llx\n", current_time, next_timer, sip);
 }
