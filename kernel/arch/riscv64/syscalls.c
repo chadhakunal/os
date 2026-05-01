@@ -96,7 +96,7 @@ void handle_syscall(struct trap_frame *tf) {
       // tf->a0 will be set in the fork func for the task at this point
       asm volatile("csrw sstatus, %0" :: "r"(old_sstatus));
       return;
-      break
+      break;
 
     case SYS_sched_yield:
       printk("syscall: sched_yield()\n");
