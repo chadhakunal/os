@@ -43,7 +43,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
     bool in_uart   = false;
     bool in_rtc    = false;
 
-    //uart_print("DTB WALK START\n");
+    uart_print("DTB WALK START\n");
 
     while (i < size_struct) {
 
@@ -54,9 +54,9 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 
             char *name = (char*)(struct_base + i);
 
-            // uart_print("NODE: ");
-            // uart_print_n(name, 64);
-            // uart_print("\n");
+            uart_print("NODE: ");
+            uart_print_n(name, 64);
+            uart_print("\n");
 
             if (strneq_prefix(name, "memory", 6))
                 in_memory = true;
@@ -84,7 +84,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
             in_uart   = false;
             in_rtc    = false;
 
-            // uart_print("END NODE\n");
+            uart_print("END NODE\n");
         }
 
         else if (token == FDT_PROP) {
@@ -98,9 +98,9 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
             char *prop_name = (char*)(strings_base + name_off);
             uint8_t *value  = struct_base + i;
 
-            // uart_print("  PROP: ");
-            // uart_print(prop_name);
-            // uart_print("\n");
+            uart_print("  PROP: ");
+            uart_print(prop_name);
+            uart_print("\n");
 
             /* ---------------- REG PROPERTY ---------------- */
 
@@ -122,11 +122,12 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
                         platform.ram.base = base;
                         platform.ram.size = size;
 
-                        // uart_print("    RAM base: ");
-                        // uart_print_hex(base);
-                        //
-                        // uart_print("    RAM size: ");
-                        // uart_print_hex(size);
+                        uart_print("    RAM base: ");
+                        uart_print_hex(base);
+                        uart_print("\n");
+                        uart_print("    RAM size: ");
+                        uart_print_hex(size);
+                        uart_print("\n");
                     }
                 }
 
@@ -141,24 +142,27 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 
                         platform.virtio[idx].base = base;
 
-                        // uart_print("    VIRTIO base: ");
-                        // uart_print_hex(base);
+                        uart_print("    VIRTIO base: ");
+                        uart_print_hex(base);
+                        uart_print("\n");
                     }
 
                     if (in_uart) {
 
                         platform.uart.base = base;
 
-                        // uart_print("    UART base: ");
-                        // uart_print_hex(base);
+                        uart_print("    UART base: ");
+                        uart_print_hex(base);
+                        uart_print("\n");
                     }
 
                     if (in_rtc) {
 
                         platform.rtc.base = base;
 
-                        // uart_print("    RTC base: ");
-                        // uart_print_hex(base);
+                        uart_print("    RTC base: ");
+                        uart_print_hex(base);
+                        uart_print("\n");
                     }
                 }
             }
@@ -167,9 +171,9 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 
             if (strneq_prefix(prop_name, "compatible", 10)) {
 
-                // uart_print("    compatible: ");
-                // uart_print_n((char*)value, len);
-                // uart_print("\n");
+                uart_print("    compatible: ");
+                uart_print_n((char*)value, len);
+                uart_print("\n");
             }
 
             /* ---------------- INTERRUPTS PROPERTY ---------------- */
@@ -185,16 +189,18 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
                         int idx = platform.virtio_count - 1;
                         platform.virtio[idx].irq = irq;
 
-                        // uart_print("    VIRTIO IRQ: ");
-                        // uart_print_hex(irq);
+                        uart_print("    VIRTIO IRQ: ");
+                        uart_print_hex(irq);
+                        uart_print("\n");
                     }
 
                     if (in_uart) {
 
                         // platform.uart.irq = irq;
 
-                        // uart_print("    UART IRQ: ");
-                        // uart_print_hex(irq);
+                        uart_print("    UART IRQ: ");
+                        uart_print_hex(irq);
+                        uart_print("\n");
                     }
                 }
             }
@@ -209,12 +215,12 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
         }
 
         else if (token == FDT_END) {
-            // uart_print("DTB END\n");
+            uart_print("DTB END\n");
             break;
         }
 
         else {
-            // uart_print("UNKNOWN TOKEN\n");
+            uart_print("UNKNOWN TOKEN\n");
             break;
         }
     }
