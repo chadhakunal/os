@@ -15,6 +15,7 @@
 #include "arch/riscv64/sbi.h"
 #include "kernel/drivers/uart.h"
 #include "kernel/drivers/tty.h"
+#include "kernel/drivers/rtc/rtc.h"
 
 #include "lib/printk/printk.h"
 
@@ -53,6 +54,8 @@ void kmain(void *dtb_ptr) {
 
   uint64_t current = read_time();
   printk("Current time after enable_interrupts: %llu\n", current);
+
+  rtc_init();
 
   tty_init();
   printk("Initialized TTY driver\n");
