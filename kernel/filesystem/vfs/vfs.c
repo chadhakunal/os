@@ -1,5 +1,3 @@
-#define DEBUG 0  // Set to 1 to enable VFS debug messages
-
 #include "kernel/filesystem/vfs/vfs.h"
 #include "lib/string.h"
 #include "lib/printk/printk.h"
@@ -13,7 +11,7 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   debugk("vfs_resolve_path: path=%s\n", path);
   struct dentry_t *curr_dentry = base_mount->superblock->root_dentry;
   debugk("vfs_resolve_path: root_dentry=%p\n", curr_dentry);
-  struct dentry_t *next_dentry;
+  struct devfs_resolve_patintry_t *next_dentry;
   uint32_t ret;
   const char *current_path = path;
   char current_name[256];
