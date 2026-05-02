@@ -21,7 +21,6 @@ uint64_t rtc_read_time_ns(void) {
         return 0;
     }
 
-    // According to Goldfish RTC spec, read LOW first to latch, then HIGH
     uint32_t time_low = rtc_read(RTC_TIME_LOW);
     uint32_t time_high = rtc_read(RTC_TIME_HIGH);
 

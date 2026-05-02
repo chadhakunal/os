@@ -48,7 +48,6 @@ void trap_handler(struct trap_frame *tf) {
         printk("Interrupt: Supervisor software interrupt\n");
         break;
       case 5:
-        // Timer interrupt - handle and return
         trap_timer_handler(tf);
         extern void trap_return(struct trap_frame *tf);
         trap_return(tf);
@@ -134,15 +133,11 @@ void enable_interrupts(void) {
   asm volatile("csrr %0, sstatus" : "=r"(sstatus_check));
   asm volatile("csrr %0, sie" : "=r"(sie_check));
   asm volatile("csrr %0, sip" : "=r"(sip));
-  printk("Interrupts enabled: sstatus=0x%llx, sie=0x%llx, sip=0x%llx\n", sstatus_check, sie_check, sip);
 }
 
 void disable_interrupts(void) {
-  /* Disable supervisor interrupts in sstatus */
   uint64_t sstatus;
   asm volatile("csrr %0, sstatus" : "=r"(sstatus));
   sstatus &= ~SSTATUS_SIE;  /* Clear SIE bit to disable interrupts */
   asm volatile("csrw sstatus, %0" :: "r"(sstatus));
-
-  printk("Global interrupts disabled (sstatus.SIE=0)\n");
 }

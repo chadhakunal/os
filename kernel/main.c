@@ -52,13 +52,12 @@ void kmain(void *dtb_ptr) {
   init_trap_handler();
   printk("Initialized Trap Handler\n");
 
-  uint64_t current = read_time();
-  printk("Current time after enable_interrupts: %llu\n", current);
-
   rtc_init();
+  printk("Initialized RTC: Current time: %llu seconds since epoch\n", rtc_read_time_sec());
 
   tty_init();
   printk("Initialized TTY driver\n");
+
   vfs_init();
   printk("Initialized vfs and mounted tarfs\n");
 
