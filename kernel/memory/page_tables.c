@@ -80,9 +80,7 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
   page_table_t *pt3;
 
   // Root table (pt1 == pt) is indexed by VPN[2]
-  printk("Going into finding the first table\n");
   if (pt1_virt->page_table_entries[pt1_idx] == 0) {
-    printk("Mapping pages for kernel stack\n");
     page_table_t *pt2_phys = allocate_page_table(); /* Returns physical address */
     if (!pt2_phys)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
@@ -90,12 +88,10 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
         PTE_ADDR(pt2_phys) | PTE_VALID | PTE_TABLE;
     pt2 = (page_table_t *)PHYS_TO_VIRT(pt2_phys); /* Convert to virtual for access */
   } else {
-    printk("Found the page table for the next page table\n");
     pt2 = (page_table_t *)PHYS_TO_VIRT(
         PTE_DECODE(pt1_virt->page_table_entries[pt1_idx]));
   }
 
-  printk("Got past the first table\n");
   if (pt2->page_table_entries[pt2_idx] == 0) {
     page_table_t *pt3_phys = allocate_page_table(); /* Returns physical address */
     if (!pt3_phys)

@@ -103,7 +103,6 @@ void uart_print_long_int(int64_t value) {
 
   if (value == 0) {
     uart_putc('0');
-    uart_putc('\n');
     return;
   }
 
@@ -120,8 +119,6 @@ void uart_print_long_int(int64_t value) {
   while (i > 0) {
     uart_putc(buffer[--i]);
   }
-
-  uart_putc('\n');
 }
 
 /* Enable UART receive interrupts and configure PLIC
