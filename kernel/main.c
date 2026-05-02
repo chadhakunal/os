@@ -94,16 +94,15 @@ void kmain(void *dtb_ptr) {
   create_init_process();
   printk("Created init process from /bin/init\n");
 
-  // create_second_task();
-  // printk("Created second process from /bin/init2\n");
-
   asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
   switch_to_page_table(current_task);
   asm volatile("fence.i");
 
-
   init_timer();
   printk("Initialized Timer\n");
+
+  // uart_enable_interrupts();
+  // printk("Enabled uart interrupts\n");
 
   enable_interrupts();
   printk("Enabled Interrupts\n");
