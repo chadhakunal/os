@@ -21,10 +21,11 @@ uint64_t rtc_read_time_ns(void) {
         return 0;
     }
 
-    uint32_t time_high = rtc_read(RTC_TIME_HIGH);
+    // According to Goldfish RTC spec, read LOW first to latch, then HIGH
     uint32_t time_low = rtc_read(RTC_TIME_LOW);
+    uint32_t time_high = rtc_read(RTC_TIME_HIGH);
 
-    return ((uint64_t)time_high << 32) | time_low;
+    return ((uint64_t)time_high << 32) | (uint64_t)time_low;
 }
 
 uint64_t rtc_read_time_sec(void) {
@@ -38,6 +39,11 @@ void rtc_init(void) {
 
     printk("RTC: Initialized at phys=0x%llx, virt=%p\n",
            (uint64_t)RTC_PHYS_BASE, rtc_base);
+
+    // Read raw register values for debugging
+    uint32_t time_low = rtc_read(RTC_TIME_LOW);
+    uint32_t time_high = rtc_read(RTC_TIME_HIGH);
+    printk("RTC: Raw registers - LOW=0x%x, HIGH=0x%x\n", time_low, time_high);
 
     // Read and display current time
     uint64_t time_ns = rtc_read_time_ns();
