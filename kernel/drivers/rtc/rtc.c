@@ -50,7 +50,13 @@ void rtc_init(void) {
     uint64_t time_sec = time_ns / 1000000000ULL;
 
     printk("RTC: Current time: %llu seconds since epoch\n", time_sec);
-    printk("RTC: Current time: %llu nanoseconds since epoch\n", time_ns);
+    printk("RTC: Full 64-bit time_ns = 0x%llx\n", time_ns);
+    printk("RTC: time_ns as decimal = %llu nanoseconds\n", time_ns);
+
+    // Also print high and low parts separately for verification
+    uint32_t ns_low = (uint32_t)(time_ns & 0xFFFFFFFF);
+    uint32_t ns_high = (uint32_t)(time_ns >> 32);
+    printk("RTC: time_ns split - HIGH=0x%x, LOW=0x%x\n", ns_high, ns_low);
 
     // TODO: Convert to human-readable date/time
 }
