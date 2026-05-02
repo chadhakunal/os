@@ -25,11 +25,4 @@ void print_memory_info() {
          memory_info.total_memory_base + memory_info.total_memory_size);
   printk("\tMemory Size: %llu MB\n",
          memory_info.total_memory_size / (1024 * 1024));
-
-  // Print RTC info
-  if (platform.rtc.base != 0) {
-    printk("\tRTC detected at base address: 0x%llx\n", platform.rtc.base);
-  } else {
-    printk("\tNo RTC hardware detected\n");
-  }
 }
