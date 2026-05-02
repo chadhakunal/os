@@ -238,17 +238,19 @@ void remove_identity_mapping() {
   asm volatile("sfence.vma zero, zero" ::: "memory");
 }
 
-void init_kernel_page_mapping() {
-  allocate_root_page_table();
-  map_identity();
-  map_kernel();
-  map_phys();  /* Map all physical RAM for accessing page tables and other phys mem */
-
-  /* Map UART device for MMIO access after MMU is enabled */
-  uint64_t uart_phys = (uint64_t)uart_get_base(); /* align to page */
-  uart_phys &= ~(DEFAULT_PAGE_SIZE - 1);
+/* Map MMIO devices to virtual memory */
+static void map_devices(void) {
+  // Map UART
+  uint64_t uart_phys = (uint64_t)uart_get_base();
+  uart_phys &= ~(DEFAULT_PAGE_SIZE - 1);  /* Align to page */
   uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
   boot_map_page(root_page_table, uart_virt, uart_phys);
+
+  // Map RTC
+  #define RTC_BASE 0x101000UL
+  uint64_t rtc_phys = RTC_BASE & ~(DEFAULT_PAGE_SIZE - 1);  /* Align to page */
+  uint64_t rtc_virt = MMIO_VIRTUAL_MEMORY_BASE + rtc_phys;
+  boot_map_page(root_page_table, rtc_virt, rtc_phys);
 
   /* Map PLIC (Platform-Level Interrupt Controller) pages
    * Only map the pages we actually use (3 pages = 12KB):
@@ -259,6 +261,14 @@ void init_kernel_page_mapping() {
   boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + PLIC_BASE, PLIC_BASE);
   boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + PLIC_BASE + 0x2000, PLIC_BASE + 0x2000);
   boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + PLIC_BASE + 0x201000, PLIC_BASE + 0x201000);
+}
+
+void init_kernel_page_mapping() {
+  allocate_root_page_table();
+  map_identity();
+  map_kernel();
+  map_phys();  /* Map all physical RAM for accessing page tables and other phys mem */
+  map_devices();  /* Map MMIO devices */
 
   enable_virtual_memory((uint64_t)root_page_table);
   uint64_t offset = KERNEL_VIRT_OFFSET;

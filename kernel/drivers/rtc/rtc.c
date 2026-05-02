@@ -1,7 +1,10 @@
 #include "kernel/drivers/rtc/rtc.h"
 #include "lib/printk/printk.h"
+#include "arch/riscv64/virtual_memory_init.h"
 #include "platform.h"
 #include "types.h"
+
+#define RTC_PHYS_BASE 0x101000UL
 
 static volatile uint32_t *rtc_base = NULL;
 
@@ -30,14 +33,11 @@ uint64_t rtc_read_time_sec(void) {
 }
 
 void rtc_init(void) {
-    if (platform.rtc.base == 0) {
-        printk("RTC: No RTC device found in device tree\n");
-        return;
-    }
+    // Map RTC physical address to virtual address
+    rtc_base = (volatile uint32_t *)MMIO_PHYS_TO_VIRT(RTC_PHYS_BASE);
 
-    rtc_base = (volatile uint32_t *)platform.rtc.base;
-
-    printk("RTC: Initialized at 0x%llx\n", platform.rtc.base);
+    printk("RTC: Initialized at phys=0x%llx, virt=%p\n",
+           (uint64_t)RTC_PHYS_BASE, rtc_base);
 
     // Read and display current time
     uint64_t time_ns = rtc_read_time_ns();
