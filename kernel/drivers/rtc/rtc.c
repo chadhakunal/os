@@ -34,10 +34,4 @@ uint64_t rtc_read_time_sec(void) {
 
 void rtc_init(void) {
     rtc_base = (volatile uint32_t *)MMIO_PHYS_TO_VIRT(RTC_PHYS_BASE);
-
-    uint64_t time_ns = rtc_read_time_ns();
-    uint64_t time_sec = time_ns / 1000000000ULL;
-
-    printk("Initialized RTC: Current time: %llu seconds since epoch\n", time_sec);
-    // TODO: Convert to human-readable date/time
 }
