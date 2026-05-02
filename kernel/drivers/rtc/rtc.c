@@ -34,29 +34,11 @@ uint64_t rtc_read_time_sec(void) {
 }
 
 void rtc_init(void) {
-    // Map RTC physical address to virtual address
     rtc_base = (volatile uint32_t *)MMIO_PHYS_TO_VIRT(RTC_PHYS_BASE);
 
-    printk("RTC: Initialized at phys=0x%llx, virt=%p\n",
-           (uint64_t)RTC_PHYS_BASE, rtc_base);
-
-    // Read raw register values for debugging
-    uint32_t time_low = rtc_read(RTC_TIME_LOW);
-    uint32_t time_high = rtc_read(RTC_TIME_HIGH);
-    printk("RTC: Raw registers - LOW=0x%x, HIGH=0x%x\n", time_low, time_high);
-
-    // Read and display current time
     uint64_t time_ns = rtc_read_time_ns();
     uint64_t time_sec = time_ns / 1000000000ULL;
 
-    printk("RTC: Current time: %llu seconds since epoch\n", time_sec);
-    printk("RTC: Full 64-bit time_ns = 0x%llx\n", time_ns);
-    printk("RTC: time_ns as decimal = %llu nanoseconds\n", time_ns);
-
-    // Also print high and low parts separately for verification
-    uint32_t ns_low = (uint32_t)(time_ns & 0xFFFFFFFF);
-    uint32_t ns_high = (uint32_t)(time_ns >> 32);
-    printk("RTC: time_ns split - HIGH=0x%x, LOW=0x%x\n", ns_high, ns_low);
-
+    printk("Initialized RTC: Current time: %llu seconds since epoch\n", time_sec);
     // TODO: Convert to human-readable date/time
 }
