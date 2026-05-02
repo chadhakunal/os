@@ -41,6 +41,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
     bool in_memory = false;
     bool in_virtio = false;
     bool in_uart   = false;
+    bool in_rtc    = false;
 
     //uart_print("DTB WALK START\n");
 
@@ -66,6 +67,9 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
             if (strneq_prefix(name, "uart", 4))
                 in_uart = true;
 
+            if (strneq_prefix(name, "rtc", 3))
+                in_rtc = true;
+
             while (struct_base[i] != '\0')
                 i++;
 
@@ -78,6 +82,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
             in_memory = false;
             in_virtio = false;
             in_uart   = false;
+            in_rtc    = false;
 
             // uart_print("END NODE\n");
         }
@@ -145,6 +150,14 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
                         platform.uart.base = base;
 
                         // uart_print("    UART base: ");
+                        // uart_print_hex(base);
+                    }
+
+                    if (in_rtc) {
+
+                        platform.rtc.base = base;
+
+                        // uart_print("    RTC base: ");
                         // uart_print_hex(base);
                     }
                 }

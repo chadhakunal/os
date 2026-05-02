@@ -48,13 +48,10 @@ void trap_handler(struct trap_frame *tf) {
         printk("Interrupt: Supervisor software interrupt\n");
         break;
       case 5:
-        // Timer interrupt - silently reschedule next timer and return
-        {
-          uint64_t next_timer = read_time() + TIMER_INTERVAL_CYCLES;
-          sbi_set_timer(next_timer);
-          extern void trap_return(struct trap_frame *tf);
-          trap_return(tf);
-        }
+        // Timer interrupt - handle and return
+        trap_timer_handler(tf);
+        extern void trap_return(struct trap_frame *tf);
+        trap_return(tf);
         break;
       case 9:
         printk("Interrupt: Supervisor external interrupt (UART)\n");
