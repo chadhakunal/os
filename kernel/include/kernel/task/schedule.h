@@ -1,6 +1,9 @@
 #ifndef SCHEDULE_H
 #define SCHEDULE_H
 
+#include "types.h"
+#include "lib/list.h"
+
 struct scheduler_t {
   uint64_t quanta;
   struct list_node *active_list;
@@ -8,7 +11,7 @@ struct scheduler_t {
   struct list_node *blocked_list;
 };
 
-extern scheduler_t scheduler;
+extern struct scheduler_t scheduler;
 
 void schedule();
 
