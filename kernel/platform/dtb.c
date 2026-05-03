@@ -23,13 +23,6 @@ static inline uint32_t fdt_u32(const void *p)
     return bswap32(v);
 }
 
-static void print_n(const char *s, int n)
-{
-    for (int i = 0; i < n && s[i] != '\0'; i++) {
-        printk("%c", s[i]);
-    }
-}
-
 void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t size_struct)
 {
     uint8_t *struct_base  = (uint8_t*)dtb + off_struct;
@@ -53,9 +46,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 
             char *name = (char*)(struct_base + i);
 
-            debugk("NODE: ");
-            print_n(name, 64);
-            debugk("\n");
+            debugk("NODE: %s\n", name);
 
             if (strneq_prefix(name, "memory", 6))
                 in_memory = true;
@@ -158,9 +149,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 
             if (strneq_prefix(prop_name, "compatible", 10)) {
 
-                debugk("    compatible: ");
-                print_n((char*)value, len);
-                debugk("\n");
+                debugk("    compatible: %s\n", (char*)value);
             }
 
             /* ---------------- INTERRUPTS PROPERTY ---------------- */
