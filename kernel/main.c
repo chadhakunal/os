@@ -16,6 +16,7 @@
 #include "kernel/drivers/uart.h"
 #include "kernel/drivers/tty.h"
 #include "kernel/drivers/rtc/rtc.h"
+#include "kernel/time/timer.h"
 
 #include "lib/printk/printk.h"
 
@@ -98,6 +99,7 @@ void kmain(void *dtb_ptr) {
   switch_to_page_table(current_task);
   asm volatile("fence.i");
 
+  init_virtual_time();
   init_timer();
   printk("Initialized Timer\n");
 

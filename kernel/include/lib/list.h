@@ -20,6 +20,8 @@ static inline void list_append(struct list_node *sentinel, struct list_node *new
   sentinel->prev = new_node;
 }
 
+DEFINE_POOL(list_node, struct list_node)
+
 #define list_for_each(sentinel, pos) \
   for (struct list_node *pos = (sentinel)->next; pos != (sentinel); pos = pos->next)
 
