@@ -3,6 +3,12 @@
 #include "lib/list.h"
 #include "lib/printk/printk.h"
 
+struct scheduler_t scheduler;
+
+void init_scheduler() {
+
+}
+
 struct task_t *pick_next_task() {
   list_for_each(&task_list, pos) {
     struct task_t *task = container_of(pos, struct task_t, task_list);
