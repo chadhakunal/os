@@ -25,6 +25,6 @@ void init_timer(void) {
 void trap_timer_handler(struct trap_frame *tf) {
   uint64_t next_timer = read_time() + TIMER_INTERVAL_CYCLES;
   sbi_set_timer(next_timer);
-
-  timer_handler();
+  uint64_t hardware_time = read_hardware_timer();
+  timer_handler(hardware_time);
 }
