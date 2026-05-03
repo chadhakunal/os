@@ -2,6 +2,7 @@
 #define LIST_H
 
 #include "types.h"
+#include "lib/pool_allocator.h"
 
 struct list_node {
   struct list_node *next; 
