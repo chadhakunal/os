@@ -2,9 +2,9 @@
 #include "platform/dtb.h"
 #include "kernel/drivers/uart.h"
 #include "lib/string.h"
-#include "lib/printk/printk.h"
 
-#define DEBUG_DTB 0
+#define DEBUG 0
+#include "lib/printk/printk.h"
 
 volatile struct platform_info platform = {0};
 
@@ -42,7 +42,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
     bool in_uart   = false;
     bool in_rtc    = false;
 
-    printk("DTB WALK START\n");
+    debugk("DTB WALK START\n");
 
     while (i < size_struct) {
 
@@ -53,9 +53,9 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 
             char *name = (char*)(struct_base + i);
 
-            printk("NODE: ");
+            debugk("NODE: ");
             print_n(name, 64);
-            printk("\n");
+            debugk("\n");
 
             if (strneq_prefix(name, "memory", 6))
                 in_memory = true;
@@ -83,7 +83,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
             in_uart   = false;
             in_rtc    = false;
 
-            printk("END NODE\n");
+            debugk("END NODE\n");
         }
 
         else if (token == FDT_PROP) {
@@ -97,7 +97,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
             char *prop_name = (char*)(strings_base + name_off);
             uint8_t *value  = struct_base + i;
 
-            printk("  PROP: %s\n", prop_name);
+            debugk("  PROP: %s\n", prop_name);
 
             /* ---------------- REG PROPERTY ---------------- */
 
@@ -119,8 +119,8 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
                         platform.ram.base = base;
                         platform.ram.size = size;
 
-                        printk("    RAM base: 0x%llx\n", base);
-                        printk("    RAM size: 0x%llx\n", size);
+                        debugk("    RAM base: 0x%llx\n", base);
+                        debugk("    RAM size: 0x%llx\n", size);
                     }
                 }
 
@@ -135,21 +135,21 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 
                         platform.virtio[idx].base = base;
 
-                        printk("    VIRTIO base: 0x%llx\n", base);
+                        debugk("    VIRTIO base: 0x%llx\n", base);
                     }
 
                     if (in_uart) {
 
                         platform.uart.base = base;
 
-                        printk("    UART base: 0x%llx\n", base);
+                        debugk("    UART base: 0x%llx\n", base);
                     }
 
                     if (in_rtc) {
 
                         platform.rtc.base = base;
 
-                        printk("    RTC base: 0x%llx\n", base);
+                        debugk("    RTC base: 0x%llx\n", base);
                     }
                 }
             }
@@ -158,9 +158,9 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 
             if (strneq_prefix(prop_name, "compatible", 10)) {
 
-                printk("    compatible: ");
+                debugk("    compatible: ");
                 print_n((char*)value, len);
-                printk("\n");
+                debugk("\n");
             }
 
             /* ---------------- INTERRUPTS PROPERTY ---------------- */
@@ -176,14 +176,14 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
                         int idx = platform.virtio_count - 1;
                         platform.virtio[idx].irq = irq;
 
-                        printk("    VIRTIO IRQ: 0x%x\n", irq);
+                        debugk("    VIRTIO IRQ: 0x%x\n", irq);
                     }
 
                     if (in_uart) {
 
                         // platform.uart.irq = irq;
 
-                        printk("    UART IRQ: 0x%x\n", irq);
+                        debugk("    UART IRQ: 0x%x\n", irq);
                     }
                 }
             }
@@ -198,12 +198,12 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
         }
 
         else if (token == FDT_END) {
-            printk("DTB END\n");
+            debugk("DTB END\n");
             break;
         }
 
         else {
-            printk("UNKNOWN TOKEN\n");
+            debugk("UNKNOWN TOKEN\n");
             break;
         }
     }
