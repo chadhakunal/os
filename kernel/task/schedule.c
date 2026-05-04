@@ -99,6 +99,7 @@ bool has_expired() {
 
 void schedule() {
   extern struct task_t *idle_task;
+  extern void trap_return(struct trap_frame *tf);
 
   if (current_task == idle_task) {
     struct task_t *next_task = pick_next_task();
@@ -108,7 +109,9 @@ void schedule() {
     next_task->state = TASK_RUNNING;
     set_current_task(next_task);
     switch_to(idle_task, next_task);
-    return;
+    // After switch_to, we're now running as next_task
+    // We need to jump to user mode
+    trap_return(&current_task->tf);
   }
 
   if (current_task->state == TASK_BLOCKED || current_task->state == TASK_ZOMBIE) {
