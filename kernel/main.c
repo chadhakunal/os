@@ -17,6 +17,7 @@
 #include "kernel/drivers/tty.h"
 #include "kernel/drivers/rtc/rtc.h"
 #include "kernel/time/timer.h"
+#include "kernel/task/schedule.h"
 
 #include "lib/printk/printk.h"
 
@@ -105,6 +106,8 @@ void kmain(void *dtb_ptr) {
   init_virtual_time();
   init_timer();
   printk("Initialized Timer\n");
+
+  init_scheduler();
 
   // uart_enable_interrupts();
   // printk("Enabled uart interrupts\n");
