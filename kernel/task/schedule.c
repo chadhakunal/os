@@ -24,7 +24,7 @@ void init_scheduler() {
 
 void move_to_expired(struct task_t *task) {
   list_remove(&task->scheduler_list);
-  list_append(&scheduler.expired_list, &task->scheduler_list);
+  list_append(scheduler.expired_list, &task->scheduler_list);
   task->runtime = 0;
 }
 
