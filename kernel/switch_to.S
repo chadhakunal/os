@@ -30,7 +30,16 @@
 #     root_satp at offset 424 (first field of mm_struct)
 switch_to:
     # me->kernel_context is at a0 + 0 (just a0)
-    # Save current task's kernel context to me->kernel_context
+    # Check if 'me' is idle task (PID 0)
+    # PID is at offset 408 in task_t
+    ld t0, 408(a0)    # t0 = me->pid
+    bnez t0, 1f       # If PID != 0, jump to normal save
+
+    # Switching FROM idle - don't save its context!
+    # Idle's kernel_context is set once at creation and must not be overwritten
+    j 2f              # Jump to page table switch
+
+1:  # Normal task - save kernel context to me->kernel_context
     sd sp, 0(a0)      # me->kernel_context.sp = sp
     sd ra, 8(a0)      # me->kernel_context.ra = ra
     sd s0, 16(a0)     # me->kernel_context.s[0] = s0
@@ -46,7 +55,7 @@ switch_to:
     sd s10, 96(a0)    # me->kernel_context.s[10] = s10
     sd s11, 104(a0)   # me->kernel_context.s[11] = s11
 
-    # Switch page tables to next task's address space
+2:  # Switch page tables to next task's address space
     # IMPORTANT: Do this BEFORE restoring sp, because sp will point to next's stack
     # which is only valid in next's page table
     #
