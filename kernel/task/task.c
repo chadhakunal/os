@@ -367,7 +367,7 @@ uint64_t fork_off() {
 
   new_task->state = TASK_READY;
   list_append(&task_list, &new_task->task_list);
-  list_append(scheduler.active_list, &new_task->schedule_list);
+  list_append(scheduler.active_list, &new_task->scheduler_list);
 
   return new_task->pid;
 }
