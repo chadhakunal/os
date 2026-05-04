@@ -116,8 +116,10 @@ struct task_t *task_init() {
 
 // Idle loop - runs when no other tasks are ready
 void idle_loop(void) {
+  extern void enable_interrupts(void);
+  enable_interrupts();
+
   while (1) {
-    // Wait for interrupt - saves power and yields CPU
     asm volatile("wfi");
   }
 }
