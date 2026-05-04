@@ -57,8 +57,8 @@ void trap_handler(struct trap_frame *tf) {
 
         if (tf->sstatus & (1UL << 8)) {
           // Kernel mode timer interrupt
-          tf->sepc += 4;
-          printk("[trap] About to return from trap_handler, sepc now=%llx\n", tf->sepc);
+          // Don't increment sepc - timer interrupts are asynchronous
+          printk("[trap] About to return from trap_handler, sepc=%llx\n", tf->sepc);
           printk("[trap] Calling asm nop...\n");
           asm volatile("nop");
           printk("[trap] After nop, about to return\n");

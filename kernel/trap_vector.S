@@ -186,6 +186,17 @@ trap_from_kernel:
   ld a5, 112(sp)
   ld a6, 120(sp)
   ld a7, 128(sp)
+
+  # DEBUG: Print 'D' after restoring first batch of registers
+  # Save a7/a0 first since we need them
+  sd a7, 128(sp)
+  sd a0, 72(sp)
+  li a7, 1
+  li a0, 68
+  ecall
+  ld a7, 128(sp)
+  ld a0, 72(sp)
+
   ld s2, 136(sp)
   ld s3, 144(sp)
   ld s4, 152(sp)
@@ -201,8 +212,30 @@ trap_from_kernel:
   ld t5, 232(sp)
   ld t6, 240(sp)
 
+  # DEBUG: Print 'E' after restoring all registers
+  sd a7, 128(sp)
+  sd a0, 72(sp)
+  li a7, 1
+  li a0, 69
+  ecall
+  ld a7, 128(sp)
+  ld a0, 72(sp)
+
   # Restore kernel sp and return to kernel mode
   ld sp, 8(sp)
+
+  # DEBUG: Print 'F' after restoring sp - this is tricky since sp changed!
+  # We need to save sp temporarily
+  addi sp, sp, -16
+  sd a7, 0(sp)
+  sd a0, 8(sp)
+  li a7, 1
+  li a0, 70
+  ecall
+  ld a7, 0(sp)
+  ld a0, 8(sp)
+  addi sp, sp, 16
+
   sret
 
 # trap_return(trap_frame_t *tf)
