@@ -145,6 +145,15 @@ trap_from_kernel:
   mv a0, sp  # a0 = trap frame pointer (on kernel stack)
   call trap_handler
 
+  # Debug: trap_handler returned
+  # Save a0-a1 since we're about to call printk
+  sd a0, 72(sp)
+  sd a1, 80(sp)
+  la a0, kernel_trap_return_msg
+  call printk
+  ld a0, 72(sp)
+  ld a1, 80(sp)
+
   # If trap_handler returns, restore from stack and return to kernel
   # Restore CSRs
   ld t0, 248(sp)
@@ -253,3 +262,7 @@ trap_return:
   # (sscratch was already set earlier, before we restored general regs)
   ld sp, 8(sp)
   sret
+
+.section .rodata
+kernel_trap_return_msg:
+  .string "[trap_vector] Returning from kernel trap\n"
