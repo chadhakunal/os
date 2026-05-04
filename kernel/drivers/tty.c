@@ -80,6 +80,11 @@ void tty_receive(char *buffer, uint64_t size) {
       break;
     }
 
+    // Convert \r to \n for consistency
+    if (c == '\r') {
+      c = '\n';
+    }
+
     printk("%c", c);
 
     tty_driver.tty_line_buffer[tty_driver.tty_line_buffer_size++] = c;
