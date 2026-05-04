@@ -129,18 +129,9 @@ void idle_loop(void) {
          sstatus_check, (sstatus_check >> 1) & 1);
 
   while (1) {
-    printk("[idle_loop] About to execute wfi\n");
-    asm volatile("wfi");
-    asm volatile("nop");
-    asm volatile("nop");
-    asm volatile("nop");
-    printk("[idle_loop] Returned from wfi!!!\n");
-
-    // Check interrupt state after returning from wfi
-    uint64_t sstatus_after;
-    asm volatile("csrr %0, sstatus" : "=r"(sstatus_after));
-    printk("[idle_loop] After wfi: sstatus=%llx, SIE=%llu\n",
-           sstatus_after, (sstatus_after >> 1) & 1);
+    printk("[idle_loop] In idle loop iteration\n");
+    // Just spin instead of wfi for now
+    for (volatile int i = 0; i < 1000000; i++);
   }
 }
 
@@ -163,18 +154,9 @@ void create_idle_task(void) {
   // Allocate kernel stack
   allocate_kernel_stack(idle_task);
 
-  // Set up idle to run like a normal task:
-  // - kernel_context.ra points to fresh_task_jump (like normal tasks)
-  // - trap frame is initialized to "return" to idle_loop in supervisor mode
-  idle_task->kernel_context.ra = (uint64_t)fresh_task_jump;
-
-  // Initialize idle's trap frame to run idle_loop in supervisor mode
-  memset(&idle_task->tf, 0, sizeof(idle_task->tf));
-  idle_task->tf.sepc = (uint64_t)idle_loop;  // "Return" to idle_loop
-  idle_task->tf.sstatus = (1UL << 8) |  // SPP=1 (return to supervisor mode)
-                          (1UL << 5) |  // SPIE=1 (enable interrupts after sret)
-                          (2UL << 32);  // UXL=2 (64-bit mode)
-  idle_task->tf.sp = idle_task->kernel_context.sp;  // Use kernel stack as "user" stack
+  // Set return address to idle_loop (kernel function, NOT fresh_task_jump)
+  // When switch_to returns to idle, it will jump directly to idle_loop
+  idle_task->kernel_context.ra = (uint64_t)idle_loop;
 
   // Initialize wait/exit fields (idle never waits or exits)
   idle_task->exit_status = 0;
