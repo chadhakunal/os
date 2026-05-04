@@ -51,10 +51,15 @@ void trap_handler(struct trap_frame *tf) {
         trap_timer_handler(tf);
         extern void trap_return(struct trap_frame *tf);
 
+        printk("[trap] Timer interrupt: sstatus=%llx, SPP=%llu\n",
+               tf->sstatus, (tf->sstatus >> 8) & 1);
+
         if (tf->sstatus & (1UL << 8)) {
+          printk("[trap] Came from kernel mode, returning normally\n");
           return;
         }
 
+        printk("[trap] Came from user mode, calling trap_return\n");
         trap_return(&current_task->tf);
         break;
       case 9:
