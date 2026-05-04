@@ -98,22 +98,27 @@ bool has_expired() {
 }
 
 void schedule() {
-  // Handle special states that require immediate switch
+  extern struct task_t *idle_task;
+
+  if (current_task == idle_task) {
+    struct task_t *next_task = pick_next_task();
+    if (next_task == idle_task) {
+      return;
+    }
+    next_task->state = TASK_RUNNING;
+    set_current_task(next_task);
+    switch_to(idle_task, next_task);
+    return;
+  }
+
   if (current_task->state == TASK_BLOCKED || current_task->state == TASK_ZOMBIE) {
-    // Task is blocked or terminated, must switch away
     list_remove(&current_task->scheduler_list);
     if (current_task->state == TASK_BLOCKED) {
       list_append(scheduler.blocked_list, &current_task->scheduler_list);
     }
-    // ZOMBIE tasks don't go on any list - they're waiting to be reaped
   } else if (has_expired()) {
-    printk("About to move to expired\n");
-    // Task used up its timeslice, move to expired
     move_to_expired(current_task);
-    printk("Moved to expired\n");
   } else {
-    // Task still has time left and is not blocked/zombie
-    // Keep running it - no switch needed
     return;
   }
 

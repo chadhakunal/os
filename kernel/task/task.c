@@ -163,10 +163,12 @@ void create_idle_task(void) {
   idle_task->wait_reason = WAIT_NONE;
   idle_task->wait_pid = 0;
   idle_task->runtime = 0;
-  idle_task->max_runtime = 0;  // Idle never expires
+  idle_task->max_runtime = 0;
 
-  // Don't add to task_list - idle is not a schedulable task
-  // Don't add to scheduler lists - idle is the fallback, not scheduled normally
+  idle_task->scheduler_list.next = &idle_task->scheduler_list;
+  idle_task->scheduler_list.prev = &idle_task->scheduler_list;
+  idle_task->wait_list.next = &idle_task->wait_list;
+  idle_task->wait_list.prev = &idle_task->wait_list;
 }
 
 // Populates the init_task
