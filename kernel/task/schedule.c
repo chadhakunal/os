@@ -138,6 +138,12 @@ void schedule() {
     prev->state = TASK_READY;
   }
   next_task->state = TASK_RUNNING;
+
+  printk("[schedule] Switching from PID %llu (state=%d) to PID %llu (state=%d)\n",
+         prev->pid, prev->state, next_task->pid, next_task->state);
+  printk("[schedule] next_task kernel_context: sp=0x%llx ra=0x%llx\n",
+         next_task->kernel_context.sp, next_task->kernel_context.ra);
+
   set_current_task(next_task);
   switch_to(prev, next_task);
 
