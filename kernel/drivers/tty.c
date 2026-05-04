@@ -54,12 +54,17 @@ void tty_reset_buffer(void) {
 }
 
 void tty_receive(char *buffer, uint64_t size) {
+  printk("[TTY] tty_receive called with size=%llu, buffer_ready=%d\n",
+         size, tty_driver.buffer_ready);
+
   if (tty_driver.buffer_ready) {
+    printk("[TTY] Buffer already ready, ignoring input\n");
     return;
   }
 
   for (uint64_t i = 0; i < size; i++) {
     char c = buffer[i];
+    printk("[TTY] Received char: 0x%x ('%c')\n", c, c >= 32 && c < 127 ? c : '?');
 
     // Handle backspace
     if (c == '\b' || c == 127) {
