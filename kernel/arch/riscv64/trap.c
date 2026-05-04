@@ -48,6 +48,7 @@ void trap_handler(struct trap_frame *tf) {
         printk("Interrupt: Supervisor software interrupt\n");
         break;
       case 5:
+        printk("Timer interrupt time !\n");
         trap_timer_handler(tf);
         extern void trap_return(struct trap_frame *tf);
 
