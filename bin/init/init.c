@@ -6,7 +6,7 @@ int main() {
   pid_t pid = fork();
   if (pid == 0) {
     printf("Child! I'm killing myself!\n");
-    return;
+    return 0;
   } else {
     printf("Parent! I'm waiting for %llu\n", pid);
     int wstatus;
