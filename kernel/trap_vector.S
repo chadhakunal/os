@@ -145,14 +145,30 @@ trap_from_kernel:
   mv a0, sp  # a0 = trap frame pointer (on kernel stack)
   call trap_handler
 
+  # DEBUG: Print 'A' via SBI to show we returned
+  li a7, 1
+  li a0, 65
+  ecall
+
   # If trap_handler returns, restore from stack and return to kernel
   # Restore CSRs
   ld t0, 248(sp)
   csrw sepc, t0
+
+  # DEBUG: Print 'B' after restoring sepc
+  li a7, 1
+  li a0, 66
+  ecall
+
   ld t0, 256(sp)
   # Don't modify sstatus - sret will handle interrupt state correctly
   # (sret sets SIE ← SPIE automatically)
   csrw sstatus, t0
+
+  # DEBUG: Print 'C' after restoring sstatus
+  li a7, 1
+  li a0, 67
+  ecall
 
   # Restore all general purpose registers
   ld ra, 0(sp)
