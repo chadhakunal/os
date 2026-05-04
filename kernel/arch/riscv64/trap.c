@@ -27,18 +27,18 @@ void trap_handler(struct trap_frame *tf) {
     // printk("stval:   %llx\n", tf->stval);
     // printk("sstatus: %llx\n", tf->sstatus);
     if (is_interrupt) {
-      printk("\n=== TRAP ===\n");
-      printk("scause:  %llx\n", tf->scause);
-      printk("sepc:    %llx\n", tf->sepc);
-      printk("stval:   %llx\n", tf->stval);
-      printk("sstatus: %llx\n", tf->sstatus);
+      // printk("\n=== TRAP ===\n");
+      // printk("scause:  %llx\n", tf->scause);
+      // printk("sepc:    %llx\n", tf->sepc);
+      // printk("stval:   %llx\n", tf->stval);
+      // printk("sstatus: %llx\n", tf->sstatus);
     } else if (cause_code != 8) {
       // Print for non-syscall exceptions
-      printk("\n=== TRAP ===\n");
-      printk("scause:  %llx\n", tf->scause);
-      printk("sepc:    %llx\n", tf->sepc);
-      printk("stval:   %llx\n", tf->stval);
-      printk("sstatus: %llx\n", tf->sstatus);
+      // printk("\n=== TRAP ===\n");
+      // printk("scause:  %llx\n", tf->scause);
+      // printk("sepc:    %llx\n", tf->sepc);
+      // printk("stval:   %llx\n", tf->stval);
+      // printk("sstatus: %llx\n", tf->sstatus);
     }
   }
 
