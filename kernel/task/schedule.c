@@ -2,7 +2,6 @@
 #include "kernel/task/task.h"
 #include "lib/list.h"
 
-#define DEBUG 1
 #include "lib/printk/printk.h"
 
 struct scheduler_t scheduler;
