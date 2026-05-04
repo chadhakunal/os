@@ -12,6 +12,7 @@
 
 // Global task tracking
 struct task_t *current_task = NULL;  // Currently running task
+struct task_t *idle_task = NULL;     // Idle task (PID 0)
 struct task_t *init_task = NULL;     // First task (PID 1)
 struct list_node task_list;          // Global list of all tasks
 uint64_t latest_pid = 1;             // Start at 1 since init has PID 1
@@ -104,6 +105,39 @@ struct task_t *task_init() {
   return task;
 }
 
+// Idle loop - runs when no other tasks are ready
+void idle_loop(void) {
+  while (1) {
+    // Wait for interrupt - saves power and yields CPU
+    asm volatile("wfi");
+  }
+}
+
+// Create idle task (PID 0) - runs when nothing else can run
+void create_idle_task(void) {
+  idle_task = task_t_alloc();
+  idle_task->pid = 0;
+  idle_task->uid = 0;
+  idle_task->state = TASK_RUNNING;
+
+  // Initialize page table with kernel mappings copied from root
+  idle_task->mm_struct.root_satp = init_new_page_table();
+
+  // Initialize VMA list (empty - idle task has no user mappings)
+  idle_task->mm_struct.vma_list.next = &idle_task->mm_struct.vma_list;
+  idle_task->mm_struct.vma_list.prev = &idle_task->mm_struct.vma_list;
+
+  // Allocate kernel stack
+  allocate_kernel_stack(idle_task);
+
+  // Set return address to idle_loop (kernel function, NOT fresh_task_jump)
+  // When switch_to returns to idle, it will jump directly to idle_loop
+  idle_task->kernel_context.ra = (uint64_t)idle_loop;
+
+  // Don't add to task_list - idle is not a schedulable task
+  // Don't add to scheduler lists - idle is the fallback, not scheduled normally
+}
+
 // Populates the init_task
 void create_init_process() {
   init_task_system();  // Initialize task_list with virtual addresses
@@ -116,9 +150,10 @@ void create_init_process() {
   init_task->state = TASK_RUNNING;
 }
 
+// Deprecated, used for testing
 void create_second_task() {
   struct task_t *task2 = task_init();
-  task2->pid = 1;  // Different PID from init (which is 0)
+  task2->pid = 2;  // Different PID from init (which is 0)
   load_elf(task2, "/bin/init2");
   list_append(&task_list, &task2->task_list);
   // State is already TASK_READY from task_init()

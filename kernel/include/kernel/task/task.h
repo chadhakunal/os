@@ -9,7 +9,8 @@
 
 // Global task tracking (defined in task.c)
 extern struct task_t *current_task;  // Currently running task
-extern struct task_t *init_task;     // First task (PID 0 or 1)
+extern struct task_t *idle_task;     // Idle task (PID 0)
+extern struct task_t *init_task;     // First task (PID 1)
 extern struct list_node task_list;   // Global list of all tasks
 
 // VMA flags
@@ -64,10 +65,13 @@ struct task_t {
   uint64_t pid;
   uint32_t uid;
   struct mm_struct_t mm_struct;
-  struct list_node task_list;
+  struct list_node task_list; // Global task list
   struct files_table_t file_table;
   enum task_state state;
   uint64_t ppid;
+  struct list_node scheduler_list; // A task will either be apart of the active, expired or blocked list
+  uint64_t runtime; // The total runtime for the task
+  uint64_t max_runtime; // max runtime a task can run before being moved to expired
 };
 
 DEFINE_POOL(task_t, struct task_t)
@@ -75,6 +79,8 @@ DEFINE_POOL(vma_t, struct vma_t)
 DEFINE_POOL(files_list_t, struct files_list_t)
 DEFINE_POOL(files_table_t, struct files_table_t)
 
+
+void create_idle_task();
 
 void create_init_process();
 

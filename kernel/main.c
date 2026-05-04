@@ -92,8 +92,11 @@ void kmain(void *dtb_ptr) {
   // enable_interrupts();
   // uart_enable_interrupts();
 
+  create_idle_task();
+  printk("Created idle task (PID 0)\n");
+
   create_init_process();
-  printk("Created init process from /bin/init\n");
+  printk("Created init process from /bin/init (PID 1)\n");
 
   asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
   switch_to_page_table(current_task);

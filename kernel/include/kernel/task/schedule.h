@@ -3,9 +3,11 @@
 
 #include "types.h"
 #include "lib/list.h"
+#include "kernel/task/task.h"
+
+#define MAX_RUNTIME TIMER_INTERVAL_CYCLES*10
 
 struct scheduler_t {
-  uint64_t quanta;
   struct list_node *active_list;
   struct list_node *expired_list;
   struct list_node *blocked_list;

@@ -49,8 +49,9 @@ void trap_handler(struct trap_frame *tf) {
         break;
       case 5:
         trap_timer_handler(tf);
+        // schedule() may have switched tasks, so use current_task's trap frame
         extern void trap_return(struct trap_frame *tf);
-        trap_return(tf);
+        trap_return(&current_task->tf);
         break;
       case 9:
         printk("Interrupt: Supervisor external interrupt (UART)\n");
@@ -84,16 +85,16 @@ void trap_handler(struct trap_frame *tf) {
   }
 
   // For syscalls, schedule and return to user mode
-  if (!is_interrupt && cause_code == 8) {
-    static int syscall_count = 0;
-    syscall_count++;
-
-    schedule();
-    // schedule() returns here (possibly as a different task)
-    // Return to user space
-    extern void trap_return(struct trap_frame *tf);
-    trap_return(&current_task->tf);
-  }
+  // if (!is_interrupt && cause_code == 8) {
+  //   static int syscall_count = 0;
+  //   syscall_count++;
+  //
+  //   schedule();
+  //   // schedule() returns here (possibly as a different task)
+  //   // Return to user space
+  //   extern void trap_return(struct trap_frame *tf);
+  //   trap_return(&current_task->tf);
+  // }
 
   // For all other traps, print registers and panic
   // printk("current_task = %p, pid = %llu\n", current_task, current_task->pid);
