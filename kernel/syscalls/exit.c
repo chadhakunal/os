@@ -32,4 +32,5 @@ DEFINE_SYSCALL1(exit, int, status)
 
   // Should never reach here
   panic("exit: returned from schedule()!");
+  return 0;
 }
