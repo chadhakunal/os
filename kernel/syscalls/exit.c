@@ -8,7 +8,7 @@
 
 DEFINE_SYSCALL1(exit, int, status)
 {
-  printk("exit: PID %llu exiting with status %d\n", current_task->pid, status);
+  debugk("exit: PID %llu exiting with status %d\n", current_task->pid, status);
 
   current_task->exit_status = status;
 
@@ -23,7 +23,7 @@ DEFINE_SYSCALL1(exit, int, status)
   if (parent && parent->state == TASK_BLOCKED && parent->wait_reason == WAIT_CHILD) {
     // Check if parent is waiting for us specifically or any child
     if (parent->wait_pid == -1 || parent->wait_pid == (int64_t)current_task->pid) {
-      printk("exit: Waking parent PID %llu\n", parent->pid);
+      debugk("exit: Waking parent PID %llu\n", parent->pid);
       unblock_task(parent);
     }
   }

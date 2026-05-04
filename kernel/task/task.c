@@ -153,12 +153,6 @@ void create_idle_task(void) {
   // When switch_to returns to idle, it will jump directly to idle_loop
   idle_task->kernel_context.ra = (uint64_t)idle_loop;
 
-  printk("[idle_task] Created idle task:\n");
-  printk("  kernel_context.sp = 0x%llx\n", idle_task->kernel_context.sp);
-  printk("  kernel_context.ra = 0x%llx (idle_loop = 0x%llx)\n",
-         idle_task->kernel_context.ra, (uint64_t)idle_loop);
-  printk("  kernel_context.stack_start = 0x%llx\n", idle_task->kernel_context.stack_start);
-
   // Initialize wait/exit fields (idle never waits or exits)
   idle_task->exit_status = 0;
   idle_task->wait_reason = WAIT_NONE;
@@ -414,7 +408,7 @@ struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid) {
 
 // Reap zombie task - free all resources
 void reap_zombie(struct task_t *zombie) {
-  printk("Reaping zombie task PID %llu\n", zombie->pid);
+  debugk("Reaping zombie task PID %llu\n", zombie->pid);
 
   // Remove from global task list
   list_remove(&zombie->task_list);

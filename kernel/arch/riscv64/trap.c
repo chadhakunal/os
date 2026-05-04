@@ -87,8 +87,7 @@ void trap_handler(struct trap_frame *tf) {
       case 6:  printk("Store address misaligned\n"); break;
       case 7:  printk("Store access fault\n"); break;
       case 8:
-        // printk("Environment call from U-mode\n");
-        printk("Syscall from %llu\n", current_task->pid);
+        debugk("Syscall from %llu\n", current_task->pid);
         handle_syscall(tf);
 
         extern void trap_return(struct trap_frame *tf);
