@@ -153,6 +153,12 @@ void create_idle_task(void) {
   // When switch_to returns to idle, it will jump directly to idle_loop
   idle_task->kernel_context.ra = (uint64_t)idle_loop;
 
+  printk("[idle_task] Created idle task:\n");
+  printk("  kernel_context.sp = 0x%llx\n", idle_task->kernel_context.sp);
+  printk("  kernel_context.ra = 0x%llx (idle_loop = 0x%llx)\n",
+         idle_task->kernel_context.ra, (uint64_t)idle_loop);
+  printk("  kernel_context.stack_start = 0x%llx\n", idle_task->kernel_context.stack_start);
+
   // Initialize wait/exit fields (idle never waits or exits)
   idle_task->exit_status = 0;
   idle_task->wait_reason = WAIT_NONE;
