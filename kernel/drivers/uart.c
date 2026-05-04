@@ -168,7 +168,15 @@ int uart_getc(char *buffer, int max_len) {
 }
 
 void handle_uart_interrupt() {
+  #define PLIC_BASE       0x0c000000UL
+  #define PLIC_S_CLAIM    (PLIC_BASE + 0x201004)
+
+  volatile uint32_t *plic_claim = (volatile uint32_t *)MMIO_PHYS_TO_VIRT(PLIC_S_CLAIM);
+  uint32_t irq = *plic_claim;
+
   char buff[16];
   uint64_t size = uart_getc(buff, 16);
   tty_receive(buff, size);
+
+  *plic_claim = irq;
 }
