@@ -1,6 +1,8 @@
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "types.h"
+#include "kernel/task/task.h"
+#include "kernel/filesystem/vfs/vfs.h"
 
 DEFINE_SYSCALL3(read, int, fd, const void *, buf, size_t, count) {
   if (fd < 0 || fd >= 32) {
