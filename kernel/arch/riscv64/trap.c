@@ -61,7 +61,15 @@ void trap_handler(struct trap_frame *tf) {
         trap_return(&current_task->tf);
         break;
       case 9:
-        printk("Interrupt: Supervisor external interrupt (UART)\n");
+        // Supervisor external interrupt (UART)
+        extern void handle_uart_interrupt(void);
+        handle_uart_interrupt();
+
+        if (tf->sstatus & (1UL << 8)) {
+          return;
+        }
+
+        trap_return(&current_task->tf);
         break;
       default:
         printk("Interrupt: Unknown interrupt: %llu\n", cause_code);
