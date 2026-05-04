@@ -49,8 +49,12 @@ void trap_handler(struct trap_frame *tf) {
         break;
       case 5:
         trap_timer_handler(tf);
-        // schedule() may have switched tasks, so use current_task's trap frame
         extern void trap_return(struct trap_frame *tf);
+
+        if (tf->sstatus & (1UL << 8)) {
+          return;
+        }
+
         trap_return(&current_task->tf);
         break;
       case 9:
