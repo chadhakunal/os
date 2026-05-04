@@ -118,6 +118,10 @@ struct task_t *task_init() {
 void idle_loop(void) {
   extern void enable_interrupts(void);
 
+  // CRITICAL: Idle runs in kernel mode, so sscratch must be 0
+  // switch_to sets sscratch to kernel stack, but we need it to be 0
+  asm volatile("csrw sscratch, zero");
+
   printk("[idle_loop] Starting idle loop\n");
   printk("[idle_loop] About to enable interrupts\n");
   enable_interrupts();
