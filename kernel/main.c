@@ -90,9 +90,6 @@ void kmain(void *dtb_ptr) {
   // char hello[32] = "Hello World!\n";
   // vfs_write(tty, 0, hello, 32);
 
-  // enable_interrupts();
-  // uart_enable_interrupts();
-
   create_idle_task();
   printk("Created idle task (PID 0)\n");
 
@@ -109,8 +106,8 @@ void kmain(void *dtb_ptr) {
 
   init_scheduler();
 
-  // uart_enable_interrupts();
-  // printk("Enabled uart interrupts\n");
+  uart_enable_interrupts();
+  printk("Enabled uart interrupts\n");
 
   enable_interrupts();
   printk("Enabled Interrupts\n");

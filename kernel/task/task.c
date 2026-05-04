@@ -451,3 +451,17 @@ uint64_t fork_off() {
 
   return new_task->pid;
 }
+
+struct file_t *find_file(struct file_table_t *file_table, int fd) {
+  struct file_t *file = NULL;
+  list_for_each(&file_table->files_list, pos) {
+    struct files_list_t *files_list = container_of(pos, struct files_list_t, files_list);
+
+    // Check if this fd is marked as used in the bitmap
+    if (files_list->used_file_bitmap & (1 << fd)) {
+      file = files_list->files[fd];
+      break;
+    }
+  }
+  return file;
+}

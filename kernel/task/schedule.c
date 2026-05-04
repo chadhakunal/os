@@ -42,7 +42,7 @@ void swap_expired_active() {
 
 void unblock_task(struct task_t *task) {
   if (task->state != TASK_BLOCKED) {
-    return;  // Not blocked, nothing to do
+    return;
   }
 
   debugk("Unblocking task PID %llu\n", task->pid);
@@ -50,11 +50,27 @@ void unblock_task(struct task_t *task) {
   task->state = TASK_READY;
   task->wait_reason = WAIT_NONE;
   task->wait_pid = 0;
-  task->runtime = 0;  // Reset runtime - give fresh timeslice
+  task->runtime = 0;
 
-  // Move from blocked_list to expired_list (fair - doesn't jump queue)
   list_remove(&task->scheduler_list);
   list_append(scheduler.expired_list, &task->scheduler_list);
+}
+
+void wake_up(struct list_node *wait_queue) {
+  if (list_is_empty(wait_queue)) {
+    return;
+  }
+
+  struct list_node *current = wait_queue->next;
+  while (current != wait_queue) {
+    struct task_t *task = container_of(current, struct task_t, wait_list);
+    struct list_node *next = current->next;
+
+    list_remove(&task->wait_list);
+    unblock_task(task);
+
+    current = next;
+  }
 }
 
 struct task_t *pick_next_task() {

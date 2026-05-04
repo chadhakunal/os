@@ -7,32 +7,19 @@
 
 DEFINE_SYSCALL3(write, int, fd, const void *, buf, size_t, count)
 {
-  // Validate fd range
   if (fd < 0 || fd >= 32) {
-    return -1;  // EBADF
+    return -1;
   }
 
-  // Look up file descriptor in current task's file table
-  struct file_t *file = NULL;
-  list_for_each(&current_task->file_table.files_list, pos) {
-    struct files_list_t *files_list = container_of(pos, struct files_list_t, files_list);
-
-    // Check if this fd is marked as used in the bitmap
-    if (files_list->used_file_bitmap & (1 << fd)) {
-      file = files_list->files[fd];
-      break;
-    }
-  }
+  struct file_t *file = find_file(&current_task->file_table, fd);
 
   if (file == NULL) {
-    return -1;  // EBADF - file descriptor not open
+    return -1;
   }
 
-  // Perform the write via VFS
   int64_t bytes_written = vfs_write(file, file->offset, (void *)buf, count);
 
   if (bytes_written > 0) {
-    // Update file offset
     file->offset += bytes_written;
   }
 

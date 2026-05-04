@@ -79,11 +79,11 @@ struct task_t {
   uint64_t runtime; // The total runtime for the task
   uint64_t max_runtime; // max runtime a task can run before being moved to expired
 
-  // Process group and exit/wait fields
-  uint64_t pgid;  // Process group ID
-  int exit_status;  // Exit status saved when task becomes zombie
-  enum wait_reason wait_reason;  // What this task is waiting for
-  int64_t wait_pid;  // For waitpid: which PID we're waiting for (-1 = any)
+  uint64_t pgid;
+  int exit_status;
+  enum wait_reason wait_reason;
+  int64_t wait_pid;
+  struct list_node wait_list;
 };
 
 DEFINE_POOL(task_t, struct task_t)
@@ -122,5 +122,7 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
                         size_t size, uint64_t vm_flags, bool eager);
 
 void switch_to(struct task_t *me, struct task_t *next);
+
+struct file_t *find_file(struct file_table_t *file_table, int fd);
 
 #endif
