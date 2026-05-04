@@ -6,13 +6,13 @@
 
 int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   if (!tty_driver.buffer_ready) {
-    printk("[TTY] PID %llu blocking on read, buffer_ready=%d\n",
+    debugk("[TTY] PID %llu blocking on read, buffer_ready=%d\n",
            current_task->pid, tty_driver.buffer_ready);
     list_append(&tty_driver.wait_queue, &current_task->wait_list);
     current_task->state = TASK_BLOCKED;
     current_task->wait_reason = WAIT_IO;
     schedule();
-    printk("[TTY] PID %llu woke up from read, buffer_ready=%d\n",
+    debugk("[TTY] PID %llu woke up from read, buffer_ready=%d\n",
            current_task->pid, tty_driver.buffer_ready);
   }
 
@@ -23,7 +23,7 @@ int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 
   int64_t bytes_read = tty_driver.tty_line_buffer_size;
 
-  printk("[TTY] PID %llu read %lld bytes\n", current_task->pid, bytes_read);
+  debugk("[TTY] PID %llu read %lld bytes\n", current_task->pid, bytes_read);
 
   tty_reset_buffer();
 
@@ -54,17 +54,17 @@ void tty_reset_buffer(void) {
 }
 
 void tty_receive(char *buffer, uint64_t size) {
-  printk("[TTY] tty_receive called with size=%llu, buffer_ready=%d\n",
+  debugk("[TTY] tty_receive called with size=%llu, buffer_ready=%d\n",
          size, tty_driver.buffer_ready);
 
   if (tty_driver.buffer_ready) {
-    printk("[TTY] Buffer already ready, ignoring input\n");
+    debugk("[TTY] Buffer already ready, ignoring input\n");
     return;
   }
 
   for (uint64_t i = 0; i < size; i++) {
     char c = buffer[i];
-    printk("[TTY] Received char: 0x%x ('%c')\n", c, c >= 32 && c < 127 ? c : '?');
+    debugk("[TTY] Received char: 0x%x ('%c')\n", c, c >= 32 && c < 127 ? c : '?');
 
     // Handle backspace
     if (c == '\b' || c == 127) {
@@ -96,7 +96,7 @@ void tty_receive(char *buffer, uint64_t size) {
   }
 
   if (tty_driver.buffer_ready) {
-    printk("[TTY] Buffer ready, waking up readers\n");
+    debugk("[TTY] Buffer ready, waking up readers\n");
     wake_up(&tty_driver.wait_queue);
   }
 }
