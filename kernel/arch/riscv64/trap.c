@@ -75,6 +75,9 @@ void trap_handler(struct trap_frame *tf) {
         // printk("Environment call from U-mode\n");
         printk("Syscall from %llu\n", current_task->pid);
         handle_syscall(tf);
+
+        extern void trap_return(struct trap_frame *tf);
+        trap_return(&current_task->tf);
         break;
       case 9:  printk("Environment call from S-mode\n"); break;
       case 12: printk("Instruction page fault\n"); break;
