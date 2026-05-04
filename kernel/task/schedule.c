@@ -1,6 +1,8 @@
 #include "kernel/task/schedule.h"
 #include "kernel/task/task.h"
 #include "lib/list.h"
+
+#define DEBUG 0
 #include "lib/printk/printk.h"
 
 struct scheduler_t scheduler;
@@ -20,6 +22,8 @@ void init_scheduler() {
 
   // Add init task to active list
   list_append(scheduler.active_list, &current_task->scheduler_list);
+
+  debugk("Scheduler initialized, added task PID %llu to active list\n", current_task->pid);
 }
 
 void move_to_expired(struct task_t *task) {
