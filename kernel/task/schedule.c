@@ -27,6 +27,7 @@ void init_scheduler() {
 }
 
 void move_to_expired(struct task_t *task) {
+
   debugk("Moving task PID %llu to expired list (runtime=%llu/%llu)\n",
          task->pid, task->runtime, task->max_runtime);
   list_remove(&task->scheduler_list);
@@ -108,6 +109,7 @@ void schedule() {
     printk("About to move to expired\n");
     // Task used up its timeslice, move to expired
     move_to_expired(current_task);
+    printk("Moved to expired\n");
   } else {
     // Task still has time left and is not blocked/zombie
     // Keep running it - no switch needed
