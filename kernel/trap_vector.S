@@ -145,30 +145,12 @@ trap_from_kernel:
   mv a0, sp  # a0 = trap frame pointer (on kernel stack)
   call trap_handler
 
-  # DEBUG: Print 'A' via SBI to show we returned
-  li a7, 1
-  li a0, 65
-  ecall
-
   # If trap_handler returns, restore from stack and return to kernel
   # Restore CSRs
   ld t0, 248(sp)
   csrw sepc, t0
-
-  # DEBUG: Print 'B' after restoring sepc
-  li a7, 1
-  li a0, 66
-  ecall
-
   ld t0, 256(sp)
-  # Don't modify sstatus - sret will handle interrupt state correctly
-  # (sret sets SIE ← SPIE automatically)
   csrw sstatus, t0
-
-  # DEBUG: Print 'C' after restoring sstatus
-  li a7, 1
-  li a0, 67
-  ecall
 
   # Restore all general purpose registers
   ld ra, 0(sp)
@@ -186,17 +168,6 @@ trap_from_kernel:
   ld a5, 112(sp)
   ld a6, 120(sp)
   ld a7, 128(sp)
-
-  # DEBUG: Print 'D' after restoring first batch of registers
-  # Save a7/a0 first since we need them
-  sd a7, 128(sp)
-  sd a0, 72(sp)
-  li a7, 1
-  li a0, 68
-  ecall
-  ld a7, 128(sp)
-  ld a0, 72(sp)
-
   ld s2, 136(sp)
   ld s3, 144(sp)
   ld s4, 152(sp)
@@ -212,29 +183,8 @@ trap_from_kernel:
   ld t5, 232(sp)
   ld t6, 240(sp)
 
-  # DEBUG: Print 'E' after restoring all registers
-  sd a7, 128(sp)
-  sd a0, 72(sp)
-  li a7, 1
-  li a0, 69
-  ecall
-  ld a7, 128(sp)
-  ld a0, 72(sp)
-
   # Restore kernel sp and return to kernel mode
   ld sp, 8(sp)
-
-  # DEBUG: Print 'F' after restoring sp - this is tricky since sp changed!
-  # We need to save sp temporarily
-  addi sp, sp, -16
-  sd a7, 0(sp)
-  sd a0, 8(sp)
-  li a7, 1
-  li a0, 70
-  ecall
-  ld a7, 0(sp)
-  ld a0, 8(sp)
-  addi sp, sp, 16
 
   sret
 
