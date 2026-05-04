@@ -56,9 +56,14 @@ void trap_handler(struct trap_frame *tf) {
                tf->sstatus, (tf->sstatus >> 8) & 1);
 
         if (tf->sstatus & (1UL << 8)) {
-          // WFI returns to itself when interrupted, so increment sepc to continue
+          // Kernel mode timer interrupt
           tf->sepc += 4;
+          printk("[trap] About to return from trap_handler, sepc now=%llx\n", tf->sepc);
+          printk("[trap] Calling asm nop...\n");
+          asm volatile("nop");
+          printk("[trap] After nop, about to return\n");
           return;
+          printk("[trap] THIS SHOULD NEVER PRINT\n");
         }
 
         printk("[trap] Came from user mode, calling trap_return\n");
