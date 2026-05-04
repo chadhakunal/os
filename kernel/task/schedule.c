@@ -79,7 +79,6 @@ struct task_t *pick_next_task() {
   if (list_is_empty(scheduler.active_list) && list_is_empty(scheduler.expired_list)) {
     // All tasks are blocked!
     // Lets run the idle task
-    printk("switching to idle task!\n");
     return idle_task;
   }
 

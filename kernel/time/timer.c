@@ -16,6 +16,5 @@ void timer_handler(uint64_t hardware_clock_ticks) {
 
   // Now handle scheduling with the updated os_ticks
   current_task->runtime += TIMER_INTERVAL_CYCLES;
-  printk("About to schedule!\n");
   schedule();
 }
