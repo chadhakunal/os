@@ -2,7 +2,7 @@
 #include "kernel/task/task.h"
 #include "lib/list.h"
 
-#define DEBUG 0
+#define DEBUG 1
 #include "lib/printk/printk.h"
 
 struct scheduler_t scheduler;
@@ -32,7 +32,6 @@ void move_to_expired(struct task_t *task) {
          task->pid, task->runtime, task->max_runtime);
   list_remove(&task->scheduler_list);
   list_append(scheduler.expired_list, &task->scheduler_list);
-  printk("removed from active and put on expired\n");
   task->runtime = 0;
 }
 
