@@ -85,6 +85,9 @@ trap_from_kernel:
   csrrw sp, sscratch, sp
   # Now: sp = kernel stack (restored), sscratch = 0
 
+  # Save t0 to sscratch FIRST before using it as scratch
+  csrw sscratch, t0
+
   # Save trap frame on kernel stack (NOT in task struct)
   # We need 288 bytes for the trap frame
   addi sp, sp, -288
@@ -96,7 +99,6 @@ trap_from_kernel:
   sd t0, 8(sp)
   sd gp, 16(sp)
   # Don't save tp - it always points to current_task
-  sd t0, 32(sp)    # Will save actual t0 value below
   sd t1, 40(sp)
   sd t2, 48(sp)
   sd s0, 56(sp)
