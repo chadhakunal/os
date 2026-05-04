@@ -452,7 +452,7 @@ uint64_t fork_off() {
   return new_task->pid;
 }
 
-struct file_t *find_file(struct file_table_t *file_table, int fd) {
+struct file_t *find_file(struct files_table_t *file_table, int fd) {
   struct file_t *file = NULL;
   list_for_each(&file_table->files_list, pos) {
     struct files_list_t *files_list = container_of(pos, struct files_list_t, files_list);

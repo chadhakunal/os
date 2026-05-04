@@ -123,6 +123,6 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
 
 void switch_to(struct task_t *me, struct task_t *next);
 
-struct file_t *find_file(struct file_table_t *file_table, int fd);
+struct file_t *find_file(struct files_table_t *file_table, int fd);
 
 #endif
