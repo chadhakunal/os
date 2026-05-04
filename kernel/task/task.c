@@ -122,20 +122,11 @@ void idle_loop(void) {
   // switch_to sets sscratch to kernel stack, but we need it to be 0
   asm volatile("csrw sscratch, zero");
 
-  printk("[idle_loop] Starting idle loop\n");
-  printk("[idle_loop] About to enable interrupts\n");
   enable_interrupts();
-  printk("[idle_loop] Interrupts enabled, entering wfi loop\n");
-
-  uint64_t sstatus_check;
-  asm volatile("csrr %0, sstatus" : "=r"(sstatus_check));
-  printk("[idle_loop] sstatus before wfi: %llx, SIE=%llu\n",
-         sstatus_check, (sstatus_check >> 1) & 1);
 
   while (1) {
-    printk("[idle_loop] In idle loop iteration\n");
-    // Just spin instead of wfi for now
-    for (volatile int i = 0; i < 1000000; i++);
+    // Wait for interrupt
+    asm volatile("wfi");
   }
 }
 

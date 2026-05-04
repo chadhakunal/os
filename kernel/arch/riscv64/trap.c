@@ -48,32 +48,16 @@ void trap_handler(struct trap_frame *tf) {
         printk("Interrupt: Supervisor software interrupt\n");
         break;
       case 5:
-        printk("Timer interrupt time !\n");
+        // Timer interrupt
         trap_timer_handler(tf);
         extern void trap_return(struct trap_frame *tf);
 
-        printk("[trap] Timer interrupt: sstatus=%llx, SPP=%llu\n",
-               tf->sstatus, (tf->sstatus >> 8) & 1);
-
         if (tf->sstatus & (1UL << 8)) {
-          // Kernel mode timer interrupt
-          // Don't increment sepc - timer interrupts are asynchronous
-          printk("[trap] Kernel mode timer interrupt - trap frame:\n");
-          printk("  sepc:    %llx\n", tf->sepc);
-          printk("  sstatus: %llx\n", tf->sstatus);
-          printk("  ra:      %llx\n", tf->ra);
-          printk("  sp:      %llx\n", tf->sp);
-          printk("  gp:      %llx\n", tf->gp);
-          printk("  tp:      %llx\n", tf->tp);
-          printk("  t0:      %llx\n", tf->t0);
-          printk("  s0:      %llx\n", tf->s0);
-          printk("  a0-a7:   %llx %llx %llx %llx %llx %llx %llx %llx\n",
-                 tf->a0, tf->a1, tf->a2, tf->a3, tf->a4, tf->a5, tf->a6, tf->a7);
-          printk("[trap] About to return from trap_handler\n");
+          // Kernel mode timer interrupt - just return to assembly restore code
           return;
         }
 
-        printk("[trap] Came from user mode, calling trap_return\n");
+        // User mode timer interrupt - restore user context and return
         trap_return(&current_task->tf);
         break;
       case 9:
