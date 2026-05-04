@@ -58,10 +58,9 @@ void trap_handler(struct trap_frame *tf) {
         if (tf->sstatus & (1UL << 8)) {
           printk("[trap] Came from kernel mode, about to return\n");
           printk("[trap] sepc=%llx, returning now...\n", tf->sepc);
-          printk("[trap] About to return from C function...\n");
-          // Force a nop to ensure we're actually executing
-          asm volatile("nop");
-          printk("[trap] Executed nop, now returning...\n");
+          // WFI returns to itself when interrupted, so increment sepc to continue
+          tf->sepc += 4;
+          printk("[trap] Incremented sepc to %llx\n", tf->sepc);
           return;
         }
 
