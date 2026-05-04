@@ -123,8 +123,15 @@ void idle_loop(void) {
   enable_interrupts();
   printk("[idle_loop] Interrupts enabled, entering wfi loop\n");
 
+  uint64_t sstatus_check;
+  asm volatile("csrr %0, sstatus" : "=r"(sstatus_check));
+  printk("[idle_loop] sstatus before wfi: %llx, SIE=%llu\n",
+         sstatus_check, (sstatus_check >> 1) & 1);
+
   while (1) {
+    printk("[idle_loop] About to execute wfi\n");
     asm volatile("wfi");
+    printk("[idle_loop] Returned from wfi\n");
   }
 }
 
