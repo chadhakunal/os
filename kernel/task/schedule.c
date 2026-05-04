@@ -110,8 +110,7 @@ void schedule() {
     set_current_task(next_task);
     switch_to(idle_task, next_task);
     // After switch_to, we're now running as next_task
-    // sscratch is already set correctly by switch_to for user-mode tasks
-    // We need to jump to user mode
+    // Jump to user mode
     trap_return(&current_task->tf);
   }
 
@@ -141,15 +140,7 @@ void schedule() {
   }
   next_task->state = TASK_RUNNING;
   set_current_task(next_task);
-  // Page table switch happens inside switch_to, after saving prev's context
   switch_to(prev, next_task);
-
-  // After switch_to returns, we're now running as next_task
-  // If next_task is idle (kernel-mode task), fix sscratch to 0
-  // Idle task runs in kernel mode, so sscratch must be 0 for proper trap handling
-  if (next_task == idle_task) {
-    asm volatile("csrw sscratch, zero");
-  }
 
   // When we return here, we've been rescheduled
   // Just return to caller (either trap_handler or kernel code)
