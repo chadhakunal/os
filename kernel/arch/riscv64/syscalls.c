@@ -67,8 +67,8 @@ void handle_syscall(struct trap_frame *tf) {
 
     case SYS_exit:
       printk("syscall: exit(status=%lld)\n", (int64_t)tf->a0);
-      // TODO: terminate process
-      tf->a0 = 0;
+      tf->sepc += 4;
+      sys_exit(tf);  // Never returns
       break;
 
     case SYS_execve:
@@ -76,9 +76,11 @@ void handle_syscall(struct trap_frame *tf) {
       tf->a0 = -1; // TODO: implement
       break;
 
-    case SYS_wait4:
-      printk("syscall: wait4(pid=%lld, wstatus=%llx, options=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2);
-      tf->a0 = -1; // TODO: implement
+    case SYS_waitpid:
+      printk("syscall: waitpid(pid=%lld, wstatus=%llx, options=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2);
+      tf->sepc += 4;
+      ret = sys_waitpid(tf);
+      tf->a0 = ret;
       break;
 
     case SYS_getpid:

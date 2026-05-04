@@ -27,6 +27,12 @@ enum task_state {
   TASK_TERMINATED
 };
 
+enum wait_reason {
+  WAIT_NONE,
+  WAIT_CHILD,
+  WAIT_IO,
+};
+
 struct vma_t {
   size_t start_addr; // Virtual address Start
   size_t end_addr; // Virtual address end (can span multiple pages)
@@ -72,6 +78,12 @@ struct task_t {
   struct list_node scheduler_list; // A task will either be apart of the active, expired or blocked list
   uint64_t runtime; // The total runtime for the task
   uint64_t max_runtime; // max runtime a task can run before being moved to expired
+
+  // Process group and exit/wait fields
+  uint64_t pgid;  // Process group ID
+  int exit_status;  // Exit status saved when task becomes zombie
+  enum wait_reason wait_reason;  // What this task is waiting for
+  int64_t wait_pid;  // For waitpid: which PID we're waiting for (-1 = any)
 };
 
 DEFINE_POOL(task_t, struct task_t)
@@ -87,6 +99,12 @@ void create_init_process();
 void create_second_task();
 
 uint64_t fork_off();
+
+/* Helper functions for wait/exit */
+struct task_t *find_task_by_pid(uint64_t pid);
+bool has_alive_children(struct task_t *parent, int64_t specific_pid);
+struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid);
+void reap_zombie(struct task_t *zombie);
 
 /* Set the current task and update tp register */
 void set_current_task(struct task_t *task);

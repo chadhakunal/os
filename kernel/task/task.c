@@ -82,6 +82,8 @@ void allocate_kernel_stack(struct task_t *task) {
 struct task_t *task_init() {
   struct task_t *task = task_t_alloc();
   task->pid = 1;
+  task->ppid = 0;  // Init's parent is kernel (PID 0 / idle)
+  task->pgid = 1;  // Init is its own process group leader
   task->uid = 0;
   task->state = TASK_READY;
 
@@ -102,6 +104,13 @@ struct task_t *task_init() {
   // This makes new tasks jump to fresh_task_jump() on first schedule
   task->kernel_context.ra = (uint64_t)fresh_task_jump;
 
+  // Initialize wait/exit fields
+  task->exit_status = 0;
+  task->wait_reason = WAIT_NONE;
+  task->wait_pid = 0;
+  task->runtime = 0;
+  task->max_runtime = MAX_RUNTIME;
+
   return task;
 }
 
@@ -117,6 +126,8 @@ void idle_loop(void) {
 void create_idle_task(void) {
   idle_task = task_t_alloc();
   idle_task->pid = 0;
+  idle_task->ppid = 0;  // Idle has no parent
+  idle_task->pgid = 0;  // Idle is its own process group
   idle_task->uid = 0;
   idle_task->state = TASK_RUNNING;
 
@@ -133,6 +144,13 @@ void create_idle_task(void) {
   // Set return address to idle_loop (kernel function, NOT fresh_task_jump)
   // When switch_to returns to idle, it will jump directly to idle_loop
   idle_task->kernel_context.ra = (uint64_t)idle_loop;
+
+  // Initialize wait/exit fields (idle never waits or exits)
+  idle_task->exit_status = 0;
+  idle_task->wait_reason = WAIT_NONE;
+  idle_task->wait_pid = 0;
+  idle_task->runtime = 0;
+  idle_task->max_runtime = 0;  // Idle never expires
 
   // Don't add to task_list - idle is not a schedulable task
   // Don't add to scheduler lists - idle is the fallback, not scheduled normally
@@ -339,12 +357,66 @@ void copy_file_table(struct files_table_t *old_table, struct files_table_t *new_
   }
 }
 
+// Find task by PID
+struct task_t *find_task_by_pid(uint64_t pid) {
+  list_for_each(&task_list, pos) {
+    struct task_t *task = container_of(pos, struct task_t, task_list);
+    if (task->pid == pid) {
+      return task;
+    }
+  }
+  return NULL;
+}
+
+// Check if task has alive children (not zombies)
+bool has_alive_children(struct task_t *parent, int64_t specific_pid) {
+  list_for_each(&task_list, pos) {
+    struct task_t *task = container_of(pos, struct task_t, task_list);
+
+    if (task->ppid == parent->pid && task->state != TASK_ZOMBIE) {
+      if (specific_pid == -1 || task->pid == (uint64_t)specific_pid) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// Find zombie child matching criteria
+struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid) {
+  list_for_each(&task_list, pos) {
+    struct task_t *task = container_of(pos, struct task_t, task_list);
+
+    if (task->ppid == parent->pid && task->state == TASK_ZOMBIE) {
+      if (specific_pid == -1 || task->pid == (uint64_t)specific_pid) {
+        return task;
+      }
+    }
+  }
+  return NULL;
+}
+
+// Reap zombie task - free all resources
+void reap_zombie(struct task_t *zombie) {
+  printk("Reaping zombie task PID %llu\n", zombie->pid);
+
+  // Remove from global task list
+  list_remove(&zombie->task_list);
+
+  // TODO: Free kernel stack pages
+  // TODO: Free page table if not already freed
+
+  // Free the task structure
+  task_t_free(zombie);
+}
+
 uint64_t fork_off() {
   // Should create a complete copy of the address space of the current task
   // For now we will manually copy over everything on this call  TODO: add copy on write
   struct task_t *new_task = task_t_alloc();
   new_task->ppid = current_task->pid;
   new_task->pid = ++latest_pid;
+  new_task->pgid = current_task->pgid;  // Inherit process group from parent
   new_task->uid = current_task->uid;
 
   new_task->mm_struct.root_satp = init_new_page_table();
@@ -366,6 +438,14 @@ uint64_t fork_off() {
   new_task->tf.a0 = 0;
 
   new_task->state = TASK_READY;
+
+  // Initialize wait/exit fields
+  new_task->exit_status = 0;
+  new_task->wait_reason = WAIT_NONE;
+  new_task->wait_pid = 0;
+  new_task->runtime = 0;
+  new_task->max_runtime = MAX_RUNTIME;
+
   list_append(&task_list, &new_task->task_list);
   list_append(scheduler.active_list, &new_task->scheduler_list);
 

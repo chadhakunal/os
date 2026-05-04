@@ -12,3 +12,11 @@ pid_t fork(void) {
 int sched_yield(void) {
   return syscall0(SYS_sched_yield);
 }
+
+pid_t waitpid(pid_t pid, int *wstatus, int options) {
+  return syscall3(SYS_waitpid, pid, wstatus, options);
+}
+
+pid_t wait(int *wstatus) {
+  return waitpid(-1, wstatus, 0);
+}

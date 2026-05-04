@@ -4,8 +4,14 @@
 
 int main() {
   pid_t pid = fork();
-  while (true) {
-    printf("pid = %llu, init.c\n", pid);
+  if (pid == 0) {
+    printf("Child! I'm killing myself!\n");
+    return;
+  } else {
+    printf("Parent! I'm waiting for %llu\n", pid);
+    int wstatus;
+    wait(&wstatus);
+    printf("Parent! Woke up child has been killed, exiting...\n");
   }
   return 0;
 }
