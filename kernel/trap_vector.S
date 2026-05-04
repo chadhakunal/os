@@ -150,8 +150,8 @@ trap_from_kernel:
   ld t0, 248(sp)
   csrw sepc, t0
   ld t0, 256(sp)
-  # Set SIE bit to re-enable interrupts when returning to kernel
-  ori t0, t0, 0x2
+  # Don't modify sstatus - sret will handle interrupt state correctly
+  # (sret sets SIE ← SPIE automatically)
   csrw sstatus, t0
 
   # Restore all general purpose registers
