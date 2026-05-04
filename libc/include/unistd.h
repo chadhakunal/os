@@ -87,6 +87,7 @@
 })
 
 // POSIX functions
+ssize_t read(int fd, void *buf, size_t n);
 ssize_t write(int fd, const void *buf, size_t n);
 pid_t fork(void);
 int sched_yield(void);
