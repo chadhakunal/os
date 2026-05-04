@@ -8,9 +8,9 @@ int main() {
     printf("Child! yielding then I'm killing myself!\n");
     char buf[1024];
     size_t read_bytes = read(0, buf, sizeof(buf));
-    buf[read_bytes-1] = '\0';
-    printf("Read %d bytes\n");
-    printf(buf);
+    buf[read_bytes] = '\0';
+    printf("Read %d bytes\n", read_bytes);
+    printf("%s\n", buf);
     return 0;
   } else {
     printf("Parent! I'm waiting for %llu\n", pid);
