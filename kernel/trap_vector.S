@@ -152,6 +152,11 @@ trap_from_kernel:
   ld t0, 256(sp)
   csrw sstatus, t0
 
+  # CRITICAL: Restore sscratch to 0 for kernel mode
+  # When returning to kernel mode, sscratch must be 0 so the next trap
+  # can detect we're coming from kernel (trap_vector line 14: beqz sp, trap_from_kernel)
+  csrw sscratch, zero
+
   # Restore all general purpose registers
   ld ra, 0(sp)
   ld gp, 16(sp)
