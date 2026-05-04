@@ -131,7 +131,16 @@ void idle_loop(void) {
   while (1) {
     printk("[idle_loop] About to execute wfi\n");
     asm volatile("wfi");
-    printk("[idle_loop] Returned from wfi\n");
+    asm volatile("nop");
+    asm volatile("nop");
+    asm volatile("nop");
+    printk("[idle_loop] Returned from wfi!!!\n");
+
+    // Check interrupt state after returning from wfi
+    uint64_t sstatus_after;
+    asm volatile("csrr %0, sstatus" : "=r"(sstatus_after));
+    printk("[idle_loop] After wfi: sstatus=%llx, SIE=%llu\n",
+           sstatus_after, (sstatus_after >> 1) & 1);
   }
 }
 
