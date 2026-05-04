@@ -32,6 +32,7 @@ void move_to_expired(struct task_t *task) {
          task->pid, task->runtime, task->max_runtime);
   list_remove(&task->scheduler_list);
   list_append(scheduler.expired_list, &task->scheduler_list);
+  printk("removed from active and put on expired\n");
   task->runtime = 0;
 }
 
