@@ -5,11 +5,15 @@
 #include "lib/string.h"
 
 int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
-  while (!tty_driver.buffer_ready) {
+  if (!tty_driver.buffer_ready) {
+    printk("[TTY] PID %llu blocking on read, buffer_ready=%d\n",
+           current_task->pid, tty_driver.buffer_ready);
     list_append(&tty_driver.wait_queue, &current_task->wait_list);
     current_task->state = TASK_BLOCKED;
     current_task->wait_reason = WAIT_IO;
     schedule();
+    printk("[TTY] PID %llu woke up from read, buffer_ready=%d\n",
+           current_task->pid, tty_driver.buffer_ready);
   }
 
   uint64_t bytes_to_copy = tty_driver.tty_line_buffer_size < size ?
@@ -18,6 +22,8 @@ int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
   memcpy(buffer, tty_driver.tty_line_buffer, bytes_to_copy);
 
   int64_t bytes_read = tty_driver.tty_line_buffer_size;
+
+  printk("[TTY] PID %llu read %lld bytes\n", current_task->pid, bytes_read);
 
   tty_reset_buffer();
 
@@ -80,6 +86,7 @@ void tty_receive(char *buffer, uint64_t size) {
   }
 
   if (tty_driver.buffer_ready) {
+    printk("[TTY] Buffer ready, waking up readers\n");
     wake_up(&tty_driver.wait_queue);
   }
 }
