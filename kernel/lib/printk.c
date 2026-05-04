@@ -18,7 +18,7 @@ static void format_print(const char **fmt_ptr, va_list *args) {
   switch (**fmt_ptr) {
     case 'd': { // Signed integer
       if (is_long > 1) {
-        uart_print_int(va_arg(*args, int64_t));
+        uart_print_long_int(va_arg(*args, int64_t));
       } else if (is_short > 1) {
         uart_print_int((int8_t)va_arg(*args, int));
       } else if (is_short) {
@@ -30,7 +30,7 @@ static void format_print(const char **fmt_ptr, va_list *args) {
     }
     case 'u': { // Unsigned integer
       if (is_long > 1) {
-        uart_print_int(va_arg(*args, uint64_t));
+        uart_print_long_int(va_arg(*args, uint64_t));
       } else if (is_short > 1) {
         uart_print_int((uint8_t)va_arg(*args, unsigned int));
       } else if (is_short) {

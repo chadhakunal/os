@@ -20,6 +20,9 @@ void map_pages(page_table_t *pt, uint64_t pa_start, uint64_t pa_end, uint64_t va
 void unmap_page(page_table_t *pt, uint64_t va);
 void unmap_pages(page_table_t *pt, uint64_t va_start, uint64_t va_end);
 
+/* Get PTE for a given virtual address (returns 0 if not mapped) */
+uint64_t get_pte(page_table_t *pt, uint64_t va);
+
 page_table_t *init_new_page_table();
 
 #endif

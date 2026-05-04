@@ -29,6 +29,7 @@ struct platform_info {
     struct cpu_core core;
     struct memory_region ram;
     struct device uart;
+    struct device rtc;
 
     struct virtio_dev virtio[8];
     int virtio_count;

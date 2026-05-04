@@ -8,8 +8,10 @@
 #
 # Context switch flow:
 #   1. Save current task's kernel context (sp, ra, s0-s11) to me->kernel_context
-#   2. Restore next task's kernel context from next->kernel_context
-#   3. Return to next task's saved ra (resumes where next was switched out)
+#   2. Switch to next task's page table (so next's kernel stack is accessible)
+#   3. Restore next task's kernel context from next->kernel_context
+#   4. Update sscratch to next task's kernel stack top
+#   5. Return to next task's saved ra (resumes where next was switched out)
 #
 # Note: kernel_context is at offset 0 within task_t
 # struct kernel_context_t {
@@ -18,9 +20,26 @@
 #   uint64_t s[12];     // offset 16, 24, ..., 104
 #   uint64_t stack_start; // offset 112
 # };
+#
+# task_t layout:
+#   kernel_context at offset 0 (120 bytes)
+#   tf at offset 120 (288 bytes)
+#   pid at offset 408 (8 bytes)
+#   uid at offset 416 (4 bytes + 4 padding)
+#   mm_struct at offset 424
+#     root_satp at offset 424 (first field of mm_struct)
 switch_to:
     # me->kernel_context is at a0 + 0 (just a0)
-    # Save current task's kernel context to me->kernel_context
+    # Check if 'me' is idle task (PID 0)
+    # PID is at offset 408 in task_t
+    ld t0, 408(a0)    # t0 = me->pid
+    bnez t0, 1f       # If PID != 0, jump to normal save
+
+    # Switching FROM idle - don't save its context!
+    # Idle's kernel_context is set once at creation and must not be overwritten
+    j 2f              # Jump to page table switch
+
+1:  # Normal task - save kernel context to me->kernel_context
     sd sp, 0(a0)      # me->kernel_context.sp = sp
     sd ra, 8(a0)      # me->kernel_context.ra = ra
     sd s0, 16(a0)     # me->kernel_context.s[0] = s0
@@ -36,8 +55,39 @@ switch_to:
     sd s10, 96(a0)    # me->kernel_context.s[10] = s10
     sd s11, 104(a0)   # me->kernel_context.s[11] = s11
 
-    # next->kernel_context is at a1 + 0 (just a1)
-    # Restore next task's kernel context from next->kernel_context
+2:  # Switch page tables to next task's address space
+    # IMPORTANT: Do this BEFORE restoring sp, because sp will point to next's stack
+    # which is only valid in next's page table
+    #
+    # next->mm_struct.root_satp is at offset 120 + 0 (kernel_context=120, mm_struct at offset 0 after kernel_context)
+    # Actually, need to find the correct offset - let's use a register and calculate
+    # For now, we'll call switch_to_page_table from C before this
+    #
+    # Save a1 (next task pointer) because we'll need it after the call
+    mv s10, a1        # s10 = next (temporarily use s10, will restore it later)
+
+    # Load next->mm_struct.root_satp
+    # task_t layout: kernel_context (120 bytes) + tf (288 bytes) + pid (8) + uid (4+4 padding) = 424
+    # mm_struct is at offset 424
+    # root_satp is the first field in mm_struct
+    ld a0, 424(s10)   # a0 = next->mm_struct.root_satp
+
+    # Switch to next task's page table
+    # satp format: MODE (bits 60-63) | ASID (bits 44-59) | PPN (bits 0-43)
+    # For Sv39: MODE = 8
+    li t0, 8
+    slli t0, t0, 60   # t0 = MODE field (8 << 60)
+    srli a0, a0, 12   # a0 = PPN (physical page number = pa >> 12)
+    or t0, t0, a0     # t0 = satp value
+    csrw satp, t0
+
+    # Fence to flush TLB
+    sfence.vma zero, zero
+
+    # Restore a1 from s10
+    mv a1, s10
+
+    # Now restore next task's kernel context from next->kernel_context
     ld sp, 0(a1)      # sp = next->kernel_context.sp (switch stacks!)
     ld ra, 8(a1)      # ra = next->kernel_context.ra
     ld s0, 16(a1)     # s0 = next->kernel_context.s[0]

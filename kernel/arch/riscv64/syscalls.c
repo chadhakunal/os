@@ -1,6 +1,7 @@
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "lib/printk/printk.h"
 #include "types.h"
+#include "kernel/task/task.h"
 
 // a7:    syscall number
 // a0:    arg1 / return value
@@ -25,73 +26,90 @@ void handle_syscall(struct trap_frame *tf) {
 
   switch (syscall_num) {
     case SYS_read:
-      printk("syscall: read(fd=%llu, buf=%llx, count=%llu)\n", tf->a0, tf->a1, tf->a2);
-      tf->a0 = -1; // TODO: implement
+      debugk("syscall: read(fd=%llu, buf=%llx, count=%llu)\n", tf->a0, tf->a1, tf->a2);
+      ret = sys_read(tf);
       break;
 
     case SYS_write:
-      // printk("syscall: write(fd=%llu, buf=%llx, count=%llu)\n", tf->a0, tf->a1, tf->a2);
+      debugk("syscall: write(fd=%llu, buf=%llx, count=%llu)\n", tf->a0, tf->a1, tf->a2);
       ret = sys_write(tf);
       break;
 
     case SYS_close:
-      printk("syscall: close(fd=%llu)\n", tf->a0);
+      debugk("syscall: close(fd=%llu)\n", tf->a0);
       tf->a0 = -1; // TODO: implement
       break;
 
     case SYS_openat:
-      printk("syscall: openat(dirfd=%lld, pathname=%llx, flags=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2);
+      debugk("syscall: openat(dirfd=%lld, pathname=%llx, flags=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2);
       ret = sys_openat(tf);
       break;
 
     case SYS_mmap:
-      printk("syscall: mmap(addr=%llx, len=%llu, prot=%llu, flags=%llu)\n", tf->a0, tf->a1, tf->a2, tf->a3);
+      debugk("syscall: mmap(addr=%llx, len=%llu, prot=%llu, flags=%llu)\n", tf->a0, tf->a1, tf->a2, tf->a3);
       tf->a0 = -1; // TODO: implement
       break;
 
     case SYS_munmap:
-      printk("syscall: munmap(addr=%llx, len=%llu)\n", tf->a0, tf->a1);
+      debugk("syscall: munmap(addr=%llx, len=%llu)\n", tf->a0, tf->a1);
       tf->a0 = -1; // TODO: implement
       break;
 
     case SYS_brk:
-      printk("syscall: brk(addr=%llx)\n", tf->a0);
+      debugk("syscall: brk(addr=%llx)\n", tf->a0);
       tf->a0 = -1; // TODO: implement
       break;
 
     case SYS_rt_sigaction:
-      printk("syscall: rt_sigaction(sig=%lld, act=%llx, oldact=%llx)\n", (int64_t)tf->a0, tf->a1, tf->a2);
+      debugk("syscall: rt_sigaction(sig=%lld, act=%llx, oldact=%llx)\n", (int64_t)tf->a0, tf->a1, tf->a2);
       tf->a0 = -1; // TODO: implement
       break;
 
     case SYS_exit:
-      printk("syscall: exit(status=%lld)\n", (int64_t)tf->a0);
-      // TODO: terminate process
-      tf->a0 = 0;
+      debugk("syscall: exit(status=%lld)\n", (int64_t)tf->a0);
+      tf->sepc += 4;
+      sys_exit(tf);  // Never returns
       break;
 
     case SYS_execve:
-      printk("syscall: execve(pathname=%llx, argv=%llx, envp=%llx)\n", tf->a0, tf->a1, tf->a2);
+      debugk("syscall: execve(pathname=%llx, argv=%llx, envp=%llx)\n", tf->a0, tf->a1, tf->a2);
       tf->a0 = -1; // TODO: implement
       break;
 
-    case SYS_wait4:
-      printk("syscall: wait4(pid=%lld, wstatus=%llx, options=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2);
-      tf->a0 = -1; // TODO: implement
+    case SYS_waitpid:
+      debugk("syscall: waitpid(pid=%lld, wstatus=%llx, options=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2);
+      ret = sys_waitpid(tf);
       break;
 
     case SYS_getpid:
-      printk("syscall: getpid()\n");
+      debugk("syscall: getpid()\n");
       tf->a0 = -1; // TODO: return current process PID
       break;
 
     case SYS_kill:
-      printk("syscall: kill(pid=%lld, sig=%lld)\n", (int64_t)tf->a0, (int64_t)tf->a1);
+      debugk("syscall: kill(pid=%lld, sig=%lld)\n", (int64_t)tf->a0, (int64_t)tf->a1);
       tf->a0 = -1; // TODO: implement
+      break;
+    case SYS_fork:
+      debugk("syscall: fork() from PID %llu\n", current_task->pid);
+      // Increment sepc BEFORE fork so child gets the incremented value
+      tf->sepc += 4;
+      ret = sys_fork(tf);
+      // fork_off() sets child's tf.a0 = 0, we need to set parent's tf.a0 = child PID
+      tf->a0 = ret;
+      debugk("fork() returning %llu to parent PID %llu\n", ret, current_task->pid);
+      // Don't run the common tf->a0 = ret code at the end, we already did it
+      asm volatile("csrw sstatus, %0" :: "r"(old_sstatus));
+      return;
+      break;
+
+    case SYS_sched_yield:
+      debugk("syscall: sched_yield()\n");
+      ret = sys_sched_yield(tf);
       break;
 
     default:
-      printk("syscall: unknown syscall %llu\n", syscall_num);
+      debugk("syscall: unknown syscall %llu\n", syscall_num);
       tf->a0 = -1; // ENOSYS
       break;
   }

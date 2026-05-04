@@ -2,43 +2,78 @@
 #include "kernel/panic.h"
 #include "arch/riscv64/trap.h"
 #include "arch/riscv64/syscalls/syscalls.h"
+#include "arch/riscv64/sbi.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
 
+#define TIMER_INTERVAL_CYCLES 100000
+
 /* NEVER RETURNS - either calls trap_return() or panic() */
-void trap_handler(void) {
-  printk("Trapped!\n");
-  // Access trap frame from current_task (tp register points to it)
-  struct trap_frame *tf = &current_task->tf;
-
-  printk("[trap_handler] current_task=%p, pid=%llu\n",
-         current_task, current_task->pid);
-
+void trap_handler(struct trap_frame *tf) {
+  // tf points to either:
+  // - &current_task->tf for user traps
+  // - kernel stack for kernel traps
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
   bool is_interrupt = (tf->scause >> 63) & 1;
 
-  if (is_interrupt) {
-    printk("\n=== TRAP ===\n");
-    printk("scause:  %llx\n", tf->scause);
-    printk("sepc:    %llx\n", tf->sepc);
-    printk("stval:   %llx\n", tf->stval);
-    printk("sstatus: %llx\n", tf->sstatus);
-  } else if (cause_code != 8) {
-    // Print for non-syscall exceptions
-    printk("\n=== TRAP ===\n");
-    printk("scause:  %llx\n", tf->scause);
-    printk("sepc:    %llx\n", tf->sepc);
-    printk("stval:   %llx\n", tf->stval);
-    printk("sstatus: %llx\n", tf->sstatus);
+  // Don't print for timer interrupts
+  if (!(is_interrupt && cause_code == 5)) {
+    // printk("[trap_handler] current_task=%p, pid=%llu\n",
+    //        current_task, current_task->pid);
+
+    // printk("\n=== TRAP ===\n");
+    // printk("scause:  %llx\n", tf->scause);
+    // printk("sepc:    %llx\n", tf->sepc);
+    // printk("stval:   %llx\n", tf->stval);
+    // printk("sstatus: %llx\n", tf->sstatus);
+    if (is_interrupt) {
+      // printk("\n=== TRAP ===\n");
+      // printk("scause:  %llx\n", tf->scause);
+      // printk("sepc:    %llx\n", tf->sepc);
+      // printk("stval:   %llx\n", tf->stval);
+      // printk("sstatus: %llx\n", tf->sstatus);
+    } else if (cause_code != 8) {
+      // Print for non-syscall exceptions
+      // printk("\n=== TRAP ===\n");
+      // printk("scause:  %llx\n", tf->scause);
+      // printk("sepc:    %llx\n", tf->sepc);
+      // printk("stval:   %llx\n", tf->stval);
+      // printk("sstatus: %llx\n", tf->sstatus);
+    }
   }
 
   if (is_interrupt) {
-    printk("Interrupt: ");
     switch (cause_code) {
-      case 1:  printk("Supervisor software interrupt\n"); break;
-      case 5:  printk("Supervisor timer interrupt\n"); break;
-      case 9:  printk("Supervisor external interrupt (UART)\n"); break;
-      default: printk("Unknown interrupt: %llu\n", cause_code); break;
+      case 1:
+        printk("Interrupt: Supervisor software interrupt\n");
+        break;
+      case 5:
+        // Timer interrupt
+        trap_timer_handler(tf);
+        extern void trap_return(struct trap_frame *tf);
+
+        if (tf->sstatus & (1UL << 8)) {
+          // Kernel mode timer interrupt - just return to assembly restore code
+          return;
+        }
+
+        // User mode timer interrupt - restore user context and return
+        trap_return(&current_task->tf);
+        break;
+      case 9:
+        // Supervisor external interrupt (UART)
+        extern void handle_uart_interrupt(void);
+        handle_uart_interrupt();
+
+        if (tf->sstatus & (1UL << 8)) {
+          return;
+        }
+
+        trap_return(&current_task->tf);
+        break;
+      default:
+        printk("Interrupt: Unknown interrupt: %llu\n", cause_code);
+        break;
     }
   } else {
     // printk("Exception: ");
@@ -52,38 +87,49 @@ void trap_handler(void) {
       case 6:  printk("Store address misaligned\n"); break;
       case 7:  printk("Store access fault\n"); break;
       case 8:
-        // printk("Environment call from U-mode\n");
+        debugk("Syscall from %llu\n", current_task->pid);
         handle_syscall(tf);
+
+        extern void trap_return(struct trap_frame *tf);
+        trap_return(&current_task->tf);
         break;
       case 9:  printk("Environment call from S-mode\n"); break;
-      case 12: printk("Instruction page fault\n"); break;
-      case 13: printk("Load page fault\n"); break;
-      case 15: printk("Store page fault\n"); break;
+      case 12:
+        printk("=== INSTRUCTION PAGE FAULT ===\n");
+        printk("  Faulting address (stval): 0x%llx\n", tf->stval);
+        printk("  PC (sepc): 0x%llx\n", tf->sepc);
+        printk("  PID: %llu\n", current_task->pid);
+        break;
+      case 13:
+        printk("=== LOAD PAGE FAULT ===\n");
+        printk("  Faulting address (stval): 0x%llx\n", tf->stval);
+        printk("  PC (sepc): 0x%llx\n", tf->sepc);
+        printk("  PID: %llu\n", current_task->pid);
+        break;
+      case 15:
+        printk("=== STORE PAGE FAULT ===\n");
+        printk("  Faulting address (stval): 0x%llx\n", tf->stval);
+        printk("  PC (sepc): 0x%llx\n", tf->sepc);
+        printk("  PID: %llu\n", current_task->pid);
+        break;
       default: printk("Unknown exception: %llu\n", cause_code); break;
     }
   }
 
-  // For syscalls, return to user mode
-  if (!is_interrupt && cause_code == 8) {
-    static int syscall_count = 0;
-    syscall_count++;
-    if (syscall_count % 50 == 0) {
-      printk("[DEBUG] Syscall #%d from PID %llu, sepc=%llx\n",
-             syscall_count, current_task->pid, tf->sepc);
-    }
-    if (syscall_count == 250) {
-      printk("[DEBUG] Reached 250 syscalls - about to hang?\n");
-      printk("[DEBUG] current_task=%p, next syscall will be #251\n", current_task);
-    }
-
-    schedule();
-    extern void trap_return(struct trap_frame *tf);
-    trap_return(&current_task->tf);
-    // Never returns
-  }
+  // For syscalls, schedule and return to user mode
+  // if (!is_interrupt && cause_code == 8) {
+  //   static int syscall_count = 0;
+  //   syscall_count++;
+  //
+  //   schedule();
+  //   // schedule() returns here (possibly as a different task)
+  //   // Return to user space
+  //   extern void trap_return(struct trap_frame *tf);
+  //   trap_return(&current_task->tf);
+  // }
 
   // For all other traps, print registers and panic
-  printk("current_task = %p, pid = %llu\n", current_task, current_task->pid);
+  // printk("current_task = %p, pid = %llu\n", current_task, current_task->pid);
   // printk("\nRegisters:\n");
   // printk("ra:  %llx  sp:  %llx  gp:  %llx  tp:  %llx\n", tf->ra, tf->sp, tf->gp, tf->tp);
   // printk("t0:  %llx  t1:  %llx  t2:  %llx\n", tf->t0, tf->t1, tf->t2);
@@ -106,27 +152,25 @@ void init_trap_handler(void) {
 }
 
 void enable_interrupts(void) {
-  /* Enable supervisor interrupts in sstatus */
   uint64_t sstatus;
   asm volatile("csrr %0, sstatus" : "=r"(sstatus));
-  sstatus |= SSTATUS_SIE;  /* Set SIE bit to enable interrupts */
+  sstatus |= SSTATUS_SIE;
   asm volatile("csrw sstatus, %0" :: "r"(sstatus));
 
-  /* Enable external, timer, and software interrupts in sie register */
-  uint64_t sie = (1UL << 9) |  /* SEIE - Supervisor external interrupt enable */
-                 (1UL << 5) |  /* STIE - Supervisor timer interrupt enable */
-                 (1UL << 1);   /* SSIE - Supervisor software interrupt enable */
+  uint64_t sie = (1UL << 9) |
+                 (1UL << 5) |
+                 (1UL << 1);
   asm volatile("csrw sie, %0" :: "r"(sie));
 
-  printk("Global interrupts enabled (sstatus.SIE=1, sie=0x%lx)\n", sie);
+  uint64_t sip, sstatus_check, sie_check;
+  asm volatile("csrr %0, sstatus" : "=r"(sstatus_check));
+  asm volatile("csrr %0, sie" : "=r"(sie_check));
+  asm volatile("csrr %0, sip" : "=r"(sip));
 }
 
 void disable_interrupts(void) {
-  /* Disable supervisor interrupts in sstatus */
   uint64_t sstatus;
   asm volatile("csrr %0, sstatus" : "=r"(sstatus));
   sstatus &= ~SSTATUS_SIE;  /* Clear SIE bit to disable interrupts */
   asm volatile("csrw sstatus, %0" :: "r"(sstatus));
-
-  printk("Global interrupts disabled (sstatus.SIE=0)\n");
 }

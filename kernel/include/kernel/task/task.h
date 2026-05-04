@@ -9,7 +9,8 @@
 
 // Global task tracking (defined in task.c)
 extern struct task_t *current_task;  // Currently running task
-extern struct task_t *init_task;     // First task (PID 0 or 1)
+extern struct task_t *idle_task;     // Idle task (PID 0)
+extern struct task_t *init_task;     // First task (PID 1)
 extern struct list_node task_list;   // Global list of all tasks
 
 // VMA flags
@@ -24,6 +25,12 @@ enum task_state {
   TASK_BLOCKED,
   TASK_ZOMBIE,
   TASK_TERMINATED
+};
+
+enum wait_reason {
+  WAIT_NONE,
+  WAIT_CHILD,
+  WAIT_IO,
 };
 
 struct vma_t {
@@ -64,9 +71,19 @@ struct task_t {
   uint64_t pid;
   uint32_t uid;
   struct mm_struct_t mm_struct;
-  struct list_node task_list;
+  struct list_node task_list; // Global task list
   struct files_table_t file_table;
   enum task_state state;
+  uint64_t ppid;
+  struct list_node scheduler_list; // A task will either be apart of the active, expired or blocked list
+  uint64_t runtime; // The total runtime for the task
+  uint64_t max_runtime; // max runtime a task can run before being moved to expired
+
+  uint64_t pgid;
+  int exit_status;
+  enum wait_reason wait_reason;
+  int64_t wait_pid;
+  struct list_node wait_list;
 };
 
 DEFINE_POOL(task_t, struct task_t)
@@ -75,9 +92,19 @@ DEFINE_POOL(files_list_t, struct files_list_t)
 DEFINE_POOL(files_table_t, struct files_table_t)
 
 
+void create_idle_task();
+
 void create_init_process();
 
 void create_second_task();
+
+uint64_t fork_off();
+
+/* Helper functions for wait/exit */
+struct task_t *find_task_by_pid(uint64_t pid);
+bool has_alive_children(struct task_t *parent, int64_t specific_pid);
+struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid);
+void reap_zombie(struct task_t *zombie);
 
 /* Set the current task and update tp register */
 void set_current_task(struct task_t *task);
@@ -95,5 +122,7 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
                         size_t size, uint64_t vm_flags, bool eager);
 
 void switch_to(struct task_t *me, struct task_t *next);
+
+struct file_t *find_file(struct files_table_t *file_table, int fd);
 
 #endif

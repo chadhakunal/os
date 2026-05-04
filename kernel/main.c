@@ -12,8 +12,12 @@
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "arch/riscv64/trap.h"
+#include "arch/riscv64/sbi.h"
 #include "kernel/drivers/uart.h"
 #include "kernel/drivers/tty.h"
+#include "kernel/drivers/rtc/rtc.h"
+#include "kernel/time/timer.h"
+#include "kernel/task/schedule.h"
 
 #include "lib/printk/printk.h"
 
@@ -49,10 +53,13 @@ void kmain(void *dtb_ptr) {
 
   init_trap_handler();
   printk("Initialized Trap Handler\n");
-  // init_process();
-  //struct elf_file *parsed = parse_elf_file((void *)0x000001);
+
+  rtc_init();
+  printk("Initialized RTC: Current time: %llu seconds since epoch\n", rtc_read_time_sec());
+
   tty_init();
   printk("Initialized TTY driver\n");
+
   vfs_init();
   printk("Initialized vfs and mounted tarfs\n");
 
@@ -83,23 +90,32 @@ void kmain(void *dtb_ptr) {
   // char hello[32] = "Hello World!\n";
   // vfs_write(tty, 0, hello, 32);
 
-  // enable_interrupts();
-  // uart_enable_interrupts();
+  create_idle_task();
+  printk("Created idle task (PID 0)\n");
 
   create_init_process();
-  printk("Created init process from /bin/init\n");
-
-  create_second_task();
-  printk("Created second process from /bin/init2\n");
+  printk("Created init process from /bin/init (PID 1)\n");
 
   asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
   switch_to_page_table(current_task);
   asm volatile("fence.i");
 
+  init_virtual_time();
+  init_timer();
+  printk("Initialized Timer\n");
+
+  init_scheduler();
+
+  uart_enable_interrupts();
+  printk("Enabled uart interrupts\n");
+
+  enable_interrupts();
+  printk("Enabled Interrupts\n");
+
   extern void start_init_task(struct trap_frame *tf, uint64_t kernel_sp);
   start_init_task(&current_task->tf, current_task->kernel_context.sp);
-
-  printk("ERROR: start_init_task returned! This should never happen\n");
+  //
+  // printk("ERROR: start_init_task returned! This should never happen\n");
   
   arch_wait();
 }

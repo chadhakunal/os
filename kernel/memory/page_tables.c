@@ -70,6 +70,8 @@ void boot_map_page(page_table_t *pt, uint64_t va, uint64_t pa) {
 
 /* Post-boot version: uses PHYS_TO_VIRT to access page tables */
 void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
+  page_table_t *pt1_virt = (page_table_t *)PHYS_TO_VIRT(pt);
+
   uint64_t pt1_idx = PT1_OFFSET(va); // VPN[2]
   uint64_t pt2_idx = PT2_OFFSET(va); // VPN[1]
   uint64_t pt3_idx = PT3_OFFSET(va); // VPN[0]
@@ -78,17 +80,16 @@ void map_page(page_table_t *pt, uint64_t va, uint64_t pa, uint64_t pte_flags) {
   page_table_t *pt3;
 
   // Root table (pt1 == pt) is indexed by VPN[2]
-  if (pt->page_table_entries[pt1_idx] == 0) {
-    printk("Mapping pages for kernel stack\n");
+  if (pt1_virt->page_table_entries[pt1_idx] == 0) {
     page_table_t *pt2_phys = allocate_page_table(); /* Returns physical address */
     if (!pt2_phys)
       panic("FAILED TO ALLOCATE NEW PAGE TABLE!");
-    pt->page_table_entries[pt1_idx] =
+    pt1_virt->page_table_entries[pt1_idx] =
         PTE_ADDR(pt2_phys) | PTE_VALID | PTE_TABLE;
     pt2 = (page_table_t *)PHYS_TO_VIRT(pt2_phys); /* Convert to virtual for access */
   } else {
     pt2 = (page_table_t *)PHYS_TO_VIRT(
-        PTE_DECODE(pt->page_table_entries[pt1_idx]));
+        PTE_DECODE(pt1_virt->page_table_entries[pt1_idx]));
   }
 
   if (pt2->page_table_entries[pt2_idx] == 0) {
@@ -154,6 +155,30 @@ void unmap_pages(page_table_t *pt, uint64_t virtual_memory_start, uint64_t virtu
   }
 }
 
+uint64_t get_pte(page_table_t *pt, uint64_t va) {
+  page_table_t *pt1_virt = (page_table_t *)PHYS_TO_VIRT(pt);
+
+  uint64_t pt1_idx = PT1_OFFSET(va); // VPN[2]
+  uint64_t pt2_idx = PT2_OFFSET(va); // VPN[1]
+  uint64_t pt3_idx = PT3_OFFSET(va); // VPN[0]
+
+  if (!(pt1_virt->page_table_entries[pt1_idx] & PTE_VALID)) {
+    return 0;
+  }
+
+  page_table_t *pt2 = (page_table_t *)PHYS_TO_VIRT(
+      PTE_DECODE(pt1_virt->page_table_entries[pt1_idx]));
+
+  if (!(pt2->page_table_entries[pt2_idx] & PTE_VALID)) {
+    return 0;
+  }
+
+  page_table_t *pt3 = (page_table_t *)PHYS_TO_VIRT(
+      PTE_DECODE(pt2->page_table_entries[pt2_idx]));
+
+  return pt3->page_table_entries[pt3_idx];
+}
+
 /* Boot-time version */
 void boot_map_pages(page_table_t *pt, uint64_t physical_memory_start, uint64_t physical_memory_end,
                 uint64_t virtual_memory_start) {
@@ -209,17 +234,19 @@ void remove_identity_mapping() {
   asm volatile("sfence.vma zero, zero" ::: "memory");
 }
 
-void init_kernel_page_mapping() {
-  allocate_root_page_table();
-  map_identity();
-  map_kernel();
-  map_phys();  /* Map all physical RAM for accessing page tables and other phys mem */
-
-  /* Map UART device for MMIO access after MMU is enabled */
-  uint64_t uart_phys = (uint64_t)uart_get_base(); /* align to page */
-  uart_phys &= ~(DEFAULT_PAGE_SIZE - 1);
+/* Map MMIO devices to virtual memory */
+static void map_devices(void) {
+  // Map UART
+  uint64_t uart_phys = (uint64_t)uart_get_base();
+  uart_phys &= ~(DEFAULT_PAGE_SIZE - 1);  /* Align to page */
   uint64_t uart_virt = MMIO_VIRTUAL_MEMORY_BASE + uart_phys;
   boot_map_page(root_page_table, uart_virt, uart_phys);
+
+  // Map RTC
+  #define RTC_BASE 0x101000UL
+  uint64_t rtc_phys = RTC_BASE & ~(DEFAULT_PAGE_SIZE - 1);  /* Align to page */
+  uint64_t rtc_virt = MMIO_VIRTUAL_MEMORY_BASE + rtc_phys;
+  boot_map_page(root_page_table, rtc_virt, rtc_phys);
 
   /* Map PLIC (Platform-Level Interrupt Controller) pages
    * Only map the pages we actually use (3 pages = 12KB):
@@ -230,6 +257,14 @@ void init_kernel_page_mapping() {
   boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + PLIC_BASE, PLIC_BASE);
   boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + PLIC_BASE + 0x2000, PLIC_BASE + 0x2000);
   boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + PLIC_BASE + 0x201000, PLIC_BASE + 0x201000);
+}
+
+void init_kernel_page_mapping() {
+  allocate_root_page_table();
+  map_identity();
+  map_kernel();
+  map_phys();  /* Map all physical RAM for accessing page tables and other phys mem */
+  map_devices();  /* Map MMIO devices */
 
   enable_virtual_memory((uint64_t)root_page_table);
   uint64_t offset = KERNEL_VIRT_OFFSET;

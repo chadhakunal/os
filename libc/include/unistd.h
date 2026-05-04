@@ -13,9 +13,11 @@
 #define SYS_rt_sigaction    134
 #define SYS_exit            93
 #define SYS_execve          221
-#define SYS_wait4           260
+#define SYS_waitpid         260
 #define SYS_getpid          172
 #define SYS_kill            129
+#define SYS_fork            220
+#define SYS_sched_yield     124
 
 // RISC-V syscall ABI macros
 // Syscall number in a7, args in a0-a5, return value in a0
@@ -85,4 +87,9 @@
 })
 
 // POSIX functions
+ssize_t read(int fd, void *buf, size_t n);
 ssize_t write(int fd, const void *buf, size_t n);
+pid_t fork(void);
+int sched_yield(void);
+pid_t waitpid(pid_t pid, int *wstatus, int options);
+pid_t wait(int *wstatus);

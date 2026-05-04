@@ -16,4 +16,8 @@ void uart_indent(const int depth);
 /* Enable UART receive interrupts - must be called AFTER virtual memory is enabled */
 void uart_enable_interrupts(void);
 
+/* Read characters from UART FIFO into buffer
+ * Returns number of characters read (0-16, limited by FIFO size) */
+int uart_getc(char *buffer, int max_len);
+
 #endif
