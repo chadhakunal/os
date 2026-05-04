@@ -95,9 +95,24 @@ void trap_handler(struct trap_frame *tf) {
         trap_return(&current_task->tf);
         break;
       case 9:  printk("Environment call from S-mode\n"); break;
-      case 12: printk("Instruction page fault\n"); break;
-      case 13: printk("Load page fault\n"); break;
-      case 15: printk("Store page fault\n"); break;
+      case 12:
+        printk("=== INSTRUCTION PAGE FAULT ===\n");
+        printk("  Faulting address (stval): 0x%llx\n", tf->stval);
+        printk("  PC (sepc): 0x%llx\n", tf->sepc);
+        printk("  PID: %llu\n", current_task->pid);
+        break;
+      case 13:
+        printk("=== LOAD PAGE FAULT ===\n");
+        printk("  Faulting address (stval): 0x%llx\n", tf->stval);
+        printk("  PC (sepc): 0x%llx\n", tf->sepc);
+        printk("  PID: %llu\n", current_task->pid);
+        break;
+      case 15:
+        printk("=== STORE PAGE FAULT ===\n");
+        printk("  Faulting address (stval): 0x%llx\n", tf->stval);
+        printk("  PC (sepc): 0x%llx\n", tf->sepc);
+        printk("  PID: %llu\n", current_task->pid);
+        break;
       default: printk("Unknown exception: %llu\n", cause_code); break;
     }
   }
