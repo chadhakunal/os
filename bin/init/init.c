@@ -7,7 +7,7 @@ int main() {
   if (pid == 0) {
     printf("Child! yielding then I'm killing myself!\n");
     sched_yield();
-    printf("Child! Back from yielding\n")
+    printf("Child! Back from yielding\n");
     return 0;
   } else {
     printf("Parent! I'm waiting for %llu\n", pid);
