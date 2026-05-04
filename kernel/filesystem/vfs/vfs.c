@@ -52,7 +52,7 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset){
   void *phys_page;
   int ret = vnode->address_space->address_space_ops->fill_page(vnode, offset, &phys_page);
   if (ret < 0) {
-    printk("vfs_get_page: Error filling page with address_space_ops\n");
+    debugk("vfs_get_page: Error filling page with address_space_ops\n");
     return NULL;
   }
 
@@ -78,42 +78,42 @@ struct file_t *vfs_init_file(struct vnode_t *vnode, int flags) {
 }
 
 int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
-  printk("vfs_read: file=%p, offset=%lu, size=%lu\n", file, offset, size);
+  debugk("vfs_read: file=%p, offset=%lu, size=%lu\n", file, offset, size);
 
   if (file == NULL) {
     panic("vfs_read: File is NULL\n");
   }
 
-  printk("  file->vnode=%p\n", file->vnode);
-  printk("  file->vnode->address_space=%p\n", file->vnode->address_space);
-  printk("  file->file_ops=%p\n", file->file_ops);
+  debugk("  file->vnode=%p\n", file->vnode);
+  debugk("  file->vnode->address_space=%p\n", file->vnode->address_space);
+  debugk("  file->file_ops=%p\n", file->file_ops);
 
   if (file->vnode->address_space == NULL || file->vnode->address_space->address_space_ops == NULL || file->vnode->address_space->address_space_ops->fill_page == NULL) {
-    printk("  Using file_ops->read\n");
+    debugk("  Using file_ops->read\n");
     if (file->file_ops == NULL || file->file_ops->read == NULL) {
-      printk("  ERROR: file_ops or read function is NULL\n");
+      debugk("  ERROR: file_ops or read function is NULL\n");
       panic("vfs_read: file_ops or read function is NULL\n");
     }
-    printk("  file->file_ops->read=%p\n", file->file_ops->read);
+    debugk("  file->file_ops->read=%p\n", file->file_ops->read);
     return file->file_ops->read(file, offset, buffer, size);
   }
 
   // Address_space and fill page is available
-  printk("  Using vfs_vnode_read\n");
+  debugk("  Using vfs_vnode_read\n");
   int ret = vfs_vnode_read(file->vnode, buffer, size, offset);
-  printk("  vfs_vnode_read returned %ld\n", ret);
+  debugk("  vfs_vnode_read returned %ld\n", ret);
 
   return ret;
 }
 
 int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
-  // printk("vfs_write: file=%p, offset=%lu, size=%lu\n", file, offset, size);
+  debugk("vfs_write: file=%p, offset=%lu, size=%lu\n", file, offset, size);
   if (file == NULL) {
     panic("vfs_write: file is null");
   }
 
   if (file->file_ops == NULL || file->file_ops->write == NULL) {
-    printk("  ERROR: file_ops or write function is NULL\n");
+    debugk("  ERROR: file_ops or write function is NULL\n");
     panic("vfs_write: file_ops or write function is NULL\n");
   }
 
