@@ -105,6 +105,7 @@ void schedule() {
     }
     // ZOMBIE tasks don't go on any list - they're waiting to be reaped
   } else if (has_expired()) {
+    printk("About to move to expired\n");
     // Task used up its timeslice, move to expired
     move_to_expired(current_task);
   } else {
