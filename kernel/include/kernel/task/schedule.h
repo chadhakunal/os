@@ -4,6 +4,7 @@
 #include "types.h"
 #include "lib/list.h"
 #include "kernel/task/task.h"
+#include "kernel/time/timer.h"
 
 #define MAX_RUNTIME TIMER_INTERVAL_CYCLES*10
 
