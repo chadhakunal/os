@@ -26,7 +26,6 @@ int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 
 int64_t tty_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   char *buf = (char *)buffer;
-  // Write each character directly to UART without null-terminating
   for (uint64_t i = 0; i < size; i++) {
     printk("%c", buf[i]);
   }
@@ -56,10 +55,21 @@ void tty_receive(char *buffer, uint64_t size) {
   for (uint64_t i = 0; i < size; i++) {
     char c = buffer[i];
 
+    // Handle backspace
+    if (c == '\b' || c == 127) {
+      if (tty_driver.tty_line_buffer_size > 0) {
+        tty_driver.tty_line_buffer_size--;
+        printk("\b \b");
+      }
+      continue;
+    }
+
     if (tty_driver.tty_line_buffer_size >= 1024) {
       tty_driver.buffer_ready = true;
       break;
     }
+
+    printk("%c", c);
 
     tty_driver.tty_line_buffer[tty_driver.tty_line_buffer_size++] = c;
 
@@ -70,7 +80,6 @@ void tty_receive(char *buffer, uint64_t size) {
   }
 
   if (tty_driver.buffer_ready) {
-    printk("[TTY] Line ready: %llu bytes, waking readers\n", tty_driver.tty_line_buffer_size);
     wake_up(&tty_driver.wait_queue);
   }
 }
