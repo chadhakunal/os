@@ -489,25 +489,11 @@ void clear_vmas(struct task_t *task) {
   debugk("clear_vmas: task->mm_struct.root_satp=%p\n", task->mm_struct.root_satp);
   debugk("clear_vmas: vma_list sentinel=%p\n", &task->mm_struct.vma_list);
   struct list_node *pos = task->mm_struct.vma_list.next;
-  debugk("clear_vmas: initial pos=%p\n", pos);
   while (pos != &task->mm_struct.vma_list) {
-    debugk("clear_vmas: loop pos=%p\n", pos);
     struct vma_t *vma = container_of(pos, struct vma_t, sibling_vma);
-    debugk("clear_vmas: accessing vma->start_addr...\n");
-    uint64_t start = vma->start_addr;
-    debugk("clear_vmas: start_addr=%llx\n", start);
-    debugk("clear_vmas: accessing vma->end_addr...\n");
-    uint64_t end = vma->end_addr;
-    debugk("clear_vmas: end_addr=%llx\n", end);
-    debugk("clear_vmas: accessing pos->next...\n");
     struct list_node *next = pos->next;
-    debugk("clear_vmas: next=%p\n", next);
-    debugk("clear_vmas: accessing vma->backing_file...\n");
-    void *backing = vma->backing_file;
-    debugk("clear_vmas: backing_file=%p\n", backing);
 
     if (vma->backing_file == NULL) {
-      debugk("clear_vmas: anonymous VMA, freeing pages\n");
       for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
         uint64_t pte = get_pte(task->mm_struct.root_satp, va);
         if (pte & PTE_VALID) {
@@ -518,9 +504,7 @@ void clear_vmas(struct task_t *task) {
       }
     } else {
       vfs_address_space_drop_ref(vma->start_addr, vma->end_addr, vma->offset, vma->backing_file->address_space);
-      debugk("Done dropping refcounts!\n");
       unmap_pages(task->mm_struct.root_satp, vma->start_addr, vma->end_addr);
-      debugk("Unmapped pages!\n");
       vma->backing_file->refcount--;
     }
 
