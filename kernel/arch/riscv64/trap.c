@@ -50,6 +50,7 @@ void trap_handler(struct trap_frame *tf) {
         break;
       case 5:
         // Timer interrupt
+        debugk("Timer trap!\n");
         trap_timer_handler(tf);
         extern void trap_return(struct trap_frame *tf);
 
