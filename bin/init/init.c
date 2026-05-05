@@ -10,7 +10,8 @@ int main() {
     size_t read_bytes = read(0, buf, sizeof(buf));
     buf[read_bytes] = '\0';
     printf("Read %d bytes\n", read_bytes);
-    printf("%s\n", buf);
+    printf("%s", buf);
+    printf("Child exiting...\n");
     return 0;
   } else {
     printf("Parent! I'm waiting for %llu\n", pid);
