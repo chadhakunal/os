@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/panic.h"
 #include "platform.h"
 #include "types.h"
