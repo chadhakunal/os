@@ -2,7 +2,7 @@
 #include "kernel/task/task.h"
 #include "lib/list.h"
 #include "kernel/memory/page_allocator.h"
-#include "kernel/memopry/page_tables.h"
+#include "kernel/memory/page_tables.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/panic.h"
