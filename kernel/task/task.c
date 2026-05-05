@@ -480,16 +480,24 @@ struct file_t *find_file(struct files_table_t *file_table, int fd) {
 }
 
 void clear_vmas(struct task_t *task) {
+  debugk("clear_vmas: task=%p\n", task);
   if (!task || !task->mm_struct.root_satp) {
+    debugk("clear_vmas: task or root_satp is NULL, returning\n");
     return;
   }
 
+  debugk("clear_vmas: task->mm_struct.root_satp=%p\n", task->mm_struct.root_satp);
+  debugk("clear_vmas: vma_list sentinel=%p\n", &task->mm_struct.vma_list);
   struct list_node *pos = task->mm_struct.vma_list.next;
+  debugk("clear_vmas: initial pos=%p\n", pos);
   while (pos != &task->mm_struct.vma_list) {
+    debugk("clear_vmas: loop pos=%p\n", pos);
     struct vma_t *vma = container_of(pos, struct vma_t, sibling_vma);
+    debugk("clear_vmas: vma=%p, start_addr=%llx, end_addr=%llx\n", vma, vma->start_addr, vma->end_addr);
     struct list_node *next = pos->next;
 
     if (vma->backing_file == NULL) {
+      debugk("clear_vmas: anonymous VMA, freeing pages\n");
       for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
         uint64_t pte = get_pte(task->mm_struct.root_satp, va);
         if (pte & PTE_VALID) {
