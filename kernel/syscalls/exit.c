@@ -1,4 +1,5 @@
 #include "arch/riscv64/syscalls/syscall_macros.h"
+#include "kernel/memory/memory_info.h"
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
@@ -12,8 +13,10 @@ DEFINE_SYSCALL1(exit, int, status)
 
   current_task->exit_status = status;
 
+  print_memory_info();
   close_all_files(current_task);
   clear_vmas(current_task);
+  print_memory_info();
 
   current_task->state = TASK_ZOMBIE;
 
