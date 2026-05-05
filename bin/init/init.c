@@ -8,9 +8,7 @@ int main() {
     printf("Child! yielding then I'm killing myself!\n");
     char buf[1024];
     size_t read_bytes = read(0, buf, sizeof(buf));
-    buf[read_bytes] = '\0';
-    printf("Read %d bytes\n", read_bytes);
-    printf("%s", buf);
+    printf("echo: %s", buf);
     printf("Child exiting...\n");
     return 0;
   } else {
