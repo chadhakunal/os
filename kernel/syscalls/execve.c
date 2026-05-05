@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "kernel/task/task.h"
 #include "kernel/task/elf_loader.h"
