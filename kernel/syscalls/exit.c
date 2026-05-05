@@ -16,7 +16,9 @@ DEFINE_SYSCALL1(exit, int, status)
 
   print_memory_info();
   close_all_files(current_task);
+  debugk("exit: closed files\n");
   clear_vmas(current_task);
+  debugk("exit: cleared vmas\n");
   print_memory_info();
 
   current_task->state = TASK_ZOMBIE;
