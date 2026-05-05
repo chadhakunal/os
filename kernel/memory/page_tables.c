@@ -136,19 +136,14 @@ void unmap_page(page_table_t *pt, uint64_t va) {
   pt3->page_table_entries[pt3_idx] = 0;
   /* free L0 table if empty */
   if (page_table_empty(pt3)) {
-    if (pt != root_page_table) {
-      free_page((void *)VIRT_TO_PHYS(pt3));
-    }
+    //free_page((void *)VIRT_TO_PHYS(pt3));
     pt2->page_table_entries[pt2_idx] = 0;
   }
 
   /* free L1 table if empty */
   if (page_table_empty(pt2)) {
-    page_table_t *pt_virt = (page_table_t *)PHYS_TO_VIRT(pt);
-    if (pt != root_page_table) {
-      free_page((void *)VIRT_TO_PHYS(pt2));
-    }
-    pt_virt->page_table_entries[pt1_idx] = 0;
+    //free_page((void *) VIRT_TO_PHYS(pt2));
+    pt->page_table_entries[pt1_idx] = 0;
   }
 }
 
