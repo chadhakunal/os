@@ -117,22 +117,30 @@ bool page_table_empty(page_table_t *pt) {
 }
 
 void unmap_page(page_table_t *pt, uint64_t va) {
+  debugk("unmap_page: pt=%p, va=%llx\n", pt, va);
   uint64_t pt1_idx = PT1_OFFSET(va);
   uint64_t pt2_idx = PT2_OFFSET(va);
   uint64_t pt3_idx = PT3_OFFSET(va);
+  debugk("unmap_page: pt1_idx=%llu, accessing pt->page_table_entries[pt1_idx]...\n", pt1_idx);
   if (!(pt->page_table_entries[pt1_idx] & PTE_VALID))
     return;
+  debugk("unmap_page: pt1 entry valid, decoding pt2...\n");
   page_table_t *pt2 =
     (page_table_t *)PHYS_TO_VIRT(
         PTE_DECODE(pt->page_table_entries[pt1_idx]));
+  debugk("unmap_page: pt2=%p\n", pt2);
 
+  debugk("unmap_page: accessing pt2->page_table_entries[pt2_idx]...\n");
   if (!(pt2->page_table_entries[pt2_idx] & PTE_VALID))
     return;
+  debugk("unmap_page: pt2 entry valid, decoding pt3...\n");
   page_table_t *pt3 =
     (page_table_t *)PHYS_TO_VIRT(
         PTE_DECODE(pt2->page_table_entries[pt2_idx]));
+  debugk("unmap_page: pt3=%p\n", pt3);
 
   /* clear leaf entry */
+  debugk("unmap_page: clearing leaf entry at index %llu...\n", pt3_idx);
   pt3->page_table_entries[pt3_idx] = 0;
   /* free L0 table if empty */
   if (page_table_empty(pt3)) {
