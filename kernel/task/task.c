@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "kernel/task/task.h"
 #include "lib/list.h"
 #include "kernel/memory/page_allocator.h"
@@ -499,18 +499,23 @@ void clear_vmas(struct task_t *task) {
     struct list_node *next = pos->next;
 
     if (vma->backing_file == NULL) {
+      debugk("clear_vmas: anonymous VMA [%llx-%llx]\n", vma->start_addr, vma->end_addr);
       for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
         uint64_t pte = get_pte(task->mm_struct.root_satp, va);
         if (pte & PTE_VALID) {
           void *phys_page = (void *)PTE_DECODE(pte);
+          debugk("  Freeing anonymous page at va=%llx, phys=%p\n", va, phys_page);
           free_page(phys_page);
         }
         unmap_page(task->mm_struct.root_satp, va);
       }
     } else {
+      debugk("clear_vmas: file-backed VMA [%llx-%llx], vnode refcount before=%llu\n",
+             vma->start_addr, vma->end_addr, vma->backing_file->refcount);
       vfs_address_space_drop_ref(vma->start_addr, vma->end_addr, vma->offset, vma->backing_file->address_space);
       unmap_pages(task->mm_struct.root_satp, vma->start_addr, vma->end_addr);
       vma->backing_file->refcount--;
+      debugk("  vnode refcount after=%llu\n", vma->backing_file->refcount);
     }
 
     list_remove(&vma->sibling_vma);

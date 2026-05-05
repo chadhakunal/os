@@ -142,8 +142,11 @@ void vfs_address_space_drop_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64
     list_for_each(&address_space->page_cache_list, pos) {
       struct page_cache_entry_t *entry = container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
       if (entry->offset == file_page_offset) {
+        debugk("    Page cache entry at file offset %llx: refcount %llu -> %llu\n",
+               file_page_offset, entry->refcount, entry->refcount - 1);
         entry->refcount--;
         if (entry->refcount == 0) {
+          debugk("    Freeing page cache entry phys=%p\n", entry->physical_page);
           free_page(entry->physical_page);
           list_remove(&entry->sibling_page_cache_entry);
           page_cache_entry_t_free(entry);
