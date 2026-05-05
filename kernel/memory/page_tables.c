@@ -120,11 +120,12 @@ bool page_table_empty(page_table_t *pt) {
 void unmap_page(page_table_t *pt, uint64_t va) {
   debugk("unmap_page: pt=%p, va=%llx\n", pt, va);
   page_table_t *pt1_virt = (page_table_t *)PHYS_TO_VIRT(pt);
+  debugk("unmap_page: pt1_virt=%p\n", pt1_virt);
 
   uint64_t pt1_idx = PT1_OFFSET(va);
   uint64_t pt2_idx = PT2_OFFSET(va);
   uint64_t pt3_idx = PT3_OFFSET(va);
-  debugk("unmap_page: pt1_idx=%llu, accessing pt->page_table_entries[pt1_idx]...\n", pt1_idx);
+  debugk("unmap_page: pt1_idx=%llu, accessing pt1_virt->page_table_entries[pt1_idx]...\n", pt1_idx);
   if (!(pt1_virt->page_table_entries[pt1_idx] & PTE_VALID))
     return;
   debugk("unmap_page: pt1 entry valid, decoding pt2...\n");
@@ -298,7 +299,7 @@ void init_kernel_page_mapping() {
 
   uint64_t new_sp;
   asm volatile("mv %0, sp" : "=r"(new_sp));
-  root_page_table = PHYS_TO_VIRT(root_page_table);
+  // Keep root_page_table as physical address - it's used for satp
   update_page_structs_to_vm();
 }
 
@@ -311,12 +312,13 @@ page_table_t *init_new_page_table() {
   // Copy kernel mappings from root page table (upper half: 256-511)
   // BUT skip the kernel stack entry (VPN[2] = 384 = 0x180)
   // Each process gets its own kernel stack mapped at the same VA
+  page_table_t *root_pt_virt = (page_table_t *)PHYS_TO_VIRT(root_page_table);
   for (uint64_t i = 256; i < 512; i++) {
     if (i == 384) {
       // Skip kernel stack entry - each process has its own kernel stack
       continue;
     }
-    new_pt_virt->page_table_entries[i] = root_page_table->page_table_entries[i];
+    new_pt_virt->page_table_entries[i] = root_pt_virt->page_table_entries[i];
   }
 
   return new_pt_phys;  /* Return physical address for satp */
