@@ -15,12 +15,8 @@ DEFINE_SYSCALL1(exit, int, status)
 
   current_task->exit_status = status;
 
-  print_pages_metadata();
   close_all_files(current_task);
-  debugk("exit: closed files\n");
   clear_vmas(current_task);
-  debugk("exit: cleared vmas\n");
-  print_pages_metadata();
 
   current_task->state = TASK_ZOMBIE;
 
