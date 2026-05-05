@@ -312,6 +312,11 @@ struct vma_t *copy_vma(struct vma_t *vma, struct task_t *old_task, struct task_t
   new_vma->backing_file = vma->backing_file;
   new_vma->offset = vma->offset;
 
+  // Increment vnode refcount if this is a file-backed VMA
+  if (vma->backing_file != NULL) {
+    vma->backing_file->refcount++;
+  }
+
   for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
     uint64_t old_pte = get_pte(old_task->mm_struct.root_satp, va);
 
