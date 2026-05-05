@@ -511,6 +511,38 @@ struct file_t *find_file(struct files_table_t *file_table, int fd) {
   return file;
 }
 
+int alloc_fd(struct files_table_t *file_table, struct file_t *file) {
+  struct files_list_t *files_list = NULL;
+  int fd = -1;
+
+  list_for_each(&file_table->files_list, pos) {
+    files_list = container_of(pos, struct files_list_t, files_list);
+
+    for (int i = 0; i < 32; i++) {
+      if (!(files_list->used_file_bitmap & (1 << i))) {
+        fd = i;
+        break;
+      }
+    }
+    if (fd != -1) break;
+  }
+
+  if (fd == -1) {
+    files_list = files_list_t_alloc();
+    if (!files_list) {
+      return -1;
+    }
+    files_list->used_file_bitmap = 0;
+    list_append(&file_table->files_list, &files_list->files_list);
+    fd = 0;
+  }
+
+  files_list->used_file_bitmap |= (1 << fd);
+  files_list->files[fd] = file;
+
+  return fd;
+}
+
 void clear_vmas(struct task_t *task) {
   debugk("clear_vmas: task=%p\n", task);
   if (!task || !task->mm_struct.root_satp) {
