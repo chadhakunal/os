@@ -493,7 +493,13 @@ void clear_vmas(struct task_t *task) {
   while (pos != &task->mm_struct.vma_list) {
     debugk("clear_vmas: loop pos=%p\n", pos);
     struct vma_t *vma = container_of(pos, struct vma_t, sibling_vma);
-    debugk("clear_vmas: vma=%p, start_addr=%llx, end_addr=%llx\n", vma, vma->start_addr, vma->end_addr);
+    debugk("clear_vmas: accessing vma->start_addr...\n");
+    uint64_t start = vma->start_addr;
+    debugk("clear_vmas: start_addr=%llx\n", start);
+    debugk("clear_vmas: accessing vma->end_addr...\n");
+    uint64_t end = vma->end_addr;
+    debugk("clear_vmas: end_addr=%llx\n", end);
+    debugk("clear_vmas: accessing vma->backing_file...\n");
     struct list_node *next = pos->next;
 
     if (vma->backing_file == NULL) {
