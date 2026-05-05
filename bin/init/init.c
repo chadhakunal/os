@@ -3,19 +3,34 @@
 #include <types.h>
 
 int main() {
+  printf("Init process starting...\n");
+
   pid_t pid = fork();
   if (pid == 0) {
-    printf("Child! yielding then I'm killing myself!\n");
-    char buf[1024];
-    read(0, buf, sizeof(buf));
-    printf("echo: %s", buf);
-    printf("Child exiting...\n");
-    return 0;
+    printf("Child: Executing /bin/sh with argv and envp\n");
+    char *argv[] = {
+      "/bin/sh",
+      "-c",
+      "echo Hello from shell!",
+      NULL
+    };
+
+    char *envp[] = {
+      "PATH=/bin",
+      "HOME=/",
+      "USER=root",
+      NULL
+    };
+
+    execve("/bin/sh", argv, envp);
+
+    printf("Child: execve failed!\n");
+    return 1;
   } else {
-    printf("Parent! I'm waiting for %llu\n", pid);
+    printf("Parent: Waiting for child PID %llu\n", pid);
     int wstatus;
     wait(&wstatus);
-    printf("Parent! Woke up child has been killed, exiting...\n");
+    printf("Parent: Child exited, parent exiting...\n");
   }
   return 0;
 }
