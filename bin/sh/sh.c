@@ -13,8 +13,12 @@ int main(int argc, char **argv, char **envp) {
   }
 
   printf("Environment:\n");
-  for (int i = 0; envp[i] != NULL; i++) {
-    printf("  envp[%d] = %s\n", i, envp[i]);
+  printf("envp pointer = %p\n", envp);
+  if (envp != NULL) {
+    printf("envp[0] = %p\n", envp[0]);
+    for (int i = 0; envp[i] != NULL; i++) {
+      printf("  envp[%d] = %s\n", i, envp[i]);
+    }
   }
 
   char buf[1024];
