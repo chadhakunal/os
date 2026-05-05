@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <types.h>
+#include <stddef.h>
 
 int main() {
   printf("Init process starting...\n");
