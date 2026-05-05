@@ -7,7 +7,7 @@ int main() {
   if (pid == 0) {
     printf("Child! yielding then I'm killing myself!\n");
     char buf[1024];
-    size_t read_bytes = read(0, buf, sizeof(buf));
+    read(0, buf, sizeof(buf));
     printf("echo: %s", buf);
     printf("Child exiting...\n");
     return 0;
