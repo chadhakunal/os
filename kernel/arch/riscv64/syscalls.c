@@ -73,7 +73,7 @@ void handle_syscall(struct trap_frame *tf) {
 
     case SYS_execve:
       debugk("syscall: execve(pathname=%llx, argv=%llx, envp=%llx)\n", tf->a0, tf->a1, tf->a2);
-      tf->a0 = -1; // TODO: implement
+      sys_execve(tf);
       break;
 
     case SYS_waitpid:

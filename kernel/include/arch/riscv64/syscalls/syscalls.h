@@ -35,5 +35,6 @@ uint64_t sys_fork(struct trap_frame *tf);
 uint64_t sys_sched_yield(struct trap_frame *tf);
 uint64_t sys_waitpid(struct trap_frame *tf);
 uint64_t sys_exit(struct trap_frame *tf);
+uint64_t sys_execve(struct trap_frame *tf);
 
 #endif

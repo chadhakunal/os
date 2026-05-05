@@ -4,6 +4,29 @@
 #include "kernel/panic.h"
 #include "lib/string.h"
 
+int validate_elf(const char *path) {
+  struct dentry_t *dentry;
+  int32_t ret = vfs_resolve_path(path, &dentry);
+  if (ret != 0) {
+    return -1;
+  }
+
+  struct Elf64_Ehdr header;
+  ret = vfs_vnode_read(dentry->vnode, &header, sizeof(header), 0);
+  if (ret < 0) {
+    return -1;
+  }
+
+  if (header.e_ident[EI_MAG0] != ELFMAG0 ||
+      header.e_ident[EI_MAG1] != ELFMAG1 ||
+      header.e_ident[EI_MAG2] != ELFMAG2 ||
+      header.e_ident[EI_MAG3] != ELFMAG3) {
+    return -1;
+  }
+
+  return 0;
+}
+
 void load_elf(struct task_t *task, const char *path) {
   struct dentry_t *dentry;
   int32_t ret = vfs_resolve_path(path, &dentry);

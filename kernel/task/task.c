@@ -436,8 +436,20 @@ void reap_zombie(struct task_t *zombie) {
   // Remove from global task list
   list_remove(&zombie->task_list);
 
-  // TODO: Free kernel stack pages
-  // TODO: Free page table if not already freed
+  // Free kernel stack pages (2 pages at KERNEL_STACK_VIRTUAL_BASE)
+  for (uint64_t va = KERNEL_STACK_VIRTUAL_BASE; va < KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE; va += DEFAULT_PAGE_SIZE) {
+    uint64_t pte = get_pte(zombie->mm_struct.root_satp, va);
+    if (pte & PTE_VALID) {
+      void *phys_page = (void *)PTE_DECODE(pte);
+      debugk("  Freeing kernel stack page at va=%llx, phys=%p\n", va, phys_page);
+      free_page(phys_page);
+      unmap_page(zombie->mm_struct.root_satp, va);
+    }
+  }
+
+  // Free the root page table itself
+  debugk("  Freeing root page table phys=%p\n", zombie->mm_struct.root_satp);
+  free_page(zombie->mm_struct.root_satp);
 
   // Free the task structure
   task_t_free(zombie);
