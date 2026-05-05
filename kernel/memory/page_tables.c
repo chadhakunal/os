@@ -119,16 +119,18 @@ bool page_table_empty(page_table_t *pt) {
 
 void unmap_page(page_table_t *pt, uint64_t va) {
   debugk("unmap_page: pt=%p, va=%llx\n", pt, va);
+  page_table_t *pt1_virt = (page_table_t *)PHYS_TO_VIRT(pt);
+
   uint64_t pt1_idx = PT1_OFFSET(va);
   uint64_t pt2_idx = PT2_OFFSET(va);
   uint64_t pt3_idx = PT3_OFFSET(va);
   debugk("unmap_page: pt1_idx=%llu, accessing pt->page_table_entries[pt1_idx]...\n", pt1_idx);
-  if (!(pt->page_table_entries[pt1_idx] & PTE_VALID))
+  if (!(pt1_virt->page_table_entries[pt1_idx] & PTE_VALID))
     return;
   debugk("unmap_page: pt1 entry valid, decoding pt2...\n");
   page_table_t *pt2 =
     (page_table_t *)PHYS_TO_VIRT(
-        PTE_DECODE(pt->page_table_entries[pt1_idx]));
+        PTE_DECODE(pt1_virt->page_table_entries[pt1_idx]));
   debugk("unmap_page: pt2=%p\n", pt2);
 
   debugk("unmap_page: accessing pt2->page_table_entries[pt2_idx]...\n");
@@ -152,7 +154,7 @@ void unmap_page(page_table_t *pt, uint64_t va) {
   /* free L1 table if empty */
   if (page_table_empty(pt2)) {
     //free_page((void *) VIRT_TO_PHYS(pt2));
-    pt->page_table_entries[pt1_idx] = 0;
+    pt1_virt->page_table_entries[pt1_idx] = 0;
   }
 }
 
