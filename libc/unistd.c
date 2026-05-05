@@ -24,3 +24,7 @@ pid_t waitpid(pid_t pid, int *wstatus, int options) {
 pid_t wait(int *wstatus) {
   return waitpid(-1, wstatus, 0);
 }
+
+int execve(const char *pathname, char *const argv[], char *const envp[]) {
+  return syscall3(SYS_execve, pathname, argv, envp);
+}

@@ -105,10 +105,10 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   total_size += (args->envc + 1) * sizeof(uint64_t);  // envp[] + NULL
 
   for (int i = 0; i < args->argc; i++) {
-    total_size += strlen(args->argv[i]) + 1;
+    total_size += str_len(args->argv[i], MAX_ARG_LEN) + 1;
   }
   for (int i = 0; i < args->envc; i++) {
-    total_size += strlen(args->envp[i]) + 1;
+    total_size += str_len(args->envp[i], MAX_ARG_LEN) + 1;
   }
 
   // Align to 16 bytes
@@ -137,7 +137,7 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   // Write argv strings and pointers
   for (int i = 0; i < args->argc; i++) {
     copy_to_user(&argv_base[i], &str_va, sizeof(uint64_t));
-    size_t len = strlen(args->argv[i]) + 1;
+    size_t len = str_len(args->argv[i], MAX_ARG_LEN) + 1;
     copy_to_user(str_ptr, args->argv[i], len);
     str_ptr += len;
     str_va += len;
@@ -148,23 +148,22 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   // Write envp strings and pointers
   for (int i = 0; i < args->envc; i++) {
     copy_to_user(&envp_base[i], &str_va, sizeof(uint64_t));
-    size_t len = strlen(args->envp[i]) + 1;
+    size_t len = str_len(args->envp[i], MAX_ARG_LEN) + 1;
     copy_to_user(str_ptr, args->envp[i], len);
     str_ptr += len;
     str_va += len;
   }
   copy_to_user(&envp_base[args->envc], &null_ptr, sizeof(uint64_t));
 
-  // Save argc/envc before freeing args
+  // Save argc before freeing args
   int argc = args->argc;
-  int envc = args->envc;
 
   // Free the pool-allocated args structure
   execve_args_t_free(args);
 
   // Update trap frame for new program
   current_task->tf.sp = sp;
-  current_task->tf.sepc = current_task->mm_struct.entry_addr;
+  current_task->tf.sepc = (uint64_t)current_task->mm_struct.entry_addr;
   current_task->tf.a0 = argc;
   current_task->tf.a1 = sp + sizeof(uint64_t);  // Pointer to argv[]
   current_task->tf.a2 = sp + sizeof(uint64_t) + (argc + 1) * sizeof(uint64_t);  // Pointer to envp[]
