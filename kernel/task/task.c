@@ -2,7 +2,7 @@
 #include "kernel/task/task.h"
 #include "lib/list.h"
 #include "kernel/memory/page_allocator.h"
-#include "kernel/memory/page_tables.h"
+#include "kernel/memopry/page_tables.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/panic.h"
@@ -518,6 +518,7 @@ void clear_vmas(struct task_t *task) {
       }
     } else {
       vfs_address_space_drop_ref(vma->start_addr, vma->end_addr, vma->offset, vma->backing_file->address_space);
+      debugk("Done dropping refcounts!\n");
       unmap_pages(task->mm_struct.root_satp, vma->start_addr, vma->end_addr);
       vma->backing_file->refcount--;
     }
