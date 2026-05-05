@@ -499,8 +499,12 @@ void clear_vmas(struct task_t *task) {
     debugk("clear_vmas: accessing vma->end_addr...\n");
     uint64_t end = vma->end_addr;
     debugk("clear_vmas: end_addr=%llx\n", end);
-    debugk("clear_vmas: accessing vma->backing_file...\n");
+    debugk("clear_vmas: accessing pos->next...\n");
     struct list_node *next = pos->next;
+    debugk("clear_vmas: next=%p\n", next);
+    debugk("clear_vmas: accessing vma->backing_file...\n");
+    void *backing = vma->backing_file;
+    debugk("clear_vmas: backing_file=%p\n", backing);
 
     if (vma->backing_file == NULL) {
       debugk("clear_vmas: anonymous VMA, freeing pages\n");
