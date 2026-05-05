@@ -312,31 +312,46 @@ struct vma_t *copy_vma(struct vma_t *vma, struct task_t *old_task, struct task_t
   new_vma->backing_file = vma->backing_file;
   new_vma->offset = vma->offset;
 
-  // Increment vnode refcount if this is a file-backed VMA
   if (vma->backing_file != NULL) {
+    // File-backed VMA: share pages and increment refcounts
     vma->backing_file->refcount++;
-  }
+    vfs_address_space_inc_ref(vma->start_addr, vma->end_addr, vma->offset, vma->backing_file->address_space);
 
-  for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
-    uint64_t old_pte = get_pte(old_task->mm_struct.root_satp, va);
+    // Map the same physical pages (share them)
+    for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
+      uint64_t old_pte = get_pte(old_task->mm_struct.root_satp, va);
 
-    if (!(old_pte & PTE_VALID)) {
-      continue;
+      if (!(old_pte & PTE_VALID)) {
+        continue;
+      }
+
+      void *old_phys_page = (void *)PTE_DECODE(old_pte);
+      uint64_t pte_flags = old_pte & (PTE_R | PTE_W | PTE_X | PTE_U);
+      map_page(new_task->mm_struct.root_satp, va, (uint64_t)old_phys_page, pte_flags);
     }
+  } else {
+    // Anonymous VMA: copy pages
+    for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
+      uint64_t old_pte = get_pte(old_task->mm_struct.root_satp, va);
 
-    void *new_phys_page = get_page(false);
-    if (!new_phys_page) {
-      panic("copy_vma: failed to allocate page");
+      if (!(old_pte & PTE_VALID)) {
+        continue;
+      }
+
+      void *new_phys_page = get_page(false);
+      if (!new_phys_page) {
+        panic("copy_vma: failed to allocate page");
+      }
+
+      void *old_phys_page = (void *)PTE_DECODE(old_pte);
+
+      void *old_virt = PHYS_TO_VIRT(old_phys_page);
+      void *new_virt = PHYS_TO_VIRT(new_phys_page);
+      memcpy(new_virt, old_virt, DEFAULT_PAGE_SIZE);
+
+      uint64_t pte_flags = old_pte & (PTE_R | PTE_W | PTE_X | PTE_U);
+      map_page(new_task->mm_struct.root_satp, va, (uint64_t)new_phys_page, pte_flags);
     }
-
-    void *old_phys_page = (void *)PTE_DECODE(old_pte);
-
-    void *old_virt = PHYS_TO_VIRT(old_phys_page);
-    void *new_virt = PHYS_TO_VIRT(new_phys_page);
-    memcpy(new_virt, old_virt, DEFAULT_PAGE_SIZE);
-
-    uint64_t pte_flags = old_pte & (PTE_R | PTE_W | PTE_X | PTE_U);
-    map_page(new_task->mm_struct.root_satp, va, (uint64_t)new_phys_page, pte_flags);
   }
 
   return new_vma;

@@ -134,6 +134,23 @@ int64_t vfs_open(const char *path, int flags, struct file_t **file) {
   return 0;
 }
 
+void vfs_address_space_inc_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space) {
+  for (uint64_t va = vaddr_start; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
+    uint64_t page_index = (va - vaddr_start) / DEFAULT_PAGE_SIZE;
+    uint64_t file_page_offset = (page_index * DEFAULT_PAGE_SIZE + offset) & ~(DEFAULT_PAGE_SIZE - 1);
+
+    list_for_each(&address_space->page_cache_list, pos) {
+      struct page_cache_entry_t *entry = container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
+      if (entry->offset == file_page_offset) {
+        debugk("    Page cache entry at file offset %llx: refcount %llu -> %llu\n",
+               file_page_offset, entry->refcount, entry->refcount + 1);
+        entry->refcount++;
+        break;
+      }
+    }
+  }
+}
+
 void vfs_address_space_drop_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space) {
   for (uint64_t va = vaddr_start; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
     uint64_t page_index = (va - vaddr_start) / DEFAULT_PAGE_SIZE;
