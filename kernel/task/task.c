@@ -587,7 +587,6 @@ void clear_vmas(struct task_t *task) {
 }
 
 void close_all_files(struct task_t *task) {
-  printk("Closing files\n");
   debugk("task pointer: %p\n", task);
   debugk("current_task pointer: %p\n", current_task);
   debugk("file_table offset in task_t: %d\n", (int)((char*)&task->file_table - (char*)task));

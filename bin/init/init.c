@@ -28,10 +28,8 @@ int main() {
     printf("Child: execve failed!\n");
     return 1;
   } else {
-    printf("Parent: Waiting for child PID %llu\n", pid);
     int wstatus;
     wait(&wstatus);
-    printf("Parent: Child exited, parent exiting...\n");
   }
   return 0;
 }
