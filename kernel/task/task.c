@@ -513,6 +513,7 @@ void clear_vmas(struct task_t *task) {
 }
 
 void close_all_files(struct task_t *task) {
+  printk("Closing files\n");
   struct list_node *pos = task->file_table.files_list.next;
   while (pos != &task->file_table.files_list) {
     struct files_list_t *files_list = container_of(pos, struct files_list_t, files_list);
