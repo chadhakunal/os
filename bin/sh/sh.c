@@ -3,7 +3,11 @@
 #include <types.h>
 #include <stddef.h>
 #include <fcntl.h>
+#include <stdlib.h>
+
 #define COMMAND_BUF_SIZE 256
+
+void parse_and_exec(const char *buf);
 
 int main(int argc, char **argv, char **envp) {
   printf("Shell started!\n");
