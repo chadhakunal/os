@@ -32,7 +32,7 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   if (!pathname || !argv) {
     return -1;
   }
-
+  debugk("creating arg struct\n");
   // Allocate structure from pool
   struct execve_args_t *args = execve_args_t_alloc();
   if (!args) {
