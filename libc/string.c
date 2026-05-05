@@ -1,5 +1,5 @@
+#include <stdint.h>
 #include <string.h>
-#include <types.h>
 
 void *memcpy(void *dst, const void *src, size_t len) {
   uint8_t *d = (uint8_t *)dst;
