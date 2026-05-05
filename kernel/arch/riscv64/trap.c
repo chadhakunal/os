@@ -96,16 +96,16 @@ void trap_handler(struct trap_frame *tf) {
         break;
       case 9:  printk("Environment call from S-mode\n"); break;
       case 12:
-        printk("=== INSTRUCTION PAGE FAULT ===\n");
-        printk("  Faulting address (stval): 0x%llx\n", tf->stval);
-        printk("  PC (sepc): 0x%llx\n", tf->sepc);
-        printk("  PID: %llu\n", current_task->pid);
+        debugk("=== INSTRUCTION PAGE FAULT ===\n");
+        debugk("  Faulting address (stval): 0x%llx\n", tf->stval);
+        debugk("  PC (sepc): 0x%llx\n", tf->sepc);
+        debugk("  PID: %llu\n", current_task->pid);
         break;
       case 13:
-        printk("=== LOAD PAGE FAULT ===\n");
-        printk("  Faulting address (stval): 0x%llx\n", tf->stval);
-        printk("  PC (sepc): 0x%llx\n", tf->sepc);
-        printk("  PID: %llu\n", current_task->pid);
+        debugk("=== LOAD PAGE FAULT ===\n");
+        debugk("  Faulting address (stval): 0x%llx\n", tf->stval);
+        debugk("  PC (sepc): 0x%llx\n", tf->sepc);
+        debugk("  PID: %llu\n", current_task->pid);
         break;
       case 15:
         printk("=== STORE PAGE FAULT ===\n");
