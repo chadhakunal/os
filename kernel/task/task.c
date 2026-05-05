@@ -1,4 +1,4 @@
-#define DEBUGK 1
+#define DEBUG 1
 #include "kernel/task/task.h"
 #include "lib/list.h"
 #include "kernel/memory/page_allocator.h"

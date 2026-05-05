@@ -1,4 +1,4 @@
-#define DEBUGK 1
+#define DEBUG 1
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
 #include "arch/riscv64/trap.h"
