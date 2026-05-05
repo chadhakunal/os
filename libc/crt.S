@@ -5,10 +5,7 @@ _start:
   mv fp, zero
 
   # Call main(argc, argv, envp)
-  # For now, pass 0 for all arguments
-  li a0, 0        # argc = 0
-  li a1, 0        # argv = NULL
-  li a2, 0        # envp = NULL
+  # Arguments are already in a0, a1, a2 from execve
   call main
 
   # main returned - call exit with return value

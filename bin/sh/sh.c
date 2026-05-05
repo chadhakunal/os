@@ -24,8 +24,11 @@ int main(int argc, char **argv, char **envp) {
   char buf[1024];
   while (true) {
     printf("$ ");
-    read(0, buf, sizeof(buf));
-    printf("Shell: %s", buf);
+    ssize_t n = read(0, buf, sizeof(buf) - 1);
+    if (n > 0) {
+      buf[n] = '\0';
+      printf("Shell: %s", buf);
+    }
   }
 
   return 0;
