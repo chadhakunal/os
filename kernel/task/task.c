@@ -514,9 +514,13 @@ void clear_vmas(struct task_t *task) {
 
 void close_all_files(struct task_t *task) {
   printk("Closing files\n");
+  debugk("file_table sentinel address: %p\n", &task->file_table.files_list);
   struct list_node *pos = task->file_table.files_list.next;
+  debugk("Initial pos=%p, pos->next=%p\n", pos, pos->next);
   while (pos != &task->file_table.files_list) {
+    debugk("Loop: pos=%p, pos->next=%p, sentinel=%p\n", pos, pos->next, &task->file_table.files_list);
     struct files_list_t *files_list = container_of(pos, struct files_list_t, files_list);
+    debugk("files_list=%p\n", files_list);
     struct list_node *next = pos->next;
 
     for (int i = 0; i < 32; i++) {
