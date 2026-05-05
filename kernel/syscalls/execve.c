@@ -40,6 +40,7 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   }
 
   // Copy pathname
+  debugk("execve: copying pathname from %p\n", pathname);
   size_t path_len = 0;
   char c;
   while (path_len < 255) {
@@ -52,10 +53,13 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   debugk("execve: pathname=%s\n", args->pathname);
 
   // Copy argv
+  debugk("execve: copying argv from %p\n", argv);
   args->argc = 0;
   while (args->argc < MAX_ARG_COUNT) {
+    debugk("execve: reading argv[%d] pointer\n", args->argc);
     char *user_arg_ptr;
     copy_from_user(&user_arg_ptr, &argv[args->argc], sizeof(char *));
+    debugk("execve: argv[%d] pointer = %p\n", args->argc, user_arg_ptr);
     if (user_arg_ptr == NULL) break;
 
     size_t arg_len = 0;
