@@ -35,7 +35,9 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   debugk("creating arg struct\n");
   // Allocate structure from pool
   struct execve_args_t *args = execve_args_t_alloc();
+  debugk("args = %p\n", args);
   if (!args) {
+    debugk("execve: failed to allocate args struct\n");
     return -1;
   }
 
