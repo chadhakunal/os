@@ -22,6 +22,10 @@
 /* File descriptor flags */
 #define O_CLOEXEC   0x0800  /* Close on exec */
 
+/* vfs_get_page flags */
+#define VFS_PAGE_NOREF  0x0000  /* Don't increment refcount (temporary access) */
+#define VFS_PAGE_REF    0x0001  /* Increment refcount (creating a mapping) */
+
 extern struct mount_t *base_mount;
 
 struct vnode_t;
@@ -129,11 +133,12 @@ int32_t vfs_mount(char *path, struct superblock_t *superblock);
 
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out);
 int32_t vfs_lookup(const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
-void *vfs_get_page(struct vnode_t *vnode, size_t offset);
+void *vfs_get_page(struct vnode_t *vnode, size_t offset, int flags);
 int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t offset);
 int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 int64_t vfs_open(const char *path, int flags, struct file_t **file);
 int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 struct file_t *vfs_init_file(struct vnode_t *vnode, int flags);
+void vfs_address_space_drop_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space);
 
 #endif

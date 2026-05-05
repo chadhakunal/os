@@ -12,9 +12,8 @@ DEFINE_SYSCALL1(exit, int, status)
 
   current_task->exit_status = status;
 
-  // TODO: Close all file descriptors
-  // TODO: Free all user memory
-  // TODO: Free user page table
+  close_all_files(current_task);
+  clear_vmas(current_task);
 
   current_task->state = TASK_ZOMBIE;
 

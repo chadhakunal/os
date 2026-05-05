@@ -37,18 +37,19 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
 }
 
 
-void *vfs_get_page(struct vnode_t *vnode, size_t offset){
-  // Align offset to page boundary
+void *vfs_get_page(struct vnode_t *vnode, size_t offset, int flags){
   uint64_t page_offset = offset & ~(DEFAULT_PAGE_SIZE - 1);
 
-  // Search for page in address space
   list_for_each(&vnode->address_space->page_cache_list, pos) {
     struct page_cache_entry_t *page_cache_entry = container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
     if (page_cache_entry->offset == page_offset) {
+      if (flags & VFS_PAGE_REF) {
+        page_cache_entry->refcount++;
+      }
       return page_cache_entry->physical_page;
     }
   }
-  // Couldnt find a page cache entry, pull it in
+
   void *phys_page;
   int ret = vnode->address_space->address_space_ops->fill_page(vnode, offset, &phys_page);
   if (ret < 0) {
@@ -56,11 +57,10 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset){
     return NULL;
   }
 
-  // Add to cache
   struct page_cache_entry_t *page_cache_entry = page_cache_entry_t_alloc();
   page_cache_entry->offset = page_offset;
   page_cache_entry->physical_page = phys_page;
-  page_cache_entry->refcount = 1;
+  page_cache_entry->refcount = (flags & VFS_PAGE_REF) ? 1 : 0;
   page_cache_entry->dirty = false;
   list_append(&vnode->address_space->page_cache_list, &page_cache_entry->sibling_page_cache_entry);
 
@@ -134,3 +134,22 @@ int64_t vfs_open(const char *path, int flags, struct file_t **file) {
   return 0;
 }
 
+void vfs_address_space_drop_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space) {
+  for (uint64_t va = vaddr_start; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
+    uint64_t page_index = (va - vaddr_start) / DEFAULT_PAGE_SIZE;
+    uint64_t file_page_offset = (page_index * DEFAULT_PAGE_SIZE + offset) & ~(DEFAULT_PAGE_SIZE - 1);
+
+    list_for_each(&address_space->page_cache_list, pos) {
+      struct page_cache_entry_t *entry = container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
+      if (entry->offset == file_page_offset) {
+        entry->refcount--;
+        if (entry->refcount == 0) {
+          free_page(entry->physical_page);
+          list_remove(&entry->sibling_page_cache_entry);
+          page_cache_entry_t_free(entry);
+        }
+        break;
+      }
+    }
+  }
+}

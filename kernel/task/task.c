@@ -228,13 +228,15 @@ int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
   new_vma->offset = offset_aligned;
   new_vma->vm_flags = vm_flags;
 
+  vnode->refcount++;
+
   list_append(&mm_struct->vma_list, &new_vma->sibling_vma);
 
   // Eagerly load the pages into the page table from the file
   if (eager) {
     size_t file_offset = offset_aligned;
     for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
-      void *phys_page = vfs_get_page(vnode, file_offset);
+      void *phys_page = vfs_get_page(vnode, file_offset, VFS_PAGE_REF);
 
       // Convert VM flags to PTE flags
       // Note: map_page() sets PTE_VALID and PTE_A automatically
@@ -474,4 +476,61 @@ struct file_t *find_file(struct files_table_t *file_table, int fd) {
     }
   }
   return file;
+}
+
+void clear_vmas(struct task_t *task) {
+  if (!task || !task->mm_struct.root_satp) {
+    return;
+  }
+
+  struct list_node *pos = task->mm_struct.vma_list.next;
+  while (pos != &task->mm_struct.vma_list) {
+    struct vma_t *vma = container_of(pos, struct vma_t, sibling_vma);
+    struct list_node *next = pos->next;
+
+    if (vma->backing_file == NULL) {
+      for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
+        uint64_t pte = get_pte(task->mm_struct.root_satp, va);
+        if (pte & PTE_VALID) {
+          void *phys_page = (void *)PTE_DECODE(pte);
+          free_page(phys_page);
+        }
+        unmap_page(task->mm_struct.root_satp, va);
+      }
+    } else {
+      vfs_address_space_drop_ref(vma->start_addr, vma->end_addr, vma->offset, vma->backing_file->address_space);
+      unmap_pages(task->mm_struct.root_satp, vma->start_addr, vma->end_addr);
+      vma->backing_file->refcount--;
+    }
+
+    list_remove(&vma->sibling_vma);
+    vma_t_free(vma);
+
+    pos = next;
+  }
+
+  asm volatile("sfence.vma zero, zero");
+}
+
+void close_all_files(struct task_t *task) {
+  struct list_node *pos = task->file_table.files_list.next;
+  while (pos != &task->file_table.files_list) {
+    struct files_list_t *files_list = container_of(pos, struct files_list_t, files_list);
+    struct list_node *next = pos->next;
+
+    for (int i = 0; i < 32; i++) {
+      if (files_list->files[i] != NULL) {
+        files_list->files[i]->refcount--;
+        if (files_list->files[i]->refcount == 0) {
+          file_t_free(files_list->files[i]);
+        }
+        files_list->files[i] = NULL;
+      }
+    }
+
+    list_remove(&files_list->files_list);
+    files_list_t_free(files_list);
+
+    pos = next;
+  }
 }

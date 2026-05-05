@@ -125,4 +125,7 @@ void switch_to(struct task_t *me, struct task_t *next);
 
 struct file_t *find_file(struct files_table_t *file_table, int fd);
 
+void clear_vmas(struct task_t *task);
+void close_all_files(struct task_t *task);
+
 #endif

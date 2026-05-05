@@ -63,7 +63,7 @@ int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t off
     size_t copy_size = (size < bytes_in_page) ? size : bytes_in_page;
 
     // Get page from cache
-    void *page_phys = vfs_get_page(vnode, page_offset);
+    void *page_phys = vfs_get_page(vnode, page_offset, VFS_PAGE_NOREF);
     if (!page_phys) {
       return -1;  // Error reading page
     }
