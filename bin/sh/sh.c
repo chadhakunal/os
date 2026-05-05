@@ -70,15 +70,25 @@ void parse_and_exec(const char *buf) {
 
   // Build full path to command
   char full_path[256];
-  full_path[0] = '/';
-  full_path[1] = 'b';
-  full_path[2] = 'i';
-  full_path[3] = 'n';
-  full_path[4] = '/';
-  for (size_t j = 0; j < cmd_len && j < 250; j++) {
-    full_path[5 + j] = command_buf[j];
+
+  // If command starts with '/', use it as-is (absolute path)
+  if (command_buf[0] == '/') {
+    for (size_t j = 0; j < cmd_len && j < 255; j++) {
+      full_path[j] = command_buf[j];
+    }
+    full_path[cmd_len] = '\0';
+  } else {
+    // Otherwise, prepend /bin/
+    full_path[0] = '/';
+    full_path[1] = 'b';
+    full_path[2] = 'i';
+    full_path[3] = 'n';
+    full_path[4] = '/';
+    for (size_t j = 0; j < cmd_len && j < 250; j++) {
+      full_path[5 + j] = command_buf[j];
+    }
+    full_path[5 + cmd_len] = '\0';
   }
-  full_path[5 + cmd_len] = '\0';
 
   argv[argc++] = full_path;
 
