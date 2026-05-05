@@ -191,6 +191,10 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   current_task->tf.a1 = sp + sizeof(uint64_t);  // Pointer to argv[]
   current_task->tf.a2 = sp + sizeof(uint64_t) + (argc + 1) * sizeof(uint64_t);  // Pointer to envp[]
 
+  debugk("execve: sp=%llx, sepc=%llx\n", current_task->tf.sp, current_task->tf.sepc);
+  debugk("execve: a0(argc)=%llu, a1(argv)=%llx, a2(envp)=%llx\n",
+         current_task->tf.a0, current_task->tf.a1, current_task->tf.a2);
+
   // Zero out saved registers for security
   current_task->tf.s0 = 0;
   current_task->tf.s1 = 0;
