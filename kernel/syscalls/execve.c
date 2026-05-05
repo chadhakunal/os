@@ -10,12 +10,14 @@
 #include "kernel/user_data_access.h"
 #include "types.h"
 
-#define MAX_ARG_COUNT 32
-#define MAX_ARG_LEN 128
+#define MAX_ARG_COUNT 16
+#define MAX_ARG_LEN 64
+#define MAX_PATH_LEN 128
 
-// Structure for execve arguments - sized to fit comfortably in one page
+// Structure for execve arguments - must fit in one page (4096 bytes)
+// Size: 128 + 8 + (16*64) + (16*64) = 128 + 8 + 1024 + 1024 = 2184 bytes
 struct execve_args_t {
-  char pathname[256];
+  char pathname[MAX_PATH_LEN];
   int argc;
   int envc;
   char argv[MAX_ARG_COUNT][MAX_ARG_LEN];
@@ -45,7 +47,7 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   debugk("execve: copying pathname from %p\n", pathname);
   size_t path_len = 0;
   char c;
-  while (path_len < 255) {
+  while (path_len < MAX_PATH_LEN - 1) {
     copy_from_user(&c, &pathname[path_len], 1);
     if (c == '\0') break;
     args->pathname[path_len] = c;
