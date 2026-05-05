@@ -41,8 +41,11 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
 
   // Copy pathname
   size_t path_len = 0;
-  while (path_len < 255 && pathname[path_len] != '\0') {
-    args->pathname[path_len] = pathname[path_len];
+  char c;
+  while (path_len < 255) {
+    copy_from_user(&c, &pathname[path_len], 1);
+    if (c == '\0') break;
+    args->pathname[path_len] = c;
     path_len++;
   }
   args->pathname[path_len] = '\0';
@@ -50,10 +53,16 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
 
   // Copy argv
   args->argc = 0;
-  while (argv[args->argc] != NULL && args->argc < MAX_ARG_COUNT) {
+  while (args->argc < MAX_ARG_COUNT) {
+    char *user_arg_ptr;
+    copy_from_user(&user_arg_ptr, &argv[args->argc], sizeof(char *));
+    if (user_arg_ptr == NULL) break;
+
     size_t arg_len = 0;
-    while (argv[args->argc][arg_len] != '\0' && arg_len < MAX_ARG_LEN - 1) {
-      args->argv[args->argc][arg_len] = argv[args->argc][arg_len];
+    while (arg_len < MAX_ARG_LEN - 1) {
+      copy_from_user(&c, &user_arg_ptr[arg_len], 1);
+      if (c == '\0') break;
+      args->argv[args->argc][arg_len] = c;
       arg_len++;
     }
     args->argv[args->argc][arg_len] = '\0';
@@ -64,10 +73,16 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   // Copy envp
   args->envc = 0;
   if (envp != NULL) {
-    while (envp[args->envc] != NULL && args->envc < MAX_ARG_COUNT) {
+    while (args->envc < MAX_ARG_COUNT) {
+      char *user_env_ptr;
+      copy_from_user(&user_env_ptr, &envp[args->envc], sizeof(char *));
+      if (user_env_ptr == NULL) break;
+
       size_t env_len = 0;
-      while (envp[args->envc][env_len] != '\0' && env_len < MAX_ARG_LEN - 1) {
-        args->envp[args->envc][env_len] = envp[args->envc][env_len];
+      while (env_len < MAX_ARG_LEN - 1) {
+        copy_from_user(&c, &user_env_ptr[env_len], 1);
+        if (c == '\0') break;
+        args->envp[args->envc][env_len] = c;
         env_len++;
       }
       args->envp[args->envc][env_len] = '\0';
