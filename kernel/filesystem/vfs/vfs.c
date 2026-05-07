@@ -12,8 +12,10 @@
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   debugk("vfs_resolve_path: path=%s\n", path);
   struct dentry_t *curr_dentry;
+  int name_len;
   if (path[0] == '/') {
     curr_dentry = base_mount->superblock->root_dentry;
+    name_len = str_tok_no_delim(&current_path, current_name, '/', 256); // Strip the first /
   } else {
     // Relative path! we should attach the cwd path then perform the lookup with full path
     // ie start from curr_dentry = current_task->cwd;
@@ -24,7 +26,6 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   uint32_t ret;
   const char *current_path = path;
   char current_name[256];
-  int name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
   name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
   debugk("vfs_resolve_path: first component='%s', len=%d\n", current_name, name_len);
   while (name_len > 0) {
