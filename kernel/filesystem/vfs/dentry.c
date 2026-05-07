@@ -1,4 +1,5 @@
 #include "kernel/filesystem/vfs/vfs.h"
+#include "lib/string.h"
 #include "lib/printk/printk.h"
 #include "errno.h"
 
