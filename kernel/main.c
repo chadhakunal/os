@@ -95,7 +95,7 @@ void kmain(void *dtb_ptr) {
 
   create_init_process();
   printk("Created init process from /bin/init (PID 1)\n");
-  printk("Size of task struct: %lld\n", sizeof(task_t));
+  printk("Size of task struct: %lld\n", sizeof(struct task_t));
 
   asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
   switch_to_page_table(current_task);
