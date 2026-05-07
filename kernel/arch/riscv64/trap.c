@@ -98,6 +98,7 @@ void trap_handler(struct trap_frame *tf) {
       case 9:  printk("Environment call from S-mode\n"); break;
       case 12:
         debugk("=== INSTRUCTION PAGE FAULT ===\n");
+        debugk("  Mode: %s\n", (tf->sstatus & SSTATUS_SPP) ? "Supervisor" : "User");
         debugk("  Faulting address (stval): 0x%llx\n", tf->stval);
         debugk("  PC (sepc): 0x%llx\n", tf->sepc);
         debugk("  PID: %llu\n", current_task->pid);
@@ -105,6 +106,7 @@ void trap_handler(struct trap_frame *tf) {
         debugk("  Stack pointer (sp): 0x%llx\n", tf->sp);
         debugk("  Return address (ra): 0x%llx\n", tf->ra);
         debugk("  SATP: 0x%llx\n", current_task->mm_struct.root_satp);
+        debugk("  sstatus: 0x%llx\n", tf->sstatus);
         debugk("  a0: 0x%llx, a1: 0x%llx, a2: 0x%llx\n", tf->a0, tf->a1, tf->a2);
         debugk("  s0: 0x%llx, s1: 0x%llx\n", tf->s0, tf->s1);
         break;
