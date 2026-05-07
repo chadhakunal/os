@@ -137,6 +137,8 @@ void create_idle_task(void) {
 
   idle_task->kernel_context.ra = (uint64_t)idle_loop;
 
+  idle_task->cwd = base_mount->superblock->root_dentry;
+
   idle_task->exit_status = 0;
   idle_task->wait_reason = WAIT_NONE;
   idle_task->wait_pid = 0;
