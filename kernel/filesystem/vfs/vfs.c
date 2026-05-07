@@ -30,10 +30,10 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   while (name_len > 0) {
     debugk("vfs_resolve_path: looking up '%s' in vnode=%p\n", current_name, curr_dentry->vnode);
     debugk("vfs_resolve_path: mounted_vnode=%p\n", curr_dentry->vnode->mounted_vnode);
-    if (strncmp(current_name, ".")) {
+    if (!strncmp(current_name, ".")) {
       // keep the current dentry the same
       curr_dentry = curr_dentry; // nop
-    } else if (strncmp(current_name, "..")) {
+    } else if (!strncmp(current_name, "..")) {
       curr_dentry = curr_dentry->parent;
     } else {
       ret = vfs_lookup(current_name, curr_dentry->vnode->mounted_vnode != NULL ? curr_dentry->vnode->mounted_vnode : curr_dentry->vnode, &next_dentry);
