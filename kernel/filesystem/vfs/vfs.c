@@ -29,15 +29,23 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   while (name_len > 0) {
     debugk("vfs_resolve_path: looking up '%s' in vnode=%p\n", current_name, curr_dentry->vnode);
     debugk("vfs_resolve_path: mounted_vnode=%p\n", curr_dentry->vnode->mounted_vnode);
-    ret = vfs_lookup(current_name, curr_dentry->vnode->mounted_vnode != NULL ? curr_dentry->vnode->mounted_vnode : curr_dentry->vnode, &next_dentry);
-    debugk("vfs_resolve_path: vfs_lookup returned %d, next_dentry=%p\n", ret, next_dentry);
-    if (ret != 0 || next_dentry == NULL) {
-      debugk("vfs_resolve_path: lookup failed, returning %d\n", ret);
-      return ret;
+    if (strncmp(name, ".")) {
+      // keep the current dentry the same
+      curr_dentry = curr_dentry; // nop
+    } else if (strncmp(name, "..")) {
+      curr_dentry = curr_dentry->parent;
+    } else {
+      ret = vfs_lookup(current_name, curr_dentry->vnode->mounted_vnode != NULL ? curr_dentry->vnode->mounted_vnode : curr_dentry->vnode, &next_dentry);
+      debugk("vfs_resolve_path: vfs_lookup returned %d, next_dentry=%p\n", ret, next_dentry);
+      if (ret != 0 || next_dentry == NULL) {
+        debugk("vfs_resolve_path: lookup failed, returning %d\n", ret);
+        return ret;
+      }
+      curr_dentry = next_dentry;
+      debugk("vfs_resolve_path: next component='%s', len=%d\n", current_name, name_len);
     }
-    curr_dentry = next_dentry;
+    // Move to next portion of path
     name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
-    debugk("vfs_resolve_path: next component='%s', len=%d\n", current_name, name_len);
   }
   debugk("vfs_resolve_path: success, returning dentry=%p\n", curr_dentry);
   *out = curr_dentry;
