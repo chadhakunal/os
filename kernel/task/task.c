@@ -24,26 +24,19 @@ void init_task_system() {
   task_list.prev = &task_list;
 }
 
-/* Set the current task and update tp register */
 void set_current_task(struct task_t *task) {
   current_task = task;
-  // Update tp register to point to current_task
-  // This allows trap_vector to access current_task->tf directly
   asm volatile("mv tp, %0" :: "r"(current_task));
 }
 
-/* Switch to a task's page table */
 void switch_to_page_table(struct task_t *task) {
   // Build satp value: mode (Sv39 = 8) in bits [63:60], PPN in bits [43:0]
   uint64_t satp = (8ULL << 60) | ((uint64_t)task->mm_struct.root_satp >> 12);
 
-  // Flush TLB before switching
   asm volatile("sfence.vma zero, zero");
 
-  // Switch page table
   asm volatile("csrw satp, %0" :: "r"(satp) : "memory");
 
-  // Flush TLB after switching
   asm volatile("sfence.vma zero, zero");
 }
 
@@ -105,7 +98,6 @@ struct task_t *task_init() {
   // This makes new tasks jump to fresh_task_jump() on first schedule
   task->kernel_context.ra = (uint64_t)fresh_task_jump;
 
-  // Initialize wait/exit fields
   task->exit_status = 0;
   task->wait_reason = WAIT_NONE;
   task->wait_pid = 0;
@@ -119,42 +111,32 @@ struct task_t *task_init() {
 void idle_loop(void) {
   extern void enable_interrupts(void);
 
-  // CRITICAL: Idle runs in kernel mode, so sscratch must be 0
-  // switch_to sets sscratch to kernel stack, but we need it to be 0
   asm volatile("csrw sscratch, zero");
 
   enable_interrupts();
 
   while (1) {
-    // Wait for interrupt
     asm volatile("wfi");
   }
 }
 
-// Create idle task (PID 0) - runs when nothing else can run
 void create_idle_task(void) {
   idle_task = task_t_alloc();
   idle_task->pid = 0;
-  idle_task->ppid = 0;  // Idle has no parent
-  idle_task->pgid = 0;  // Idle is its own process group
+  idle_task->ppid = 0; 
+  idle_task->pgid = 0;
   idle_task->uid = 0;
   idle_task->state = TASK_RUNNING;
 
-  // Initialize page table with kernel mappings copied from root
   idle_task->mm_struct.root_satp = init_new_page_table();
 
-  // Initialize VMA list (empty - idle task has no user mappings)
   idle_task->mm_struct.vma_list.next = &idle_task->mm_struct.vma_list;
   idle_task->mm_struct.vma_list.prev = &idle_task->mm_struct.vma_list;
 
-  // Allocate kernel stack
   allocate_kernel_stack(idle_task);
 
-  // Set return address to idle_loop (kernel function, NOT fresh_task_jump)
-  // When switch_to returns to idle, it will jump directly to idle_loop
   idle_task->kernel_context.ra = (uint64_t)idle_loop;
 
-  // Initialize wait/exit fields (idle never waits or exits)
   idle_task->exit_status = 0;
   idle_task->wait_reason = WAIT_NONE;
   idle_task->wait_pid = 0;
@@ -167,25 +149,14 @@ void create_idle_task(void) {
   idle_task->wait_list.prev = &idle_task->wait_list;
 }
 
-// Populates the init_task
 void create_init_process() {
-  init_task_system();  // Initialize task_list with virtual addresses
+  init_task_system();
   init_task = task_init();
   load_elf(init_task , "/bin/init");
   list_append(&task_list, &init_task->task_list);
-
-  // Set current_task and update tp register
+  init_task->cwd = base_mount->superblock->root_dentry;
   set_current_task(init_task);
   init_task->state = TASK_RUNNING;
-}
-
-// Deprecated, used for testing
-void create_second_task() {
-  struct task_t *task2 = task_init();
-  task2->pid = 2;  // Different PID from init (which is 0)
-  load_elf(task2, "/bin/init2");
-  list_append(&task_list, &task2->task_list);
-  // State is already TASK_READY from task_init()
 }
 
 void start_init_process();
@@ -463,6 +434,7 @@ uint64_t fork_off() {
   new_task->pid = ++latest_pid;
   new_task->pgid = current_task->pgid;  // Inherit process group from parent
   new_task->uid = current_task->uid;
+  new_task->cwd = current_task->cwd;
 
   new_task->mm_struct.root_satp = init_new_page_table();
   new_task->mm_struct.vma_list.next = &new_task->mm_struct.vma_list;

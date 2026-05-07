@@ -25,6 +25,16 @@ void handle_syscall(struct trap_frame *tf) {
 
 
   switch (syscall_num) {
+    case SYS_getcwd:
+      debugk("syscall: getcwd(buf=%llx, size=%llu)\n", tf->a0, tf->a1);
+      ret = sys_getcwd(tf);
+      break;
+
+    case SYS_chdir:
+      debugk("syscall: chdir(path=%llx)\n", tf->a0);
+      ret = sys_chdir(tf);
+      break;
+
     case SYS_read:
       debugk("syscall: read(fd=%llu, buf=%llx, count=%llu)\n", tf->a0, tf->a1, tf->a2);
       ret = sys_read(tf);

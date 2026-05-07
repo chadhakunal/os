@@ -1,6 +1,15 @@
 #include <unistd.h>
 #include <types.h>
 
+char *getcwd(char *buf, size_t size) {
+  long ret = syscall2(SYS_getcwd, buf, size);
+  return ret >= 0 ? (char *)ret : (char *)0;
+}
+
+int chdir(const char *path) {
+  return syscall1(SYS_chdir, path);
+}
+
 ssize_t read(int fd, void *buf, size_t n) {
   return syscall3(SYS_read, fd, buf, n);
 }

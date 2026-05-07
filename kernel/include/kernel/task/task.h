@@ -84,6 +84,8 @@ struct task_t {
   enum wait_reason wait_reason;
   int64_t wait_pid;
   struct list_node wait_list;
+  
+  struct dentry_t *cwd;
 };
 
 DEFINE_POOL(task_t, struct task_t)

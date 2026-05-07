@@ -10,7 +10,14 @@
 
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   debugk("vfs_resolve_path: path=%s\n", path);
-  struct dentry_t *curr_dentry = base_mount->superblock->root_dentry;
+  struct dentry_t *curr_dentry;
+  if (path[0] == '/') {
+    curr_dentry = base_mount->superblock->root_dentry;
+  } else {
+    // Relative path! we should attach the cwd path then perform the lookup with full path
+    // ie start from curr_dentry = current_task->cwd;
+    curr_dentry = current_task->cwd;
+  }
   debugk("vfs_resolve_path: root_dentry=%p\n", curr_dentry);
   struct dentry_t *next_dentry;
   uint32_t ret;

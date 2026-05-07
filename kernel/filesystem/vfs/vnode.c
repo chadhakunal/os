@@ -83,6 +83,14 @@ int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t off
 }
 
 int32_t vfs_lookup(const char *name, struct vnode_t *parent_dir, struct dentry_t **out) {
+  if (strncmp(name, ".") == 0) {
+    *out = parent_dir;
+    return 0;
+  }
+  if (strncmp(name, "..") == 0) {
+    *out = parent_dir->parent;
+    return 0;
+  }
   if (parent_dir == NULL) {
     panic("vfs_lookup: parent_dir is NULL\n");
   }

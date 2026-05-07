@@ -8,6 +8,8 @@
 
 // RISC-V Linux syscall numbers
 // ref: linux/include/uapi/asm-generic/unistd.h
+#define SYS_getcwd          17
+#define SYS_chdir           49
 #define SYS_read            63
 #define SYS_write           64
 #define SYS_close           57
@@ -28,6 +30,8 @@
 void handle_syscall(struct trap_frame *tf);
 
 /* Syscall implementations */
+uint64_t sys_getcwd(struct trap_frame *tf);
+uint64_t sys_chdir(struct trap_frame *tf);
 uint64_t sys_openat(struct trap_frame *tf);
 uint64_t sys_read(struct trap_frame *tf);
 uint64_t sys_write(struct trap_frame *tf);
