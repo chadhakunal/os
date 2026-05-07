@@ -3,6 +3,8 @@
 #include <types.h>
 
 // Syscall numbers (from kernel)
+#define SYS_getcwd          17
+#define SYS_chdir           49
 #define SYS_read            63
 #define SYS_write           64
 #define SYS_close           57
@@ -87,9 +89,12 @@
 })
 
 // POSIX functions
+char *getcwd(char *buf, size_t size);
+int chdir(const char *path);
 ssize_t read(int fd, void *buf, size_t n);
 ssize_t write(int fd, const void *buf, size_t n);
 pid_t fork(void);
 int sched_yield(void);
 pid_t waitpid(pid_t pid, int *wstatus, int options);
 pid_t wait(int *wstatus);
+int execve(const char *pathname, char *const argv[], char *const envp[]);

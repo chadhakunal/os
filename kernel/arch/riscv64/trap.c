@@ -1,3 +1,4 @@
+#define DEBUG 0
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
 #include "arch/riscv64/trap.h"
@@ -49,6 +50,7 @@ void trap_handler(struct trap_frame *tf) {
         break;
       case 5:
         // Timer interrupt
+        debugk("Timer trap!\n");
         trap_timer_handler(tf);
         extern void trap_return(struct trap_frame *tf);
 
@@ -95,16 +97,24 @@ void trap_handler(struct trap_frame *tf) {
         break;
       case 9:  printk("Environment call from S-mode\n"); break;
       case 12:
-        printk("=== INSTRUCTION PAGE FAULT ===\n");
-        printk("  Faulting address (stval): 0x%llx\n", tf->stval);
-        printk("  PC (sepc): 0x%llx\n", tf->sepc);
-        printk("  PID: %llu\n", current_task->pid);
+        debugk("=== INSTRUCTION PAGE FAULT ===\n");
+        debugk("  Mode: %s\n", (tf->sstatus & SSTATUS_SPP) ? "Supervisor" : "User");
+        debugk("  Faulting address (stval): 0x%llx\n", tf->stval);
+        debugk("  PC (sepc): 0x%llx\n", tf->sepc);
+        debugk("  PID: %llu\n", current_task->pid);
+        debugk("  Task: %p\n", current_task);
+        debugk("  Stack pointer (sp): 0x%llx\n", tf->sp);
+        debugk("  Return address (ra): 0x%llx\n", tf->ra);
+        debugk("  SATP: 0x%llx\n", current_task->mm_struct.root_satp);
+        debugk("  sstatus: 0x%llx\n", tf->sstatus);
+        debugk("  a0: 0x%llx, a1: 0x%llx, a2: 0x%llx\n", tf->a0, tf->a1, tf->a2);
+        debugk("  s0: 0x%llx, s1: 0x%llx\n", tf->s0, tf->s1);
         break;
       case 13:
-        printk("=== LOAD PAGE FAULT ===\n");
-        printk("  Faulting address (stval): 0x%llx\n", tf->stval);
-        printk("  PC (sepc): 0x%llx\n", tf->sepc);
-        printk("  PID: %llu\n", current_task->pid);
+        debugk("=== LOAD PAGE FAULT ===\n");
+        debugk("  Faulting address (stval): 0x%llx\n", tf->stval);
+        debugk("  PC (sepc): 0x%llx\n", tf->sepc);
+        debugk("  PID: %llu\n", current_task->pid);
         break;
       case 15:
         printk("=== STORE PAGE FAULT ===\n");

@@ -1,3 +1,4 @@
+#define DEBUG 0
 #include "kernel/filesystem/vfs/vfs.h"
 #include "lib/string.h"
 #include "lib/printk/printk.h"
@@ -6,30 +7,46 @@
 #include "lib/list.h"
 #include "kernel/memory/page_allocator.h"
 #include "arch/riscv64/virtual_memory_init.h"
+#include "kernel/task/task.h"
 
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   debugk("vfs_resolve_path: path=%s\n", path);
-  struct dentry_t *curr_dentry = base_mount->superblock->root_dentry;
-  debugk("vfs_resolve_path: root_dentry=%p\n", curr_dentry);
-  struct dentry_t *next_dentry;
+  struct dentry_t *curr_dentry, *next_dentry;
   uint32_t ret;
-  const char *current_path = path;
+  int name_len;
   char current_name[256];
-  int name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
+  const char *current_path = path;
+  if (path[0] == '/') {
+    curr_dentry = base_mount->superblock->root_dentry;
+    name_len = str_tok_no_delim(&current_path, current_name, '/', 256); // Strip the first /
+  } else {
+    // Relative path! we should attach the cwd path then perform the lookup with full path
+    // ie start from curr_dentry = current_task->cwd;
+    curr_dentry = current_task->cwd;
+  }
+  debugk("vfs_resolve_path: root_dentry=%p\n", curr_dentry);
   name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
   debugk("vfs_resolve_path: first component='%s', len=%d\n", current_name, name_len);
   while (name_len > 0) {
     debugk("vfs_resolve_path: looking up '%s' in vnode=%p\n", current_name, curr_dentry->vnode);
     debugk("vfs_resolve_path: mounted_vnode=%p\n", curr_dentry->vnode->mounted_vnode);
-    ret = vfs_lookup(current_name, curr_dentry->vnode->mounted_vnode != NULL ? curr_dentry->vnode->mounted_vnode : curr_dentry->vnode, &next_dentry);
-    debugk("vfs_resolve_path: vfs_lookup returned %d, next_dentry=%p\n", ret, next_dentry);
-    if (ret != 0 || next_dentry == NULL) {
-      debugk("vfs_resolve_path: lookup failed, returning %d\n", ret);
-      return ret;
+    if (!strncmp(current_name, ".")) {
+      // keep the current dentry the same
+      curr_dentry = curr_dentry; // nop
+    } else if (!strncmp(current_name, "..")) {
+      curr_dentry = curr_dentry->parent;
+    } else {
+      ret = vfs_lookup(current_name, curr_dentry->vnode->mounted_vnode != NULL ? curr_dentry->vnode->mounted_vnode : curr_dentry->vnode, &next_dentry);
+      debugk("vfs_resolve_path: vfs_lookup returned %d, next_dentry=%p\n", ret, next_dentry);
+      if (ret != 0 || next_dentry == NULL) {
+        debugk("vfs_resolve_path: lookup failed, returning %d\n", ret);
+        return ret;
+      }
+      curr_dentry = next_dentry;
+      debugk("vfs_resolve_path: next component='%s', len=%d\n", current_name, name_len);
     }
-    curr_dentry = next_dentry;
+    // Move to next portion of path
     name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
-    debugk("vfs_resolve_path: next component='%s', len=%d\n", current_name, name_len);
   }
   debugk("vfs_resolve_path: success, returning dentry=%p\n", curr_dentry);
   *out = curr_dentry;
@@ -134,6 +151,23 @@ int64_t vfs_open(const char *path, int flags, struct file_t **file) {
   return 0;
 }
 
+void vfs_address_space_inc_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space) {
+  for (uint64_t va = vaddr_start; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
+    uint64_t page_index = (va - vaddr_start) / DEFAULT_PAGE_SIZE;
+    uint64_t file_page_offset = (page_index * DEFAULT_PAGE_SIZE + offset) & ~(DEFAULT_PAGE_SIZE - 1);
+
+    list_for_each(&address_space->page_cache_list, pos) {
+      struct page_cache_entry_t *entry = container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
+      if (entry->offset == file_page_offset) {
+        debugk("    Page cache entry at file offset %llx: refcount %llu -> %llu\n",
+               file_page_offset, entry->refcount, entry->refcount + 1);
+        entry->refcount++;
+        break;
+      }
+    }
+  }
+}
+
 void vfs_address_space_drop_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space) {
   for (uint64_t va = vaddr_start; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
     uint64_t page_index = (va - vaddr_start) / DEFAULT_PAGE_SIZE;
@@ -142,8 +176,11 @@ void vfs_address_space_drop_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64
     list_for_each(&address_space->page_cache_list, pos) {
       struct page_cache_entry_t *entry = container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
       if (entry->offset == file_page_offset) {
+        debugk("    Page cache entry at file offset %llx: refcount %llu -> %llu\n",
+               file_page_offset, entry->refcount, entry->refcount - 1);
         entry->refcount--;
         if (entry->refcount == 0) {
+          debugk("    Freeing page cache entry phys=%p\n", entry->physical_page);
           free_page(entry->physical_page);
           list_remove(&entry->sibling_page_cache_entry);
           page_cache_entry_t_free(entry);

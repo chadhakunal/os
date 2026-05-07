@@ -84,6 +84,8 @@ struct task_t {
   enum wait_reason wait_reason;
   int64_t wait_pid;
   struct list_node wait_list;
+  
+  struct dentry_t *cwd;
 };
 
 DEFINE_POOL(task_t, struct task_t)
@@ -124,6 +126,7 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
 void switch_to(struct task_t *me, struct task_t *next);
 
 struct file_t *find_file(struct files_table_t *file_table, int fd);
+int alloc_fd(struct files_table_t *file_table, struct file_t *file);
 
 void clear_vmas(struct task_t *task);
 void close_all_files(struct task_t *task);

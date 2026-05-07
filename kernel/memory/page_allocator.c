@@ -1,8 +1,10 @@
+#define DEBUG 0
 #include "platform.h"
 #include "types.h"
 
 #include "kernel/memory/memory_info.h"
 #include "kernel/memory/page_allocator.h"
+#include "lib/printk/printk.h"
 
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
@@ -101,6 +103,8 @@ void free_page(void *p) {
   if (!freed_page->in_use) {
     panic("DOUBLE FREE DETECTED");
   }
+  debugk("free_page: phys=%p, pages_in_use: %llu -> %llu\n",
+         p, pages_metadata.pages_in_use, pages_metadata.pages_in_use - 1);
   freed_page->in_use = false;
   freed_page->is_kernel = false;
   pages_metadata.pages_in_use--;

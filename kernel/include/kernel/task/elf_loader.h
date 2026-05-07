@@ -18,6 +18,12 @@
 #define EI_MAG1       1  /* 'E' */
 #define EI_MAG2       2  /* 'L' */
 #define EI_MAG3       3  /* 'F' */
+
+/* Magic number bytes */
+#define ELFMAG0 0x7F
+#define ELFMAG1 'E'
+#define ELFMAG2 'L'
+#define ELFMAG3 'F'
 #define EI_CLASS      4  /* File class */
 #define EI_DATA       5  /* Data encoding */
 #define EI_VERSION    6  /* File version */
@@ -102,6 +108,7 @@ struct Elf64_Shdr {
   uint64_t sh_entsize;    /* Entry size if section holds table */
 };
 
+int validate_elf(const char *path);
 void load_elf(struct task_t *task, const char *path);
 
 #endif

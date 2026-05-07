@@ -1,3 +1,4 @@
+#define DEBUG 0
 #include "kernel/task/task.h"
 #include "lib/list.h"
 #include "kernel/memory/page_allocator.h"
@@ -23,26 +24,19 @@ void init_task_system() {
   task_list.prev = &task_list;
 }
 
-/* Set the current task and update tp register */
 void set_current_task(struct task_t *task) {
   current_task = task;
-  // Update tp register to point to current_task
-  // This allows trap_vector to access current_task->tf directly
   asm volatile("mv tp, %0" :: "r"(current_task));
 }
 
-/* Switch to a task's page table */
 void switch_to_page_table(struct task_t *task) {
   // Build satp value: mode (Sv39 = 8) in bits [63:60], PPN in bits [43:0]
   uint64_t satp = (8ULL << 60) | ((uint64_t)task->mm_struct.root_satp >> 12);
 
-  // Flush TLB before switching
   asm volatile("sfence.vma zero, zero");
 
-  // Switch page table
   asm volatile("csrw satp, %0" :: "r"(satp) : "memory");
 
-  // Flush TLB after switching
   asm volatile("sfence.vma zero, zero");
 }
 
@@ -104,7 +98,6 @@ struct task_t *task_init() {
   // This makes new tasks jump to fresh_task_jump() on first schedule
   task->kernel_context.ra = (uint64_t)fresh_task_jump;
 
-  // Initialize wait/exit fields
   task->exit_status = 0;
   task->wait_reason = WAIT_NONE;
   task->wait_pid = 0;
@@ -118,42 +111,34 @@ struct task_t *task_init() {
 void idle_loop(void) {
   extern void enable_interrupts(void);
 
-  // CRITICAL: Idle runs in kernel mode, so sscratch must be 0
-  // switch_to sets sscratch to kernel stack, but we need it to be 0
   asm volatile("csrw sscratch, zero");
 
   enable_interrupts();
 
   while (1) {
-    // Wait for interrupt
     asm volatile("wfi");
   }
 }
 
-// Create idle task (PID 0) - runs when nothing else can run
 void create_idle_task(void) {
   idle_task = task_t_alloc();
   idle_task->pid = 0;
-  idle_task->ppid = 0;  // Idle has no parent
-  idle_task->pgid = 0;  // Idle is its own process group
+  idle_task->ppid = 0; 
+  idle_task->pgid = 0;
   idle_task->uid = 0;
   idle_task->state = TASK_RUNNING;
 
-  // Initialize page table with kernel mappings copied from root
   idle_task->mm_struct.root_satp = init_new_page_table();
 
-  // Initialize VMA list (empty - idle task has no user mappings)
   idle_task->mm_struct.vma_list.next = &idle_task->mm_struct.vma_list;
   idle_task->mm_struct.vma_list.prev = &idle_task->mm_struct.vma_list;
 
-  // Allocate kernel stack
   allocate_kernel_stack(idle_task);
 
-  // Set return address to idle_loop (kernel function, NOT fresh_task_jump)
-  // When switch_to returns to idle, it will jump directly to idle_loop
   idle_task->kernel_context.ra = (uint64_t)idle_loop;
 
-  // Initialize wait/exit fields (idle never waits or exits)
+  idle_task->cwd = base_mount->superblock->root_dentry;
+
   idle_task->exit_status = 0;
   idle_task->wait_reason = WAIT_NONE;
   idle_task->wait_pid = 0;
@@ -166,25 +151,14 @@ void create_idle_task(void) {
   idle_task->wait_list.prev = &idle_task->wait_list;
 }
 
-// Populates the init_task
 void create_init_process() {
-  init_task_system();  // Initialize task_list with virtual addresses
+  init_task_system();
   init_task = task_init();
   load_elf(init_task , "/bin/init");
   list_append(&task_list, &init_task->task_list);
-
-  // Set current_task and update tp register
+  init_task->cwd = base_mount->superblock->root_dentry;
   set_current_task(init_task);
   init_task->state = TASK_RUNNING;
-}
-
-// Deprecated, used for testing
-void create_second_task() {
-  struct task_t *task2 = task_init();
-  task2->pid = 2;  // Different PID from init (which is 0)
-  load_elf(task2, "/bin/init2");
-  list_append(&task_list, &task2->task_list);
-  // State is already TASK_READY from task_init()
 }
 
 void start_init_process();
@@ -311,26 +285,46 @@ struct vma_t *copy_vma(struct vma_t *vma, struct task_t *old_task, struct task_t
   new_vma->backing_file = vma->backing_file;
   new_vma->offset = vma->offset;
 
-  for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
-    uint64_t old_pte = get_pte(old_task->mm_struct.root_satp, va);
+  if (vma->backing_file != NULL) {
+    // File-backed VMA: share pages and increment refcounts
+    vma->backing_file->refcount++;
+    vfs_address_space_inc_ref(vma->start_addr, vma->end_addr, vma->offset, vma->backing_file->address_space);
 
-    if (!(old_pte & PTE_VALID)) {
-      continue;
+    // Map the same physical pages (share them)
+    for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
+      uint64_t old_pte = get_pte(old_task->mm_struct.root_satp, va);
+
+      if (!(old_pte & PTE_VALID)) {
+        continue;
+      }
+
+      void *old_phys_page = (void *)PTE_DECODE(old_pte);
+      uint64_t pte_flags = old_pte & (PTE_R | PTE_W | PTE_X | PTE_U);
+      map_page(new_task->mm_struct.root_satp, va, (uint64_t)old_phys_page, pte_flags);
     }
+  } else {
+    // Anonymous VMA: copy pages
+    for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
+      uint64_t old_pte = get_pte(old_task->mm_struct.root_satp, va);
 
-    void *new_phys_page = get_page(false);
-    if (!new_phys_page) {
-      panic("copy_vma: failed to allocate page");
+      if (!(old_pte & PTE_VALID)) {
+        continue;
+      }
+
+      void *new_phys_page = get_page(false);
+      if (!new_phys_page) {
+        panic("copy_vma: failed to allocate page");
+      }
+
+      void *old_phys_page = (void *)PTE_DECODE(old_pte);
+
+      void *old_virt = PHYS_TO_VIRT(old_phys_page);
+      void *new_virt = PHYS_TO_VIRT(new_phys_page);
+      memcpy(new_virt, old_virt, DEFAULT_PAGE_SIZE);
+
+      uint64_t pte_flags = old_pte & (PTE_R | PTE_W | PTE_X | PTE_U);
+      map_page(new_task->mm_struct.root_satp, va, (uint64_t)new_phys_page, pte_flags);
     }
-
-    void *old_phys_page = (void *)PTE_DECODE(old_pte);
-
-    void *old_virt = PHYS_TO_VIRT(old_phys_page);
-    void *new_virt = PHYS_TO_VIRT(new_phys_page);
-    memcpy(new_virt, old_virt, DEFAULT_PAGE_SIZE);
-
-    uint64_t pte_flags = old_pte & (PTE_R | PTE_W | PTE_X | PTE_U);
-    map_page(new_task->mm_struct.root_satp, va, (uint64_t)new_phys_page, pte_flags);
   }
 
   return new_vma;
@@ -415,8 +409,20 @@ void reap_zombie(struct task_t *zombie) {
   // Remove from global task list
   list_remove(&zombie->task_list);
 
-  // TODO: Free kernel stack pages
-  // TODO: Free page table if not already freed
+  // Free kernel stack pages (2 pages at KERNEL_STACK_VIRTUAL_BASE)
+  for (uint64_t va = KERNEL_STACK_VIRTUAL_BASE; va < KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE; va += DEFAULT_PAGE_SIZE) {
+    uint64_t pte = get_pte(zombie->mm_struct.root_satp, va);
+    if (pte & PTE_VALID) {
+      void *phys_page = (void *)PTE_DECODE(pte);
+      debugk("  Freeing kernel stack page at va=%llx, phys=%p\n", va, phys_page);
+      free_page(phys_page);
+      unmap_page(zombie->mm_struct.root_satp, va);
+    }
+  }
+
+  // Free the root page table itself
+  debugk("  Freeing root page table phys=%p\n", zombie->mm_struct.root_satp);
+  free_page(zombie->mm_struct.root_satp);
 
   // Free the task structure
   task_t_free(zombie);
@@ -430,6 +436,7 @@ uint64_t fork_off() {
   new_task->pid = ++latest_pid;
   new_task->pgid = current_task->pgid;  // Inherit process group from parent
   new_task->uid = current_task->uid;
+  new_task->cwd = current_task->cwd;
 
   new_task->mm_struct.root_satp = init_new_page_table();
   new_task->mm_struct.vma_list.next = &new_task->mm_struct.vma_list;
@@ -478,29 +485,70 @@ struct file_t *find_file(struct files_table_t *file_table, int fd) {
   return file;
 }
 
+int alloc_fd(struct files_table_t *file_table, struct file_t *file) {
+  struct files_list_t *files_list = NULL;
+  int fd = -1;
+
+  list_for_each(&file_table->files_list, pos) {
+    files_list = container_of(pos, struct files_list_t, files_list);
+
+    for (int i = 0; i < 32; i++) {
+      if (!(files_list->used_file_bitmap & (1 << i))) {
+        fd = i;
+        break;
+      }
+    }
+    if (fd != -1) break;
+  }
+
+  if (fd == -1) {
+    files_list = files_list_t_alloc();
+    if (!files_list) {
+      return -1;
+    }
+    files_list->used_file_bitmap = 0;
+    list_append(&file_table->files_list, &files_list->files_list);
+    fd = 0;
+  }
+
+  files_list->used_file_bitmap |= (1 << fd);
+  files_list->files[fd] = file;
+
+  return fd;
+}
+
 void clear_vmas(struct task_t *task) {
+  debugk("clear_vmas: task=%p\n", task);
   if (!task || !task->mm_struct.root_satp) {
+    debugk("clear_vmas: task or root_satp is NULL, returning\n");
     return;
   }
 
+  debugk("clear_vmas: task->mm_struct.root_satp=%p\n", task->mm_struct.root_satp);
+  debugk("clear_vmas: vma_list sentinel=%p\n", &task->mm_struct.vma_list);
   struct list_node *pos = task->mm_struct.vma_list.next;
   while (pos != &task->mm_struct.vma_list) {
     struct vma_t *vma = container_of(pos, struct vma_t, sibling_vma);
     struct list_node *next = pos->next;
 
     if (vma->backing_file == NULL) {
+      debugk("clear_vmas: anonymous VMA [%llx-%llx]\n", vma->start_addr, vma->end_addr);
       for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
         uint64_t pte = get_pte(task->mm_struct.root_satp, va);
         if (pte & PTE_VALID) {
           void *phys_page = (void *)PTE_DECODE(pte);
+          debugk("  Freeing anonymous page at va=%llx, phys=%p\n", va, phys_page);
           free_page(phys_page);
         }
         unmap_page(task->mm_struct.root_satp, va);
       }
     } else {
+      debugk("clear_vmas: file-backed VMA [%llx-%llx], vnode refcount before=%llu\n",
+             vma->start_addr, vma->end_addr, vma->backing_file->refcount);
       vfs_address_space_drop_ref(vma->start_addr, vma->end_addr, vma->offset, vma->backing_file->address_space);
       unmap_pages(task->mm_struct.root_satp, vma->start_addr, vma->end_addr);
       vma->backing_file->refcount--;
+      debugk("  vnode refcount after=%llu\n", vma->backing_file->refcount);
     }
 
     list_remove(&vma->sibling_vma);
@@ -513,9 +561,16 @@ void clear_vmas(struct task_t *task) {
 }
 
 void close_all_files(struct task_t *task) {
+  debugk("task pointer: %p\n", task);
+  debugk("current_task pointer: %p\n", current_task);
+  debugk("file_table offset in task_t: %d\n", (int)((char*)&task->file_table - (char*)task));
+  debugk("file_table sentinel address: %p\n", &task->file_table.files_list);
   struct list_node *pos = task->file_table.files_list.next;
+  debugk("Initial pos=%p, pos->next=%p\n", pos, pos->next);
   while (pos != &task->file_table.files_list) {
+    debugk("Loop: pos=%p, pos->next=%p, sentinel=%p\n", pos, pos->next, &task->file_table.files_list);
     struct files_list_t *files_list = container_of(pos, struct files_list_t, files_list);
+    debugk("files_list=%p\n", files_list);
     struct list_node *next = pos->next;
 
     for (int i = 0; i < 32; i++) {

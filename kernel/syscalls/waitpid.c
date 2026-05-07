@@ -32,8 +32,6 @@ DEFINE_SYSCALL3(waitpid, int64_t, pid, int *, wstatus, int, options)
       return -1;  // ECHILD - no such child exists
     }
 
-    printk("waitpid: PID %llu blocking, waiting for child %lld\n",
-           current_task->pid, pid);
     current_task->wait_reason = WAIT_CHILD;
     current_task->wait_pid = pid;
     current_task->state = TASK_BLOCKED;
