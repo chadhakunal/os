@@ -33,11 +33,7 @@ int32_t vfs_mount(char *path, struct superblock_t *superblock) {
 }
 
 void vfs_init() {
-  /*
-  * Here we will be mounting tarfs as the root fs
-  *
-  *
-  */
+  // Here we will be mounting tarfs as the root fs
   // Initialize mount list
   mount_list.next = &mount_list;
   mount_list.prev = &mount_list;

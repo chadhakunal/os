@@ -7,6 +7,7 @@
 #include "lib/list.h"
 
 #define MAX_DENTRIES 256
+#define MAX_PATH_NAME_LEN 256
 /* File open flags */
 #define O_RDONLY    0x0000  /* Open for reading only */
 #define O_WRONLY    0x0001  /* Open for writing only */
