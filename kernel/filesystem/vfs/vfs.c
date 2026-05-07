@@ -11,8 +11,11 @@
 
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   debugk("vfs_resolve_path: path=%s\n", path);
-  struct dentry_t *curr_dentry;
+  struct dentry_t *curr_dentry, *next_dentry;
+  uint32_t ret;
   int name_len;
+  char current_name[256];
+  const char *current_path = path;
   if (path[0] == '/') {
     curr_dentry = base_mount->superblock->root_dentry;
     name_len = str_tok_no_delim(&current_path, current_name, '/', 256); // Strip the first /
@@ -22,10 +25,6 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
     curr_dentry = current_task->cwd;
   }
   debugk("vfs_resolve_path: root_dentry=%p\n", curr_dentry);
-  struct dentry_t *next_dentry;
-  uint32_t ret;
-  const char *current_path = path;
-  char current_name[256];
   name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
   debugk("vfs_resolve_path: first component='%s', len=%d\n", current_name, name_len);
   while (name_len > 0) {
