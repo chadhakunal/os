@@ -8,6 +8,9 @@
 #include "kernel/memory/page_allocator.h"
 #include "arch/riscv64/virtual_memory_init.h"
 
+ struct task_t;
+ extern struct task_t *current_task;
+
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   debugk("vfs_resolve_path: path=%s\n", path);
   struct dentry_t *curr_dentry;
