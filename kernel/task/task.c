@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/task/task.h"
 #include "lib/list.h"
 #include "kernel/memory/page_allocator.h"
@@ -152,7 +152,6 @@ void create_idle_task(void) {
 }
 
 void create_init_process() {
-  debugk("Initiating init process\n");
   init_task_system();
   init_task = task_init();
   load_elf(init_task , "/bin/init");
@@ -160,7 +159,6 @@ void create_init_process() {
   init_task->cwd = base_mount->superblock->root_dentry;
   set_current_task(init_task);
   init_task->state = TASK_RUNNING;
-  debugk("Initiated init process\n");
 }
 
 void start_init_process();
