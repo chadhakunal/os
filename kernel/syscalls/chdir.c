@@ -22,7 +22,7 @@ DEFINE_SYSCALL1(chdir, const char *, user_path)
     return -ENOENT;
   }
 
-  if (!IS_DIR(dentry->vnode->mode)) {
+  if (!IS_DIR(dentry->vnode->permission_mode)) {
     return -ENOTDIR;
   }
 
