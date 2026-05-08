@@ -39,7 +39,7 @@ DEFINE_SYSCALL1(chdir, const char *, user_path)
 
   current_task->cwd = dentry;
   debugk("chdir: name=%s\n", dentry->name);
-  debugk("chdir: success, new cwd=%p name=%s\n", current_task->cwd->name);
+  debugk("chdir: success, new cwd=%p name=%s\n", dentry, current_task->cwd->name);
 
   return 0;
 }
