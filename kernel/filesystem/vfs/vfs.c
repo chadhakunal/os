@@ -38,9 +38,13 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
     } else {
       ret = vfs_lookup(current_name, curr_dentry->vnode->mounted_vnode != NULL ? curr_dentry->vnode->mounted_vnode : curr_dentry->vnode, &next_dentry);
       debugk("vfs_resolve_path: vfs_lookup returned %d, next_dentry=%p\n", ret, next_dentry);
-      if (ret != 0 || next_dentry == NULL) {
+      if (ret != 0) {
         debugk("vfs_resolve_path: lookup failed, returning %d\n", ret);
         return ret;
+      }
+      if (next_dentry == NULL || next_dentry->vnode == NULL) {
+        debugk("vfs_resolve_path: negative dentry (file not found)\n");
+        return -ENOENT;
       }
       curr_dentry = next_dentry;
       debugk("vfs_resolve_path: next component='%s', len=%d\n", current_name, name_len);
