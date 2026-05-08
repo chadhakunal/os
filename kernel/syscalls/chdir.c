@@ -1,4 +1,3 @@
-#define DEBUG 1
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "kernel/task/task.h"
@@ -13,33 +12,22 @@
 
 DEFINE_SYSCALL1(chdir, const char *, user_path)
 {
-  debugk("chdir: path=%s\n", user_path);
-
   struct dentry_t *dentry;
   int32_t ret = vfs_resolve_path(user_path, &dentry);
 
   if (ret < 0) {
-    debugk("chdir: vfs_resolve_path failed with %d\n", ret);
     return ret;
   }
 
-  debugk("chdir: resolved to dentry=%p\n", dentry);
-
   if (dentry == NULL || dentry->vnode == NULL) {
-    debugk("chdir: dentry or vnode is NULL\n");
     return -ENOENT;
   }
 
-  debugk("chdir: vnode=%p, permission_mode=0x%x\n", dentry->vnode, dentry->vnode->permission_mode);
-
   if (!IS_DIR(dentry->vnode->permission_mode)) {
-    debugk("chdir: path is not a directory\n");
     return -ENOTDIR;
   }
 
   current_task->cwd = dentry;
-  debugk("chdir: assigned cwd=%p, cwd->name=%s, cwd->vnode=%p\n",
-         current_task->cwd, current_task->cwd->name, current_task->cwd->vnode);
 
   return 0;
 }
