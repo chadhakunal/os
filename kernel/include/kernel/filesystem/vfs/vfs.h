@@ -34,6 +34,7 @@ struct dentry_t;
 struct address_space_t;
 struct file_t;
 struct superblock_t;
+struct files_table_t;
 
 struct file_ops_t {
   int64_t (*read)(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
