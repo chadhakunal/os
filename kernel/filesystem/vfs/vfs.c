@@ -144,7 +144,7 @@ int64_t vfs_open(const char *path, int flags, struct file_t **file) {
   struct dentry_t *dentry;
   int ret = vfs_resolve_path(path, &dentry);
   if (ret < 0) {
-    panic("vfs_open: something went wrong resolving path!\n");
+    return ret;
   }
 
   *file = vfs_init_file(dentry->vnode, flags);
