@@ -47,6 +47,43 @@ int main(int argc, char **argv, char **envp) {
   return 0;
 }
 
+int echo(int argc, char *argv[]) {
+  for (int i = 1; i < argc; i++)
+    printf("%s%s", i > 1 ? " " : "", argv[i]);
+  printf("\n");
+  return 0;
+}
+
+int pwd(int argc, char *argv[]) {
+  char buf[256];
+
+  char *result = getcwd(buf, sizeof(buf));
+  if (result == NULL) {
+    printf("pwd: error getting current directory\n");
+    return 1;
+  }
+
+  printf("%s\n", buf);
+  return 0;
+}
+
+int cd(int argc, char *argv[]) {
+  const char *path;
+
+  if (argc < 2) {
+    path = "/"; // When we do cd
+  } else {
+    path = argv[1]; // when we do cd x
+  }
+
+  if (chdir(path) < 0) {
+    printf("cd: cannot change directory to '%s'\n", path);
+    return 1;
+  }
+
+  return 0;
+}
+
 void parse_and_exec(const char *buf) {
   char command_buf[COMMAND_BUF_SIZE];
   char *argv[16];
@@ -110,6 +147,17 @@ void parse_and_exec(const char *buf) {
   }
 
   argv[argc] = NULL;
+
+  if (strncmp("echo", full_path, 5) == 0) {
+    echo(argc, argv);
+    return;
+  } else if (strncmp("cd", full_path, 3) == 0) {
+    cd(argc, argv);
+    return;
+  } else if (strncmp("pwd", full_path, 4) == 0) {
+    pwd(argc, argv);
+    return;
+  }
 
   pid_t pid = fork();
   if (pid == 0) {
