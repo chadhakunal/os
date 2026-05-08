@@ -2,6 +2,10 @@
 #include <types.h>
 
 char *getcwd(char *buf, size_t size) {
+  if (buf == NULL) {
+    return (char *)0;
+  }
+
   long ret = syscall2(SYS_getcwd, buf, size);
   return ret >= 0 ? (char *)ret : (char *)0;
 }
