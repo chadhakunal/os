@@ -50,6 +50,11 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_close(tf);
       break;
 
+    case SYS_lseek:
+      debugk("syscall: lseek(fd=%llu, offset=%lld, whence=%llu)\n", tf->a0, (int64_t)tf->a1, tf->a2);
+      ret = sys_lseek(tf);
+      break;
+
     case SYS_openat:
       debugk("syscall: openat(dirfd=%lld, pathname=%llx, flags=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2);
       ret = sys_openat(tf);

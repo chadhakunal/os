@@ -141,6 +141,7 @@ int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 int64_t vfs_open(const char *path, int flags, struct file_t **file);
 int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 int64_t vfs_file_close(struct files_table_t *file_table, int fd);
+int64_t vfs_file_lseek(struct files_table_t *file_table, int fd, int64_t offset, int whence);
 struct file_t *vfs_init_file(struct vnode_t *vnode, int flags);
 void vfs_address_space_inc_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space);
 void vfs_address_space_drop_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space);

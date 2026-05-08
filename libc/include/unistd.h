@@ -5,6 +5,7 @@
 // Syscall numbers (from kernel)
 #define SYS_getcwd          17
 #define SYS_chdir           49
+#define SYS_lseek           62
 #define SYS_read            63
 #define SYS_write           64
 #define SYS_close           57
@@ -88,12 +89,25 @@
   _a0; \
 })
 
+// lseek whence values
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
+extern char *optarg;
+extern int optind;
+extern int opterr;
+extern int optopt;
+
+int getopt(int argc, char *const argv[], const char *optstring);
+
 // POSIX functions
 char *getcwd(char *buf, size_t size);
 int chdir(const char *path);
 ssize_t read(int fd, void *buf, size_t n);
 ssize_t write(int fd, const void *buf, size_t n);
 int close(int fd);
+off_t lseek(int fd, off_t offset, int whence);
 pid_t fork(void);
 int sched_yield(void);
 pid_t waitpid(pid_t pid, int *wstatus, int options);

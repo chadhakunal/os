@@ -27,6 +27,10 @@ int close(int fd) {
   return syscall1(SYS_close, fd);
 }
 
+off_t lseek(int fd, off_t offset, int whence) {
+  return syscall3(SYS_lseek, fd, offset, whence);
+}
+
 pid_t fork(void) {
   return syscall0(SYS_fork);
 }

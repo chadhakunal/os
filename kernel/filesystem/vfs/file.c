@@ -3,35 +3,93 @@
 #include "lib/list.h"
 #include "errno.h"
 
-int64_t vfs_file_close(struct files_table_t *file_table, int fd) {
+// lseek whence values
+#define SEEK_SET 0  // Seek from beginning of file
+#define SEEK_CUR 1  // Seek from current position
+#define SEEK_END 2  // Seek from end of file
+
+static struct file_t *find_file_by_fd(struct files_table_t *file_table, int fd, struct files_list_t **out_list, int *out_local_fd) {
   if (fd < 0) {
-    return -EBADF;
+    return NULL;
   }
 
-  struct files_list_t *files_list = NULL;
-  int local_fd = -1;
   int base_fd = 0;
 
   list_for_each(&file_table->files_list, pos) {
-    files_list = container_of(pos, struct files_list_t, files_list);
+    struct files_list_t *files_list = container_of(pos, struct files_list_t, files_list);
 
     if (fd >= base_fd && fd < base_fd + 32) {
-      local_fd = fd - base_fd;
-      break;
+      int local_fd = fd - base_fd;
+
+      // Check if fd is allocated
+      if (!(files_list->used_file_bitmap & (1 << local_fd))) {
+        return NULL;
+      }
+
+      struct file_t *file = files_list->files[local_fd];
+      if (file == NULL) {
+        return NULL;
+      }
+
+      // Return optional outputs
+      if (out_list) {
+        *out_list = files_list;
+      }
+      if (out_local_fd) {
+        *out_local_fd = local_fd;
+      }
+
+      return file;
     }
     base_fd += 32;
-    files_list = NULL;
   }
 
-  if (files_list == NULL) {
+  return NULL;
+}
+
+int64_t vfs_file_lseek(struct files_table_t *file_table, int fd, int64_t offset, int whence) {
+  struct file_t *file = find_file_by_fd(file_table, fd, NULL, NULL);
+  if (file == NULL) {
     return -EBADF;
   }
 
-  if (!(files_list->used_file_bitmap & (1 << local_fd))) {
-    return -EBADF;
+  int64_t new_offset;
+
+  switch (whence) {
+    case SEEK_SET:
+      new_offset = offset;
+      break;
+
+    case SEEK_CUR:
+      new_offset = (int64_t)file->offset + offset;
+      break;
+
+    case SEEK_END:
+      if (file->vnode == NULL) {
+        return -EBADF;
+      }
+      new_offset = (int64_t)file->vnode->size + offset;
+      break;
+
+    default:
+      return -EINVAL;
   }
 
-  struct file_t *file = files_list->files[local_fd];
+  // Check for negative offset
+  if (new_offset < 0) {
+    return -EINVAL;
+  }
+
+  file->offset = (size_t)new_offset;
+
+  return new_offset;
+}
+
+int64_t vfs_file_close(struct files_table_t *file_table, int fd) {
+  struct files_list_t *files_list;
+  int local_fd;
+
+  struct file_t *file = find_file_by_fd(file_table, fd, &files_list, &local_fd);
   if (file == NULL) {
     return -EBADF;
   }
