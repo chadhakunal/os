@@ -47,7 +47,7 @@ void handle_syscall(struct trap_frame *tf) {
 
     case SYS_close:
       debugk("syscall: close(fd=%llu)\n", tf->a0);
-      tf->a0 = -1; // TODO: implement
+      ret = sys_close(tf);
       break;
 
     case SYS_openat:

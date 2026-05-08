@@ -20,5 +20,7 @@ int main(int argc, char **argv) {
     write(1, buf, n);
   }
 
+  close(fd);
+
   return 0;
 }
