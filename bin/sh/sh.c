@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <fcntl.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define COMMAND_BUF_SIZE 256
 
