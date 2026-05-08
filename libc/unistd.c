@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <types.h>
+#include <stddef.h>
 
 char *getcwd(char *buf, size_t size) {
   if (buf == NULL) {
