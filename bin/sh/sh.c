@@ -49,8 +49,12 @@ int main(int argc, char **argv, char **envp) {
 }
 
 int echo(int argc, char *argv[]) {
-  for (int i = 1; i < argc; i++)
-    printf("%s%s", i > 1 ? " " : "", argv[i]);
+  for (int i = 1; i < argc; i++) {
+    if (i > 1) {
+      printf(" ");
+    }
+    printf("%s", argv[i]);
+  }
   printf("\n");
   return 0;
 }
@@ -149,13 +153,13 @@ void parse_and_exec(const char *buf) {
 
   argv[argc] = NULL;
 
-  if (strncmp("echo", full_path, 5) == 0) {
+  if (strcmp("echo", command_buf) == 0) {
     echo(argc, argv);
     return;
-  } else if (strncmp("cd", full_path, 3) == 0) {
+  } else if (strcmp("cd", command_buf) == 0) {
     cd(argc, argv);
     return;
-  } else if (strncmp("pwd", full_path, 4) == 0) {
+  } else if (strcmp("pwd", command_buf) == 0) {
     pwd(argc, argv);
     return;
   }
