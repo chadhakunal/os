@@ -12,7 +12,8 @@ DEFINE_SYSCALL2(getcwd, char *, buf, size_t, size)
   if (buf == NULL || size == 0) {
     return -EINVAL;
   }
-  debugk("cwd: %s\n", current_task->cwd);
+  debugk("getcwd: current_task->cwd=%p, cwd->name=%s, cwd->vnode=%p\n",
+         current_task->cwd, current_task->cwd->name, current_task->cwd->vnode);
   int64_t res = vfs_dentry_get_path(current_task->cwd, buf, size);
 
   if (res < 0) {
