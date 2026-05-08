@@ -3,7 +3,7 @@
 #include "lib/list.h"
 #include "errno.h"
 
-int64_t vfs_file_close(struct file_table_t *file_table, int fd) {
+int64_t vfs_file_close(struct files_table_t *file_table, int fd) {
   if (fd < 0) {
     return -EBADF;
   }
