@@ -86,17 +86,31 @@ void print_pages_metadata() {
   printk("\tTotal Pages: %lu\n", pages_metadata.total_pages);
   printk("\tPages in Use: %lu\n", pages_metadata.pages_in_use);
   printk("\tPage List Address: %lx\n", (uint64_t)pages_metadata.page_list);
-  printk("\tFirst Free Page Frame: %lu\n",
-         (uint64_t)pages_metadata.free_page_head->page_frame_id);
+  if (pages_metadata.free_page_head) {
+    printk("\tFirst Free Page Frame: %lu\n",
+           (uint64_t)pages_metadata.free_page_head->page_frame_id);
+  }
+  if (pages_metadata.zero_page_head) {
+    printk("\tFirst Zero Page Frame: %lu\n",
+           (uint64_t)pages_metadata.zero_page_head->page_frame_id);
+  }
 }
 
 // Returns physical address of allocated page
 void *get_page(bool is_kernel) {
   page_t *first_free_page = pages_metadata.free_page_head;
+
+  // If no pages in regular free list, fall back to zero list
   if (first_free_page == NULL) {
-    panic("ATTEMPTED TO get_page, RAN OUT OF FREE PAGES");
+    first_free_page = pages_metadata.zero_page_head;
+    if (first_free_page == NULL) {
+      panic("ATTEMPTED TO get_page, RAN OUT OF FREE PAGES");
+    }
+    pages_metadata.zero_page_head = first_free_page->next_free_page;
+  } else {
+    pages_metadata.free_page_head = first_free_page->next_free_page;
   }
-  pages_metadata.free_page_head = first_free_page->next_free_page;
+
   first_free_page->is_kernel = is_kernel;
   first_free_page->in_use = true;
   first_free_page->is_zeroed = false;
