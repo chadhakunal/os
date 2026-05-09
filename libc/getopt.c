@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+#include <stddef.h>
 
 char *optarg = NULL;
 int optind = 1;
