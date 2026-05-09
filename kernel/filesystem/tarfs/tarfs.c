@@ -9,7 +9,7 @@
 
 int64_t tarfs_fill_page(struct vnode_t *vnode, size_t offset, void **phys_page) {
   struct tarfs_vnode_t *tarfs_vnode = vnode->fs_private_vnode;
-  
+
   if (offset >= vnode->size) {
     return 0;
   }
@@ -17,7 +17,10 @@ int64_t tarfs_fill_page(struct vnode_t *vnode, size_t offset, void **phys_page) 
   if (offset + size > vnode->size) {
     size = vnode->size - offset;
   }
-  void *new_page = get_page(true);
+  void *new_page = get_zero_page(true);
+  if (new_page == NULL) {
+    return -1;
+  }
   uint8_t *data_start = (uint8_t *)tarfs_vnode->data + offset;
   memcpy(PHYS_TO_VIRT(new_page), data_start, size);
   *phys_page = new_page;

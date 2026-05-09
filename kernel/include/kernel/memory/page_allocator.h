@@ -15,6 +15,7 @@ typedef struct page {
 
 typedef struct pages_metadata_struct {
   page_t *free_page_head;
+  page_t *zero_page_head;
   page_t *page_list;
   uint64_t page_list_size;
   uint64_t total_pages;
@@ -28,6 +29,7 @@ void print_pages_metadata();
 
 /* Page allocation (returns physical address) */
 void *get_page(bool is_kernel);
+void *get_zero_page(bool is_kernel);
 void free_page(void *p);
 
 void update_page_structs_to_vm();

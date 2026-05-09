@@ -1,19 +1,21 @@
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "kernel/task/task.h"
-#include "kernel/user_data_access.h"
+#include "kernel/filesystem/vfs/vfs.h"
+#include "errno.h"
 #include "types.h"
+#include "lib/printk/printk.h"
 
 DEFINE_SYSCALL2(getcwd, char *, buf, size_t, size)
 {
-  // TODO: Implement getcwd
-  // For now, return "/" as a placeholder
-  if (size < 2) {
-    return -1;
+  if (buf == NULL || size == 0) {
+    return -EINVAL;
+  }
+  int64_t res = vfs_dentry_get_path(current_task->cwd, buf, size);
+
+  if (res < 0) {
+    return res;
   }
 
-  char root[] = "/";
-  copy_string_to_user(buf, root, size);
-
-  return (uint64_t)buf;
+  return (int64_t)buf;
 }

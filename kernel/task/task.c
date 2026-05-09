@@ -257,11 +257,10 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
   // Eagerly allocate and map anonymous pages
   if (eager) {
     for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
-      void *phys_page = get_page(false);
-
-      // Zero the page for security (prevent information leakage)
-      void *virt_page = PHYS_TO_VIRT(phys_page);
-      memset(virt_page, 0, DEFAULT_PAGE_SIZE);
+      void *phys_page = get_zero_page(false);
+      if (phys_page == NULL) {
+        panic("anon_memory_map: failed to allocate zero page\n");
+      }
 
       // Convert VM flags to PTE flags
       // Note: map_page() sets PTE_VALID and PTE_A automatically

@@ -10,6 +10,7 @@
 // ref: linux/include/uapi/asm-generic/unistd.h
 #define SYS_getcwd          17
 #define SYS_chdir           49
+#define SYS_lseek           62
 #define SYS_read            63
 #define SYS_write           64
 #define SYS_close           57
@@ -35,6 +36,8 @@ int64_t sys_chdir(struct trap_frame *tf);
 int64_t sys_openat(struct trap_frame *tf);
 int64_t sys_read(struct trap_frame *tf);
 int64_t sys_write(struct trap_frame *tf);
+int64_t sys_close(struct trap_frame *tf);
+int64_t sys_lseek(struct trap_frame *tf);
 int64_t sys_fork(struct trap_frame *tf);
 int64_t sys_sched_yield(struct trap_frame *tf);
 int64_t sys_waitpid(struct trap_frame *tf);

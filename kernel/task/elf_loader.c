@@ -92,12 +92,24 @@ void load_elf(struct task_t *task, const char *path) {
       if (program_header.p_flags & PF_R) vm_flags |= VM_READ;
       if (program_header.p_flags & PF_W) vm_flags |= VM_WRITE;
       if (program_header.p_flags & PF_X) vm_flags |= VM_EXEC;
-      file_backed_memory_map(&task->mm_struct, program_header.p_vaddr, dentry->vnode, program_header.p_offset, program_header.p_memsz, vm_flags, true);
+
+      if (program_header.p_filesz != program_header.p_memsz) {
+        // This segment has BSS - use anonymous mapping
+        anon_memory_map(&task->mm_struct, program_header.p_vaddr, program_header.p_memsz, vm_flags, true);
+
+        // Copy file data into the anonymous mapping
+        if (program_header.p_filesz > 0) {
+          vfs_vnode_read(dentry->vnode, (void *)program_header.p_vaddr, program_header.p_filesz, program_header.p_offset);
+        }
+      } else {
+        // No BSS - can use file-backed mapping
+        file_backed_memory_map(&task->mm_struct, program_header.p_vaddr, dentry->vnode, program_header.p_offset, program_header.p_filesz, vm_flags, true);
+      }
     }
   }
 
-  // Set up stack (read/write, no execute for security)
-  // 4 pages = 16KB, stack grows down from DEFAULT_STACK_TOP
+  // Set up stack read/write
+  // 4 pages = 16KB stack grows down from DEFAULT_STACK_TOP
   anon_memory_map(&task->mm_struct, DEFAULT_STACK_START, DEFAULT_STACK_SIZE, VM_READ | VM_WRITE, true);
 
   // Initialize trap frame - zero everything first

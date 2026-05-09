@@ -5,6 +5,7 @@
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/panic.h"
 #include "kernel/memory/page_allocator.h"
+#include "errno.h"
 
 void vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id) {
   vnode->superblock = sb;
@@ -84,11 +85,11 @@ int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t off
 
 int32_t vfs_lookup(const char *name, struct vnode_t *parent_dir, struct dentry_t **out) {
   if (parent_dir == NULL) {
-    panic("vfs_lookup: parent_dir is NULL\n");
+    return -ENOENT;
   }
 
   if (!IS_DIR(parent_dir->permission_mode)) {
-    panic("vfs_lookup: parent_dir is not a directory\n");
+    return -ENOTDIR;
   }
 
   list_for_each(&parent_dir->children_dentries, pos) {
@@ -104,7 +105,7 @@ int32_t vfs_lookup(const char *name, struct vnode_t *parent_dir, struct dentry_t
     *out = dentry_t_alloc();
     strncpy((*out)->name, name, str_len(name, 256));
     (*out)->vnode = NULL;
-    return -1;
+    return -ENOENT;
   }
 
   // Lookup succeeded, add dentry to parent's children list for caching

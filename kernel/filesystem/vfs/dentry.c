@@ -45,13 +45,14 @@ int64_t vfs_dentry_get_path(struct dentry_t *dentry, char *buf, size_t size) {
     curr_dentry = dentry_stack[i];
     size_t dentry_name_len = str_len(curr_dentry->name, MAX_PATH_NAME_LEN);
 
-    if (path_pos + 1 + dentry_name_len >= size) {
+    if (path_pos + 1 + dentry_name_len + 1 > size) {
       return -ERANGE;
     }
 
     buf[path_pos++] = '/';
-    strncpy(buf + path_pos, curr_dentry->name, dentry_name_len);
-    path_pos += dentry_name_len;
+    for (size_t j = 0; j < dentry_name_len; j++) {
+      buf[path_pos++] = curr_dentry->name[j];
+    }
   }
 
   buf[path_pos] = '\0';
