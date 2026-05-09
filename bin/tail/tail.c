@@ -101,11 +101,21 @@ int main(int argc, char *argv[]) {
   int num = DEFAULT_LINES;
   int opt;
 
+  printf("tail: argc=%d\n", argc);
+  for (int i = 0; i < argc; i++) {
+    printf("tail: argv[%d]=%s\n", i, argv[i]);
+  }
+
   while ((opt = getopt(argc, argv, "c:")) != -1) {
+    printf("tail: getopt returned '%c', optarg=%p\n", opt, optarg);
+    if (optarg) {
+      printf("tail: optarg='%s'\n", optarg);
+    }
     switch (opt) {
       case 'c':
         use_bytes = 1;
         num = atoi(optarg);
+        printf("tail: parsed num=%d\n", num);
         if (num <= 0) {
           printf("tail: invalid number of bytes: '%s'\n", optarg);
           return 1;
@@ -116,6 +126,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
   }
+
+  printf("tail: after getopt, optind=%d\n", optind);
 
   if (optind >= argc) {
     printf("Usage: tail [-c NUM] <file>\n");
