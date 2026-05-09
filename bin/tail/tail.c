@@ -101,6 +101,7 @@ int main(int argc, char *argv[]) {
   int num = DEFAULT_LINES;
   int opt;
 
+  printf("tail: &optind=%p, &optopt=%p, &optarg=%p, &opterr=%p\n", &optind, &optopt, &optarg, &opterr);
   printf("tail: argc=%d\n", argc);
   for (int i = 0; i < argc; i++) {
     printf("tail: argv[%d]=%s\n", i, argv[i]);
