@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "platform.h"
 #include "types.h"
 
@@ -63,13 +63,20 @@ void init_page_allocator() {
   pages_metadata.zero_page_head = pages_metadata.free_page_head;
   pages_metadata.free_page_head = NULL;
 
+  debugk("init_page_allocator: starting to zero free pages\n");
   page_t *cur = pages_metadata.zero_page_head;
+  uint64_t pages_zeroed = 0;
   while (cur) {
     void *page_addr = _get_page_address_from_page(cur);
     memset(page_addr, 0, DEFAULT_PAGE_SIZE);
     cur->is_zeroed = true;
+    pages_zeroed++;
+    if (pages_zeroed % 1000 == 0) {
+      debugk("init_page_allocator: zeroed %llu pages so far\n", pages_zeroed);
+    }
     cur = cur->next_free_page;
   }
+  debugk("init_page_allocator: finished zeroing %llu pages\n", pages_zeroed);
 }
 
 void print_pages_metadata() {
