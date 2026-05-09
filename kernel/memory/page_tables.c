@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/panic.h"
 #include "platform.h"
 #include "types.h"
@@ -273,20 +273,14 @@ static void map_devices(void) {
 
 void init_kernel_page_mapping() {
   allocate_root_page_table();
-  debugk("allocated root page table\n");
   map_identity();
-  debugk("allocated root page table\n");
   map_kernel();
-  debugk("allocated root page table\n");
   map_phys();  /* Map all physical RAM for accessing page tables and other phys mem */
-  debugk("allocated root page table\n");
   map_devices();  /* Map MMIO devices */
-  debugk("allocated root page table\n");
 
   enable_virtual_memory((uint64_t)root_page_table);
   uint64_t offset = KERNEL_VIRT_OFFSET;
 
-  debugk("allocated root page table\n");
   uint64_t old_sp;
   asm volatile("mv %0, sp" : "=r"(old_sp));
 
@@ -307,7 +301,6 @@ void init_kernel_page_mapping() {
   asm volatile("mv %0, sp" : "=r"(new_sp));
   // Keep root_page_table as physical address - it's used for satp
   update_page_structs_to_vm();
-  debugk("allocated root page table\n");
 }
 
 page_table_t *init_new_page_table() {

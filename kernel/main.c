@@ -28,9 +28,8 @@ void kmain(void *dtb_ptr) {
   print_memory_info();
   init_page_allocator();
   print_pages_metadata();
-  printk("About to init page mapping\n");
   init_kernel_page_mapping();
-  printk("Init page mapping\n");
+
   // Jump to higher-half execution
   uint64_t offset = KERNEL_VIRT_OFFSET;
   asm volatile("la t0, 1f\n"
