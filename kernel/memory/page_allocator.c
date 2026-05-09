@@ -9,6 +9,7 @@
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
 #include "arch/riscv64/virtual_memory_init.h"
+#include "lib/string.h"
 
 #define ALIGN_UP(x, a) (((uintptr_t)(x) + ((a) - 1)) & ~((uintptr_t)((a) - 1)))
 
@@ -57,6 +58,18 @@ void init_page_allocator() {
       }
     }
   }
+
+  // Zero all free pages and move them to zero list
+  pages_metadata.zero_page_head = pages_metadata.free_page_head;
+  pages_metadata.free_page_head = NULL;
+
+  page_t *cur = pages_metadata.zero_page_head;
+  while (cur) {
+    void *page_addr = _get_page_address_from_page(cur);
+    memset(page_addr, 0, DEFAULT_PAGE_SIZE);
+    cur->is_zeroed = true;
+    cur = cur->next_free_page;
+  }
 }
 
 void print_pages_metadata() {
@@ -70,7 +83,7 @@ void print_pages_metadata() {
          (uint64_t)pages_metadata.free_page_head->page_frame_id);
 }
 
-/* Returns physical address of allocated page */
+// Returns physical address of allocated page
 void *get_page(bool is_kernel) {
   page_t *first_free_page = pages_metadata.free_page_head;
   if (first_free_page == NULL) {
@@ -79,9 +92,25 @@ void *get_page(bool is_kernel) {
   pages_metadata.free_page_head = first_free_page->next_free_page;
   first_free_page->is_kernel = is_kernel;
   first_free_page->in_use = true;
+  first_free_page->is_zeroed = false;
   first_free_page->next_free_page = NULL;
   pages_metadata.pages_in_use++;
   return _get_page_address_from_page(first_free_page);
+}
+
+// Returns physical address of allocated zeroed page, or NULL if none available
+void *get_zero_page(bool is_kernel) {
+  page_t *first_zero_page = pages_metadata.zero_page_head;
+  if (first_zero_page == NULL) {
+    return NULL;
+  }
+  pages_metadata.zero_page_head = first_zero_page->next_free_page;
+  first_zero_page->is_kernel = is_kernel;
+  first_zero_page->in_use = true;
+  first_zero_page->is_zeroed = true;
+  first_zero_page->next_free_page = NULL;
+  pages_metadata.pages_in_use++;
+  return _get_page_address_from_page(first_zero_page);
 }
 
 void *_get_page_address_from_page(page_t *p) {
@@ -97,7 +126,7 @@ page_t *_address_to_page(void *addr) {
   return &pages_metadata.page_list[pfn];
 }
 
-/* Accepts physical address */
+// Accepts physical address
 void free_page(void *p) {
   page_t *freed_page = _address_to_page(p);
   if (!freed_page->in_use) {
@@ -108,8 +137,14 @@ void free_page(void *p) {
   freed_page->in_use = false;
   freed_page->is_kernel = false;
   pages_metadata.pages_in_use--;
-  freed_page->next_free_page = pages_metadata.free_page_head;
-  pages_metadata.free_page_head = freed_page;
+
+  // Zero the page and add to zero list
+  void *virt_page = PHYS_TO_VIRT(p);
+  memset(virt_page, 0, DEFAULT_PAGE_SIZE);
+  freed_page->is_zeroed = true;
+
+  freed_page->next_free_page = pages_metadata.zero_page_head;
+  pages_metadata.zero_page_head = freed_page;
 }
 
 void convert_free_list_to_virtual() {
