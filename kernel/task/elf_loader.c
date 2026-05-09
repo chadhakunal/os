@@ -95,8 +95,6 @@ void load_elf(struct task_t *task, const char *path) {
 
       if (program_header.p_filesz != program_header.p_memsz) {
         // This segment has BSS - use anonymous mapping
-        size_t bss_size = program_header.p_memsz - program_header.p_filesz;
-
         anon_memory_map(&task->mm_struct, program_header.p_vaddr, program_header.p_memsz, vm_flags, true);
 
         // Copy file data into the anonymous mapping
