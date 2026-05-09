@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "kernel/panic.h"
 #include "platform.h"
 #include "types.h"
@@ -273,6 +273,7 @@ static void map_devices(void) {
 
 void init_kernel_page_mapping() {
   allocate_root_page_table();
+  debugk("allocated root page table\n");
   map_identity();
   map_kernel();
   map_phys();  /* Map all physical RAM for accessing page tables and other phys mem */
