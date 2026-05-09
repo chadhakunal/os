@@ -105,9 +105,11 @@ void load_elf(struct task_t *task, const char *path) {
         anon_memory_map(&task->mm_struct, program_header.p_vaddr, program_header.p_memsz, vm_flags, true);
 
         // Copy file data into the anonymous mapping
+        // Since we're running in current_task context, the user page table is active
         if (program_header.p_filesz > 0) {
-          vfs_vnode_read(dentry->vnode, (void *)program_header.p_vaddr,
-                         program_header.p_filesz, program_header.p_offset);
+          int32_t bytes_read = vfs_vnode_read(dentry->vnode, (void *)program_header.p_vaddr,
+                                              program_header.p_filesz, program_header.p_offset);
+          printk("  Copied %d bytes from file to vaddr 0x%lx\n", bytes_read, program_header.p_vaddr);
         }
       } else {
         // No BSS - can use file-backed mapping
