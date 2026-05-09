@@ -107,10 +107,7 @@ int main(int argc, char *argv[]) {
   }
 
   while ((opt = getopt(argc, argv, "c:")) != -1) {
-    printf("tail: getopt returned '%c', optarg=%p\n", opt, optarg);
-    if (optarg) {
-      printf("tail: optarg='%s'\n", optarg);
-    }
+    printf("tail: getopt returned '%c'\n", opt);
     switch (opt) {
       case 'c':
         use_bytes = 1;
