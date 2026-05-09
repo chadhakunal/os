@@ -61,7 +61,6 @@ int tail_lines(int fd, int num_lines) {
 
 int tail_bytes(int fd, int num_bytes) {
   off_t file_size = lseek(fd, 0, SEEK_END);
-  printf("tail_bytes: file_size=%ld\n", file_size);
   if (file_size < 0) {
     printf("tail: failed to seek to end\n");
     return 1;
@@ -75,23 +74,17 @@ int tail_bytes(int fd, int num_bytes) {
   if (file_size > num_bytes) {
     start_pos = file_size - num_bytes;
   }
-  printf("tail_bytes: num_bytes=%d, start_pos=%ld\n", num_bytes, start_pos);
 
-  off_t seek_result = lseek(fd, start_pos, SEEK_SET);
-  printf("tail_bytes: lseek returned %ld\n", seek_result);
-  if (seek_result < 0) {
+  if (lseek(fd, start_pos, SEEK_SET) < 0) {
     printf("tail: seek failed\n");
     return 1;
   }
 
   char buf[256];
   ssize_t n;
-  printf("tail_bytes: starting read loop\n");
   while ((n = read(fd, buf, sizeof(buf))) > 0) {
-    printf("tail_bytes: read %ld bytes\n", n);
     write(1, buf, n);
   }
-  printf("tail_bytes: read loop done, n=%ld\n", n);
 
   return 0;
 }
@@ -101,19 +94,11 @@ int main(int argc, char *argv[]) {
   int num = DEFAULT_LINES;
   int opt;
 
-  printf("tail: &optind=%p, &optopt=%p, &optarg=%p, &opterr=%p\n", &optind, &optopt, &optarg, &opterr);
-  printf("tail: argc=%d\n", argc);
-  for (int i = 0; i < argc; i++) {
-    printf("tail: argv[%d]=%s\n", i, argv[i]);
-  }
-
   while ((opt = getopt(argc, argv, "c:")) != -1) {
-    printf("tail: getopt returned '%c'\n", opt);
     switch (opt) {
       case 'c':
         use_bytes = 1;
         num = atoi(optarg);
-        printf("tail: parsed num=%d\n", num);
         if (num <= 0) {
           printf("tail: invalid number of bytes: '%s'\n", optarg);
           return 1;
@@ -124,8 +109,6 @@ int main(int argc, char *argv[]) {
         return 1;
     }
   }
-
-  printf("tail: after getopt, optind=%d\n", optind);
 
   if (optind >= argc) {
     printf("Usage: tail [-c NUM] <file>\n");
