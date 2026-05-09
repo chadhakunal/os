@@ -18,14 +18,8 @@
 #include "kernel/drivers/rtc/rtc.h"
 #include "kernel/time/timer.h"
 #include "kernel/task/schedule.h"
-
 #include "lib/printk/printk.h"
 
-/*
-    TODO: NEON/FP Unit needs to be enabled
-          It is currently disabled in the HW. Added -mgeneral-regs-only
-          to the makefile so that the compiler doesn't use those units)
-*/
 
 void kmain(void *dtb_ptr) {
   (void)dtb_ptr;
@@ -36,8 +30,8 @@ void kmain(void *dtb_ptr) {
   print_pages_metadata();
 
   init_kernel_page_mapping();
-
-  /* Jump to higher-half execution */
+  printk("Init page mapping\n");
+  // Jump to higher-half execution
   uint64_t offset = KERNEL_VIRT_OFFSET;
   asm volatile("la t0, 1f\n"
                "add t0, t0, %[off]\n"
