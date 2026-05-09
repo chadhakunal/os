@@ -307,6 +307,7 @@ void init_kernel_page_mapping() {
   asm volatile("mv %0, sp" : "=r"(new_sp));
   // Keep root_page_table as physical address - it's used for satp
   update_page_structs_to_vm();
+  debugk("allocated root page table\n");
 }
 
 page_table_t *init_new_page_table() {
