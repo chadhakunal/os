@@ -171,15 +171,24 @@ void free_page(void *p) {
 void convert_free_list_to_virtual() {
   pages_metadata.page_list = PHYS_TO_VIRT(pages_metadata.page_list);
 
-  pages_metadata.free_page_head = PHYS_TO_VIRT(pages_metadata.free_page_head);
+  if (pages_metadata.free_page_head) {
+    pages_metadata.free_page_head = PHYS_TO_VIRT(pages_metadata.free_page_head);
+    page_t *cur = pages_metadata.free_page_head;
+    while (cur) {
+      if (cur->next_free_page)
+        cur->next_free_page = PHYS_TO_VIRT(cur->next_free_page);
+      cur = cur->next_free_page;
+    }
+  }
 
-  page_t *cur = pages_metadata.free_page_head;
-
-  while (cur) {
-    if (cur->next_free_page)
-      cur->next_free_page = PHYS_TO_VIRT(cur->next_free_page);
-
-    cur = cur->next_free_page;
+  if (pages_metadata.zero_page_head) {
+    pages_metadata.zero_page_head = PHYS_TO_VIRT(pages_metadata.zero_page_head);
+    page_t *cur = pages_metadata.zero_page_head;
+    while (cur) {
+      if (cur->next_free_page)
+        cur->next_free_page = PHYS_TO_VIRT(cur->next_free_page);
+      cur = cur->next_free_page;
+    }
   }
 }
 
