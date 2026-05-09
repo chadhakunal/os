@@ -272,16 +272,21 @@ static void map_devices(void) {
 }
 
 void init_kernel_page_mapping() {
-  debugk("allocated root page table\n");
   allocate_root_page_table();
+  debugk("allocated root page table\n");
   map_identity();
+  debugk("allocated root page table\n");
   map_kernel();
+  debugk("allocated root page table\n");
   map_phys();  /* Map all physical RAM for accessing page tables and other phys mem */
+  debugk("allocated root page table\n");
   map_devices();  /* Map MMIO devices */
+  debugk("allocated root page table\n");
 
   enable_virtual_memory((uint64_t)root_page_table);
   uint64_t offset = KERNEL_VIRT_OFFSET;
 
+  debugk("allocated root page table\n");
   uint64_t old_sp;
   asm volatile("mv %0, sp" : "=r"(old_sp));
 
