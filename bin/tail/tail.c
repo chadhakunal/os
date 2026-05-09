@@ -61,6 +61,7 @@ int tail_lines(int fd, int num_lines) {
 
 int tail_bytes(int fd, int num_bytes) {
   off_t file_size = lseek(fd, 0, SEEK_END);
+  printf("tail_bytes: file_size=%ld\n", file_size);
   if (file_size < 0) {
     printf("tail: failed to seek to end\n");
     return 1;
@@ -74,17 +75,23 @@ int tail_bytes(int fd, int num_bytes) {
   if (file_size > num_bytes) {
     start_pos = file_size - num_bytes;
   }
+  printf("tail_bytes: num_bytes=%d, start_pos=%ld\n", num_bytes, start_pos);
 
-  if (lseek(fd, start_pos, SEEK_SET) < 0) {
+  off_t seek_result = lseek(fd, start_pos, SEEK_SET);
+  printf("tail_bytes: lseek returned %ld\n", seek_result);
+  if (seek_result < 0) {
     printf("tail: seek failed\n");
     return 1;
   }
 
   char buf[256];
   ssize_t n;
+  printf("tail_bytes: starting read loop\n");
   while ((n = read(fd, buf, sizeof(buf))) > 0) {
+    printf("tail_bytes: read %ld bytes\n", n);
     write(1, buf, n);
   }
+  printf("tail_bytes: read loop done, n=%ld\n", n);
 
   return 0;
 }
