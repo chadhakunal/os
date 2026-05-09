@@ -272,8 +272,8 @@ static void map_devices(void) {
 }
 
 void init_kernel_page_mapping() {
-  allocate_root_page_table();
   debugk("allocated root page table\n");
+  allocate_root_page_table();
   map_identity();
   map_kernel();
   map_phys();  /* Map all physical RAM for accessing page tables and other phys mem */
