@@ -93,15 +93,20 @@ void load_elf(struct task_t *task, const char *path) {
       if (program_header.p_flags & PF_W) vm_flags |= VM_WRITE;
       if (program_header.p_flags & PF_X) vm_flags |= VM_EXEC;
 
+      printk("LOAD segment %lu: vaddr=0x%lx, offset=0x%lx, filesz=0x%lx, memsz=0x%lx\n",
+             pheader_idx, program_header.p_vaddr, program_header.p_offset,
+             program_header.p_filesz, program_header.p_memsz);
+
       if (program_header.p_filesz > 0) {
         file_backed_memory_map(&task->mm_struct, program_header.p_vaddr, dentry->vnode,
                                program_header.p_offset, program_header.p_filesz, vm_flags, true);
       }
-      
+
       // Take care of bss section
       if (program_header.p_memsz > program_header.p_filesz) {
         size_t bss_vaddr = program_header.p_vaddr + program_header.p_filesz;
         size_t bss_size = program_header.p_memsz - program_header.p_filesz;
+        printk("  BSS: vaddr=0x%lx, size=0x%lx\n", bss_vaddr, bss_size);
         anon_memory_map(&task->mm_struct, bss_vaddr, bss_size, vm_flags, true);
       }
     }
