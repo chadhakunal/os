@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stddef.h>
 
 int global_init = 42;
 int global_zero = 0;
