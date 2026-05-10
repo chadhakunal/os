@@ -1,6 +1,7 @@
 #define DEBUG 0
 #include "kernel/task/signal.h"
 #include "kernel/task/task.h"
+#include "kernel/task/schedule.h"
 #include "kernel/signal_jump_point.h"
 #include "arch/riscv64/trap.h"
 #include "arch/riscv64/virtual_memory_init.h"
