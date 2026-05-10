@@ -19,6 +19,7 @@
 #define SYS_munmap          215
 #define SYS_brk             214
 #define SYS_rt_sigaction    134
+#define SYS_rt_sigreturn    139
 #define SYS_exit            93
 #define SYS_execve          221
 #define SYS_wait4           260
@@ -27,6 +28,8 @@
 #define SYS_kill            129
 #define SYS_fork            220
 #define SYS_sched_yield     124
+#define SYS_ioctl           29
+#define SYS_setpgid         154
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -43,5 +46,10 @@ int64_t sys_sched_yield(struct trap_frame *tf);
 int64_t sys_waitpid(struct trap_frame *tf);
 int64_t sys_exit(struct trap_frame *tf);
 int64_t sys_execve(struct trap_frame *tf);
+int64_t sys_rt_sigreturn(struct trap_frame *tf);
+int64_t sys_kill(struct trap_frame *tf);
+int64_t sys_ioctl(struct trap_frame *tf);
+int64_t sys_getpid(struct trap_frame *tf);
+int64_t sys_setpgid(struct trap_frame *tf);
 
 #endif

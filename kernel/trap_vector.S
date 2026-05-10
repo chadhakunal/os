@@ -199,6 +199,11 @@ trap_from_kernel:
 .global trap_return
 trap_return:
   # a0 = trap_frame pointer
+  # Before returning to user space, check for pending signals
+  # The trap_frame pointer is already in a0, which is the first argument
+  call check_and_deliver_signals
+
+  # a0 still contains trap_frame pointer after the call
   mv sp, a0
 
   # Restore sscratch to kernel stack TOP, before restoring general regs

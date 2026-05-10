@@ -28,6 +28,9 @@ int main(int argc, char **argv, char **envp) {
     }
   }
 
+  pid_t shell_pgid = getpid();
+  tcsetpgrp(0, shell_pgid);
+
   char buf[1024];
   while (true) {
     printf("$ ");
@@ -166,14 +169,17 @@ void parse_and_exec(const char *buf) {
 
   pid_t pid = fork();
   if (pid == 0) {
+    setpgid(0, 0);
     char *envp[] = { NULL };
     execve(full_path, argv, envp);
     printf("sh: failed to execute %s\n", command_buf);
     exit(1);
   } else if (pid > 0) {
-    // Parent
+    setpgid(pid, pid);
+    tcsetpgrp(0, pid);
     int status;
     wait(&status);
+    tcsetpgrp(0, getpid());
   } else {
     printf("sh: fork failed\n");
   }

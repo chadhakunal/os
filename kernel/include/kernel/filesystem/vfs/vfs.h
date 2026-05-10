@@ -39,6 +39,7 @@ struct files_table_t;
 struct file_ops_t {
   int64_t (*read)(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
   int64_t (*write)(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
+  int (*ioctl)(struct file_t *file, unsigned long request, void *arg);
 };
 
 struct vnode_ops_t {

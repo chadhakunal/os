@@ -19,6 +19,7 @@
 #include "kernel/time/timer.h"
 #include "kernel/task/schedule.h"
 #include "lib/printk/printk.h"
+#include "kernel/signal_jump_point.h"
 
 
 void kmain(void *dtb_ptr) {
@@ -43,6 +44,8 @@ void kmain(void *dtb_ptr) {
   remove_identity_mapping();
 
   printk("Initialized Paging, Virtual Memory and Moved Kernel to Upper Region\n");
+
+  init_signal_jump_point();
 
   init_trap_handler();
   printk("Initialized Trap Handler\n");

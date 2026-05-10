@@ -17,6 +17,13 @@ SECTIONS
         *(.text.*)
     } :text
 
+    /* Signal jump point section - keep it separate for easy copying */
+    .signal_jump_point : ALIGN(16) {
+        __signal_jump_point_start = .;
+        *(.text.signal_jump_point)
+        __signal_jump_point_end = .;
+    } :text
+
     .rodata : {
         *(.rodata)
         *(.rodata.*)

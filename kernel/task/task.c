@@ -10,6 +10,7 @@
 #include "lib/string.h"
 #include "kernel/task/elf_loader.h"
 #include "kernel/task/schedule.h"
+#include "kernel/signal_jump_point.h"
 
 // Global task tracking
 struct task_t *current_task = NULL;  // Currently running task
@@ -71,6 +72,13 @@ void allocate_kernel_stack(struct task_t *task) {
 
   task->kernel_context.stack_start = KERNEL_STACK_VIRTUAL_BASE;
   task->kernel_context.sp = KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE;
+
+  // Map signal jump point page (shared across all processes)
+  void *jump_point_page = get_signal_jump_point_page();
+  if (jump_point_page) {
+    map_page(task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
+             (uint64_t)jump_point_page, PTE_U | PTE_R | PTE_X);
+  }
 }
 
 struct task_t *task_init() {
@@ -427,6 +435,42 @@ void reap_zombie(struct task_t *zombie) {
   task_t_free(zombie);
 }
 
+void task_cleanup(int exit_status) {
+  debugk("task_cleanup: PID %llu terminating with status %d\n", current_task->pid, exit_status);
+
+  current_task->exit_status = exit_status;
+  close_all_files(current_task);
+  clear_vmas(current_task);
+  current_task->state = TASK_ZOMBIE;
+
+  struct task_t *parent = find_task_by_pid(current_task->ppid);
+  if (parent && parent->state == TASK_BLOCKED && parent->wait_reason == WAIT_CHILD) {
+    if (parent->wait_pid == -1 || parent->wait_pid == (int64_t)current_task->pid) {
+      debugk("task_cleanup: Waking parent PID %llu\n", parent->pid);
+      unblock_task(parent);
+    }
+  }
+}
+
+void fork_sig_copy(struct signal_state_t *signal_state) {
+  struct sigaction_t *old_sigaction, *new_sigaction;
+  for (size_t i = 0; i < NUM_SIGS; i++) {
+    old_sigaction = current_task->signal_state.actions[i];
+    if (old_sigaction == (struct sigaction_t *)SIG_DEFAULT_HANDLER ||
+        old_sigaction == (struct sigaction_t *)SIG_IGNORE) {
+      signal_state->actions[i] = old_sigaction;
+    } else if (old_sigaction != NULL) {
+      new_sigaction = sigaction_t_alloc();
+      memcpy(new_sigaction, old_sigaction, sizeof(struct sigaction_t));
+      signal_state->actions[i] = new_sigaction;
+    } else {
+      signal_state->actions[i] = NULL;
+    }
+  }
+  signal_state->pending = 0;
+  signal_state->blocked = current_task->signal_state.blocked;
+}
+
 uint64_t fork_off() {
   // Should create a complete copy of the address space of the current task
   // For now we will manually copy over everything on this call  TODO: add copy on write
@@ -440,6 +484,8 @@ uint64_t fork_off() {
   new_task->mm_struct.root_satp = init_new_page_table();
   new_task->mm_struct.vma_list.next = &new_task->mm_struct.vma_list;
   new_task->mm_struct.vma_list.prev = &new_task->mm_struct.vma_list;
+
+  fork_sig_copy(&new_task->signal_state);
 
   allocate_kernel_stack(new_task);
 

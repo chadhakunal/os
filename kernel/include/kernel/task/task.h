@@ -6,6 +6,7 @@
 #include "kernel/memory/page_tables.h"
 #include "lib/list.h"
 #include "kernel/filesystem/vfs/vfs.h"
+#include "kernel/task/signal.h"
 
 // Global task tracking (defined in task.c)
 extern struct task_t *current_task;  // Currently running task
@@ -86,6 +87,9 @@ struct task_t {
   struct list_node wait_list;
   
   struct dentry_t *cwd;
+
+  struct signal_state_t signal_state;
+  uint32_t signal_handler_depth;  // Nesting depth of signal handlers (0 = not in handler)
 };
 
 DEFINE_POOL(task_t, struct task_t)
@@ -107,6 +111,7 @@ struct task_t *find_task_by_pid(uint64_t pid);
 bool has_alive_children(struct task_t *parent, int64_t specific_pid);
 struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid);
 void reap_zombie(struct task_t *zombie);
+void task_cleanup(int exit_status);
 
 /* Set the current task and update tp register */
 void set_current_task(struct task_t *task);
