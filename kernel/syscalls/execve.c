@@ -2,12 +2,14 @@
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "kernel/task/task.h"
 #include "kernel/task/elf_loader.h"
+#include "kernel/task/signal.h"
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
 #include "lib/pool_allocator.h"
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/user_data_access.h"
+#include "kernel/memory/page_tables.h"
 #include "types.h"
 
 #define MAX_ARG_COUNT 16
@@ -51,9 +53,9 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   // Copy argv
   debugk("execve: copying argv from %p\n", argv);
   args->argc = 0;
+  char *user_arg_ptr;
   while (args->argc < MAX_ARG_COUNT) {
     debugk("execve: reading argv[%d] pointer\n", args->argc);
-    char *user_arg_ptr;
     copy_from_user(&user_arg_ptr, &argv[args->argc], sizeof(char *));
     debugk("execve: argv[%d] pointer = %p\n", args->argc, user_arg_ptr);
     if (user_arg_ptr == NULL) break;
@@ -65,9 +67,9 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
 
   // Copy envp
   args->envc = 0;
+  char *user_env_ptr;
   if (envp != NULL) {
     while (args->envc < MAX_ARG_COUNT) {
-      char *user_env_ptr;
       copy_from_user(&user_env_ptr, &envp[args->envc], sizeof(char *));
       if (user_env_ptr == NULL) break;
 
@@ -86,11 +88,22 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
     return -1;
   }
 
-  // Clear current address space (preserves kernel stack and page table)
   clear_vmas(current_task);
   debugk("execve: cleared vmas\n");
 
-  // Load new ELF executable
+  // Pending Signals cleared and blocked signals stay
+  for (size_t i = 0; i < NUM_SIGS; i++) {
+    struct sigaction_t *old_action = current_task->signal_state.actions[i];
+    if (old_action != NULL &&
+        old_action != (struct sigaction_t *)SIG_DEFAULT_HANDLER &&
+        old_action != (struct sigaction_t *)SIG_IGNORE) {
+      sigaction_t_free(old_action);
+    }
+    current_task->signal_state.actions[i] = (struct sigaction_t *)SIG_DEFAULT_HANDLER;
+  }
+  current_task->signal_state.pending = 0;
+  debugk("execve: reset signal handlers\n");
+
   load_elf(current_task, args->pathname);
   debugk("execve: loaded elf, entry=%llx\n", current_task->mm_struct.entry_addr);
 
@@ -98,7 +111,7 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   // Stack layout (growing downward from 0x80000000):
   // [high] env strings, arg strings, NULL, envp[], NULL, argv[], argc [low]
 
-  uint64_t sp = 0x80000000;  // DEFAULT_STACK_TOP
+  uint64_t sp = DEFAULT_STACK_TOP;
 
   // First, calculate how much space we need
   size_t total_size = sizeof(uint64_t);  // argc
@@ -173,7 +186,6 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   debugk("execve: a0(argc)=%llu, a1(argv)=%llx, a2(envp)=%llx\n",
          current_task->tf.a0, current_task->tf.a1, current_task->tf.a2);
 
-  // Zero out saved registers for security
   current_task->tf.s0 = 0;
   current_task->tf.s1 = 0;
   current_task->tf.s2 = 0;
@@ -190,11 +202,9 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   debugk("execve: done, sp=%llx, sepc=%llx, argc=%llu\n",
          current_task->tf.sp, current_task->tf.sepc, current_task->tf.a0);
 
-  // Return to new program (trap_return will jump to sepc)
   extern void trap_return(struct trap_frame *tf);
   trap_return(&current_task->tf);
 
-  // Should never reach here
   panic("execve: returned from trap_return!");
   return 0;
 }
