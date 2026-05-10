@@ -39,5 +39,7 @@ DEFINE_SYSCALL3(waitpid, int64_t, pid, int *, wstatus, int, options)
     current_task->wait_pid = pid;
     current_task->state = TASK_BLOCKED;
     schedule();
+
+    asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
   }
 }
