@@ -112,4 +112,5 @@ pid_t fork(void);
 int sched_yield(void);
 pid_t waitpid(pid_t pid, int *wstatus, int options);
 pid_t wait(int *wstatus);
+int kill(pid_t pid, int sig);
 int execve(const char *pathname, char *const argv[], char *const envp[]);

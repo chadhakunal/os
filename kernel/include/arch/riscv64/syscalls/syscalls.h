@@ -45,5 +45,6 @@ int64_t sys_waitpid(struct trap_frame *tf);
 int64_t sys_exit(struct trap_frame *tf);
 int64_t sys_execve(struct trap_frame *tf);
 int64_t sys_rt_sigreturn(struct trap_frame *tf);
+int64_t sys_kill(struct trap_frame *tf);
 
 #endif

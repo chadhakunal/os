@@ -39,6 +39,9 @@
 
 #define NUM_SIGS 32  // Total number of signals
 
+// Exit status when killed by signal (standard UNIX convention)
+#define SIGNAL_EXIT_STATUS(sig) (128 + (sig))
+
 // Signal set type (64 bits to hold signal mask)
 typedef uint64_t sigset_t;
 

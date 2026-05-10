@@ -435,6 +435,23 @@ void reap_zombie(struct task_t *zombie) {
   task_t_free(zombie);
 }
 
+void task_cleanup(int exit_status) {
+  debugk("task_cleanup: PID %llu terminating with status %d\n", current_task->pid, exit_status);
+
+  current_task->exit_status = exit_status;
+  close_all_files(current_task);
+  clear_vmas(current_task);
+  current_task->state = TASK_ZOMBIE;
+
+  struct task_t *parent = find_task_by_pid(current_task->ppid);
+  if (parent && parent->state == TASK_BLOCKED && parent->wait_reason == WAIT_CHILD) {
+    if (parent->wait_pid == -1 || parent->wait_pid == (int64_t)current_task->pid) {
+      debugk("task_cleanup: Waking parent PID %llu\n", parent->pid);
+      unblock_task(parent);
+    }
+  }
+}
+
 void fork_sig_copy(struct signal_state_t *signal_state) {
   struct sigaction_t *old_sigaction, *new_sigaction;
   for (size_t i = 0; i < NUM_SIGS; i++) {

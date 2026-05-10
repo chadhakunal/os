@@ -30,8 +30,18 @@ static int get_pending_unblocked_signal(struct signal_state_t *sig_state) {
 }
 
 static bool handle_default_signal_action(int sig) {
-  debugk("signal: default action for signal %d (ignored for now)\n", sig);
-  return true;
+  switch (sig) {
+    case SIGKILL:
+    case SIGHUP:
+      debugk("signal: terminating process %llu due to signal %d\n", current_task->pid, sig);
+      task_cleanup(SIGNAL_EXIT_STATUS(sig));
+      schedule();
+      return true;
+
+    default:
+      debugk("signal: ignoring signal %d (no handler implemented)\n", sig);
+      return true;
+  }
 }
 
 void check_and_deliver_signals(struct trap_frame *tf) {

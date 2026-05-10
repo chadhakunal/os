@@ -108,7 +108,7 @@ void handle_syscall(struct trap_frame *tf) {
 
     case SYS_kill:
       debugk("syscall: kill(pid=%lld, sig=%lld)\n", (int64_t)tf->a0, (int64_t)tf->a1);
-      tf->a0 = -1; // TODO: implement
+      ret = sys_kill(tf);
       break;
     case SYS_fork:
       debugk("syscall: fork() from PID %llu\n", current_task->pid);
