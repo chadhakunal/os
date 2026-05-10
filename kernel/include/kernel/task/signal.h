@@ -70,10 +70,13 @@ struct signal_state_t {
   sigset_t blocked;
 };
 
-// Signal set manipulation macros
 #define clear_signal_set(set)      (*(set) = 0)
 #define add_signal_to_set(set, sig)   (*(set) |= (1ULL << ((sig) - 1)))
 #define delete_signal_from_set(set, sig)   (*(set) &= ~(1ULL << ((sig) - 1)))
 #define sig_in_set(set, sig) ((*(set) & (1ULL << ((sig) - 1))) != 0)
+
+struct trap_frame;
+
+void check_and_deliver_signals(struct trap_frame *tf);
 
 #endif

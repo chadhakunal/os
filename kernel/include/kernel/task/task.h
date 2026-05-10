@@ -87,8 +87,9 @@ struct task_t {
   struct list_node wait_list;
   
   struct dentry_t *cwd;
-  
+
   struct signal_state_t signal_state;
+  uint32_t signal_handler_depth;  // Nesting depth of signal handlers (0 = not in handler)
 };
 
 DEFINE_POOL(task_t, struct task_t)
