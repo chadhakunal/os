@@ -439,7 +439,8 @@ void fork_sig_copy(struct signal_state_t *signal_state) {
   struct sigaction_t *old_sigaction, *new_sigaction;
   for (size_t i = 0; i < NUM_SIGS; i++) {
     old_sigaction = current_task->signal_state.actions[i];
-    if (old_sigaction == SIG_DEFAULT_HANDLER || old_sigaction == SIG_IGNORE) {
+    if (old_sigaction == (struct sigaction_t *)SIG_DEFAULT_HANDLER ||
+        old_sigaction == (struct sigaction_t *)SIG_IGNORE) {
       signal_state->actions[i] = old_sigaction;
     } else if (old_sigaction != NULL) {
       new_sigaction = sigaction_t_alloc();
