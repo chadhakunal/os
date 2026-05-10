@@ -80,6 +80,11 @@ void handle_syscall(struct trap_frame *tf) {
       tf->a0 = -1; // TODO: implement
       break;
 
+    case SYS_rt_sigreturn:
+      debugk("syscall: rt_sigreturn()\n");
+      ret = sys_rt_sigreturn(tf);
+      break;
+
     case SYS_exit:
       debugk("syscall: exit(status=%lld)\n", (int64_t)tf->a0);
       tf->sepc += 4;

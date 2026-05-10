@@ -10,6 +10,7 @@
 #include "lib/string.h"
 #include "kernel/task/elf_loader.h"
 #include "kernel/task/schedule.h"
+#include "kernel/signal_jump_point.h"
 
 // Global task tracking
 struct task_t *current_task = NULL;  // Currently running task
@@ -71,6 +72,13 @@ void allocate_kernel_stack(struct task_t *task) {
 
   task->kernel_context.stack_start = KERNEL_STACK_VIRTUAL_BASE;
   task->kernel_context.sp = KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE;
+
+  // Map signal jump point page (shared across all processes)
+  void *jump_point_page = get_signal_jump_point_page();
+  if (jump_point_page) {
+    map_page(task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
+             (uint64_t)jump_point_page, PTE_U | PTE_R | PTE_X);
+  }
 }
 
 struct task_t *task_init() {
