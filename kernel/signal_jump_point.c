@@ -1,9 +1,10 @@
+#define DEBUG 1
 #include "kernel/signal_jump_point.h"
 #include "kernel/memory/page_allocator.h"
 #include "arch/riscv64/virtual_memory_init.h"
 #include "lib/string.h"
 #include "kernel/panic.h"
-#include "kernel/printk.h"
+#include "lib/printk/printk.h"
 
 static void *signal_jump_point_page = NULL;
 
