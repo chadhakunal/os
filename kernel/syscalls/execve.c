@@ -45,15 +45,7 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
 
   // Copy pathname
   debugk("execve: copying pathname from %p\n", pathname);
-  size_t path_len = 0;
-  char c;
-  while (path_len < MAX_PATH_LEN - 1) {
-    copy_from_user(&c, &pathname[path_len], 1);
-    if (c == '\0') break;
-    args->pathname[path_len] = c;
-    path_len++;
-  }
-  args->pathname[path_len] = '\0';
+  copy_string_from_user(args->pathname, pathname, MAX_PATH_LEN);
   debugk("execve: pathname=%s\n", args->pathname);
 
   // Copy argv
@@ -66,14 +58,7 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
     debugk("execve: argv[%d] pointer = %p\n", args->argc, user_arg_ptr);
     if (user_arg_ptr == NULL) break;
 
-    size_t arg_len = 0;
-    while (arg_len < MAX_ARG_LEN - 1) {
-      copy_from_user(&c, &user_arg_ptr[arg_len], 1);
-      if (c == '\0') break;
-      args->argv[args->argc][arg_len] = c;
-      arg_len++;
-    }
-    args->argv[args->argc][arg_len] = '\0';
+    copy_string_from_user(args->argv[args->argc], user_arg_ptr, MAX_ARG_LEN);
     debugk("execve: argv[%d]=%s\n", args->argc, args->argv[args->argc]);
     args->argc++;
   }
@@ -86,14 +71,7 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
       copy_from_user(&user_env_ptr, &envp[args->envc], sizeof(char *));
       if (user_env_ptr == NULL) break;
 
-      size_t env_len = 0;
-      while (env_len < MAX_ARG_LEN - 1) {
-        copy_from_user(&c, &user_env_ptr[env_len], 1);
-        if (c == '\0') break;
-        args->envp[args->envc][env_len] = c;
-        env_len++;
-      }
-      args->envp[args->envc][env_len] = '\0';
+      copy_string_from_user(args->envp[args->envc], user_env_ptr, MAX_ARG_LEN);
       debugk("execve: envp[%d]=%s\n", args->envc, args->envp[args->envc]);
       args->envc++;
     }
