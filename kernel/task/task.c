@@ -435,6 +435,24 @@ void reap_zombie(struct task_t *zombie) {
   task_t_free(zombie);
 }
 
+void fork_sig_copy(struct signal_state_t *signal_state) {
+  struct sigaction_t *old_sigaction, *new_sigaction;
+  for (size_t i = 0; i < NUM_SIGS; i++) {
+    old_sigaction = current_task->signal_state.actions[i];
+    if (old_sigaction == SIG_DEFAULT_HANDLER || old_sigaction == SIG_IGNORE) {
+      signal_state->actions[i] = old_sigaction;
+    } else if (old_sigaction != NULL) {
+      new_sigaction = sigaction_t_alloc();
+      memcpy(new_sigaction, old_sigaction, sizeof(struct sigaction_t));
+      signal_state->actions[i] = new_sigaction;
+    } else {
+      signal_state->actions[i] = NULL;
+    }
+  }
+  signal_state->pending = 0;
+  signal_state->blocked = current_task->signal_state.blocked;
+}
+
 uint64_t fork_off() {
   // Should create a complete copy of the address space of the current task
   // For now we will manually copy over everything on this call  TODO: add copy on write
@@ -448,6 +466,8 @@ uint64_t fork_off() {
   new_task->mm_struct.root_satp = init_new_page_table();
   new_task->mm_struct.vma_list.next = &new_task->mm_struct.vma_list;
   new_task->mm_struct.vma_list.prev = &new_task->mm_struct.vma_list;
+
+  fork_sig_copy(&new_task->signal_state);
 
   allocate_kernel_stack(new_task);
 

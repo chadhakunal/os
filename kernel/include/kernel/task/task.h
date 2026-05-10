@@ -6,6 +6,7 @@
 #include "kernel/memory/page_tables.h"
 #include "lib/list.h"
 #include "kernel/filesystem/vfs/vfs.h"
+#include "kernel/task/signal.h"
 
 // Global task tracking (defined in task.c)
 extern struct task_t *current_task;  // Currently running task
@@ -86,6 +87,8 @@ struct task_t {
   struct list_node wait_list;
   
   struct dentry_t *cwd;
+  
+  struct signal_state_t signal_state;
 };
 
 DEFINE_POOL(task_t, struct task_t)
