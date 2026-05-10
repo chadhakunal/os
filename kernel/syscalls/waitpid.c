@@ -2,18 +2,21 @@
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
+#include "kernel/user_data_access.h"
 #include "lib/printk/printk.h"
 #include "types.h"
 
+#define EINVAL 22
+#define ECHILD 10
+
 DEFINE_SYSCALL3(waitpid, int64_t, pid, int *, wstatus, int, options)
 {
-  // Only support blocking wait for now (options == 0)
   if (options != 0) {
-    return -1;  // EINVAL - options not supported yet
+    return -EINVAL;
   }
 
   if (pid == 0 || pid < -1) {
-    return -1;  // EINVAL - process groups not supported yet
+    return -EINVAL;
   }
 
   while (1) {
@@ -21,7 +24,7 @@ DEFINE_SYSCALL3(waitpid, int64_t, pid, int *, wstatus, int, options)
 
     if (zombie) {
       if (wstatus) {
-        *wstatus = zombie->exit_status;
+        copy_to_user(wstatus, &zombie->exit_status, sizeof(int));
       }
       uint64_t child_pid = zombie->pid;
       reap_zombie(zombie);
@@ -29,7 +32,7 @@ DEFINE_SYSCALL3(waitpid, int64_t, pid, int *, wstatus, int, options)
     }
 
     if (!has_alive_children(current_task, pid)) {
-      return -1;  // ECHILD - no such child exists
+      return -ECHILD;
     }
 
     current_task->wait_reason = WAIT_CHILD;
