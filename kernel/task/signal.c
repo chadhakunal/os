@@ -34,6 +34,7 @@ static bool handle_default_signal_action(int sig) {
   switch (sig) {
     case SIGKILL:
     case SIGHUP:
+    case SIGINT:
       debugk("signal: terminating process %llu due to signal %d\n", current_task->pid, sig);
       task_cleanup(SIGNAL_EXIT_STATUS(sig));
       debugk("signal: task_cleanup done, state=%d, calling schedule\n", current_task->state);
@@ -44,6 +45,17 @@ static bool handle_default_signal_action(int sig) {
     default:
       debugk("signal: ignoring signal %d (no handler implemented)\n", sig);
       return true;
+  }
+}
+
+void send_signal_to_pgid(uint64_t pgid, int sig) {
+  struct list_node *node;
+  list_for_each(node, &task_list) {
+    struct task_t *task = container_of(node, struct task_t, task_list_node);
+    if (task->pgid == pgid && task->state != TASK_ZOMBIE) {
+      debugk("signal: sending signal %d to PID %llu (PGID %llu)\n", sig, task->pid, pgid);
+      add_signal_to_set(&task->signal_state.pending, sig);
+    }
   }
 }
 

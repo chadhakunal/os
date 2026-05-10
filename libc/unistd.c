@@ -51,6 +51,30 @@ int kill(pid_t pid, int sig) {
   return syscall2(SYS_kill, pid, sig);
 }
 
+int ioctl(int fd, unsigned long request, void *arg) {
+  return syscall3(SYS_ioctl, fd, request, arg);
+}
+
+pid_t tcgetpgrp(int fd) {
+  pid_t pgid;
+  if (ioctl(fd, 0x540F, &pgid) < 0) {
+    return -1;
+  }
+  return pgid;
+}
+
+int tcsetpgrp(int fd, pid_t pgid) {
+  return ioctl(fd, 0x5410, &pgid);
+}
+
+pid_t getpid(void) {
+  return syscall0(SYS_getpid);
+}
+
+int setpgid(pid_t pid, pid_t pgid) {
+  return syscall2(SYS_setpgid, pid, pgid);
+}
+
 int execve(const char *pathname, char *const argv[], char *const envp[]) {
   return syscall3(SYS_execve, pathname, argv, envp);
 }

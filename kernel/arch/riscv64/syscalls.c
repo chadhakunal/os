@@ -103,13 +103,24 @@ void handle_syscall(struct trap_frame *tf) {
 
     case SYS_getpid:
       debugk("syscall: getpid()\n");
-      tf->a0 = -1; // TODO: return current process PID
+      ret = sys_getpid(tf);
       break;
 
     case SYS_kill:
       debugk("syscall: kill(pid=%lld, sig=%lld)\n", (int64_t)tf->a0, (int64_t)tf->a1);
       ret = sys_kill(tf);
       break;
+
+    case SYS_ioctl:
+      debugk("syscall: ioctl(fd=%lld, request=%llu, arg=%llx)\n", (int64_t)tf->a0, tf->a1, tf->a2);
+      ret = sys_ioctl(tf);
+      break;
+
+    case SYS_setpgid:
+      debugk("syscall: setpgid(pid=%lld, pgid=%lld)\n", (int64_t)tf->a0, (int64_t)tf->a1);
+      ret = sys_setpgid(tf);
+      break;
+
     case SYS_fork:
       debugk("syscall: fork() from PID %llu\n", current_task->pid);
       // Increment sepc BEFORE fork so child gets the incremented value

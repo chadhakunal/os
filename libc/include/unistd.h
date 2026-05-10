@@ -21,6 +21,8 @@
 #define SYS_kill            129
 #define SYS_fork            220
 #define SYS_sched_yield     124
+#define SYS_ioctl           29
+#define SYS_setpgid         154
 
 // RISC-V syscall ABI macros
 // Syscall number in a7, args in a0-a5, return value in a0
@@ -113,4 +115,9 @@ int sched_yield(void);
 pid_t waitpid(pid_t pid, int *wstatus, int options);
 pid_t wait(int *wstatus);
 int kill(pid_t pid, int sig);
+int ioctl(int fd, unsigned long request, void *arg);
+pid_t tcgetpgrp(int fd);
+int tcsetpgrp(int fd, pid_t pgid);
+pid_t getpid(void);
+int setpgid(pid_t pid, pid_t pgid);
 int execve(const char *pathname, char *const argv[], char *const envp[]);

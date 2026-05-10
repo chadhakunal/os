@@ -81,5 +81,6 @@ struct signal_state_t {
 struct trap_frame;
 
 void check_and_deliver_signals(struct trap_frame *tf);
+void send_signal_to_pgid(uint64_t pgid, int sig);
 
 #endif
