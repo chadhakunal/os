@@ -49,8 +49,7 @@ static bool handle_default_signal_action(int sig) {
 }
 
 void send_signal_to_pgid(uint64_t pgid, int sig) {
-  struct list_node *node;
-  list_for_each(node, &task_list) {
+  list_for_each(&task_list, node) {
     struct task_t *task = container_of(node, struct task_t, task_list);
     if (task->pgid == pgid && task->state != TASK_ZOMBIE) {
       debugk("signal: sending signal %d to PID %llu (PGID %llu)\n", sig, task->pid, pgid);
