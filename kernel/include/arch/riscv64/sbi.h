@@ -2,8 +2,7 @@
 #define SBI_H
 
 #include "types.h"
-
-#define TIMER_INTERVAL_CYCLES 100000
+#include "kernel/time/timer.h"
 
 struct trap_frame;
 

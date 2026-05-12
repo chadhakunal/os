@@ -7,8 +7,7 @@
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
 #include "kernel/memory/page_fault.h"
-
-#define TIMER_INTERVAL_CYCLES 100000
+#include "kernel/time/timer.h"
 
 void trap_handler(struct trap_frame *tf) {
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
