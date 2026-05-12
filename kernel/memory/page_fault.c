@@ -22,6 +22,21 @@ static uint64_t vma_to_pte_flags(uint64_t vm_flags) {
   return pte_flags;
 }
 
+// Helper to handle SIGSEGV when page fault cannot be resolved
+// If in supervisor mode, return to user space for signal delivery (never returns)
+static void send_sigsegv_and_abort_syscall(void) {
+  extern void trap_return(struct trap_frame *tf);
+
+  send_signal(current_task, SIGSEGV);
+
+  // If in supervisor mode (during syscall), return to user space for signal delivery
+  if (current_task->tf.sstatus & SSTATUS_SPP) {
+    debugk("Page fault in syscall - returning to user mode to deliver signal\n");
+    trap_return(&current_task->tf);
+    // Never returns - signal delivered and process terminated
+  }
+}
+
 int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *tf) {
   // Check if this is a kernel page fault (supervisor mode accessing kernel memory)
   // Allow supervisor mode to fault on user memory (for syscalls accessing user buffers)
@@ -68,30 +83,30 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
     }
 
     debugk("No VMA found for fault address 0x%llx, sending SIGSEGV\n", fault_addr);
-    send_signal(current_task, SIGSEGV);
+    send_sigsegv_and_abort_syscall();
     return -1;
   }
 
   if (scause == 12 && !(vma->vm_flags & VM_EXEC)) {
     debugk("Instruction fetch from non-executable page, sending SIGSEGV\n");
-    send_signal(current_task, SIGSEGV);
+    send_sigsegv_and_abort_syscall();
     return -1;
   }
   if (scause == 13 && !(vma->vm_flags & VM_READ)) {
     debugk("Load from non-readable page, sending SIGSEGV\n");
-    send_signal(current_task, SIGSEGV);
+    send_sigsegv_and_abort_syscall();
     return -1;
   }
   if (scause == 15 && !(vma->vm_flags & VM_WRITE)) {
     debugk("Store to non-writable page, sending SIGSEGV\n");
-    send_signal(current_task, SIGSEGV);
+    send_sigsegv_and_abort_syscall();
     return -1;
   }
 
   uint64_t pte = get_pte(current_task->mm_struct.root_satp, fault_addr);
   if (pte & PTE_VALID) {
     debugk("Page already mapped but permission fault, sending SIGSEGV\n");
-    send_signal(current_task, SIGSEGV);
+    send_sigsegv_and_abort_syscall();
     return -1;
   }
 

@@ -4,6 +4,7 @@
 #include "types.h"
 #include "lib/string.h"
 #include "arch/riscv64/virtual_memory_init.h"
+#include "kernel/memory/page_allocator.h"
 
 // Validate that address range is in user space (< END_USER_SPACE_ADDR)
 static inline bool is_user_address(uint64_t addr, size_t len) {
@@ -17,12 +18,36 @@ static inline bool is_user_address(uint64_t addr, size_t len) {
   return true;
 }
 
+// Check if user memory range is actually accessible (pages are mapped)
+// This prevents page faults in supervisor mode during copy operations
+static inline bool is_user_memory_accessible(uint64_t addr, size_t len) {
+  extern uint64_t get_pte(void *root_satp, uint64_t vaddr);
+  extern struct task_t *current_task;
+
+  if (!is_user_address(addr, len)) {
+    return false;
+  }
+
+  // Check each page in the range
+  uint64_t start_page = addr & ~(DEFAULT_PAGE_SIZE - 1);
+  uint64_t end_page = (addr + len - 1) & ~(DEFAULT_PAGE_SIZE - 1);
+
+  for (uint64_t page = start_page; page <= end_page; page += DEFAULT_PAGE_SIZE) {
+    uint64_t pte = get_pte(current_task->mm_struct.root_satp, page);
+    if (!(pte & PTE_VALID)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 static inline int copy_to_user(void *user_dest, const void *kernel_src, size_t n) {
   if (!is_user_address((uint64_t)user_dest, n)) {
     return -1;
   }
-  // memcpy may trigger page faults, but page_fault handler now allows
-  // supervisor mode faults on user addresses
+  // memcpy may trigger page faults on unmapped but valid pages (lazy allocation)
+  // Page fault handler will allocate pages as needed or send SIGSEGV if invalid
   memcpy(user_dest, kernel_src, n);
   return 0;
 }
@@ -31,8 +56,8 @@ static inline int copy_from_user(void *kernel_dest, const void *user_src, size_t
   if (!is_user_address((uint64_t)user_src, n)) {
     return -1;
   }
-  // memcpy may trigger page faults, but page_fault handler now allows
-  // supervisor mode faults on user addresses
+  // memcpy may trigger page faults on unmapped but valid pages (lazy allocation)
+  // Page fault handler will allocate pages as needed or send SIGSEGV if invalid
   memcpy(kernel_dest, user_src, n);
   return 0;
 }
