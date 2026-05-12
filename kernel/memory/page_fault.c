@@ -3,7 +3,6 @@
 #include "kernel/task/signal.h"
 #include "kernel/memory/page_tables.h"
 #include "kernel/filesystem/vfs/vfs.h"
-#include "kernel/memory/allocator.h"
 #include "arch/riscv64/trap.h"
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/task/elf_loader.h"
