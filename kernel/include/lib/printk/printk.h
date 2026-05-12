@@ -5,6 +5,7 @@
 #include <stdarg.h>
 
 void printk(const char *fmt, ...);
+void vprintk(const char *fmt, va_list args);
 
 // Include Debug in macro before including printk and set to 1 like so "#define DEBUG 1\n#include "lib/printk/printk.h"
 #ifndef DEBUG
