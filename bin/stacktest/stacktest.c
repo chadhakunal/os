@@ -17,7 +17,7 @@ void fill_stack(int n) {
     fill_stack(n - 1);
   }
   buffer[0] = 'h';
-  printf("%s\n", buffer[0]);
+  printf("%s\n", &buffer[0]);
   printf("Returning from depth %d\n", depth);
   depth--;
 }
