@@ -38,18 +38,14 @@ int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 int64_t tty_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   extern void uart_putc(char c);
 
-  // Check stack usage
-  uint64_t sp;
-  asm volatile("mv %0, sp" : "=r"(sp));
-  uint64_t stack_used = (KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE) - sp;
-  if (stack_used > 12000) {
-    printk("[STACK] tty_write: %llu bytes used (sp=0x%llx)\n", stack_used, sp);
+  char *buf = (char *)buffer;
+
+  // Use pointer arithmetic instead of index to avoid variable corruption
+  char *end = buf + size;
+  for (char *p = buf; p < end; p++) {
+    uart_putc(*p);
   }
 
-  char *buf = (char *)buffer;
-  for (uint64_t i = 0; i < size; i++) {
-    uart_putc(buf[i]);
-  }
   return size;
 }
 
