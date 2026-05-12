@@ -35,14 +35,6 @@ void uart_putc(const char c) {
   volatile uint8_t *uart = uart_get_base();
   uint32_t offset = platform.uart.base & 0xFFFULL;
 
-  #define LSR_OFFSET 5
-  #define LSR_THRE (1 << 5)  /* Transmitter Holding Register Empty */
-
-  /* Wait for transmitter to be ready */
-  while (!(uart[offset + LSR_OFFSET] & LSR_THRE)) {
-    /* Busy wait - transmitter is full */
-  }
-
   /* Write to THR (offset 0x00) */
   uart[offset] = c;
   return;
