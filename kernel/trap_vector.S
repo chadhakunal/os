@@ -70,6 +70,12 @@ trap_from_user:
   # Set sscratch to 0 so nested traps know we're in kernel
   csrw sscratch, zero
 
+  # Re-enable interrupts now that context is saved
+  # Hardware automatically disables interrupts (clears SIE) on trap entry
+  # We re-enable them so timer/UART interrupts can be handled during trap processing
+  li t0, 0x2  # SSTATUS_SIE bit
+  csrs sstatus, t0
+
   # Call C trap handler (NEVER RETURNS - it calls trap_return or panics)
   # Pass pointer to trap frame in task struct
   addi a0, tp, 120  # a0 = &current_task->tf
