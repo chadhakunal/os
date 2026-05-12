@@ -13,6 +13,6 @@ extern struct virtual_time_t virtual_time;
 
 void init_virtual_time();
 
-void timer_handler(uint64_t hardware_clock_ticks);
+void timer_handler(uint64_t hardware_clock_ticks, bool in_supervisor_mode);
 
 #endif
