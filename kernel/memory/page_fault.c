@@ -46,6 +46,10 @@ static void send_sigsegv_and_abort_syscall(void) {
 }
 
 int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *tf) {
+  debugk("=== PAGE FAULT START ===\n");
+  debugk("Fault addr=0x%llx, scause=%lld, pid=%llu, SPP=%d\n",
+         fault_addr, scause, current_task->pid, !!(tf->sstatus & SSTATUS_SPP));
+
   // Check if this is a kernel page fault (supervisor mode accessing kernel memory)
   // Allow supervisor mode to fault on user memory (for syscalls accessing user buffers)
   if ((tf->sstatus & SSTATUS_SPP) && fault_addr >= END_USER_SPACE_ADDR) {
@@ -61,9 +65,6 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
     }
     panic("Kernel page fault at 0x%llx", fault_addr);
   }
-
-  debugk("Page fault at 0x%llx, scause=%lld, pid=%llu, SPP=%d\n",
-         fault_addr, scause, current_task->pid, !!(tf->sstatus & SSTATUS_SPP));
 
   struct vma_t *vma = find_vma(&current_task->mm_struct, fault_addr);
 
