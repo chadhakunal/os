@@ -260,6 +260,18 @@ static void map_devices(void) {
   uint64_t rtc_virt = MMIO_VIRTUAL_MEMORY_BASE + rtc_phys;
   boot_map_page(root_page_table, rtc_virt, rtc_phys);
 
+  // Map Disk
+  boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + platform.virtio_disk.common_cfg_mmio_reg, platform.virtio_disk.common_cfg_mmio_reg);
+  boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + platform.virtio_disk.notify_cfg_mmio_reg, platform.virtio_disk.notify_cfg_mmio_reg);
+  boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + platform.virtio_disk.device_cfg_mmio_reg, platform.virtio_disk.device_cfg_mmio_reg);
+  boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + platform.virtio_disk.isr_cfg_mmio_reg, platform.virtio_disk.isr_cfg_mmio_reg);
+  platform.virtio_disk.common_cfg_mmio_reg = MMIO_VIRTUAL_MEMORY_BASE + platform.virtio_disk.common_cfg_mmio_reg;
+  platform.virtio_disk.notify_cfg_mmio_reg = MMIO_VIRTUAL_MEMORY_BASE + platform.virtio_disk.notify_cfg_mmio_reg;
+  platform.virtio_disk.device_cfg_mmio_reg = MMIO_VIRTUAL_MEMORY_BASE + platform.virtio_disk.device_cfg_mmio_reg;
+  platform.virtio_disk.isr_cfg_mmio_reg = MMIO_VIRTUAL_MEMORY_BASE + platform.virtio_disk.isr_cfg_mmio_reg;
+  
+
+
   /* Map PLIC (Platform-Level Interrupt Controller) pages
    * Only map the pages we actually use (3 pages = 12KB):
    * - 0x0c000000: Interrupt priorities

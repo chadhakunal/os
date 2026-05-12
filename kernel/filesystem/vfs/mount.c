@@ -1,6 +1,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/filesystem/tarfs/tarfs.h"
 #include "kernel/filesystem/devfs/devfs.h"
+#include "kernel/filesystem/mode.h"
 #include "lib/list.h"
 #include "lib/string.h"
 #include "lib/printk/printk.h"
@@ -55,4 +56,13 @@ void vfs_init() {
   list_append(&base_mount->superblock->root_vnode->children_dentries, &dentry->sibling_dentry);
   struct superblock_t *devfs_sb = devfs_mount();
   vfs_mount("/dev", devfs_sb);
+
+  // Create /mnt mountpoint in the root tarfs tree
+  struct vnode_t *mnt_vnode = tarfs_alloc_vnode(base_mount->superblock);
+  mnt_vnode->permission_mode = RW_PERM | S_IFDIR;
+  struct dentry_t *mnt_dentry = dentry_t_alloc();
+  strncpy(mnt_dentry->name, "mnt", 256);
+  mnt_dentry->vnode = mnt_vnode;
+  mnt_dentry->parent = base_mount->superblock->root_dentry;
+  list_append(&base_mount->superblock->root_vnode->children_dentries, &mnt_dentry->sibling_dentry);
 }

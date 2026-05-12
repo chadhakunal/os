@@ -12,8 +12,11 @@
 
 DEFINE_SYSCALL1(chdir, const char *, user_path)
 {
+  char path[MAX_PATH_LEN];
+  copy_string_from_user(path, user_path, MAX_PATH_LEN);
+
   struct dentry_t *dentry;
-  int32_t ret = vfs_resolve_path(user_path, &dentry);
+  int32_t ret = vfs_resolve_path(path, &dentry);
 
   if (ret < 0) {
     return ret;
@@ -23,7 +26,9 @@ DEFINE_SYSCALL1(chdir, const char *, user_path)
     return -ENOENT;
   }
 
-  if (!IS_DIR(dentry->vnode->permission_mode)) {
+  struct vnode_t *vnode = dentry->vnode->mounted_vnode ? dentry->vnode->mounted_vnode : dentry->vnode;
+
+  if (!IS_DIR(vnode->permission_mode)) {
     return -ENOTDIR;
   }
 
