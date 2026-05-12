@@ -31,6 +31,10 @@
 #define SYS_sched_yield     124
 #define SYS_ioctl           29
 #define SYS_setpgid         154
+#define SYS_getdents        61
+#define SYS_mkdirat         34
+#define SYS_unlinkat        35
+#define SYS_dup2            24
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -53,5 +57,9 @@ int64_t sys_ioctl(struct trap_frame *tf);
 int64_t sys_getpid(struct trap_frame *tf);
 int64_t sys_getppid(struct trap_frame *tf);
 int64_t sys_setpgid(struct trap_frame *tf);
+int64_t sys_getdents(struct trap_frame *tf);
+int64_t sys_mkdirat(struct trap_frame *tf);
+int64_t sys_unlinkat(struct trap_frame *tf);
+int64_t sys_dup2(struct trap_frame *tf);
 
 #endif

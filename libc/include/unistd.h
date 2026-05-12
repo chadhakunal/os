@@ -24,6 +24,10 @@
 #define SYS_sched_yield     124
 #define SYS_ioctl           29
 #define SYS_setpgid         154
+#define SYS_getdents        61
+#define SYS_mkdirat         34
+#define SYS_unlinkat        35
+#define SYS_dup2            24
 
 // RISC-V syscall ABI macros
 // Syscall number in a7, args in a0-a5, return value in a0
@@ -123,3 +127,7 @@ pid_t getpid(void);
 pid_t getppid(void);
 int setpgid(pid_t pid, pid_t pgid);
 int execve(const char *pathname, char *const argv[], char *const envp[]);
+int mkdir(const char *path, unsigned int mode);
+int unlink(const char *path);
+int rmdir(const char *path);
+int dup2(int oldfd, int newfd);

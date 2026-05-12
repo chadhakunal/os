@@ -33,6 +33,19 @@ int64_t tarfs_vnode_lookup(const char *name, struct vnode_t *parent_dir, struct 
   return -1;
 }
 
+int64_t tarfs_readdir(struct vnode_t *dir, uint32_t index, struct dentry_t **out) {
+  uint32_t i = 0;
+  list_for_each(&dir->children_dentries, pos) {
+    if (i == index) {
+      *out = container_of(pos, struct dentry_t, sibling_dentry);
+      return 0;
+    }
+    i++;
+  }
+  *out = NULL;
+  return -1;
+}
+
 
 struct vnode_t *tarfs_alloc_vnode(struct superblock_t *superblock) {
   struct vnode_t *vnode = vnode_t_alloc();
@@ -52,6 +65,7 @@ struct superblock_t *tarfs_mount(void *data, uint64_t size) {
   superblock->private_data = (void *)tarfs_superblock_t_alloc();
   ((struct tarfs_superblock_t *)superblock->private_data)->last_vnode_id = 0;
   superblock->vnode_ops.lookup = tarfs_vnode_lookup;
+  superblock->vnode_ops.readdir = tarfs_readdir;
   superblock->address_space_ops.fill_page = tarfs_fill_page;
   // tarfs uses address_space_ops for file I/O, so file_ops are NULL
   superblock->file_ops.read = NULL;

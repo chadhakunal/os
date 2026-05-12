@@ -121,6 +121,26 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_ioctl(tf);
       break;
 
+    case SYS_getdents:
+      debugk("syscall: getdents(fd=%lld, buf=%llx, count=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2);
+      ret = sys_getdents(tf);
+      break;
+
+    case SYS_mkdirat:
+      debugk("syscall: mkdirat(dirfd=%lld, path=%llx, mode=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2);
+      ret = sys_mkdirat(tf);
+      break;
+
+    case SYS_unlinkat:
+      debugk("syscall: unlinkat(dirfd=%lld, path=%llx, flags=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2);
+      ret = sys_unlinkat(tf);
+      break;
+
+    case SYS_dup2:
+      debugk("syscall: dup2(oldfd=%lld, newfd=%lld)\n", (int64_t)tf->a0, (int64_t)tf->a1);
+      ret = sys_dup2(tf);
+      break;
+
     case SYS_setpgid:
       debugk("syscall: setpgid(pid=%lld, pgid=%lld)\n", (int64_t)tf->a0, (int64_t)tf->a1);
       ret = sys_setpgid(tf);
