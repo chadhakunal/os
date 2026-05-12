@@ -27,13 +27,21 @@ static uint64_t vma_to_pte_flags(uint64_t vm_flags) {
 static void send_sigsegv_and_abort_syscall(void) {
   extern void trap_return(struct trap_frame *tf);
 
+  debugk("Sending SIGSEGV to PID %llu\n", current_task->pid);
   send_signal(current_task, SIGSEGV);
 
   // If in supervisor mode (during syscall), return to user space for signal delivery
+  debugk("current_task->tf.sstatus = 0x%llx, SPP bit = %d\n",
+         current_task->tf.sstatus, !!(current_task->tf.sstatus & SSTATUS_SPP));
+
   if (current_task->tf.sstatus & SSTATUS_SPP) {
-    debugk("Page fault in syscall - returning to user mode to deliver signal\n");
+    debugk("Detected SPP=1 in saved tf, calling trap_return to user mode\n");
+    debugk("User mode PC = 0x%llx, SP = 0x%llx\n", current_task->tf.sepc, current_task->tf.sp);
     trap_return(&current_task->tf);
     // Never returns - signal delivered and process terminated
+    debugk("ERROR - trap_return returned!\n");
+  } else {
+    debugk("SPP=0 in saved tf, returning normally\n");
   }
 }
 
