@@ -26,6 +26,16 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
   // Check if this is a kernel page fault (supervisor mode accessing kernel memory)
   // Allow supervisor mode to fault on user memory (for syscalls accessing user buffers)
   if ((tf->sstatus & SSTATUS_SPP) && fault_addr >= END_USER_SPACE_ADDR) {
+    printk("KERNEL PAGE FAULT DETAILS:\n");
+    printk("  Fault address: 0x%llx\n", fault_addr);
+    printk("  Scause: %lld\n", scause);
+    printk("  PC (sepc): 0x%llx\n", tf->sepc);
+    printk("  SP: 0x%llx\n", tf->sp);
+    printk("  RA: 0x%llx\n", tf->ra);
+    printk("  Current task: %p\n", current_task);
+    if (current_task) {
+      printk("  PID: %llu\n", current_task->pid);
+    }
     panic("Kernel page fault at 0x%llx", fault_addr);
   }
 
