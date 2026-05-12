@@ -1,4 +1,6 @@
 #include <unistd.h>
+#include <fcntl.h>
+#include <dirent.h>
 #include <types.h>
 #include <stddef.h>
 
@@ -77,4 +79,20 @@ int setpgid(pid_t pid, pid_t pgid) {
 
 int execve(const char *pathname, char *const argv[], char *const envp[]) {
   return syscall3(SYS_execve, pathname, argv, envp);
+}
+
+int getdents(int fd, struct dirent *buf, unsigned int count) {
+  return syscall3(SYS_getdents, fd, buf, count);
+}
+
+int mkdir(const char *path, unsigned int mode) {
+  return syscall3(SYS_mkdirat, AT_FDCWD, path, mode);
+}
+
+int unlink(const char *path) {
+  return syscall3(SYS_unlinkat, AT_FDCWD, path, 0);
+}
+
+int rmdir(const char *path) {
+  return syscall3(SYS_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
 }

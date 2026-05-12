@@ -12,8 +12,8 @@
 
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
   debugk("vfs_resolve_path: path=%s\n", path);
-  struct dentry_t *curr_dentry, *next_dentry;
-  uint32_t ret;
+  struct dentry_t *curr_dentry;
+  int32_t ret;
   int name_len;
   char current_name[256];
   const char *current_path = path;
@@ -35,17 +35,16 @@ int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
       // keep the current dentry the same
       curr_dentry = curr_dentry; // nop
     } else if (!strncmp(current_name, "..")) {
-      curr_dentry = curr_dentry->parent;
+      if (curr_dentry->parent != NULL) {
+        curr_dentry = curr_dentry->parent;
+      }
     } else {
-      ret = vfs_lookup(current_name, curr_dentry->vnode->mounted_vnode != NULL ? curr_dentry->vnode->mounted_vnode : curr_dentry->vnode, &next_dentry);
+      struct dentry_t *next_dentry = NULL;
+      ret = vfs_lookup(current_name, curr_dentry, &next_dentry);
       debugk("vfs_resolve_path: vfs_lookup returned %d, next_dentry=%p\n", ret, next_dentry);
       if (ret != 0) {
         debugk("vfs_resolve_path: lookup failed, returning %d\n", ret);
         return ret;
-      }
-      if (next_dentry == NULL || next_dentry->vnode == NULL) {
-        debugk("vfs_resolve_path: negative dentry (file not found)\n");
-        return -ENOENT;
       }
       curr_dentry = next_dentry;
       debugk("vfs_resolve_path: next component='%s', len=%d\n", current_name, name_len);
@@ -130,14 +129,17 @@ int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 
 int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   debugk("vfs_write: file=%p, offset=%lu, size=%lu\n", file, offset, size);
-  if (file == NULL) {
+  if (file == NULL)
     panic("vfs_write: file is null");
+
+  if (file->vnode->address_space != NULL &&
+      file->vnode->address_space->address_space_ops != NULL &&
+      file->vnode->address_space->address_space_ops->write_page != NULL) {
+    return vfs_vnode_write(file->vnode, buffer, size, offset);
   }
 
-  if (file->file_ops == NULL || file->file_ops->write == NULL) {
-    debugk("  ERROR: file_ops or write function is NULL\n");
-    panic("vfs_write: file_ops or write function is NULL\n");
-  }
+  if (file->file_ops == NULL || file->file_ops->write == NULL)
+    panic("vfs_write: no write path available\n");
 
   return file->file_ops->write(file, offset, buffer, size);
 }
@@ -152,7 +154,11 @@ int64_t vfs_open(const char *path, int flags, struct file_t **file) {
     return ret;
   }
 
-  *file = vfs_init_file(dentry->vnode, flags);
+  if (dentry->vnode == NULL)
+    return -ENOENT;
+
+  struct vnode_t *vnode = dentry->vnode->mounted_vnode ? dentry->vnode->mounted_vnode : dentry->vnode;
+  *file = vfs_init_file(vnode, flags);
   return 0;
 }
 
@@ -181,6 +187,8 @@ void vfs_address_space_drop_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64
     list_for_each(&address_space->page_cache_list, pos) {
       struct page_cache_entry_t *entry = container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
       if (entry->offset == file_page_offset) {
+        if (entry->refcount == 0)
+          break;
         debugk("    Page cache entry at file offset %llx: refcount %llu -> %llu\n",
                file_page_offset, entry->refcount, entry->refcount - 1);
         entry->refcount--;

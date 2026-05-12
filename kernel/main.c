@@ -18,6 +18,10 @@
 #include "kernel/drivers/rtc/rtc.h"
 #include "kernel/time/timer.h"
 #include "kernel/task/schedule.h"
+#include "kernel/drivers/virtio-blk.h"
+#include "kernel/filesystem/sbfs/sbfs.h"
+#include "kernel/tests/vfs_test.h"
+
 #include "lib/printk/printk.h"
 #include "kernel/signal_jump_point.h"
 
@@ -58,6 +62,18 @@ void kmain(void *dtb_ptr) {
 
   vfs_init();
   printk("Initialized vfs and mounted tarfs\n");
+
+  virtio_blk_init();
+  printk("Initialized virtio-blk\n");
+
+  struct superblock_t *sbfs_sb = sbfs_mount();
+  if (sbfs_sb != NULL) {
+    vfs_mount("/mnt", sbfs_sb);
+    printk("Mounted sbfs at /mnt\n");
+    vfs_test_run();
+  } else {
+    printk("sbfs mount failed\n");
+  }
 
   // printk("Starting read of /etc/rc\n");
   // // Test vfs_read with a loop

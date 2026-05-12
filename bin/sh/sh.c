@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h> 
 
 #define COMMAND_BUF_SIZE 256
 
@@ -32,8 +33,13 @@ int main(int argc, char **argv, char **envp) {
   tcsetpgrp(0, shell_pgid);
 
   char buf[1024];
+  char cwd[256];
   while (true) {
-    printf("$ ");
+    if (getcwd(cwd, sizeof(cwd)) != NULL) {
+      printf("%s $ ", cwd);
+    } else {
+      printf("$ ");
+    }
     ssize_t n = read(0, buf, sizeof(buf) - 1);
     if (n > 0) {
       buf[n] = '\0';
@@ -51,14 +57,25 @@ int main(int argc, char **argv, char **envp) {
   return 0;
 }
 
-int echo(int argc, char *argv[]) {
-  for (int i = 1; i < argc; i++) {
-    if (i > 1) {
-      printf(" ");
-    }
-    printf("%s", argv[i]);
+/* Write a string to fd, stripping one layer of surrounding "..." quotes. */
+static void echo_write_arg(int fd, const char *s) {
+  size_t len = strlen(s);
+  if (len >= 2 && s[0] == '"' && s[len - 1] == '"') {
+    if (len > 2)
+      write(fd, s + 1, len - 2);
+    /* empty string: nothing to write before the newline */
+  } else {
+    write(fd, s, len);
   }
-  printf("\n");
+}
+
+int echo(int argc, char *argv[], int out_fd) {
+  for (int i = 1; i < argc; i++) {
+    if (i > 1)
+      write(out_fd, " ", 1);
+    echo_write_arg(out_fd, argv[i]);
+  }
+  write(out_fd, "\n", 1);
   return 0;
 }
 
@@ -156,8 +173,32 @@ void parse_and_exec(const char *buf) {
 
   argv[argc] = NULL;
 
+  /* Scan for output redirection: pull '>' and its target out of argv. */
+  const char *redirect_out = NULL;
+  for (int ri = 1; ri < argc - 1; ri++) {
+    if (argv[ri][0] == '>' && argv[ri][1] == '\0') {
+      redirect_out = argv[ri + 1];
+      /* Collapse the two slots out of argv. */
+      for (int rj = ri; rj < argc - 2; rj++)
+        argv[rj] = argv[rj + 2];
+      argc -= 2;
+      argv[argc] = NULL;
+      break;
+    }
+  }
+
   if (strcmp("echo", command_buf) == 0) {
-    echo(argc, argv);
+    int out_fd = 1; /* stdout */
+    if (redirect_out != NULL) {
+      out_fd = open(redirect_out, O_WRONLY | O_CREAT | O_TRUNC);
+      if (out_fd < 0) {
+        printf("sh: cannot open '%s' for writing\n", redirect_out);
+        return;
+      }
+    }
+    echo(argc, argv, out_fd);
+    if (redirect_out != NULL)
+      close(out_fd);
     return;
   } else if (strcmp("cd", command_buf) == 0) {
     cd(argc, argv);

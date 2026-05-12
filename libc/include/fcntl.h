@@ -15,8 +15,9 @@
 #define O_APPEND    0x0400
 #define O_CLOEXEC   0x0800
 
-// Special value for dirfd parameter in openat
-#define AT_FDCWD    -100
+// Special values for dirfd parameter in *at syscalls
+#define AT_FDCWD      -100
+#define AT_REMOVEDIR  0x200
 
 int open(const char *pathname, int flags, ...);
 int openat(int dirfd, const char *pathname, int flags, ...);
