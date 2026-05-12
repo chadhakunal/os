@@ -131,6 +131,11 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_unlinkat(tf);
       break;
 
+    case SYS_dup2:
+      debugk("syscall: dup2(oldfd=%lld, newfd=%lld)\n", (int64_t)tf->a0, (int64_t)tf->a1);
+      ret = sys_dup2(tf);
+      break;
+
     case SYS_setpgid:
       debugk("syscall: setpgid(pid=%lld, pgid=%lld)\n", (int64_t)tf->a0, (int64_t)tf->a1);
       ret = sys_setpgid(tf);

@@ -96,3 +96,7 @@ int unlink(const char *path) {
 int rmdir(const char *path) {
   return syscall3(SYS_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
 }
+
+int dup2(int oldfd, int newfd) {
+  return syscall2(SYS_dup2, oldfd, newfd);
+}

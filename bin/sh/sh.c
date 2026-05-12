@@ -211,6 +211,15 @@ void parse_and_exec(const char *buf) {
   pid_t pid = fork();
   if (pid == 0) {
     setpgid(0, 0);
+    if (redirect_out != NULL) {
+      int fd = open(redirect_out, O_WRONLY | O_CREAT | O_TRUNC);
+      if (fd < 0) {
+        printf("sh: cannot open '%s' for writing\n", redirect_out);
+        exit(1);
+      }
+      dup2(fd, 1);
+      close(fd);
+    }
     char *envp[] = { NULL };
     execve(full_path, argv, envp);
     printf("sh: failed to execute %s\n", command_buf);
