@@ -12,7 +12,6 @@ void init_virtual_time() {
 }
 
 void timer_handler(uint64_t hardware_clock_ticks) {
-  debugk("Timer tick!\n");
   virtual_time.os_ticks += 1;
   virtual_time.system_uptime += TIMER_INTERVAL_CYCLES;
 
