@@ -288,6 +288,7 @@ uint32_t enumerate_pci_device() {
                             if (bar & 0x1) {
                                 // I/O BAR
                                 uint32_t io_base = bar & ~0x3;
+                                (void)io_base;
                                 debugk("    BAR%d I/O raw=%x base=%x\n", i, bar, io_base);
                             } else {
                                 // Memory/MMIO BAR
@@ -297,6 +298,8 @@ uint32_t enumerate_pci_device() {
                                 if (type == 0x0) {
                                     // 32-bit MMIO BAR
                                     uint32_t base = bar & ~0xf;
+                                    (void)base;
+                                    (void)prefetch;
                                     debugk("    BAR%d MMIO32 raw=%x base=%x prefetch=%u\n",
                                         i, bar, base, prefetch);
                                 } else if (type == 0x2) {
@@ -306,6 +309,8 @@ uint32_t enumerate_pci_device() {
                                     uint64_t base =
                                         ((uint64_t)bar_hi << 32) |
                                         (uint64_t)(bar & ~0xf);
+                                    (void)base;
+                                    (void)prefetch;
 
                                     debugk("    BAR%d/BAR%d MMIO64 raw_lo=%x raw_hi=%x base=%llx prefetch=%u\n",
                                         i, i + 1, bar, bar_hi, base, prefetch);
@@ -361,6 +366,7 @@ uint32_t enumerate_pci_device() {
 
                             uint32_t offset  = *(volatile uint32_t *)(pci_config + cap + 0x08);
                             uint32_t length  = *(volatile uint32_t *)(pci_config + cap + 0x0c);
+                            (void)length;
 
                             debugk("        virtio cap: len=%u cfg_type=%u bar=%u offset=%x length=%x\n", cap_len, cfg_type, bar, offset, length);
 
