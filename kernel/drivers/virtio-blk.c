@@ -1,6 +1,8 @@
+#define DEBUG 1
 #include "kernel/drivers/virtio-blk.h"
 #include "kernel/memory/page_allocator.h"
 #include "kernel/panic.h"
+#include "lib/printk/printk.h"
 
 struct virtq_desc_t* base_virtq_desc = NULL;
 struct virtq_avail_t* base_virtq_avail = NULL;
@@ -165,15 +167,22 @@ static int virtio_blk_submit(uint32_t type, uint64_t sector, void *buf, uint32_t
     base_virtq_avail->idx++;
     __sync_synchronize();
 
+    debugk("Notifying device at 0x%llx\n", notify_addr);
+    debugk("last_used=%u, avail->idx=%u\n", last_used, base_virtq_avail->idx);
+
     *(volatile uint32_t *)notify_addr = 0;
 
     uint64_t spin = 0;
     while (base_virtq_used->idx == last_used) {
         __sync_synchronize();
         if (++spin > 10000000ULL) {
+            debugk("TIMEOUT: used->idx still %u after %llu spins\n", base_virtq_used->idx, spin);
+            debugk("device_status = 0x%x\n", common->device_status);
             panic("virtio_blk: device did not respond");
         }
     }
+
+    debugk("Device responded! used->idx=%u, status=0x%x\n", base_virtq_used->idx, *status);
 
     return (*status != VIRTIO_BLK_S_OK) ? -1 : 0;
 }
