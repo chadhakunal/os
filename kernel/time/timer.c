@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/time/timer.h"
 #include "lib/printk/printk.h"
 #include "kernel/task/task.h"
