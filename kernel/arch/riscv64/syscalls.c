@@ -106,6 +106,11 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_getpid(tf);
       break;
 
+    case SYS_getppid:
+      debugk("syscall: getppid()\n");
+      ret = sys_getppid(tf);
+      break;
+
     case SYS_kill:
       debugk("syscall: kill(pid=%lld, sig=%lld)\n", (int64_t)tf->a0, (int64_t)tf->a1);
       ret = sys_kill(tf);

@@ -18,6 +18,7 @@
 #define SYS_execve          221
 #define SYS_waitpid         260
 #define SYS_getpid          172
+#define SYS_getppid         173
 #define SYS_kill            129
 #define SYS_fork            220
 #define SYS_sched_yield     124
@@ -119,5 +120,6 @@ int ioctl(int fd, unsigned long request, void *arg);
 pid_t tcgetpgrp(int fd);
 int tcsetpgrp(int fd, pid_t pgid);
 pid_t getpid(void);
+pid_t getppid(void);
 int setpgid(pid_t pid, pid_t pgid);
 int execve(const char *pathname, char *const argv[], char *const envp[]);

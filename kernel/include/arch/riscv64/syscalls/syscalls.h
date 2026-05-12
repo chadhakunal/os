@@ -25,6 +25,7 @@
 #define SYS_wait4           260
 #define SYS_waitpid         260  // Same as wait4 on Linux
 #define SYS_getpid          172
+#define SYS_getppid         173
 #define SYS_kill            129
 #define SYS_fork            220
 #define SYS_sched_yield     124
@@ -50,6 +51,7 @@ int64_t sys_rt_sigreturn(struct trap_frame *tf);
 int64_t sys_kill(struct trap_frame *tf);
 int64_t sys_ioctl(struct trap_frame *tf);
 int64_t sys_getpid(struct trap_frame *tf);
+int64_t sys_getppid(struct trap_frame *tf);
 int64_t sys_setpgid(struct trap_frame *tf);
 
 #endif

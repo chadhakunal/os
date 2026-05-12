@@ -71,6 +71,10 @@ pid_t getpid(void) {
   return syscall0(SYS_getpid);
 }
 
+pid_t getppid(void) {
+  return syscall0(SYS_getppid);
+}
+
 int setpgid(pid_t pid, pid_t pgid) {
   return syscall2(SYS_setpgid, pid, pgid);
 }
