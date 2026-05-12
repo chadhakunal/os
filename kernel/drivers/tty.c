@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/drivers/tty.h"
 #include "lib/printk/printk.h"
 #include "kernel/task/schedule.h"

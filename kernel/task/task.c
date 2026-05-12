@@ -64,11 +64,17 @@ void allocate_kernel_stack(struct task_t *task) {
   // All processes have their kernel stack at the same VA, but different physical pages
   void *phys_page1 = get_page(true);
   void *phys_page2 = get_page(true);
+  void *phys_page3 = get_page(true);
+  void *phys_page4 = get_page(true);
 
   map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE,
            (uint64_t)phys_page1, PTE_VALID | PTE_R | PTE_W);
   map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE + 4096,
            (uint64_t)phys_page2, PTE_VALID | PTE_R | PTE_W);
+  map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE + 8192,
+           (uint64_t)phys_page3, PTE_VALID | PTE_R | PTE_W);
+  map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE + 12288,
+           (uint64_t)phys_page4, PTE_VALID | PTE_R | PTE_W);
 
   task->kernel_context.stack_start = KERNEL_STACK_VIRTUAL_BASE;
   task->kernel_context.sp = KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE;
