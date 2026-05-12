@@ -79,8 +79,10 @@ struct signal_state_t {
 #define sig_in_set(set, sig) ((*(set) & (1ULL << ((sig) - 1))) != 0)
 
 struct trap_frame;
+struct task_t;
 
 void check_and_deliver_signals(struct trap_frame *tf);
 void send_signal_to_pgid(uint64_t pgid, int sig);
+void send_signal(struct task_t *task, int sig);
 
 #endif

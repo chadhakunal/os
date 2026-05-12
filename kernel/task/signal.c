@@ -35,6 +35,7 @@ static bool handle_default_signal_action(int sig) {
     case SIGKILL:
     case SIGHUP:
     case SIGINT:
+    case SIGSEGV:
       debugk("signal: terminating process %llu due to signal %d\n", current_task->pid, sig);
       task_cleanup(SIGNAL_EXIT_STATUS(sig));
       debugk("signal: task_cleanup done, state=%d, calling schedule\n", current_task->state);
@@ -48,12 +49,18 @@ static bool handle_default_signal_action(int sig) {
   }
 }
 
+void send_signal(struct task_t *task, int sig) {
+  if (task->state != TASK_ZOMBIE) {
+    debugk("signal: sending signal %d to PID %llu\n", sig, task->pid);
+    add_signal_to_set(&task->signal_state.pending, sig);
+  }
+}
+
 void send_signal_to_pgid(uint64_t pgid, int sig) {
   list_for_each(&task_list, node) {
     struct task_t *task = container_of(node, struct task_t, task_list);
-    if (task->pgid == pgid && task->state != TASK_ZOMBIE) {
-      debugk("signal: sending signal %d to PID %llu (PGID %llu)\n", sig, task->pid, pgid);
-      add_signal_to_set(&task->signal_state.pending, sig);
+    if (task->pgid == pgid) {
+      send_signal(task, sig);
     }
   }
 }
