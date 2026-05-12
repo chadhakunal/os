@@ -36,7 +36,13 @@ int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 
 int64_t tty_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   extern void uart_putc(char c);
-  debugk("tty_write: size=%llu\n", size);
+
+  uint64_t sstatus, sie;
+  asm volatile("csrr %0, sstatus" : "=r"(sstatus));
+  asm volatile("csrr %0, sie" : "=r"(sie));
+  debugk("tty_write: size=%llu, sstatus=0x%llx (SIE=%d), sie=0x%llx\n",
+         size, sstatus, !!(sstatus & (1 << 1)), sie);
+
   char *buf = (char *)buffer;
   debugk("tty_write: starting loop, buf=%p\n", buf);
   for (uint64_t i = 0; i < size; i++) {
