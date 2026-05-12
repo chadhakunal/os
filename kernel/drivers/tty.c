@@ -1,3 +1,4 @@
+#define DEBUG 1
 #include "kernel/drivers/tty.h"
 #include "lib/printk/printk.h"
 #include "kernel/task/schedule.h"
@@ -34,10 +35,12 @@ int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 }
 
 int64_t tty_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
+  debugk("tty_write: size=%llu\n", size);
   char *buf = (char *)buffer;
   for (uint64_t i = 0; i < size; i++) {
     printk("%c", buf[i]);
   }
+  debugk("tty_write: completed, returning %llu\n", size);
   return size;
 }
 

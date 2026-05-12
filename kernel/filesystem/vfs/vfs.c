@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "kernel/filesystem/vfs/vfs.h"
 #include "lib/string.h"
 #include "lib/printk/printk.h"
@@ -139,7 +139,10 @@ int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
     panic("vfs_write: file_ops or write function is NULL\n");
   }
 
-  return file->file_ops->write(file, offset, buffer, size);
+  debugk("vfs_write: calling file_ops->write\n");
+  int64_t result = file->file_ops->write(file, offset, buffer, size);
+  debugk("vfs_write: returning %lld\n", result);
+  return result;
 }
 
 int64_t vfs_open(const char *path, int flags, struct file_t **file) {
