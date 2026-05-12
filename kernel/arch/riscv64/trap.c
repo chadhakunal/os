@@ -21,12 +21,9 @@ void trap_handler(struct trap_frame *tf) {
         break;
       case 5:
         trap_timer_handler(tf);
-        // If interrupted in supervisor mode, just return - don't reschedule
-        // Rescheduling will happen when we return to user mode
         if (tf->sstatus & SSTATUS_SPP) {
           return;
         }
-        // If interrupted in user mode, reschedule and return to user
         trap_return(&current_task->tf);
         break;
       case 9:
