@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
 #include "arch/riscv64/trap.h"
@@ -13,6 +13,8 @@ void trap_handler(struct trap_frame *tf) {
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
   bool is_interrupt = (tf->scause >> 63) & 1;
   extern void trap_return(struct trap_frame *tf);
+
+  debugk("trap!\n");
 
   if (is_interrupt) {
     switch (cause_code) {
