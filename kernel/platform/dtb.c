@@ -198,6 +198,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
                         uint64_t pci_addr =
                             ((uint64_t)fdt_u32(value + off + 4) << 32) |
                             fdt_u32(value + off + 8);
+                        (void)pci_addr;
 
                         uint64_t cpu_addr =
                             ((uint64_t)fdt_u32(value + off + 12) << 32) |
