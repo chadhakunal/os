@@ -3,13 +3,36 @@
 
 #include "types.h"
 #include "lib/string.h"
+#include "arch/riscv64/virtual_memory_init.h"
+
+// Validate that address range is in user space (< END_USER_SPACE_ADDR)
+static inline bool is_user_address(uint64_t addr, size_t len) {
+  if (addr >= END_USER_SPACE_ADDR) {
+    return false;
+  }
+  // Check for overflow and ensure end address is also in user space
+  if (addr + len < addr || addr + len > END_USER_SPACE_ADDR) {
+    return false;
+  }
+  return true;
+}
 
 static inline int copy_to_user(void *user_dest, const void *kernel_src, size_t n) {
+  if (!is_user_address((uint64_t)user_dest, n)) {
+    return -1;
+  }
+  // memcpy may trigger page faults, but page_fault handler now allows
+  // supervisor mode faults on user addresses
   memcpy(user_dest, kernel_src, n);
   return 0;
 }
 
 static inline int copy_from_user(void *kernel_dest, const void *user_src, size_t n) {
+  if (!is_user_address((uint64_t)user_src, n)) {
+    return -1;
+  }
+  // memcpy may trigger page faults, but page_fault handler now allows
+  // supervisor mode faults on user addresses
   memcpy(kernel_dest, user_src, n);
   return 0;
 }

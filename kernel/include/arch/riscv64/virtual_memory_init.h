@@ -74,6 +74,10 @@
 #define PT2_OFFSET(x) (((uint64_t)(x) >> 21) & 0x1FF) // VPN[1]
 #define PT3_OFFSET(x) (((uint64_t)(x) >> 12) & 0x1FF) // VPN[0]
 
+// User space address range: 0x0 to END_USER_SPACE_ADDR (exclusive)
+// Kernel space starts at KERNEL_VIRTUAL_MEMORY_BASE and higher
+#define END_USER_SPACE_ADDR 0x80000000ULL
+
 #define KERNEL_VIRTUAL_MEMORY_BASE                                             \
   0xFFFFFFFF80000000ULL // 510 GB Mark ie 254 GB After kernel area start
 #define PHYS_VIRTUAL_MEMORY_BASE                                               \
