@@ -7,6 +7,7 @@
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/task/elf_loader.h"
 #include "lib/printk/printk.h"
+#include "kernel/panic.h"
 
 #define STACK_LIMIT (32 * 1024)
 
