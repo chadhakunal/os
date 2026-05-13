@@ -70,16 +70,16 @@ int load_script(struct task_t *task, struct dentry_t *dentry, struct execve_args
 
     // Shift original args to make room (work backwards to avoid overwriting)
     for (int i = original_argc - 1; i >= 1; i--) {
-        str_copy(args->argv[i + 1], args->argv[i], MAX_ARG_LEN);
+        strncpy(args->argv[i + 1], args->argv[i], MAX_ARG_LEN);
     }
 
     // Set up new argv[0] = interpreter, argv[1] = script path
-    str_copy(args->argv[0], interpreter, MAX_ARG_LEN);
-    str_copy(args->argv[1], args->pathname, MAX_ARG_LEN);
+    strncpy(args->argv[0], interpreter, MAX_ARG_LEN);
+    strncpy(args->argv[1], args->pathname, MAX_ARG_LEN);
 
     // Update argc and pathname to point to interpreter
     args->argc = original_argc + 1;
-    str_copy(args->pathname, interpreter, MAX_PATH_LEN);
+    strncpy(args->pathname, interpreter, MAX_PATH_LEN);
 
     // The caller (execve or load_executable) will handle loading the interpreter
     return 0;
