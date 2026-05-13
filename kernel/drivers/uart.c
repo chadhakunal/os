@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/drivers/uart.h"
 #include "platform.h"
 #include "types.h"
