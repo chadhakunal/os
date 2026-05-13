@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/user_data_access.h"
 #include "kernel/task/task.h"
 #include "arch/riscv64/virtual_memory_init.h"
