@@ -2,6 +2,7 @@
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "kernel/task/task.h"
 #include "kernel/task/elf_loader.h"
+#include "kernel/task/executable_loader.h"
 #include "kernel/task/signal.h"
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
@@ -11,20 +12,6 @@
 #include "kernel/user_data_access.h"
 #include "kernel/memory/page_tables.h"
 #include "types.h"
-
-#define MAX_ARG_COUNT 16
-#define MAX_ARG_LEN 64
-#define MAX_PATH_LEN 128
-
-// Structure for execve arguments - must fit in one page (4096 bytes)
-// Size: 128 + 8 + (16*64) + (16*64) = 128 + 8 + 1024 + 1024 = 2184 bytes
-struct execve_args_t {
-  char pathname[MAX_PATH_LEN];
-  int argc;
-  int envc;
-  char argv[MAX_ARG_COUNT][MAX_ARG_LEN];
-  char envp[MAX_ARG_COUNT][MAX_ARG_LEN];
-};
 
 DEFINE_POOL(execve_args_t, struct execve_args_t)
 
@@ -81,8 +68,24 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
 
   debugk("execve: argc=%d, envc=%d\n", args->argc, args->envc);
 
-  // Validate ELF file exists and is valid before destroying current address space
-  if (validate_elf(args->pathname) != 0) {
+  // Validate file exists and detect type before destroying current address space
+  struct dentry_t *dentry;
+  if (vfs_resolve_path(args->pathname, &dentry) != 0) {
+    debugk("execve: failed to resolve path %s\n", args->pathname);
+    execve_args_t_free(args);
+    return -1;
+  }
+
+  int file_type = detect_file_type(dentry);
+  if (file_type == FILE_TYPE_INVALID) {
+    debugk("execve: invalid file type for %s\n", args->pathname);
+    execve_args_t_free(args);
+    return -1;
+  }
+
+  // For ELF files, validate before destroying address space
+  // For scripts, validation happens during script processing
+  if (file_type == FILE_TYPE_ELF && validate_elf(args->pathname) != 0) {
     debugk("execve: ELF validation failed for %s\n", args->pathname);
     execve_args_t_free(args);
     return -1;
@@ -104,8 +107,13 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   current_task->signal_state.pending = 0;
   debugk("execve: reset signal handlers\n");
 
-  load_elf(current_task, args->pathname);
-  debugk("execve: loaded elf, entry=%llx\n", current_task->mm_struct.entry_addr);
+  // Load executable (handles both ELF and scripts)
+  if (load_executable(current_task, args) != 0) {
+    debugk("execve: load_executable failed\n");
+    execve_args_t_free(args);
+    return -1;
+  }
+  debugk("execve: loaded executable, entry=%llx\n", current_task->mm_struct.entry_addr);
 
   // Set up user stack with argc, argv, envp
   // Stack layout (growing downward from 0x80000000):

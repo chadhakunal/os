@@ -27,18 +27,20 @@ int validate_elf(const char *path) {
   return 0;
 }
 
-void load_elf(struct task_t *task, const char *path) {
+int load_elf(struct task_t *task, const char *path) {
   struct dentry_t *dentry;
   int32_t ret = vfs_resolve_path(path, &dentry);
   if (ret != 0) {
-    panic("load_elf: vfs_resolve_path returned with error\n");
+    debugk("load_elf: vfs_resolve_path returned with error\n");
+    return -1;
   }
 
   // Read ELF header
   struct Elf64_Ehdr header;
   ret = vfs_vnode_read(dentry->vnode, &header, sizeof(header), 0);
   if (ret < 0) {
-    panic("load_elf: Could not load elf\n");
+    debugk("load_elf: Could not load elf\n");
+    return -1;
   }
   task->mm_struct.entry_addr = (void *)header.e_entry;
 
@@ -119,4 +121,6 @@ void load_elf(struct task_t *task, const char *path) {
   task->tf.sepc = header.e_entry;
   task->tf.sp = DEFAULT_STACK_TOP;  // 16-byte aligned (RISC-V ABI requirement)
   task->tf.sstatus = SSTATUS_SPIE | SSTATUS_UXL_64;
+
+  return 0;
 }
