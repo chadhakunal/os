@@ -132,8 +132,9 @@ void schedule() {
   extern struct task_t *idle_task;
   extern void trap_return(struct trap_frame *tf);
 
-  debugk("[schedule] ENTERED - current_task PID=%llu, state=%d, runtime=%llu/%llu\n",
-         current_task->pid, current_task->state, current_task->runtime, current_task->max_runtime);
+  debugk("[schedule] ENTERED - current_task PID=%llu, state=%d, runtime=%llu/%llu, PC=0x%llx\n",
+         current_task->pid, current_task->state, current_task->runtime, current_task->max_runtime,
+         current_task->tf.sepc);
 
   if (current_task == idle_task) {
     debugk("[schedule] current_task is idle, picking next task\n");
