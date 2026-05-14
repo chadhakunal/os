@@ -41,10 +41,19 @@ void trap_handler(struct trap_frame *tf) {
     }
   } else {
     switch (cause_code) {
-      case 0:  printk("Instruction address misaligned\n"); break;
-      case 1:  printk("Instruction access fault\n"); break;
-      case 2:  printk("Illegal instruction\n"); break;
-      case 3:  printk("Breakpoint\n"); break;
+      case 0:
+        printk("Instruction address misaligned at PC=0x%llx\n", tf->sepc);
+        break;
+      case 1:
+        printk("Instruction access fault at PC=0x%llx\n", tf->sepc);
+        break;
+      case 2:
+        printk("Illegal instruction at PC=0x%llx, instruction=0x%llx\n", tf->sepc, tf->stval);
+        printk("PID=%llu, SP=0x%llx, RA=0x%llx\n", current_task->pid, tf->sp, tf->ra);
+        break;
+      case 3:
+        printk("Breakpoint\n");
+        break;
       case 4:  printk("Load address misaligned\n"); break;
       case 5:  printk("Load access fault\n"); break;
       case 6:  printk("Store address misaligned\n"); break;
