@@ -94,13 +94,6 @@ void allocate_kernel_stack(struct task_t *task) {
   if (jump_point_page) {
     map_page(task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
              (uint64_t)jump_point_page, PTE_VALID | PTE_U | PTE_R | PTE_X);
-    uint64_t verify_pte = get_pte(task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR);
-    void *sjp_virt = PHYS_TO_VIRT(jump_point_page);
-    uint32_t first_insn = *(uint32_t *)sjp_virt;
-    printk("task: PID %llu SJP mapped: paddr=%p pte=0x%llx first_insn=0x%08x\n",
-           task->pid, jump_point_page, verify_pte, first_insn);
-  } else {
-    printk("task: WARNING - signal_jump_point page is NULL for PID %llu!\n", task->pid);
   }
 }
 
@@ -470,16 +463,9 @@ void reap_zombie(struct task_t *zombie) {
   debugk("reap_zombie: Done freeing root page table\n");
 
   // Free the task structure
-  debugk("reap_zombie: Freeing task structure\n");
-  //task_t_free(zombie);
-  debugk("reap_zombie: COMPLETED for PID %llu\n", zombie_pid);  // Use saved PID
 }
 
 void task_cleanup(int exit_status) {
-  extern pages_metadata_struct_t pages_metadata;
-  debugk("task_cleanup: PID %llu terminating with status %d - Memory: %llu/%llu pages in use\n",
-         current_task->pid, exit_status, pages_metadata.pages_in_use, pages_metadata.total_pages);
-
   current_task->exit_status = exit_status;
   debugk("task_cleanup: closing all files for PID %llu\n", current_task->pid);
   close_all_files(current_task);
