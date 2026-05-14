@@ -105,11 +105,17 @@ void schedule() {
   extern struct task_t *idle_task;
   extern void trap_return(struct trap_frame *tf);
 
+  debugk("[schedule] ENTERED - current_task PID=%llu, state=%d, runtime=%llu/%llu\n",
+         current_task->pid, current_task->state, current_task->runtime, current_task->max_runtime);
+
   if (current_task == idle_task) {
+    debugk("[schedule] current_task is idle, picking next task\n");
     struct task_t *next_task = pick_next_task();
     if (next_task == idle_task) {
+      debugk("[schedule] only idle task available, returning\n");
       return;
     }
+    debugk("[schedule] picked PID %llu from idle\n", next_task->pid);
     next_task->state = TASK_RUNNING;
     set_current_task(next_task);
     switch_to(idle_task, next_task);
@@ -119,21 +125,28 @@ void schedule() {
   }
 
   if (current_task->state == TASK_BLOCKED || current_task->state == TASK_ZOMBIE) {
+    debugk("[schedule] current_task PID=%llu is %s, moving to appropriate list\n",
+           current_task->pid, current_task->state == TASK_BLOCKED ? "BLOCKED" : "ZOMBIE");
     list_remove(&current_task->scheduler_list);
     if (current_task->state == TASK_BLOCKED) {
       list_append(scheduler.blocked_list, &current_task->scheduler_list);
     }
   } else if (has_expired()) {
+    debugk("[schedule] current_task PID=%llu has expired, moving to expired list\n", current_task->pid);
     move_to_expired(current_task);
   } else {
+    debugk("[schedule] current_task PID=%llu not expired and not blocked, returning without switch\n", current_task->pid);
     return;
   }
 
+  debugk("[schedule] picking next task\n");
   struct task_t *next_task = pick_next_task();
+  debugk("[schedule] picked next_task PID=%llu\n", next_task->pid);
 
   if (next_task == current_task) {
     // Could happen if there is only 1 task
     // it expires then active list is empty -> in pick_next_task we swap them and the only one available is the task that just ran
+    debugk("[schedule] next_task is same as current_task, returning\n");
     return;
   }
 
@@ -152,6 +165,7 @@ void schedule() {
   set_current_task(next_task);
   switch_to(prev, next_task);
 
+  debugk("[schedule] RETURNED after context switch - now running as PID %llu\n", current_task->pid);
   // When we return here, we've been rescheduled
   // Just return to caller (either trap_handler or kernel code)
 }
