@@ -110,10 +110,12 @@ struct task_t *pick_next_task() {
   }
 
   // Sanity check: verify kernel context looks valid
+  // SP should be within or at the top of the kernel stack (stack grows down)
   if (next_task->kernel_context.sp < KERNEL_STACK_VIRTUAL_BASE ||
-      next_task->kernel_context.sp >= KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE) {
-    panic("pick_next_task: next_task has invalid kernel SP! pid=%llu sp=0x%llx",
-          next_task->pid, next_task->kernel_context.sp);
+      next_task->kernel_context.sp > KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE) {
+    panic("pick_next_task: next_task has invalid kernel SP! pid=%llu sp=0x%llx (valid range: 0x%llx-0x%llx)",
+          next_task->pid, next_task->kernel_context.sp,
+          KERNEL_STACK_VIRTUAL_BASE, KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE);
   }
   if (next_task->kernel_context.ra == 0) {
     panic("pick_next_task: next_task has NULL return address! pid=%llu", next_task->pid);
