@@ -127,7 +127,6 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
   if (sjp) {
     map_page(current_task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
              (uint64_t)sjp, PTE_VALID | PTE_U | PTE_R | PTE_X);
-    void *sjp_virt = PHYS_TO_VIRT(sjp);
   }
 
   // Set up user stack with argc, argv, envp
