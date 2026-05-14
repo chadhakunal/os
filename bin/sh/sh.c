@@ -400,17 +400,42 @@ void parse_and_exec(const char *buf) {
 
   argv[argc] = NULL;
 
-  /* Scan for output redirection: pull '>' and its target out of argv. */
+  /* Scan for redirections: pull them out of argv */
   const char *redirect_out = NULL;
+  const char *redirect_in = NULL;
+  int append_mode = 0;
+
   for (int ri = 1; ri < argc - 1; ri++) {
-    if (argv[ri][0] == '>' && argv[ri][1] == '\0') {
+    // Check for output redirection: > or >>
+    if (argv[ri][0] == '>' && argv[ri][1] == '>') {
+      // Append mode >>
       redirect_out = argv[ri + 1];
+      append_mode = 1;
       /* Collapse the two slots out of argv. */
       for (int rj = ri; rj < argc - 2; rj++)
         argv[rj] = argv[rj + 2];
       argc -= 2;
       argv[argc] = NULL;
-      break;
+      ri--; // Re-check this position
+    } else if (argv[ri][0] == '>' && argv[ri][1] == '\0') {
+      // Regular output redirection >
+      redirect_out = argv[ri + 1];
+      append_mode = 0;
+      /* Collapse the two slots out of argv. */
+      for (int rj = ri; rj < argc - 2; rj++)
+        argv[rj] = argv[rj + 2];
+      argc -= 2;
+      argv[argc] = NULL;
+      ri--; // Re-check this position
+    } else if (argv[ri][0] == '<' && argv[ri][1] == '\0') {
+      // Input redirection <
+      redirect_in = argv[ri + 1];
+      /* Collapse the two slots out of argv. */
+      for (int rj = ri; rj < argc - 2; rj++)
+        argv[rj] = argv[rj + 2];
+      argc -= 2;
+      argv[argc] = NULL;
+      ri--; // Re-check this position
     }
   }
 
@@ -418,7 +443,9 @@ void parse_and_exec(const char *buf) {
   if (strcmp("echo", command_buf) == 0) {
     int out_fd = 1; /* stdout */
     if (redirect_out != NULL) {
-      out_fd = open(redirect_out, O_WRONLY | O_CREAT | O_TRUNC);
+      int flags = O_WRONLY | O_CREAT;
+      flags |= append_mode ? O_APPEND : O_TRUNC;
+      out_fd = open(redirect_out, flags);
       if (out_fd < 0) {
         printf("sh: cannot open '%s' for writing\n", redirect_out);
         return;
@@ -434,6 +461,56 @@ void parse_and_exec(const char *buf) {
   } else if (strcmp("pwd", command_buf) == 0) {
     pwd(argc, argv);
     return;
+  } else if (strcmp("exec", command_buf) == 0) {
+    // exec command: replace current shell process with new command
+    if (argc < 2) {
+      printf("exec: usage: exec command [args...]\n");
+      return;
+    }
+
+    // The new command is argv[1]
+    const char *exec_cmd = argv[1];
+
+    // Resolve the command path
+    if (!resolve_command(exec_cmd, full_path, sizeof(full_path))) {
+      printf("sh: exec: %s: command not found\n", exec_cmd);
+      return;
+    }
+
+    // Build new argv starting from argv[1]
+    char *new_argv[16];
+    int new_argc = 0;
+    new_argv[new_argc++] = full_path;
+    for (int i = 2; i < argc && new_argc < 15; i++) {
+      new_argv[new_argc++] = argv[i];
+    }
+    new_argv[new_argc] = NULL;
+
+    // Handle redirections before exec
+    if (redirect_in != NULL) {
+      int fd = open(redirect_in, O_RDONLY);
+      if (fd >= 0) {
+        dup2(fd, 0);
+        close(fd);
+      }
+    }
+    if (redirect_out != NULL) {
+      int flags = O_WRONLY | O_CREAT;
+      flags |= append_mode ? O_APPEND : O_TRUNC;
+      int fd = open(redirect_out, flags);
+      if (fd >= 0) {
+        dup2(fd, 1);
+        close(fd);
+      }
+    }
+
+    // Replace current process with new command
+    char *envp[] = { NULL };
+    execve(full_path, new_argv, envp);
+
+    // If we get here, exec failed
+    printf("sh: exec: %s failed\n", exec_cmd);
+    return;
   }
 
   // Not a builtin - resolve the command path
@@ -446,15 +523,31 @@ void parse_and_exec(const char *buf) {
   pid_t pid = fork();
   if (pid == 0) {
     setpgid(0, 0);
+
+    // Handle input redirection
+    if (redirect_in != NULL) {
+      int fd = open(redirect_in, O_RDONLY);
+      if (fd < 0) {
+        printf("sh: cannot open '%s' for reading\n", redirect_in);
+        exit(1);
+      }
+      dup2(fd, 0);  // Redirect stdin
+      close(fd);
+    }
+
+    // Handle output redirection
     if (redirect_out != NULL) {
-      int fd = open(redirect_out, O_WRONLY | O_CREAT | O_TRUNC);
+      int flags = O_WRONLY | O_CREAT;
+      flags |= append_mode ? O_APPEND : O_TRUNC;
+      int fd = open(redirect_out, flags);
       if (fd < 0) {
         printf("sh: cannot open '%s' for writing\n", redirect_out);
         exit(1);
       }
-      dup2(fd, 1);
+      dup2(fd, 1);  // Redirect stdout
       close(fd);
     }
+
     char *envp[] = { NULL };
     int ret = execve(full_path, argv, envp);
     printf("sh: failed to execute %s (execve returned %d)\n", full_path, ret);

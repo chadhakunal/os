@@ -53,14 +53,28 @@ DEFINE_SYSCALL3(write, int, fd, const void *, buf, size_t, count)
   }
 
   debugk("write syscall: calling vfs_write\n");
+
+  // Determine write offset
+  uint64_t write_offset = file->offset;
+
+  // Handle O_APPEND: always write at end of file
+  if (file->flags & O_APPEND) {
+    // Get file size
+    if (file->vnode && file->vnode->address_space) {
+      write_offset = file->vnode->address_space->file_size;
+      debugk("write syscall: O_APPEND mode, writing at offset %llu\n", write_offset);
+    }
+  }
+
   // Write from kernel buffer
-  int64_t bytes_written = vfs_write(file, file->offset, kernel_buf, count);
+  int64_t bytes_written = vfs_write(file, write_offset, kernel_buf, count);
 
   debugk("write syscall: vfs_write returned %lld, freeing page\n", bytes_written);
   free_page(phys_page);
 
   if (bytes_written > 0) {
-    file->offset += bytes_written;
+    // Update offset for next write (even in append mode, offset tracks position)
+    file->offset = write_offset + bytes_written;
   }
 
   debugk("write syscall: returning %lld\n", bytes_written);
