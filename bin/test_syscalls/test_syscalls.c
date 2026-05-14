@@ -79,9 +79,10 @@ void test_chdir_getcwd() {
 void test_execve() {
   pid_t pid = fork();
   if (pid == 0) {
-    char *argv[] = {"/bin/pwd", NULL};
+    // Use ls as it's an actual binary
+    char *argv[] = {"/bin/ls", NULL};
     char *envp[] = {NULL};
-    execve("/bin/pwd", argv, envp);
+    execve("/bin/ls", argv, envp);
     // Should not reach here if execve succeeds
     printf("  [FAIL] execve did not replace process\n");
     exit(1);
