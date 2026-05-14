@@ -7,7 +7,7 @@ void fill_stack() {
   for (int i = 0; i < 4096; i++) {
     buffer[i] = (char)i;
   }
-
+  buffer[0] = 'h';
   printf("%s\n", buffer);
   printf("Printed full buffer returning\n");
 }
