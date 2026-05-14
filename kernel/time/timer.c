@@ -3,6 +3,8 @@
 #include "lib/printk/printk.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
+#include "kernel/panic.h"
+#include "arch/riscv64/virtual_memory_init.h"
 
 struct virtual_time_t virtual_time;
 
@@ -12,8 +14,15 @@ void init_virtual_time() {
 }
 
 void timer_handler(uint64_t hardware_clock_ticks) {
-  debugk("[TIMER] tick=%llu, PID=%llu, runtime=%llu\n",
-         virtual_time.os_ticks, current_task->pid, current_task->runtime);
+  // Check stack pointer to detect stack overflow
+  uint64_t sp;
+  asm volatile("mv %0, sp" : "=r"(sp));
+  if (sp < KERNEL_STACK_VIRTUAL_BASE || sp >= KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE) {
+    panic("timer_handler: Stack overflow! SP out of kernel stack range");
+  }
+
+  debugk("[TIMER] tick=%llu, PID=%llu, runtime=%llu, sp=%llx\n",
+         virtual_time.os_ticks, current_task->pid, current_task->runtime, sp);
   virtual_time.os_ticks += 1;
   virtual_time.system_uptime += TIMER_INTERVAL_CYCLES;
 

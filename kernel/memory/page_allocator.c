@@ -166,9 +166,22 @@ void free_page(void *p) {
   // handler tries to access memory (e.g., for printing), it could hit corrupted
   // page table entries or partially-zeroed pages
   void *virt_page = PHYS_TO_VIRT(p);
+
+  // Check if interrupts are already disabled
+  uint64_t sstatus;
+  asm volatile("csrr %0, sstatus" : "=r"(sstatus));
+  bool interrupts_were_enabled = (sstatus & SSTATUS_SIE) != 0;
+
   disable_interrupts();
   memset(virt_page, 0, DEFAULT_PAGE_SIZE);
   freed_page->is_zeroed = true;
+
+  // Verify interrupts are actually disabled
+  asm volatile("csrr %0, sstatus" : "=r"(sstatus));
+  if (sstatus & SSTATUS_SIE) {
+    panic("free_page: BUG! Interrupts still enabled after disable_interrupts()!");
+  }
+
   enable_interrupts();
 
   freed_page->next_free_page = pages_metadata.zero_page_head;

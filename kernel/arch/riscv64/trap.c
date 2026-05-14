@@ -10,6 +10,11 @@
 #include "kernel/time/timer.h"
 
 void trap_handler(struct trap_frame *tf) {
+  // Check if we're being called with a bad trap frame pointer
+  if ((uint64_t)tf < KERNEL_STACK_VIRTUAL_BASE || (uint64_t)tf >= KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE) {
+    panic("trap_handler: BAD tf pointer (outside kernel stack range)");
+  }
+
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
   bool is_interrupt = (tf->scause >> 63) & 1;
   extern void trap_return(struct trap_frame *tf);
