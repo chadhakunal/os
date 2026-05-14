@@ -77,7 +77,7 @@ void check_and_deliver_signals(struct trap_frame *tf) {
 
   debugk("signal: delivering signal %d to PID %llu\n", sig, current_task->pid);
 
-  struct sigaction_t *action = current_task->signal_state.actions[sig - 1];
+  struct sigaction_t *action = current_task->signal_state.actions[sig];
 
   if (action == (struct sigaction_t *)SIG_IGNORE) {
     debugk("signal: SIG_IGNORE for signal %d\n", sig);
