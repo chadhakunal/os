@@ -4,6 +4,7 @@
 #include "arch/riscv64/trap.h"
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "arch/riscv64/sbi.h"
+#include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
 #include "kernel/memory/page_fault.h"
