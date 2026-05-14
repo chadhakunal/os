@@ -293,13 +293,23 @@ void parse_and_exec(const char *buf) {
   size_t i = 0;
   size_t cmd_len = 0;
 
+  // Skip leading quotes if present
+  if (buf[i] == '"') {
+    i++;
+  }
+
   // Parse command
-  while (i < COMMAND_BUF_SIZE - 1 && buf[i] != ' ' && buf[i] != '\0') {
+  while (i < COMMAND_BUF_SIZE - 1 && buf[i] != ' ' && buf[i] != '\0' && buf[i] != '"') {
     command_buf[cmd_len] = buf[i];
     i++;
     cmd_len++;
   }
   command_buf[cmd_len] = '\0';
+
+  // Skip trailing quote if present
+  if (buf[i] == '"') {
+    i++;
+  }
 
   if (cmd_len == 0) {
     return;
