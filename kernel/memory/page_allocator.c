@@ -170,7 +170,6 @@ void free_page(void *p) {
   // Check if interrupts are already disabled
   uint64_t sstatus;
   asm volatile("csrr %0, sstatus" : "=r"(sstatus));
-  bool interrupts_were_enabled = (sstatus & SSTATUS_SIE) != 0;
 
   disable_interrupts();
   memset(virt_page, 0, DEFAULT_PAGE_SIZE);
