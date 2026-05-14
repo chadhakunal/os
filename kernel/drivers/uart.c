@@ -37,12 +37,10 @@ void uart_putc(const char c) {
   volatile uint8_t *uart = uart_get_base();
   uint32_t offset = platform.uart.base & 0xFFFULL;
 
-  // Safety check: verify uart pointer is in valid MMIO range
-  // MMIO should be between 0xFFFFFFD000000000 and 0xFFFFFFE000000000
-  uint64_t uart_addr = (uint64_t)uart;
-  if (uart_addr < 0xFFFFFFD000000000ULL || uart_addr >= 0xFFFFFFE000000000ULL) {
-    // Can't use panic() here as it would recurse, so just trigger invalid access
-    *(volatile uint32_t*)0 = 0xDEADBEEF;
+  /* Wait for transmitter to be ready (LSR[5] = THRE bit) */
+  #define LSR_OFFSET 5
+  while ((uart[offset + LSR_OFFSET] & 0x20) == 0) {
+    /* Busy wait - transmitter holding register is not empty */
   }
 
   /* Write to THR (offset 0x00) */
