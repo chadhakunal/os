@@ -452,26 +452,26 @@ void reap_zombie(struct task_t *zombie) {
   // Free kernel stack pages (4 pages at KERNEL_STACK_VIRTUAL_BASE)
   // Interrupt protection is handled inside free_page()
   debugk("reap_zombie: Freeing kernel stack pages\n");
-  for (uint64_t va = KERNEL_STACK_VIRTUAL_BASE; va < KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE; va += DEFAULT_PAGE_SIZE) {
-    uint64_t pte = get_pte(zombie->mm_struct.root_satp, va);
-    if (pte & PTE_VALID) {
-      void *phys_page = (void *)PTE_DECODE(pte);
-      debugk("  Freeing kernel stack page at va=%llx, phys=%p\n", va, phys_page);
-      free_page(phys_page);
-      debugk("  Unmapping kernel stack page at va=%llx\n", va);
-      unmap_page(zombie->mm_struct.root_satp, va);
-    }
-  }
+  // for (uint64_t va = KERNEL_STACK_VIRTUAL_BASE; va < KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE; va += DEFAULT_PAGE_SIZE) {
+  //   uint64_t pte = get_pte(zombie->mm_struct.root_satp, va);
+  //   if (pte & PTE_VALID) {
+  //     void *phys_page = (void *)PTE_DECODE(pte);
+  //     debugk("  Freeing kernel stack page at va=%llx, phys=%p\n", va, phys_page);
+  //     free_page(phys_page);
+  //     debugk("  Unmapping kernel stack page at va=%llx\n", va);
+  //     unmap_page(zombie->mm_struct.root_satp, va);
+  //   }
+  // }
   debugk("reap_zombie: Done freeing kernel stack pages\n");
 
   // Free the root page table itself
   debugk("reap_zombie: Freeing root page table phys=%p\n", zombie->mm_struct.root_satp);
-  free_page(zombie->mm_struct.root_satp);
+  //free_page(zombie->mm_struct.root_satp);
   debugk("reap_zombie: Done freeing root page table\n");
 
   // Free the task structure
   debugk("reap_zombie: Freeing task structure\n");
-  task_t_free(zombie);
+  //task_t_free(zombie);
   debugk("reap_zombie: COMPLETED for PID %llu\n", zombie_pid);  // Use saved PID
 }
 
@@ -482,7 +482,7 @@ void task_cleanup(int exit_status) {
   debugk("task_cleanup: closing all files for PID %llu\n", current_task->pid);
   close_all_files(current_task);
   debugk("task_cleanup: clearing VMAs for PID %llu\n", current_task->pid);
-  clear_vmas(current_task);
+  // clear_vmas(current_task);
   debugk("task_cleanup: marking PID %llu as ZOMBIE\n", current_task->pid);
   current_task->state = TASK_ZOMBIE;
 
