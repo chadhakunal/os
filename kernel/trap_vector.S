@@ -205,15 +205,18 @@ trap_from_kernel:
 .global trap_return
 trap_return:
   # a0 = trap_frame pointer
-  # Save trap_frame pointer - a0 might be clobbered by function call
-  mv s0, a0
+  # Save trap_frame pointer on kernel stack - a0 will be clobbered by function call
+  addi sp, sp, -16
+  sd a0, 0(sp)
 
   # Before returning to user space, check for pending signals
   # The trap_frame pointer is already in a0, which is the first argument
   call check_and_deliver_signals
 
-  # Restore trap_frame pointer from s0 (callee-saved register)
-  mv sp, s0
+  # Restore trap_frame pointer from stack
+  ld a0, 0(sp)
+  addi sp, sp, 16
+  mv sp, a0
 
   # Restore sscratch to kernel stack TOP, before restoring general regs
   # This is critical! When the next trap occurs, trap_vector will do:

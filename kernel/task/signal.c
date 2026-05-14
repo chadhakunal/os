@@ -69,7 +69,7 @@ void send_signal_to_pgid(uint64_t pgid, int sig) {
 void check_and_deliver_signals(struct trap_frame *tf) {
   uint64_t tp_value;
   asm volatile("mv %0, tp" : "=r"(tp_value));
-  debugk("check_and_deliver_signals: tf=%p, current_task=%p, tp=%p, sstatus=0x%llx, SPP=%d\n",
+  debugk("check_and_deliver_signals: tf=%p, current_task=%p, tp=%p, sstatus=%llx, SPP=%d\n",
          tf, current_task, (void*)tp_value, tf->sstatus, !!(tf->sstatus & SSTATUS_SPP));
 
   // Check if we're returning to user mode (SPP=0 means returning to user mode)
