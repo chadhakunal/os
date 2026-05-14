@@ -81,6 +81,7 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
     }
     panic("Kernel page fault at 0x%llx", fault_addr);
   }
+  panic("Kernel page fault\n");
 
   struct vma_t *vma = find_vma(&current_task->mm_struct, fault_addr);
 
