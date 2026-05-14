@@ -119,9 +119,14 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
 
   // Re-map signal jump point — clear_vmas() removed it along with the old ELF mappings.
   void *sjp = get_signal_jump_point_page();
+  printk("execve: re-mapping signal jump point: phys=%p -> vaddr=%llx\n", sjp, SIGNAL_JUMP_POINT_ADDR);
   if (sjp) {
     map_page(current_task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
              (uint64_t)sjp, PTE_VALID | PTE_U | PTE_R | PTE_X);
+    uint64_t pte = get_pte(current_task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR);
+    void *sjp_virt = PHYS_TO_VIRT(sjp);
+    uint32_t *insns = (uint32_t *)sjp_virt;
+    printk("execve: SJP pte=0x%llx, first_insn=0x%08x\n", pte, insns[0]);
   }
 
   // Set up user stack with argc, argv, envp
