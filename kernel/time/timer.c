@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "kernel/time/timer.h"
 #include "lib/printk/printk.h"
 #include "kernel/task/task.h"
@@ -12,11 +12,13 @@ void init_virtual_time() {
 }
 
 void timer_handler(uint64_t hardware_clock_ticks) {
-  debugk("timer!\n");
+  debugk("[TIMER] tick=%llu, PID=%llu, runtime=%llu\n",
+         virtual_time.os_ticks, current_task->pid, current_task->runtime);
   virtual_time.os_ticks += 1;
   virtual_time.system_uptime += TIMER_INTERVAL_CYCLES;
 
   // Now handle scheduling with the updated os_ticks
   current_task->runtime += TIMER_INTERVAL_CYCLES;
   schedule();
+  debugk("[TIMER] returned from schedule\n");
 }

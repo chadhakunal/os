@@ -436,7 +436,13 @@ struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid) {
 
 // Reap zombie task - free all resources
 void reap_zombie(struct task_t *zombie) {
-  debugk("reap_zombie: STARTING for PID %llu\n", zombie->pid);
+  uint64_t zombie_pid = zombie->pid;  // Save PID before freeing
+  debugk("reap_zombie: STARTING for PID %llu\n", zombie_pid);
+
+  // Sanity check: make sure we're not trying to reap the current task
+  if (zombie == current_task) {
+    panic("reap_zombie: Attempted to reap current_task!");
+  }
 
   // Remove from global task list
   debugk("reap_zombie: Removing from task list\n");
@@ -454,15 +460,17 @@ void reap_zombie(struct task_t *zombie) {
       unmap_page(zombie->mm_struct.root_satp, va);
     }
   }
+  debugk("reap_zombie: Done freeing kernel stack pages\n");
 
   // Free the root page table itself
   debugk("reap_zombie: Freeing root page table phys=%p\n", zombie->mm_struct.root_satp);
   free_page(zombie->mm_struct.root_satp);
+  debugk("reap_zombie: Done freeing root page table\n");
 
   // Free the task structure
   debugk("reap_zombie: Freeing task structure\n");
   task_t_free(zombie);
-  debugk("reap_zombie: COMPLETED for PID %llu\n", zombie->pid);
+  debugk("reap_zombie: COMPLETED for PID %llu\n", zombie_pid);  // Use saved PID
 }
 
 void task_cleanup(int exit_status) {
