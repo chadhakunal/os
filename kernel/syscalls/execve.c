@@ -1,23 +1,22 @@
 #define DEBUG 0
 #include "arch/riscv64/syscalls/syscall_macros.h"
-#include "kernel/task/task.h"
+#include "arch/riscv64/virtual_memory_init.h"
+#include "kernel/memory/page_tables.h"
+#include "kernel/panic.h"
+#include "kernel/signal_jump_point.h"
 #include "kernel/task/elf_loader.h"
 #include "kernel/task/executable_loader.h"
 #include "kernel/task/signal.h"
-#include "kernel/signal_jump_point.h"
-#include "kernel/panic.h"
+#include "kernel/task/task.h"
+#include "kernel/user_data_access.h"
+#include "lib/pool_allocator.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
-#include "lib/pool_allocator.h"
-#include "arch/riscv64/virtual_memory_init.h"
-#include "kernel/user_data_access.h"
-#include "kernel/memory/page_tables.h"
 #include "types.h"
 
 DEFINE_POOL(execve_args_t, struct execve_args_t)
 
-DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
-{
+DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
   debugk("execve: pathname=%p, argv=%p, envp=%p\n", pathname, argv, envp);
 
   // Validate pointers
@@ -46,7 +45,8 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
     debugk("execve: reading argv[%d] pointer\n", args->argc);
     copy_from_user(&user_arg_ptr, &argv[args->argc], sizeof(char *));
     debugk("execve: argv[%d] pointer = %p\n", args->argc, user_arg_ptr);
-    if (user_arg_ptr == NULL) break;
+    if (user_arg_ptr == NULL)
+      break;
 
     copy_string_from_user(args->argv[args->argc], user_arg_ptr, MAX_ARG_LEN);
     debugk("execve: argv[%d]=%s\n", args->argc, args->argv[args->argc]);
@@ -59,7 +59,8 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   if (envp != NULL) {
     while (args->envc < MAX_ARG_COUNT) {
       copy_from_user(&user_env_ptr, &envp[args->envc], sizeof(char *));
-      if (user_env_ptr == NULL) break;
+      if (user_env_ptr == NULL)
+        break;
 
       copy_string_from_user(args->envp[args->envc], user_env_ptr, MAX_ARG_LEN);
       debugk("execve: envp[%d]=%s\n", args->envc, args->envp[args->envc]);
@@ -69,7 +70,8 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
 
   debugk("execve: argc=%d, envc=%d\n", args->argc, args->envc);
 
-  // Validate file exists and detect type before destroying current address space
+  // Validate file exists and detect type before destroying current address
+  // space
   struct dentry_t *dentry;
   if (vfs_resolve_path(args->pathname, &dentry) != 0) {
     debugk("execve: failed to resolve path %s\n", args->pathname);
@@ -103,7 +105,8 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
         old_action != (struct sigaction_t *)SIG_IGNORE) {
       sigaction_t_free(old_action);
     }
-    current_task->signal_state.actions[i] = (struct sigaction_t *)SIG_DEFAULT_HANDLER;
+    current_task->signal_state.actions[i] =
+        (struct sigaction_t *)SIG_DEFAULT_HANDLER;
   }
   current_task->signal_state.pending = 0;
   current_task->signal_handler_depth = 0;
@@ -115,18 +118,19 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
     execve_args_t_free(args);
     return -1;
   }
-  debugk("execve: loaded executable, entry=%llx\n", current_task->mm_struct.entry_addr);
+  debugk("execve: loaded executable, entry=%llx\n",
+         current_task->mm_struct.entry_addr);
 
-  // Re-map signal jump point — clear_vmas() removed it along with the old ELF mappings.
+  // Re-map signal jump point — clear_vmas() removed it along with the old ELF
+  // mappings.
   void *sjp = get_signal_jump_point_page();
-  printk("execve: re-mapping signal jump point: phys=%p -> vaddr=%llx\n", sjp, SIGNAL_JUMP_POINT_ADDR);
   if (sjp) {
     map_page(current_task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
              (uint64_t)sjp, PTE_VALID | PTE_U | PTE_R | PTE_X);
-    uint64_t pte = get_pte(current_task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR);
+    uint64_t pte =
+        get_pte(current_task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR);
     void *sjp_virt = PHYS_TO_VIRT(sjp);
     uint32_t *insns = (uint32_t *)sjp_virt;
-    printk("execve: SJP pte=0x%llx, first_insn=0x%08x\n", pte, insns[0]);
   }
 
   // Set up user stack with argc, argv, envp
@@ -136,9 +140,9 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   uint64_t sp = DEFAULT_STACK_TOP;
 
   // First, calculate how much space we need
-  size_t total_size = sizeof(uint64_t);  // argc
-  total_size += (args->argc + 1) * sizeof(uint64_t);  // argv[] + NULL
-  total_size += (args->envc + 1) * sizeof(uint64_t);  // envp[] + NULL
+  size_t total_size = sizeof(uint64_t);              // argc
+  total_size += (args->argc + 1) * sizeof(uint64_t); // argv[] + NULL
+  total_size += (args->envc + 1) * sizeof(uint64_t); // envp[] + NULL
 
   for (int i = 0; i < args->argc; i++) {
     total_size += str_len(args->argv[i], MAX_ARG_LEN) + 1;
@@ -201,10 +205,12 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   current_task->tf.sp = sp;
   current_task->tf.sepc = (uint64_t)current_task->mm_struct.entry_addr;
   current_task->tf.a0 = argc;
-  current_task->tf.a1 = sp + sizeof(uint64_t);  // Pointer to argv[]
-  current_task->tf.a2 = sp + sizeof(uint64_t) + (argc + 1) * sizeof(uint64_t);  // Pointer to envp[]
+  current_task->tf.a1 = sp + sizeof(uint64_t); // Pointer to argv[]
+  current_task->tf.a2 = sp + sizeof(uint64_t) +
+                        (argc + 1) * sizeof(uint64_t); // Pointer to envp[]
 
-  debugk("execve: sp=%llx, sepc=%llx\n", current_task->tf.sp, current_task->tf.sepc);
+  debugk("execve: sp=%llx, sepc=%llx\n", current_task->tf.sp,
+         current_task->tf.sepc);
   debugk("execve: a0(argc)=%llu, a1(argv)=%llx, a2(envp)=%llx\n",
          current_task->tf.a0, current_task->tf.a1, current_task->tf.a2);
 
@@ -221,10 +227,10 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   current_task->tf.s10 = 0;
   current_task->tf.s11 = 0;
 
-  debugk("execve: done, sp=%llx, sepc=%llx, argc=%llu\n",
-         current_task->tf.sp, current_task->tf.sepc, current_task->tf.a0);
+  debugk("execve: done, sp=%llx, sepc=%llx, argc=%llu\n", current_task->tf.sp,
+         current_task->tf.sepc, current_task->tf.a0);
 
-  extern void trap_return(struct trap_frame *tf);
+  extern void trap_return(struct trap_frame * tf);
   trap_return(&current_task->tf);
 
   panic("execve: returned from trap_return!");
