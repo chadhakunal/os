@@ -92,12 +92,15 @@ void allocate_kernel_stack(struct task_t *task) {
   // Map signal jump point page (shared across all processes)
   void *jump_point_page = get_signal_jump_point_page();
   if (jump_point_page) {
-    debugk("task: mapping signal_jump_point page for PID %llu: vaddr=%llx -> paddr=%p (flags: U|R|X)\n",
-           task->pid, SIGNAL_JUMP_POINT_ADDR, jump_point_page);
     map_page(task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
              (uint64_t)jump_point_page, PTE_VALID | PTE_U | PTE_R | PTE_X);
+    uint64_t verify_pte = get_pte(task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR);
+    void *sjp_virt = PHYS_TO_VIRT(jump_point_page);
+    uint32_t first_insn = *(uint32_t *)sjp_virt;
+    printk("task: PID %llu SJP mapped: paddr=%p pte=0x%llx first_insn=0x%08x\n",
+           task->pid, jump_point_page, verify_pte, first_insn);
   } else {
-    debugk("task: WARNING - signal_jump_point page is NULL for PID %llu!\n", task->pid);
+    printk("task: WARNING - signal_jump_point page is NULL for PID %llu!\n", task->pid);
   }
 }
 
