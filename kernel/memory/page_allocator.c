@@ -9,6 +9,7 @@
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
 #include "arch/riscv64/virtual_memory_init.h"
+#include "arch/riscv64/trap.h"
 #include "lib/string.h"
 
 #define ALIGN_UP(x, a) (((uintptr_t)(x) + ((a) - 1)) & ~((uintptr_t)((a) - 1)))
@@ -160,9 +161,15 @@ void free_page(void *p) {
   pages_metadata.pages_in_use--;
 
   // Zero the page and add to zero list
+  // Disable interrupts during memset to prevent race conditions:
+  // If a timer interrupt fires while we're zeroing memory, and the interrupt
+  // handler tries to access memory (e.g., for printing), it could hit corrupted
+  // page table entries or partially-zeroed pages
   void *virt_page = PHYS_TO_VIRT(p);
+  disable_interrupts();
   memset(virt_page, 0, DEFAULT_PAGE_SIZE);
   freed_page->is_zeroed = true;
+  enable_interrupts();
 
   freed_page->next_free_page = pages_metadata.zero_page_head;
   pages_metadata.zero_page_head = freed_page;
