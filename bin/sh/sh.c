@@ -5,16 +5,106 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h> 
+#include <stdbool.h>
+#include <dirent.h> 
 
 #define COMMAND_BUF_SIZE 256
 
+// Global variables for script arguments
+static char **script_argv = NULL;
+static int script_argc = 0;
+
 void parse_and_exec(const char *buf);
+
+/* Expand * to list all files in current directory */
+void expand_glob(const char *input, char *output, size_t output_size) {
+  size_t in_pos = 0;
+  size_t out_pos = 0;
+
+  while (input[in_pos] != '\0' && out_pos < output_size - 1) {
+    if (input[in_pos] == '*') {
+      // Expand * to all files in current directory
+      int fd = open(".", O_RDONLY);
+      if (fd >= 0) {
+        struct dirent entries[64];
+        int n = getdents(fd, entries, sizeof(entries));
+        if (n > 0) {
+          int num_entries = n / sizeof(struct dirent);
+          bool first = true;
+
+          for (int i = 0; i < num_entries; i++) {
+            // Skip . and ..
+            if (strcmp(entries[i].d_name, ".") == 0 || strcmp(entries[i].d_name, "..") == 0) {
+              continue;
+            }
+
+            // Add space before entry if not the first
+            if (!first && out_pos < output_size - 1) {
+              output[out_pos++] = ' ';
+            }
+            first = false;
+
+            // Copy the filename
+            const char *name = entries[i].d_name;
+            size_t name_len = strlen(name);
+            for (size_t j = 0; j < name_len && out_pos < output_size - 1; j++) {
+              output[out_pos++] = name[j];
+            }
+          }
+        }
+        close(fd);
+      }
+      in_pos++;
+    } else {
+      // Regular character, just copy it
+      output[out_pos++] = input[in_pos++];
+    }
+  }
+
+  output[out_pos] = '\0';
+}
+
+/* Expand $0, $1, $2, etc. in the input string with script arguments */
+void expand_args(const char *input, char *output, size_t output_size) {
+  size_t in_pos = 0;
+  size_t out_pos = 0;
+
+  while (input[in_pos] != '\0' && out_pos < output_size - 1) {
+    if (input[in_pos] == '$' && input[in_pos + 1] >= '0' && input[in_pos + 1] <= '9') {
+      // Found $N where N is a digit
+      int arg_num = input[in_pos + 1] - '0';
+      in_pos += 2;
+
+      // Replace with the corresponding argument if it exists
+      if (arg_num < script_argc && script_argv[arg_num] != NULL) {
+        const char *arg = script_argv[arg_num];
+        size_t arg_len = strlen(arg);
+
+        // Copy the argument value
+        for (size_t i = 0; i < arg_len && out_pos < output_size - 1; i++) {
+          output[out_pos++] = arg[i];
+        }
+      }
+      // If argument doesn't exist, just skip the $N (replace with empty string)
+    } else {
+      // Regular character, just copy it
+      output[out_pos++] = input[in_pos++];
+    }
+  }
+
+  output[out_pos] = '\0';
+}
 
 int main(int argc, char **argv, char **envp) {
   // If a script file is provided as argv[1], execute it and exit
   if (argc >= 2) {
     const char *script_path = argv[1];
+
+    // Set global script arguments for $0, $1, etc. expansion
+    // $0 = script path, $1 = first arg to script, etc.
+    script_argv = argv;
+    script_argc = argc;
+
     int fd = open(script_path, O_RDONLY);
     if (fd < 0) {
       printf("sh: cannot open script '%s'\n", script_path);
@@ -22,6 +112,8 @@ int main(int argc, char **argv, char **envp) {
     }
 
     char buf[1024];
+    char expanded[1024];
+    char glob_expanded[1024];
     ssize_t n;
     size_t line_start = 0;
     size_t total_read = 0;
@@ -36,8 +128,11 @@ int main(int argc, char **argv, char **envp) {
         if (buf[i] == '\n') {
           buf[i] = '\0';
           if (line_start < i && buf[line_start] != '#') {
-            // Skip comment lines starting with #
-            parse_and_exec(&buf[line_start]);
+            // Expand $0, $1, etc. first
+            expand_args(&buf[line_start], expanded, sizeof(expanded));
+            // Then expand * for glob
+            expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
+            parse_and_exec(glob_expanded);
           }
           line_start = i + 1;
         }
@@ -60,7 +155,9 @@ int main(int argc, char **argv, char **envp) {
     // Execute any remaining line
     if (total_read > 0 && buf[0] != '#') {
       buf[total_read] = '\0';
-      parse_and_exec(buf);
+      expand_args(buf, expanded, sizeof(expanded));
+      expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
+      parse_and_exec(glob_expanded);
     }
 
     close(fd);
@@ -89,6 +186,7 @@ int main(int argc, char **argv, char **envp) {
   tcsetpgrp(0, shell_pgid);
 
   char buf[1024];
+  char glob_expanded[1024];
   char cwd[256];
   while (true) {
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
@@ -105,7 +203,9 @@ int main(int argc, char **argv, char **envp) {
       }
 
       if (buf[0] != '\0') {
-        parse_and_exec(buf);
+        // Expand * for glob in interactive mode too
+        expand_glob(buf, glob_expanded, sizeof(glob_expanded));
+        parse_and_exec(glob_expanded);
       }
     }
   }
