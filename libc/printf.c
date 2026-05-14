@@ -187,3 +187,115 @@ int printf(const char *fmt, ...) {
   va_end(args);
   return written;
 }
+
+// Helper to add char to a sized buffer
+static void str_putchar(char *buf, size_t size, int *pos, char c) {
+  if (*pos < (int)size - 1) {
+    buf[(*pos)++] = c;
+  }
+}
+
+// Helper to add string to a sized buffer
+static void str_puts(char *buf, size_t size, int *pos, const char *s) {
+  while (*s && *pos < (int)size - 1) {
+    buf[(*pos)++] = *s++;
+  }
+}
+
+// Helper to print a signed number into sized buffer
+static void str_print_num(char *buf, size_t size, int *pos, long long num) {
+  if (num < 0) {
+    str_putchar(buf, size, pos, '-');
+    num = -num;
+  }
+
+  if (num == 0) {
+    str_putchar(buf, size, pos, '0');
+    return;
+  }
+
+  char tmp[32];
+  int i = 0;
+  while (num > 0) {
+    tmp[i++] = '0' + (num % 10);
+    num /= 10;
+  }
+
+  while (i > 0) {
+    str_putchar(buf, size, pos, tmp[--i]);
+  }
+}
+
+// Helper to add string to a sized buffer
+static void str_puts_str(char *buf, size_t size, int *pos, const char *s) {
+  while (*s && *pos < (int)size - 1) {
+    buf[(*pos)++] = *s++;
+  }
+}
+
+int snprintf(char *str, size_t size, const char *fmt, ...) {
+  if (size == 0) return 0;
+
+  va_list args;
+  va_start(args, fmt);
+
+  int pos = 0;
+
+  for (const char *p = fmt; *p; p++) {
+    if (*p == '%' && *(p + 1)) {
+      p++;
+
+      // Check for 'll' modifier
+      int is_long_long = 0;
+      if (*p == 'l' && *(p + 1) == 'l') {
+        is_long_long = 1;
+        p += 2;
+      } else if (*p == 'l') {
+        is_long_long = 1;
+        p++;
+      }
+
+      switch (*p) {
+        case 's': {
+          const char *s = va_arg(args, const char *);
+          if (s) {
+            str_puts_str(str, size, &pos, s);
+          } else {
+            str_puts_str(str, size, &pos, "(null)");
+          }
+          break;
+        }
+        case 'd':
+        case 'i': {
+          if (is_long_long) {
+            long long val = va_arg(args, long long);
+            str_print_num(str, size, &pos, val);
+          } else {
+            int val = va_arg(args, int);
+            str_print_num(str, size, &pos, val);
+          }
+          break;
+        }
+        case '%':
+          str_putchar(str, size, &pos, '%');
+          break;
+        default:
+          str_putchar(str, size, &pos, '%');
+          if (is_long_long) {
+            str_putchar(str, size, &pos, 'l');
+            str_putchar(str, size, &pos, 'l');
+          }
+          str_putchar(str, size, &pos, *p);
+          break;
+      }
+    } else {
+      str_putchar(str, size, &pos, *p);
+    }
+  }
+
+  // Null terminate
+  str[pos] = '\0';
+
+  va_end(args);
+  return pos;
+}

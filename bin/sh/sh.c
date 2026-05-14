@@ -297,6 +297,38 @@ int cd(int argc, char *argv[]) {
   return 0;
 }
 
+/* Check if a file exists and is accessible */
+int file_exists(const char *path) {
+  int fd = open(path, O_RDONLY);
+  if (fd >= 0) {
+    close(fd);
+    return 1;
+  }
+  return 0;
+}
+
+/* Resolve command to full path, returns 1 on success, 0 on failure */
+int resolve_command(const char *command, char *resolved_path, size_t path_size) {
+  // If command contains '/' (absolute or relative path), use as-is
+  if (strchr(command, '/') != NULL) {
+    snprintf(resolved_path, path_size, "%s", command);
+    return file_exists(resolved_path);
+  }
+
+  // Search through PATH
+  // For now, hardcode PATH as "/bin:/usr/bin"
+  const char *path_dirs[] = {"/bin", "/usr/bin", NULL};
+
+  for (int i = 0; path_dirs[i] != NULL; i++) {
+    snprintf(resolved_path, path_size, "%s/%s", path_dirs[i], command);
+    if (file_exists(resolved_path)) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
 void parse_and_exec(const char *buf) {
   char command_buf[COMMAND_BUF_SIZE];
   char *argv[16];
@@ -328,24 +360,6 @@ void parse_and_exec(const char *buf) {
   }
 
   char full_path[256];
-
-  if (command_buf[0] == '/') {
-    for (size_t j = 0; j < cmd_len && j < 255; j++) {
-      full_path[j] = command_buf[j];
-    }
-    full_path[cmd_len] = '\0';
-  } else {
-    full_path[0] = '/';
-    full_path[1] = 'b';
-    full_path[2] = 'i';
-    full_path[3] = 'n';
-    full_path[4] = '/';
-    for (size_t j = 0; j < cmd_len && j < 250; j++) {
-      full_path[5 + j] = command_buf[j];
-    }
-    full_path[5 + cmd_len] = '\0';
-  }
-
   argv[argc++] = full_path;
 
   while (buf[i] != '\0' && argc < 15) {
@@ -400,6 +414,7 @@ void parse_and_exec(const char *buf) {
     }
   }
 
+  // Check for builtin commands first
   if (strcmp("echo", command_buf) == 0) {
     int out_fd = 1; /* stdout */
     if (redirect_out != NULL) {
@@ -421,6 +436,13 @@ void parse_and_exec(const char *buf) {
     return;
   }
 
+  // Not a builtin - resolve the command path
+  if (!resolve_command(command_buf, full_path, sizeof(full_path))) {
+    printf("sh: command not found: %s\n", command_buf);
+    return;
+  }
+
+  // Execute the resolved command
   pid_t pid = fork();
   if (pid == 0) {
     setpgid(0, 0);
