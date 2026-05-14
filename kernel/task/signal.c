@@ -2,6 +2,7 @@
 #include "kernel/task/signal.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
+#include "kernel/task/elf_loader.h"
 #include "kernel/signal_jump_point.h"
 #include "arch/riscv64/trap.h"
 #include "arch/riscv64/virtual_memory_init.h"
@@ -96,11 +97,11 @@ void check_and_deliver_signals(struct trap_frame *tf) {
 
   uint64_t new_sp = (tf->sp - sizeof(struct signal_frame)) & ~15ULL;
 
-  debugk("signal: current sp=%llx, new_sp=%llx, stack_start=0x7FFFC000, stack_top=0x80000000\n",
-         tf->sp, new_sp);
+  debugk("signal: current sp=%llx, new_sp=%llx, stack_start=0x%llx, stack_top=0x%llx\n",
+         tf->sp, new_sp, DEFAULT_STACK_START, DEFAULT_STACK_TOP);
 
-  if (new_sp < 0x7FFFC000ULL) {
-    debugk("signal: ERROR - new_sp %llx is below stack start 0x7FFFC000!\n", new_sp);
+  if (new_sp < DEFAULT_STACK_START) {
+    debugk("signal: ERROR - new_sp %llx is below stack start 0x%llx!\n", new_sp, DEFAULT_STACK_START);
   }
 
   copy_to_user((void *)new_sp, tf, sizeof(struct trap_frame));
