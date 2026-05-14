@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include <stddef.h>
+#include <types.h>
 
 // Signal numbers (POSIX standard)
 #define SIGHUP    1

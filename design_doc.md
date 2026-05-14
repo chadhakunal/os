@@ -9,5 +9,7 @@
     - disabling for now to test if page fault is issue, and see if we get a regular page fault now
     - 2. Guard page on the kernel stack
         Map a non-present page at the bottom of each process's kernel stack. If your fault handler itself overflows, you get a clean fault rather than silent corruption/infinite recursion.
+  - After page fault handling, add in the mmap, munmap
+  - Add in malloc
 
   - add in pipe support
