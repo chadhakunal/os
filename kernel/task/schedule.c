@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/task/schedule.h"
 #include "kernel/task/task.h"
 #include "kernel/panic.h"

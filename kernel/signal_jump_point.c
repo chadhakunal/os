@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/signal_jump_point.h"
 #include "kernel/memory/page_allocator.h"
 #include "arch/riscv64/virtual_memory_init.h"

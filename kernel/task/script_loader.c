@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/task/script_loader.h"
 #include "kernel/task/elf_loader.h"
 #include "kernel/task/executable_loader.h"

@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/drivers/virtio-blk.h"
 #include "kernel/memory/page_allocator.h"
 #include "kernel/panic.h"
