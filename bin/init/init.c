@@ -34,7 +34,6 @@ int main() {
     } else {
       printf("Init: fork failed!\n");
       // If fork fails, sleep a bit and try again
-      sleep(1);
     }
   }
 
