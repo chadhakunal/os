@@ -105,6 +105,7 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
     current_task->signal_state.actions[i] = (struct sigaction_t *)SIG_DEFAULT_HANDLER;
   }
   current_task->signal_state.pending = 0;
+  current_task->signal_handler_depth = 0;
   debugk("execve: reset signal handlers\n");
 
   // Load executable (handles both ELF and scripts)

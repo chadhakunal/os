@@ -69,12 +69,13 @@ void send_signal_to_pgid(uint64_t pgid, int sig) {
 void check_and_deliver_signals(struct trap_frame *tf) {
   uint64_t tp_value;
   asm volatile("mv %0, tp" : "=r"(tp_value));
-  debugk("check_and_deliver_signals: tf=%p, current_task=%p, tp=%p\n",
-         tf, current_task, (void*)tp_value);
+  debugk("check_and_deliver_signals: tf=%p, current_task=%p, tp=%p, sstatus=0x%llx, SPP=%d\n",
+         tf, current_task, (void*)tp_value, tf->sstatus, !!(tf->sstatus & SSTATUS_SPP));
 
+  // Check if we're returning to user mode (SPP=0 means returning to user mode)
+  // Note: tf->sstatus contains the SAVED status that will be restored on sret
   if (!current_task || (tf->sstatus & SSTATUS_SPP)) {
-    debugk("check_and_deliver_signals: returning early (current_task=%p, SPP=%d)\n",
-           current_task, !!(tf->sstatus & SSTATUS_SPP));
+    debugk("check_and_deliver_signals: returning early - not returning to user mode\n");
     return;
   }
 
