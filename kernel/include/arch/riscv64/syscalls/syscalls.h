@@ -51,6 +51,7 @@ int64_t sys_sched_yield(struct trap_frame *tf);
 int64_t sys_waitpid(struct trap_frame *tf);
 int64_t sys_exit(struct trap_frame *tf);
 int64_t sys_execve(struct trap_frame *tf);
+int64_t sys_rt_sigaction(struct trap_frame *tf);
 int64_t sys_rt_sigreturn(struct trap_frame *tf);
 int64_t sys_kill(struct trap_frame *tf);
 int64_t sys_ioctl(struct trap_frame *tf);
