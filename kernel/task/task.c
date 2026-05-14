@@ -530,6 +530,7 @@ uint64_t fork_off() {
   new_task->wait_pid = 0;
   new_task->runtime = 0;
   new_task->max_runtime = MAX_RUNTIME;
+  new_task->signal_handler_depth = 0;
 
   list_append(&task_list, &new_task->task_list);
   list_append(scheduler.active_list, &new_task->scheduler_list);
