@@ -26,6 +26,11 @@ void trap_handler(struct trap_frame *tf) {
         if (tf->sstatus & SSTATUS_SPP) {
           return;
         }
+        // Sanity check trap frame before returning
+        if (current_task->tf.sepc == 0 || current_task->tf.sp == 0) {
+          panic("trap_handler: Timer interrupt - corrupted trap frame! sepc=%llx sp=%llx pid=%llu",
+                current_task->tf.sepc, current_task->tf.sp, current_task->pid);
+        }
         trap_return(&current_task->tf);
         break;
       case 9:
