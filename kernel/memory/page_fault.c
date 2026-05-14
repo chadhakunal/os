@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "kernel/memory/page_fault.h"
 #include "kernel/task/task.h"
 #include "kernel/task/signal.h"

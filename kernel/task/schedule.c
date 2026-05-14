@@ -94,6 +94,18 @@ struct task_t *pick_next_task() {
   // Select first task to run
   struct list_node *first_task_node = scheduler.active_list->next;
   struct task_t *next_task = container_of(first_task_node, struct task_t, scheduler_list);
+
+  // Sanity check: verify the task looks valid
+  if (next_task == NULL) {
+    panic("pick_next_task: next_task is NULL!");
+  }
+  if (next_task->state != TASK_READY && next_task->state != TASK_RUNNING) {
+    panic("pick_next_task: next_task has invalid state!");
+  }
+  if (next_task->mm_struct.root_satp == NULL) {
+    panic("pick_next_task: next_task has NULL page table!");
+  }
+
   return next_task;
 }
 
