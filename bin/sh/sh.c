@@ -12,6 +12,62 @@
 void parse_and_exec(const char *buf);
 
 int main(int argc, char **argv, char **envp) {
+  // If a script file is provided as argv[1], execute it and exit
+  if (argc >= 2) {
+    const char *script_path = argv[1];
+    int fd = open(script_path, O_RDONLY);
+    if (fd < 0) {
+      printf("sh: cannot open script '%s'\n", script_path);
+      return 1;
+    }
+
+    char buf[1024];
+    ssize_t n;
+    size_t line_start = 0;
+    size_t total_read = 0;
+
+    // Read and execute the script line by line
+    while ((n = read(fd, buf + total_read, sizeof(buf) - total_read - 1)) > 0) {
+      total_read += n;
+      buf[total_read] = '\0';
+
+      // Process complete lines
+      for (size_t i = line_start; i < total_read; i++) {
+        if (buf[i] == '\n') {
+          buf[i] = '\0';
+          if (line_start < i && buf[line_start] != '#') {
+            // Skip comment lines starting with #
+            parse_and_exec(&buf[line_start]);
+          }
+          line_start = i + 1;
+        }
+      }
+
+      // Move any incomplete line to the start of the buffer
+      if (line_start < total_read) {
+        size_t remaining = total_read - line_start;
+        for (size_t i = 0; i < remaining; i++) {
+          buf[i] = buf[line_start + i];
+        }
+        total_read = remaining;
+        line_start = 0;
+      } else {
+        total_read = 0;
+        line_start = 0;
+      }
+    }
+
+    // Execute any remaining line
+    if (total_read > 0 && buf[0] != '#') {
+      buf[total_read] = '\0';
+      parse_and_exec(buf);
+    }
+
+    close(fd);
+    return 0;
+  }
+
+  // Interactive mode - no script provided
   printf("Shell started!\n");
   printf("argc = %d\n", argc);
 
