@@ -59,6 +59,9 @@ int tty_ioctl(struct file_t *file, unsigned long request, void *arg) {
       uint64_t pgid;
       copy_from_user(&pgid, arg, sizeof(uint64_t));
       debugk("[TTY] Setting foreground PGID to %llu\n", pgid);
+      if (pgid != tty_driver.foreground_pgid) {
+        tty_reset_buffer();
+      }
       tty_driver.foreground_pgid = pgid;
       return 0;
     }
