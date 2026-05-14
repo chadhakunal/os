@@ -4,6 +4,7 @@
 #include "kernel/task/elf_loader.h"
 #include "kernel/task/executable_loader.h"
 #include "kernel/task/signal.h"
+#include "kernel/signal_jump_point.h"
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
@@ -115,6 +116,13 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
     return -1;
   }
   debugk("execve: loaded executable, entry=%llx\n", current_task->mm_struct.entry_addr);
+
+  // Re-map signal jump point — clear_vmas() removed it along with the old ELF mappings.
+  void *sjp = get_signal_jump_point_page();
+  if (sjp) {
+    map_page(current_task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
+             (uint64_t)sjp, PTE_VALID | PTE_U | PTE_R | PTE_X);
+  }
 
   // Set up user stack with argc, argv, envp
   // Stack layout (growing downward from 0x80000000):
