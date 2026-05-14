@@ -440,13 +440,6 @@ struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid) {
 
 // Reap zombie task - free all resources
 void reap_zombie(struct task_t *zombie) {
-  uint64_t zombie_pid = zombie->pid;  // Save PID before freeing
-
-  // Print memory usage to detect memory exhaustion
-  extern pages_metadata_struct_t pages_metadata;
-  debugk("reap_zombie: STARTING for PID %llu - Memory: %llu pages in use, %llu total pages\n",
-         zombie_pid, pages_metadata.pages_in_use, pages_metadata.total_pages);
-
   // Sanity check: make sure we're not trying to reap the current task
   if (zombie == current_task) {
     panic("reap_zombie: Attempted to reap current_task!");
