@@ -70,11 +70,13 @@ trap_from_user:
   # Set sscratch to 0 so nested traps know we're in kernel
   csrw sscratch, zero
 
-  # Re-enable interrupts now that context is saved
-  # Hardware automatically disables interrupts (clears SIE) on trap entry
-  # We re-enable them so timer/UART interrupts can be handled during trap processing
-  li t0, 0x2  # SSTATUS_SIE bit
-  csrs sstatus, t0
+  # NOTE: Interrupts remain DISABLED during trap_handler.
+  # Re-enabling them here causes timer IRQs to push 288-byte frames on the
+  # kernel stack for every tick, exhausting the 16KB kernel stack during any
+  # long-running syscall (waitpid, read, etc.).  Preemption is handled
+  # explicitly: blocking syscalls call schedule() themselves, and timer-based
+  # preemption only fires when returning to user mode (from_user_mode check in
+  # timer_handler).
 
   # Call C trap handler (NEVER RETURNS - it calls trap_return or panics)
   # Pass pointer to trap frame in task struct
