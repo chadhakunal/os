@@ -101,10 +101,23 @@ struct task_t *pick_next_task() {
     panic("pick_next_task: next_task is NULL!");
   }
   if (next_task->state != TASK_READY && next_task->state != TASK_RUNNING) {
-    panic("pick_next_task: next_task has invalid state!");
+    panic("pick_next_task: next_task has invalid state (state=%d, pid=%llu)!",
+          next_task->state, next_task->pid);
   }
   if (next_task->mm_struct.root_satp == NULL) {
-    panic("pick_next_task: next_task has NULL page table!");
+    panic("pick_next_task: next_task has NULL page table (pid=%llu)!", next_task->pid);
+  }
+
+  // Sanity check: verify kernel context looks valid
+  extern uint64_t KERNEL_STACK_VIRTUAL_BASE;
+  extern uint64_t KERNEL_STACK_SIZE;
+  if (next_task->kernel_context.sp < KERNEL_STACK_VIRTUAL_BASE ||
+      next_task->kernel_context.sp >= KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE) {
+    panic("pick_next_task: next_task has invalid kernel SP! pid=%llu sp=0x%llx",
+          next_task->pid, next_task->kernel_context.sp);
+  }
+  if (next_task->kernel_context.ra == 0) {
+    panic("pick_next_task: next_task has NULL return address! pid=%llu", next_task->pid);
   }
 
   return next_task;
