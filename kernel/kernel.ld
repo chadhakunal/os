@@ -14,13 +14,7 @@ SECTIONS
 
     .text : {
         *(.text)
-        *(.text.* EXCLUDE_FILE(*signal_jump_point.o))
-    } :text
-
-    .signal_jump_point : ALIGN(16) {
-        __signal_jump_point_start = .;
-        *(.text.signal_jump_point)
-        __signal_jump_point_end = .;
+        *(.text.*)
     } :text
 
     .rodata : {
