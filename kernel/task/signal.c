@@ -37,6 +37,9 @@ static bool handle_default_signal_action(int sig) {
     case SIGKILL:
     case SIGHUP:
     case SIGINT:
+    case SIGTERM:
+    case SIGUSR1:
+    case SIGUSR2:
     case SIGSEGV:
       debugk("signal: terminating process %llu due to signal %d\n", current_task->pid, sig);
       task_cleanup(SIGNAL_EXIT_STATUS(sig));
