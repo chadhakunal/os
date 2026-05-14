@@ -59,10 +59,10 @@ DEFINE_SYSCALL3(write, int, fd, const void *, buf, size_t, count)
 
   // Handle O_APPEND: always write at end of file
   if (file->flags & O_APPEND) {
-    // Get file size
-    if (file->vnode && file->vnode->address_space) {
-      write_offset = file->vnode->address_space->size;
-      debugk("write syscall: O_APPEND mode, writing at offset %llu\n", write_offset);
+    // Get file size from vnode
+    if (file->vnode) {
+      write_offset = file->vnode->size;
+      debugk("write syscall: O_APPEND mode, writing at offset %llu (file size)\n", write_offset);
     }
   }
 
