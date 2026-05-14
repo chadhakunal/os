@@ -92,7 +92,7 @@ void allocate_kernel_stack(struct task_t *task) {
   void *jump_point_page = get_signal_jump_point_page();
   if (jump_point_page) {
     map_page(task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
-             (uint64_t)jump_point_page, PTE_U | PTE_R | PTE_X);
+             (uint64_t)jump_point_page, PTE_VALID | PTE_U | PTE_R | PTE_X);
   }
 }
 
