@@ -196,7 +196,7 @@ static void str_putchar(char *buf, size_t size, int *pos, char c) {
 }
 
 // Helper to add string to a sized buffer
-static void str_puts(char *buf, size_t size, int *pos, const char *s) {
+static void str_puts_str(char *buf, size_t size, int *pos, const char *s) {
   while (*s && *pos < (int)size - 1) {
     buf[(*pos)++] = *s++;
   }
@@ -223,13 +223,6 @@ static void str_print_num(char *buf, size_t size, int *pos, long long num) {
 
   while (i > 0) {
     str_putchar(buf, size, pos, tmp[--i]);
-  }
-}
-
-// Helper to add string to a sized buffer
-static void str_puts_str(char *buf, size_t size, int *pos, const char *s) {
-  while (*s && *pos < (int)size - 1) {
-    buf[(*pos)++] = *s++;
   }
 }
 
