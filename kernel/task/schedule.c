@@ -144,10 +144,13 @@ void schedule() {
     }
     debugk("[schedule] picked PID %llu from idle\n", next_task->pid);
     next_task->state = TASK_RUNNING;
+    debugk("[schedule] ABOUT TO CALL set_current_task (from idle)\n");
     set_current_task(next_task);
+    debugk("[schedule] ABOUT TO CALL switch_to from idle to PID %llu\n", next_task->pid);
     switch_to(idle_task, next_task);
     // After switch_to, we're now running as next_task
     // Jump to user mode
+    debugk("[schedule] ABOUT TO CALL trap_return after switch from idle\n");
     trap_return(&current_task->tf);
   }
 
@@ -189,8 +192,11 @@ void schedule() {
          prev->pid, prev->state, next_task->pid, next_task->state);
   debugk("[schedule] next_task kernel_context: sp=0x%llx ra=0x%llx\n",
          next_task->kernel_context.sp, next_task->kernel_context.ra);
+  debugk("[schedule] ABOUT TO CALL set_current_task\n");
 
   set_current_task(next_task);
+
+  debugk("[schedule] ABOUT TO CALL switch_to(prev=%llu, next=%llu)\n", prev->pid, next_task->pid);
   switch_to(prev, next_task);
 
   debugk("[schedule] RETURNED after context switch - now running as PID %llu\n", current_task->pid);
