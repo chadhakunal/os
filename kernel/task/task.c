@@ -449,7 +449,8 @@ void reap_zombie(struct task_t *zombie) {
   list_remove(&zombie->task_list);
 
   // Free kernel stack pages (2 pages at KERNEL_STACK_VIRTUAL_BASE)
-  debugk("reap_zombie: Freeing kernel stack pages\n");
+  debugk("reap_zombie: SKIPPING kernel stack page freeing to debug\n");
+  /*
   for (uint64_t va = KERNEL_STACK_VIRTUAL_BASE; va < KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE; va += DEFAULT_PAGE_SIZE) {
     uint64_t pte = get_pte(zombie->mm_struct.root_satp, va);
     if (pte & PTE_VALID) {
@@ -460,7 +461,8 @@ void reap_zombie(struct task_t *zombie) {
       unmap_page(zombie->mm_struct.root_satp, va);
     }
   }
-  debugk("reap_zombie: Done freeing kernel stack pages\n");
+  */
+  debugk("reap_zombie: Done skipping kernel stack pages\n");
 
   // Free the root page table itself
   debugk("reap_zombie: Freeing root page table phys=%p\n", zombie->mm_struct.root_satp);
@@ -627,6 +629,11 @@ void clear_vmas(struct task_t *task) {
 
   debugk("clear_vmas: task->mm_struct.root_satp=%p\n", task->mm_struct.root_satp);
   debugk("clear_vmas: vma_list sentinel=%p\n", &task->mm_struct.vma_list);
+
+  // Disable interrupts to prevent race conditions during page freeing
+  debugk("clear_vmas: disabling interrupts\n");
+  asm volatile("csrci sstatus, 0x2"); // Clear SIE bit
+
   struct list_node *pos = task->mm_struct.vma_list.next;
   while (pos != &task->mm_struct.vma_list) {
     struct vma_t *vma = container_of(pos, struct vma_t, sibling_vma);
@@ -659,6 +666,10 @@ void clear_vmas(struct task_t *task) {
   }
 
   asm volatile("sfence.vma zero, zero");
+
+  // Re-enable interrupts
+  debugk("clear_vmas: re-enabling interrupts\n");
+  asm volatile("csrsi sstatus, 0x2"); // Set SIE bit
 }
 
 void close_all_files(struct task_t *task) {
