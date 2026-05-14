@@ -96,6 +96,26 @@ void expand_args(const char *input, char *output, size_t output_size) {
 }
 
 int main(int argc, char **argv, char **envp) {
+  // Handle -c option: sh -c "command string"
+  if (argc >= 3 && strcmp(argv[1], "-c") == 0) {
+    const char *command = argv[2];
+
+    // Set global script arguments for $0, $1, etc. expansion
+    // In -c mode: $0 = sh, $1 = -c, $2 = command, etc.
+    script_argv = argv;
+    script_argc = argc;
+
+    char expanded[1024];
+    char glob_expanded[1024];
+
+    // Expand arguments and globs
+    expand_args(command, expanded, sizeof(expanded));
+    expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
+    parse_and_exec(glob_expanded);
+
+    return 0;
+  }
+
   // If a script file is provided as argv[1], execute it and exit
   if (argc >= 2) {
     const char *script_path = argv[1];
