@@ -106,6 +106,9 @@ int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
     panic("vfs_read: File is NULL\n");
   }
 
+  if (IS_DIR(file->vnode->permission_mode))
+    return -EISDIR;
+
   debugk("  file->vnode=%p\n", file->vnode);
   debugk("  file->vnode->address_space=%p\n", file->vnode->address_space);
   debugk("  file->file_ops=%p\n", file->file_ops);

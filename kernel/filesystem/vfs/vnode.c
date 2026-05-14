@@ -205,6 +205,7 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dentry, struct dent
   }
 
   (*out)->parent = parent_dentry;
-  list_append(&parent_dir->children_dentries, &(*out)->sibling_dentry);
+  if (!(parent_dir->superblock->flags & SB_NODENTRY_CACHE))
+    list_append(&parent_dir->children_dentries, &(*out)->sibling_dentry);
   return 0;
 }

@@ -20,7 +20,6 @@
 #include "kernel/time/timer.h"
 #include "kernel/task/schedule.h"
 #include "kernel/drivers/virtio-blk.h"
-#include "kernel/tests/vfs_test.h"
 
 #include "lib/printk/printk.h"
 #include "kernel/signal_jump_point.h"
@@ -68,8 +67,6 @@ void kmain(void *dtb_ptr) {
 
   vfs_init();
   printk("Initialized vfs and mounted tarfs\n");
-
-  vfs_test_run();
 
   // printk("Starting read of /etc/rc\n");
   // // Test vfs_read with a loop
