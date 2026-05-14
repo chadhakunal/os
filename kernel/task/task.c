@@ -41,6 +41,15 @@ void switch_to_page_table(struct task_t *task) {
   asm volatile("sfence.vma zero, zero");
 }
 
+void init_signal_state(struct task_t *task) {
+  for (size_t i = 0; i < NUM_SIGS; i++) {
+    task->signal_state.actions[i] = (struct sigaction_t *)SIG_DEFAULT_HANDLER;
+  }
+  task->signal_state.pending = 0;
+  task->signal_state.blocked = 0;
+  task->signal_handler_depth = 0;
+}
+
 void init_files(struct files_table_t *files_table) {
   files_table->files_list.next = &files_table->files_list;
   files_table->files_list.prev = &files_table->files_list;
@@ -118,6 +127,9 @@ struct task_t *task_init() {
   task->runtime = 0;
   task->max_runtime = MAX_RUNTIME;
 
+  // Initialize signal state
+  init_signal_state(task);
+
   return task;
 }
 
@@ -158,6 +170,9 @@ void create_idle_task(void) {
   idle_task->wait_pid = 0;
   idle_task->runtime = 0;
   idle_task->max_runtime = 0;
+
+  // Initialize signal state
+  init_signal_state(idle_task);
 
   idle_task->scheduler_list.next = &idle_task->scheduler_list;
   idle_task->scheduler_list.prev = &idle_task->scheduler_list;
