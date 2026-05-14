@@ -63,8 +63,6 @@ void test_output_redirection_dup2() {
 
 void test_exec_replaces_process() {
   // Test that exec actually replaces the process
-  pid_t parent_pid = getpid();
-
   pid_t pid = fork();
   if (pid == 0) {
     // Child: exec should replace this process
