@@ -12,6 +12,10 @@ echo "Running kernel syscall tests..."
 test_syscalls
 
 echo ""
+echo "Running shell features tests..."
+test_shell
+
+echo ""
 echo "========================================="
 echo "  Initialization Complete"
 echo "========================================="
