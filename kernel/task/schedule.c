@@ -84,13 +84,6 @@ void wake_up(struct list_node *wait_queue) {
 
 struct task_t *pick_next_task() {
   if (list_is_empty(scheduler.active_list) && list_is_empty(scheduler.expired_list)) {
-    debugk("pick_next_task: both lists empty, running idle\n");
-    debugk("pick_next_task: blocked_list empty=%d\n", list_is_empty(scheduler.blocked_list));
-    // Dump blocked list PIDs
-    list_for_each(scheduler.blocked_list, pos) {
-      struct task_t *t = container_of(pos, struct task_t, scheduler_list);
-      debugk("pick_next_task:   blocked PID=%llu state=%d\n", t->pid, t->state);
-    }
     return idle_task;
   }
 
@@ -166,16 +159,6 @@ void schedule() {
     list_remove(&current_task->scheduler_list);
     if (current_task->state == TASK_BLOCKED) {
       list_append(scheduler.blocked_list, &current_task->scheduler_list);
-    }
-    debugk("[schedule] after remove: active_empty=%d expired_empty=%d\n",
-           list_is_empty(scheduler.active_list), list_is_empty(scheduler.expired_list));
-    list_for_each(scheduler.expired_list, pos) {
-      struct task_t *t = container_of(pos, struct task_t, scheduler_list);
-      debugk("[schedule]   expired PID=%llu state=%d\n", t->pid, t->state);
-    }
-    list_for_each(scheduler.active_list, pos) {
-      struct task_t *t = container_of(pos, struct task_t, scheduler_list);
-      debugk("[schedule]   active PID=%llu state=%d\n", t->pid, t->state);
     }
   } else if (has_expired()) {
     debugk("[schedule] current_task PID=%llu has expired, moving to expired list\n", current_task->pid);
