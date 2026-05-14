@@ -146,7 +146,8 @@ void schedule() {
   if (next_task == current_task) {
     // Could happen if there is only 1 task
     // it expires then active list is empty -> in pick_next_task we swap them and the only one available is the task that just ran
-    debugk("[schedule] next_task is same as current_task, returning\n");
+    debugk("[schedule] next_task is same as current_task, resetting runtime and returning\n");
+    current_task->runtime = 0;  // Reset runtime so it doesn't immediately expire again
     return;
   }
 
