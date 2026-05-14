@@ -67,7 +67,14 @@ void send_signal_to_pgid(uint64_t pgid, int sig) {
 }
 
 void check_and_deliver_signals(struct trap_frame *tf) {
+  uint64_t tp_value;
+  asm volatile("mv %0, tp" : "=r"(tp_value));
+  debugk("check_and_deliver_signals: tf=%p, current_task=%p, tp=%p\n",
+         tf, current_task, (void*)tp_value);
+
   if (!current_task || (tf->sstatus & SSTATUS_SPP)) {
+    debugk("check_and_deliver_signals: returning early (current_task=%p, SPP=%d)\n",
+           current_task, !!(tf->sstatus & SSTATUS_SPP));
     return;
   }
 
@@ -123,6 +130,10 @@ void check_and_deliver_signals(struct trap_frame *tf) {
   tf->ra = SIGNAL_JUMP_POINT_ADDR;
   tf->a0 = sig;
 
+  uint64_t tp_value_after;
+  asm volatile("mv %0, tp" : "=r"(tp_value_after));
   debugk("signal: setup complete, handler=%llx, sp=%llx, ra=%llx\n",
          tf->sepc, tf->sp, tf->ra);
+  debugk("signal: tf=%p, current_task=%p, tp=%p, &current_task->tf=%p\n",
+         tf, current_task, (void*)tp_value_after, &current_task->tf);
 }
