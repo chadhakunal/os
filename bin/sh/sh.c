@@ -120,6 +120,18 @@ int main(int argc, char **argv, char **envp) {
   if (argc >= 2) {
     const char *script_path = argv[1];
 
+    // Strip surrounding quotes if present
+    size_t path_len = strlen(script_path);
+    char stripped_path[256];
+    if (path_len >= 2 && script_path[0] == '"' && script_path[path_len - 1] == '"') {
+      // Copy without the quotes
+      for (size_t i = 1; i < path_len - 1 && i < sizeof(stripped_path); i++) {
+        stripped_path[i - 1] = script_path[i];
+      }
+      stripped_path[path_len - 2] = '\0';
+      script_path = stripped_path;
+    }
+
     // Set global script arguments for $0, $1, etc. expansion
     // $0 = script path, $1 = first arg to script, etc.
     script_argv = argv;
@@ -345,15 +357,30 @@ void parse_and_exec(const char *buf) {
       break;
     }
 
-    argv[argc++] = (char *)&buf[i];
+    // Handle quoted arguments
+    if (buf[i] == '"') {
+      i++; // Skip opening quote
+      argv[argc++] = (char *)&buf[i];
+      // Find closing quote
+      while (buf[i] != '"' && buf[i] != '\0') {
+        i++;
+      }
+      if (buf[i] == '"') {
+        ((char *)buf)[i] = '\0'; // Replace closing quote with null terminator
+        i++;
+      }
+    } else {
+      // Regular unquoted argument
+      argv[argc++] = (char *)&buf[i];
 
-    while (buf[i] != ' ' && buf[i] != '\0') {
-      i++;
-    }
+      while (buf[i] != ' ' && buf[i] != '\0') {
+        i++;
+      }
 
-    if (buf[i] == ' ') {
-      ((char *)buf)[i] = '\0';
-      i++;
+      if (buf[i] == ' ') {
+        ((char *)buf)[i] = '\0';
+        i++;
+      }
     }
   }
 
