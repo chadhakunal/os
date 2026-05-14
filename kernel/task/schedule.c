@@ -3,6 +3,7 @@
 #include "kernel/task/task.h"
 #include "kernel/panic.h"
 #include "lib/list.h"
+#include "arch/riscv64/virtual_memory_init.h"
 
 #include "lib/printk/printk.h"
 
@@ -109,8 +110,6 @@ struct task_t *pick_next_task() {
   }
 
   // Sanity check: verify kernel context looks valid
-  extern uint64_t KERNEL_STACK_VIRTUAL_BASE;
-  extern uint64_t KERNEL_STACK_SIZE;
   if (next_task->kernel_context.sp < KERNEL_STACK_VIRTUAL_BASE ||
       next_task->kernel_context.sp >= KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE) {
     panic("pick_next_task: next_task has invalid kernel SP! pid=%llu sp=0x%llx",
