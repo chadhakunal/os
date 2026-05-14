@@ -28,12 +28,13 @@ void timer_handler(uint64_t hardware_clock_ticks, int from_user_mode) {
 
   current_task->runtime += TIMER_INTERVAL_CYCLES;
 
-  // Only preempt when interrupted from user mode. Calling switch_to() from
-  // within a kernel-mode trap corrupts the trap frame saved on the kernel
-  // stack (trap_from_kernel in trap_vector.S saves the frame at sp-288; after
-  // switch_to() sp points to the new task's stack, so the epilogue restores
-  // from the wrong location).
-  if (from_user_mode) {
+  // Only preempt when interrupted from user mode OR when idle is running.
+  // Calling switch_to() from within a kernel-mode trap on a real task corrupts
+  // the trap frame saved on the kernel stack (trap_from_kernel saves the frame
+  // at sp-288; after switch_to() sp points to the new task's stack, so the
+  // epilogue restores from the wrong location). Idle is safe because it has no
+  // meaningful kernel trap frame to preserve.
+  if (from_user_mode || current_task == idle_task) {
     schedule();
     debugk("[TIMER] returned from schedule\n");
   }
