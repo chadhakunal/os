@@ -75,8 +75,9 @@
 #define PT3_OFFSET(x) (((uint64_t)(x) >> 12) & 0x1FF) // VPN[0]
 
 // User space address range: 0x0 to END_USER_SPACE_ADDR (exclusive)
-// Kernel space starts at KERNEL_VIRTUAL_MEMORY_BASE and higher
-#define END_USER_SPACE_ADDR 0x80000000ULL
+// In Sv39, user space is 0x0 - 0x3FFFFFFFFF (256GB)
+// Kernel space starts at 0xFFFFFFC000000000 (upper 256GB)
+#define END_USER_SPACE_ADDR 0x0000004000000000ULL  // 256GB
 
 #define KERNEL_VIRTUAL_MEMORY_BASE                                             \
   0xFFFFFFFF80000000ULL // 510 GB Mark ie 254 GB After kernel area start
