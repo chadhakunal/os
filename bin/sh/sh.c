@@ -434,8 +434,8 @@ void parse_and_exec(const char *buf) {
       close(fd);
     }
     char *envp[] = { NULL };
-    execve(full_path, argv, envp);
-    printf("sh: failed to execute %s\n", command_buf);
+    int ret = execve(full_path, argv, envp);
+    printf("sh: failed to execute %s (execve returned %d)\n", full_path, ret);
     exit(1);
   } else if (pid > 0) {
     setpgid(pid, pid);
