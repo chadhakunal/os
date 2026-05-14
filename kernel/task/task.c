@@ -464,8 +464,9 @@ void reap_zombie(struct task_t *zombie) {
 
   // Free the root page table itself
   debugk("reap_zombie: Freeing root page table phys=%p\n", zombie->mm_struct.root_satp);
-  free_page(zombie->mm_struct.root_satp);
-  debugk("reap_zombie: Done freeing root page table\n");
+  // TODO: This is temporarily disabled to debug the crash
+  // free_page(zombie->mm_struct.root_satp);
+  debugk("reap_zombie: SKIPPED freeing root page table to debug crash\n");
 
   // Free the task structure
   debugk("reap_zombie: Freeing task structure\n");
