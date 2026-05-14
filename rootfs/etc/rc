@@ -16,6 +16,10 @@ echo "Running shell features tests..."
 test_shell
 
 echo ""
+echo "Running signal system tests..."
+test_signals
+
+echo ""
 echo "========================================="
 echo "  Initialization Complete"
 echo "========================================="

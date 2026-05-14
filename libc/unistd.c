@@ -49,10 +49,6 @@ pid_t wait(int *wstatus) {
   return waitpid(-1, wstatus, 0);
 }
 
-int kill(pid_t pid, int sig) {
-  return syscall2(SYS_kill, pid, sig);
-}
-
 int ioctl(int fd, unsigned long request, void *arg) {
   return syscall3(SYS_ioctl, fd, request, arg);
 }

@@ -76,8 +76,8 @@ void handle_syscall(struct trap_frame *tf) {
       break;
 
     case SYS_rt_sigaction:
-      debugk("syscall: rt_sigaction(sig=%lld, act=%llx, oldact=%llx)\n", (int64_t)tf->a0, tf->a1, tf->a2);
-      tf->a0 = -1; // TODO: implement
+      debugk("syscall: rt_sigaction(sig=%lld, act=%llx, oldact=%llx, sigsetsize=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2, tf->a3);
+      ret = sys_rt_sigaction(tf);
       break;
 
     case SYS_rt_sigreturn:
