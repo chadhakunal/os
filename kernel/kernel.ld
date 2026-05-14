@@ -12,16 +12,17 @@ SECTIONS
     . = 0x80200000;          /* OpenSBI jumps here on QEMU virt */
     _kernel_start = .;
 
-    .text : {
-        *(.text)
-        *(.text.*)
-    } :text
-
-    /* Signal jump point section - keep it separate for easy copying */
+    /* Signal jump point must come before the .text wildcard so it isn't
+       consumed by *(.text.*) and the start/end symbols enclose real code. */
     .signal_jump_point : ALIGN(16) {
         __signal_jump_point_start = .;
         *(.text.signal_jump_point)
         __signal_jump_point_end = .;
+    } :text
+
+    .text : {
+        *(.text)
+        *(.text.*)
     } :text
 
     .rodata : {
