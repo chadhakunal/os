@@ -20,8 +20,10 @@ void test_result(const char *name, int passed) {
 }
 
 void signal_handler(int sig) {
+  printf("[USER] signal_handler: ENTERED with sig=%d\n", sig);
   signal_received = 1;
   signal_number = sig;
+  printf("[USER] signal_handler: about to RETURN (should jump to signal_jump_point)\n");
 }
 
 void test_signal_handler_registration() {
@@ -30,6 +32,7 @@ void test_signal_handler_registration() {
   sa.sa_handler = signal_handler;
   sa.sa_flags = 0;
 
+  printf("[USER] test_signal_handler_registration: registering handler at %p\n", signal_handler);
   int ret = sigaction(SIGUSR1, &sa, NULL);
   test_result("sigaction registers handler", ret == 0);
 }
@@ -47,11 +50,15 @@ void test_signal_delivery() {
 
   // Send signal to self
   pid_t my_pid = getpid();
+  printf("[USER] test_signal_delivery: sending SIGUSR1 to self (PID %d)\n", my_pid);
   kill(my_pid, SIGUSR1);
 
   // Give signal time to be delivered (busy wait a bit)
+  printf("[USER] test_signal_delivery: waiting for signal delivery...\n");
   for (volatile int i = 0; i < 1000; i++);
 
+  printf("[USER] test_signal_delivery: after wait, signal_received=%d, signal_number=%d\n",
+         signal_received, signal_number);
   test_result("signal is delivered to process", signal_received == 1);
   test_result("correct signal number received", signal_number == SIGUSR1);
 }

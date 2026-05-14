@@ -31,8 +31,13 @@ void init_signal_jump_point(void) {
 
   memcpy(jump_point_virt, __signal_jump_point_start, jump_point_size);
 
+  // Verify the copy
+  uint32_t *instructions = (uint32_t *)jump_point_virt;
   printk("Signal jump point initialized at physical address %p, size %d bytes\n",
          signal_jump_point_page, jump_point_size);
+  debugk("signal_jump_point: first instruction at %p = 0x%08x\n",
+         instructions, instructions[0]);
+  debugk("signal_jump_point: will be mapped to user vaddr %llx\n", SIGNAL_JUMP_POINT_ADDR);
 }
 
 void *get_signal_jump_point_page(void) { return signal_jump_point_page; }

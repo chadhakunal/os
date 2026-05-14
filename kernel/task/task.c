@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "kernel/task/task.h"
 #include "lib/list.h"
 #include "kernel/memory/page_allocator.h"
@@ -91,8 +91,12 @@ void allocate_kernel_stack(struct task_t *task) {
   // Map signal jump point page (shared across all processes)
   void *jump_point_page = get_signal_jump_point_page();
   if (jump_point_page) {
+    debugk("task: mapping signal_jump_point page for PID %llu: vaddr=%llx -> paddr=%p (flags: U|R|X)\n",
+           task->pid, SIGNAL_JUMP_POINT_ADDR, jump_point_page);
     map_page(task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
              (uint64_t)jump_point_page, PTE_VALID | PTE_U | PTE_R | PTE_X);
+  } else {
+    debugk("task: WARNING - signal_jump_point page is NULL for PID %llu!\n", task->pid);
   }
 }
 

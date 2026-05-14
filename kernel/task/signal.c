@@ -127,8 +127,17 @@ void check_and_deliver_signals(struct trap_frame *tf) {
 
   uint64_t tp_value_after;
   asm volatile("mv %0, tp" : "=r"(tp_value_after));
+
+  // Try to read what's at the signal jump point from kernel's perspective
+  void *sjp_page = get_signal_jump_point_page();
+  void *sjp_virt = PHYS_TO_VIRT(sjp_page);
+  uint32_t *sjp_instructions = (uint32_t *)sjp_virt;
+
   debugk("signal: setup complete, handler=%llx, sp=%llx, ra=%llx\n",
          tf->sepc, tf->sp, tf->ra);
   debugk("signal: tf=%p, current_task=%p, tp=%p, &current_task->tf=%p\n",
          tf, current_task, (void*)tp_value_after, &current_task->tf);
+  debugk("signal: signal_jump_point phys=%p, virt=%p, first_insn=0x%08x\n",
+         sjp_page, sjp_virt, sjp_instructions[0]);
+  debugk("signal: About to return from kernel, will jump to user handler at PC=%llx\n", tf->sepc);
 }
