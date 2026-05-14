@@ -436,45 +436,66 @@ struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid) {
 
 // Reap zombie task - free all resources
 void reap_zombie(struct task_t *zombie) {
-  debugk("Reaping zombie task PID %llu\n", zombie->pid);
+  debugk("reap_zombie: STARTING for PID %llu\n", zombie->pid);
 
   // Remove from global task list
+  debugk("reap_zombie: Removing from task list\n");
   list_remove(&zombie->task_list);
 
   // Free kernel stack pages (2 pages at KERNEL_STACK_VIRTUAL_BASE)
+  debugk("reap_zombie: Freeing kernel stack pages\n");
   for (uint64_t va = KERNEL_STACK_VIRTUAL_BASE; va < KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE; va += DEFAULT_PAGE_SIZE) {
     uint64_t pte = get_pte(zombie->mm_struct.root_satp, va);
     if (pte & PTE_VALID) {
       void *phys_page = (void *)PTE_DECODE(pte);
       debugk("  Freeing kernel stack page at va=%llx, phys=%p\n", va, phys_page);
       free_page(phys_page);
+      debugk("  Unmapping kernel stack page at va=%llx\n", va);
       unmap_page(zombie->mm_struct.root_satp, va);
     }
   }
 
   // Free the root page table itself
-  debugk("  Freeing root page table phys=%p\n", zombie->mm_struct.root_satp);
+  debugk("reap_zombie: Freeing root page table phys=%p\n", zombie->mm_struct.root_satp);
   free_page(zombie->mm_struct.root_satp);
 
   // Free the task structure
+  debugk("reap_zombie: Freeing task structure\n");
   task_t_free(zombie);
+  debugk("reap_zombie: COMPLETED for PID %llu\n", zombie->pid);
 }
 
 void task_cleanup(int exit_status) {
   debugk("task_cleanup: PID %llu terminating with status %d\n", current_task->pid, exit_status);
 
   current_task->exit_status = exit_status;
+  debugk("task_cleanup: closing all files for PID %llu\n", current_task->pid);
   close_all_files(current_task);
+  debugk("task_cleanup: clearing VMAs for PID %llu\n", current_task->pid);
   clear_vmas(current_task);
+  debugk("task_cleanup: marking PID %llu as ZOMBIE\n", current_task->pid);
   current_task->state = TASK_ZOMBIE;
 
+  debugk("task_cleanup: looking for parent (PPID %llu)\n", current_task->ppid);
   struct task_t *parent = find_task_by_pid(current_task->ppid);
-  if (parent && parent->state == TASK_BLOCKED && parent->wait_reason == WAIT_CHILD) {
-    if (parent->wait_pid == -1 || parent->wait_pid == (int64_t)current_task->pid) {
-      debugk("task_cleanup: Waking parent PID %llu\n", parent->pid);
-      unblock_task(parent);
+  if (parent) {
+    debugk("task_cleanup: found parent PID %llu (state=%d, wait_reason=%d, wait_pid=%lld)\n",
+           parent->pid, parent->state, parent->wait_reason, parent->wait_pid);
+    if (parent->state == TASK_BLOCKED && parent->wait_reason == WAIT_CHILD) {
+      if (parent->wait_pid == -1 || parent->wait_pid == (int64_t)current_task->pid) {
+        debugk("task_cleanup: waking parent PID %llu\n", parent->pid);
+        unblock_task(parent);
+        debugk("task_cleanup: parent PID %llu woken\n", parent->pid);
+      } else {
+        debugk("task_cleanup: parent waiting for different PID (%lld), not waking\n", parent->wait_pid);
+      }
+    } else {
+      debugk("task_cleanup: parent not waiting (state=%d, wait_reason=%d)\n", parent->state, parent->wait_reason);
     }
+  } else {
+    debugk("task_cleanup: parent PID %llu not found\n", current_task->ppid);
   }
+  debugk("task_cleanup: done for PID %llu\n", current_task->pid);
 }
 
 void fork_sig_copy(struct signal_state_t *signal_state) {

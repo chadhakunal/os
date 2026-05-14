@@ -1,3 +1,4 @@
+#define DEBUG 1
 #include "kernel/task/schedule.h"
 #include "kernel/task/task.h"
 #include "lib/list.h"
@@ -42,16 +43,21 @@ void swap_expired_active() {
 }
 
 void unblock_task(struct task_t *task) {
+  debugk("unblock_task: called for PID %llu (state=%d)\n", task->pid, task->state);
+
   if (task->state != TASK_BLOCKED) {
+    debugk("unblock_task: PID %llu not blocked, ignoring\n", task->pid);
     return;
   }
 
-  debugk("Unblocking task PID %llu\n", task->pid);
+  debugk("unblock_task: unblocking PID %llu\n", task->pid);
 
   task->state = TASK_READY;
   task->wait_reason = WAIT_NONE;
   task->wait_pid = 0;
   task->runtime = 0;
+
+  debugk("unblock_task: PID %llu now in TASK_READY state\n", task->pid);
 
   list_remove(&task->scheduler_list);
   list_append(scheduler.expired_list, &task->scheduler_list);
