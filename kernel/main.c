@@ -16,10 +16,10 @@
 #include "kernel/drivers/uart.h"
 #include "kernel/drivers/tty.h"
 #include "kernel/drivers/rtc/rtc.h"
+#include "kernel/drivers/plic.h"
 #include "kernel/time/timer.h"
 #include "kernel/task/schedule.h"
 #include "kernel/drivers/virtio-blk.h"
-#include "kernel/filesystem/sbfs/sbfs.h"
 #include "kernel/tests/vfs_test.h"
 
 #include "lib/printk/printk.h"
@@ -60,20 +60,16 @@ void kmain(void *dtb_ptr) {
   tty_init();
   printk("Initialized TTY driver\n");
 
-  vfs_init();
-  printk("Initialized vfs and mounted tarfs\n");
+  plic_init();
+  printk("Initialized PLIC\n");
 
   virtio_blk_init();
   printk("Initialized virtio-blk\n");
 
-  struct superblock_t *sbfs_sb = sbfs_mount();
-  if (sbfs_sb != NULL) {
-    vfs_mount("/mnt", sbfs_sb);
-    printk("Mounted sbfs at /mnt\n");
-    vfs_test_run();
-  } else {
-    printk("sbfs mount failed\n");
-  }
+  vfs_init();
+  printk("Initialized vfs and mounted tarfs\n");
+
+  vfs_test_run();
 
   // printk("Starting read of /etc/rc\n");
   // // Test vfs_read with a loop

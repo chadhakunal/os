@@ -100,3 +100,7 @@ int rmdir(const char *path) {
 int dup2(int oldfd, int newfd) {
   return syscall2(SYS_dup2, oldfd, newfd);
 }
+
+int fsync(int fd) {
+  return syscall1(SYS_fsync, fd);
+}

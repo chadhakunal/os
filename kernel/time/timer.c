@@ -2,6 +2,7 @@
 #include "lib/printk/printk.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
+#include "kernel/drivers/virtio-blk.h"
 
 struct virtual_time_t virtual_time;
 
@@ -14,7 +15,9 @@ void timer_handler(uint64_t hardware_clock_ticks) {
   virtual_time.os_ticks += 1;
   virtual_time.system_uptime += TIMER_INTERVAL_CYCLES;
 
-  // Now handle scheduling with the updated os_ticks
+  /* Check if a pending virtio I/O completed and unblock the waiting task. */
+  virtio_blk_poll();
+
   current_task->runtime += TIMER_INTERVAL_CYCLES;
   schedule();
 }

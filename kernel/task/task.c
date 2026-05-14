@@ -11,6 +11,7 @@
 #include "kernel/task/elf_loader.h"
 #include "kernel/task/schedule.h"
 #include "kernel/signal_jump_point.h"
+#include "kernel/drivers/virtio-blk.h"
 
 // Global task tracking
 struct task_t *current_task = NULL;  // Currently running task
@@ -440,6 +441,7 @@ void task_cleanup(int exit_status) {
 
   current_task->exit_status = exit_status;
   close_all_files(current_task);
+  virtio_blk_cancel_task(current_task);
   clear_vmas(current_task);
   current_task->state = TASK_ZOMBIE;
 

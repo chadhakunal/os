@@ -35,6 +35,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
     bool in_uart   = false;
     bool in_rtc    = false;
     bool in_pci    = false;
+    bool in_plic   = false;
 
     debugk("DTB WALK START\n");
 
@@ -64,6 +65,10 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
             if (strneq_prefix(name, "pci", 3))
                 in_pci = true;
 
+            if (strneq_prefix(name, "plic", 4) ||
+                strneq_prefix(name, "interrupt-controller", 20))
+                in_plic = true;
+
             while (struct_base[i] != '\0')
                 i++;
 
@@ -78,6 +83,7 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
             in_uart   = false;
             in_rtc    = false;
             in_pci    = false;
+            in_plic   = false;
 
             debugk("END NODE\n");
         }
@@ -125,6 +131,11 @@ void dtb_walk(void *dtb, uint32_t off_struct, uint32_t off_strings, uint32_t siz
 
                         debugk("    PCI base: 0x%llx\n", base);
                         debugk("    PCI size: 0x%llx\n", size);
+                    }
+
+                    if (in_plic) {
+                        platform.plic_base = base;
+                        debugk("    PLIC base: 0x%llx\n", base);
                     }
                 }
 
@@ -381,10 +392,16 @@ uint32_t enumerate_pci_device() {
                         cap = next & ~0x3;
                     }
 
-                    cmd |= (1 << 1); // memory space enable
-                    cmd |= (1 << 2); // bus master enable
+                        /* Read IRQ from PCI interrupt line register (offset 0x3C).
+                         * QEMU writes the PLIC source ID here for INTx devices. */
+                        uint8_t irq_line = *(volatile uint8_t *)(pci_config + 0x3C);
+                        platform.virtio_disk.irq = irq_line;
+                        debugk("    virtio-blk interrupt line (PLIC IRQ): %u\n", irq_line);
 
-                    *(volatile uint16_t *)(pci_config + 0x04) = cmd;
+                        cmd |= (1 << 1); // memory space enable
+                        cmd |= (1 << 2); // bus master enable
+
+                        *(volatile uint16_t *)(pci_config + 0x04) = cmd;
                 }
             }
         }

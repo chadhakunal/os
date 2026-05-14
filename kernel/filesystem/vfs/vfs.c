@@ -93,8 +93,9 @@ struct file_t *vfs_init_file(struct vnode_t *vnode, int flags) {
   file->vnode = vnode;
   file->file_ops = vnode->file_ops;
   file->offset = 0;
-  file->refcount = 1;  // Start with refcount = 1
+  file->refcount = 1;
   file->flags = flags;
+  vnode->refcount++;
   return file;
 }
 

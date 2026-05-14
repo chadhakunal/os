@@ -6,6 +6,7 @@
 #include "arch/riscv64/sbi.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
+#include "kernel/drivers/plic.h"
 
 #define TIMER_INTERVAL_CYCLES 100000
 
@@ -34,12 +35,11 @@ void trap_handler(struct trap_frame *tf) {
       // printk("stval:   %llx\n", tf->stval);
       // printk("sstatus: %llx\n", tf->sstatus);
     } else if (cause_code != 8) {
-      // Print for non-syscall exceptions
-      // printk("\n=== TRAP ===\n");
-      // printk("scause:  %llx\n", tf->scause);
-      // printk("sepc:    %llx\n", tf->sepc);
-      // printk("stval:   %llx\n", tf->stval);
-      // printk("sstatus: %llx\n", tf->sstatus);
+      printk("\n=== TRAP ===\n");
+      printk("scause:  %llx\n", tf->scause);
+      printk("sepc:    %llx\n", tf->sepc);
+      printk("stval:   %llx\n", tf->stval);
+      printk("sstatus: %llx\n", tf->sstatus);
     }
   }
 
@@ -61,10 +61,19 @@ void trap_handler(struct trap_frame *tf) {
         // User mode timer interrupt - restore user context and return
         trap_return(&current_task->tf);
         break;
-      case 9:
-        // Supervisor external interrupt (UART)
+      case 9: {
+        // Supervisor external interrupt — claim source from PLIC
         extern void handle_uart_interrupt(void);
-        handle_uart_interrupt();
+        uint32_t irq = plic_claim();
+
+        if (irq == PLIC_IRQ_UART) {
+          handle_uart_interrupt();
+        } else if (irq != 0) {
+          debugk("trap: unexpected external IRQ %u\n", irq);
+        }
+
+        if (irq != 0)
+          plic_complete(irq);
 
         if (tf->sstatus & (1UL << 8)) {
           return;
@@ -72,6 +81,7 @@ void trap_handler(struct trap_frame *tf) {
 
         trap_return(&current_task->tf);
         break;
+      }
       default:
         printk("Interrupt: Unknown interrupt: %llu\n", cause_code);
         break;

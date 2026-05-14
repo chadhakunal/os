@@ -15,6 +15,7 @@ struct scheduler_t {
 };
 
 extern struct scheduler_t scheduler;
+extern int scheduler_ready;
 
 void schedule();
 
