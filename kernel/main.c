@@ -69,9 +69,9 @@ void kmain(void *dtb_ptr) {
    struct superblock_t *sbfs_sb = sbfs_mount();
   if (sbfs_sb != NULL) {
     printk("mounted sbfs\n");
-    // vfs_mount("/mnt", sbfs_sb);
-    // printk("Mounted sbfs at /mnt\n");
-    // vfs_test_run();
+    vfs_mount("/mnt", sbfs_sb);
+    printk("Mounted sbfs at /mnt\n");
+    vfs_test_run();
   } else {
     printk("sbfs mount failed\n");
   }
