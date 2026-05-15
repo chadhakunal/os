@@ -14,7 +14,6 @@ void fill_stack() {
 
 int main(int argc, char **argv) {
   printf("Stack test starting...\n");
-
   fill_stack();
   printf("Stack test complete\n");
   return 0;
