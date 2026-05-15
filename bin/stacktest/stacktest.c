@@ -5,7 +5,9 @@ int main(void) {
 
   for (int i = 0; i < 12288; i++)
     buf[i] = (char)i;
-
+  for (int i = 0; i < 12288; i++) {
+    if (i % 256 == 0) printf("buf[%d] = %d\n", i,buf[i]);
+  }
   printf("Stack test passed: buf[0]=%d\n", buf[0]);
   return 0;
 }
