@@ -21,9 +21,8 @@ DEFINE_SYSCALL2(kill, int, pid, int, sig)
     return -1;
   }
 
-  // Add signal to target's pending set
-  add_signal_to_set(&target->signal_state.pending, sig);
-  debugk("kill: added signal %d to PID %d pending set\n", sig, pid);
+  send_signal(target, sig);
+  debugk("kill: sent signal %d to PID %d\n", sig, pid);
 
   return 0;
 }
