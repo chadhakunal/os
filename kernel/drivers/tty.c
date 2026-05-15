@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/drivers/tty.h"
 #include "lib/printk/printk.h"
 #include "kernel/task/schedule.h"
@@ -8,6 +8,7 @@
 #include "lib/string.h"
 #include "errno.h"
 #include "arch/riscv64/virtual_memory_init.h"
+#include "kernel/drivers/uart.h"
 
 int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   if (!tty_driver.buffer_ready) {
@@ -36,11 +37,9 @@ int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 }
 
 int64_t tty_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
-  extern void uart_putc(char c);
   char *buf = (char *)buffer;
 
   for (uint64_t i = 0; i < size; i++) {
-    debugk("Printing at index: %llu, addr: %p\n", i, &buf[i]);
     uart_putc(buf[i]);
   }
 
