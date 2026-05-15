@@ -67,6 +67,30 @@ static int64_t proc_uptime_read(struct file_t *file, uint64_t offset,
 static struct file_ops_t proc_uptime_fops;
 
 /* -------------------------------------------------------------------------
+ * /proc/meminfo
+ * ---------------------------------------------------------------------- */
+static int64_t proc_meminfo_read(struct file_t *file, uint64_t offset,
+                                 void *buf, uint64_t size) {
+  (void)file;
+  uint64_t total_kb = (pages_metadata.total_pages * DEFAULT_PAGE_SIZE) / 1024;
+  uint64_t used_kb  = (pages_metadata.pages_in_use * DEFAULT_PAGE_SIZE) / 1024;
+  uint64_t free_kb  = total_kb - used_kb;
+
+  char tmp[256];
+  size_t pos = 0;
+  pos = buf_puts(tmp, sizeof(tmp), pos, "MemTotal:      ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, total_kb);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " kB\nMemFree:       ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, free_kb);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " kB\nMemUsed:       ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, used_kb);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " kB\n");
+  return copy_slice(buf, size, tmp, pos, offset);
+}
+
+static struct file_ops_t proc_meminfo_fops;
+
+/* -------------------------------------------------------------------------
  * /proc/<pid>/status
  * ---------------------------------------------------------------------- */
 static const char *task_state_str(enum task_state state) {
@@ -268,6 +292,7 @@ static void proc_add_file(struct superblock_t *sb, struct vnode_t *parent,
 struct superblock_t *procfs_mount(void) {
   /* Assign all function pointers at runtime to get virtual addresses. */
   proc_uptime_fops.read       = proc_uptime_read;
+  proc_meminfo_fops.read      = proc_meminfo_read;
   proc_pid_status_fops.read   = proc_pid_status_read;
   proc_pid_dir_ops.readdir    = procfs_pid_readdir;
   proc_pid_dir_ops.lookup     = procfs_pid_lookup;
@@ -283,7 +308,8 @@ struct superblock_t *procfs_mount(void) {
   root->permission_mode = S_IFDIR | READ_EXECUTE_PERM;
   sb->root_vnode = root;
 
-  proc_add_file(sb, root, &id, "uptime", &proc_uptime_fops);
+  proc_add_file(sb, root, &id, "uptime",  &proc_uptime_fops);
+  proc_add_file(sb, root, &id, "meminfo", &proc_meminfo_fops);
 
   struct dentry_t *root_dentry = dentry_t_alloc();
   strncpy(root_dentry->name, "proc", sizeof(root_dentry->name) - 1);
