@@ -5,12 +5,14 @@
 #include "kernel/memory/page_tables.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "arch/riscv64/virtual_memory_init.h"
+#include "arch/riscv64/trap.h"
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
 #include "kernel/task/elf_loader.h"
 #include "kernel/task/schedule.h"
 #include "kernel/signal_jump_point.h"
+#include "kernel/drivers/virtio-blk.h"
 
 // Global task tracking
 struct task_t *current_task = NULL;  // Currently running task
@@ -41,6 +43,15 @@ void switch_to_page_table(struct task_t *task) {
   asm volatile("sfence.vma zero, zero");
 }
 
+void init_signal_state(struct task_t *task) {
+  for (size_t i = 0; i < NUM_SIGS; i++) {
+    task->signal_state.actions[i] = (struct sigaction_t *)SIG_DEFAULT_HANDLER;
+  }
+  task->signal_state.pending = 0;
+  task->signal_state.blocked = 0;
+  task->signal_handler_depth = 0;
+}
+
 void init_files(struct files_table_t *files_table) {
   files_table->files_list.next = &files_table->files_list;
   files_table->files_list.prev = &files_table->files_list;
@@ -64,11 +75,17 @@ void allocate_kernel_stack(struct task_t *task) {
   // All processes have their kernel stack at the same VA, but different physical pages
   void *phys_page1 = get_page(true);
   void *phys_page2 = get_page(true);
+  void *phys_page3 = get_page(true);
+  void *phys_page4 = get_page(true);
 
   map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE,
            (uint64_t)phys_page1, PTE_VALID | PTE_R | PTE_W);
   map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE + 4096,
            (uint64_t)phys_page2, PTE_VALID | PTE_R | PTE_W);
+  map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE + 8192,
+           (uint64_t)phys_page3, PTE_VALID | PTE_R | PTE_W);
+  map_page(task->mm_struct.root_satp, KERNEL_STACK_VIRTUAL_BASE + 12288,
+           (uint64_t)phys_page4, PTE_VALID | PTE_R | PTE_W);
 
   task->kernel_context.stack_start = KERNEL_STACK_VIRTUAL_BASE;
   task->kernel_context.sp = KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE;
@@ -77,7 +94,7 @@ void allocate_kernel_stack(struct task_t *task) {
   void *jump_point_page = get_signal_jump_point_page();
   if (jump_point_page) {
     map_page(task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
-             (uint64_t)jump_point_page, PTE_U | PTE_R | PTE_X);
+             (uint64_t)jump_point_page, PTE_VALID | PTE_U | PTE_R | PTE_X);
   }
 }
 
@@ -111,6 +128,9 @@ struct task_t *task_init() {
   task->wait_pid = 0;
   task->runtime = 0;
   task->max_runtime = MAX_RUNTIME;
+
+  // Initialize signal state
+  init_signal_state(task);
 
   return task;
 }
@@ -152,6 +172,9 @@ void create_idle_task(void) {
   idle_task->wait_pid = 0;
   idle_task->runtime = 0;
   idle_task->max_runtime = 0;
+
+  // Initialize signal state
+  init_signal_state(idle_task);
 
   idle_task->scheduler_list.next = &idle_task->scheduler_list;
   idle_task->scheduler_list.prev = &idle_task->scheduler_list;
@@ -411,24 +434,26 @@ struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid) {
 
 // Reap zombie task - free all resources
 void reap_zombie(struct task_t *zombie) {
-  debugk("Reaping zombie task PID %llu\n", zombie->pid);
+  // Sanity check: make sure we're not trying to reap the current task
+  if (zombie == current_task) {
+    panic("reap_zombie: Attempted to reap current_task!");
+  }
 
   // Remove from global task list
+  debugk("reap_zombie: Removing from task list\n");
   list_remove(&zombie->task_list);
 
-  // Free kernel stack pages (2 pages at KERNEL_STACK_VIRTUAL_BASE)
+  // Free kernel stack pages (4 pages at KERNEL_STACK_VIRTUAL_BASE)
   for (uint64_t va = KERNEL_STACK_VIRTUAL_BASE; va < KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE; va += DEFAULT_PAGE_SIZE) {
     uint64_t pte = get_pte(zombie->mm_struct.root_satp, va);
     if (pte & PTE_VALID) {
       void *phys_page = (void *)PTE_DECODE(pte);
-      debugk("  Freeing kernel stack page at va=%llx, phys=%p\n", va, phys_page);
       free_page(phys_page);
       unmap_page(zombie->mm_struct.root_satp, va);
     }
   }
 
   // Free the root page table itself
-  debugk("  Freeing root page table phys=%p\n", zombie->mm_struct.root_satp);
   free_page(zombie->mm_struct.root_satp);
 
   // Free the task structure
@@ -436,20 +461,35 @@ void reap_zombie(struct task_t *zombie) {
 }
 
 void task_cleanup(int exit_status) {
-  debugk("task_cleanup: PID %llu terminating with status %d\n", current_task->pid, exit_status);
-
   current_task->exit_status = exit_status;
+  debugk("task_cleanup: closing all files for PID %llu\n", current_task->pid);
   close_all_files(current_task);
+  debugk("task_cleanup: clearing VMAs for PID %llu\n", current_task->pid);
+  virtio_blk_cancel_task(current_task);
   clear_vmas(current_task);
+  debugk("task_cleanup: marking PID %llu as ZOMBIE\n", current_task->pid);
   current_task->state = TASK_ZOMBIE;
 
+  debugk("task_cleanup: looking for parent (PPID %llu)\n", current_task->ppid);
   struct task_t *parent = find_task_by_pid(current_task->ppid);
-  if (parent && parent->state == TASK_BLOCKED && parent->wait_reason == WAIT_CHILD) {
-    if (parent->wait_pid == -1 || parent->wait_pid == (int64_t)current_task->pid) {
-      debugk("task_cleanup: Waking parent PID %llu\n", parent->pid);
-      unblock_task(parent);
+  if (parent) {
+    debugk("task_cleanup: found parent PID %llu (state=%d, wait_reason=%d, wait_pid=%lld)\n",
+           parent->pid, parent->state, parent->wait_reason, parent->wait_pid);
+    if (parent->state == TASK_BLOCKED && parent->wait_reason == WAIT_CHILD) {
+      if (parent->wait_pid == -1 || parent->wait_pid == (int64_t)current_task->pid) {
+        debugk("task_cleanup: waking parent PID %llu\n", parent->pid);
+        unblock_task(parent);
+        debugk("task_cleanup: parent PID %llu woken\n", parent->pid);
+      } else {
+        debugk("task_cleanup: parent waiting for different PID (%lld), not waking\n", parent->wait_pid);
+      }
+    } else {
+      debugk("task_cleanup: parent not waiting (state=%d, wait_reason=%d)\n", parent->state, parent->wait_reason);
     }
+  } else {
+    debugk("task_cleanup: parent PID %llu not found\n", current_task->ppid);
   }
+  debugk("task_cleanup: done for PID %llu\n", current_task->pid);
 }
 
 void fork_sig_copy(struct signal_state_t *signal_state) {
@@ -509,6 +549,7 @@ uint64_t fork_off() {
   new_task->wait_pid = 0;
   new_task->runtime = 0;
   new_task->max_runtime = MAX_RUNTIME;
+  new_task->signal_handler_depth = 0;
 
   list_append(&task_list, &new_task->task_list);
   list_append(scheduler.active_list, &new_task->scheduler_list);
@@ -571,6 +612,7 @@ void clear_vmas(struct task_t *task) {
 
   debugk("clear_vmas: task->mm_struct.root_satp=%p\n", task->mm_struct.root_satp);
   debugk("clear_vmas: vma_list sentinel=%p\n", &task->mm_struct.vma_list);
+
   struct list_node *pos = task->mm_struct.vma_list.next;
   while (pos != &task->mm_struct.vma_list) {
     struct vma_t *vma = container_of(pos, struct vma_t, sibling_vma);

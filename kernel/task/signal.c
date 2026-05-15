@@ -2,6 +2,7 @@
 #include "kernel/task/signal.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
+#include "kernel/task/elf_loader.h"
 #include "kernel/signal_jump_point.h"
 #include "arch/riscv64/trap.h"
 #include "arch/riscv64/virtual_memory_init.h"
@@ -35,6 +36,10 @@ static bool handle_default_signal_action(int sig) {
     case SIGKILL:
     case SIGHUP:
     case SIGINT:
+    case SIGTERM:
+    case SIGUSR1:
+    case SIGUSR2:
+    case SIGSEGV:
       debugk("signal: terminating process %llu due to signal %d\n", current_task->pid, sig);
       task_cleanup(SIGNAL_EXIT_STATUS(sig));
       debugk("signal: task_cleanup done, state=%d, calling schedule\n", current_task->state);
@@ -48,17 +53,25 @@ static bool handle_default_signal_action(int sig) {
   }
 }
 
+void send_signal(struct task_t *task, int sig) {
+  if (task->state != TASK_ZOMBIE) {
+    debugk("signal: sending signal %d to PID %llu\n", sig, task->pid);
+    add_signal_to_set(&task->signal_state.pending, sig);
+  }
+}
+
 void send_signal_to_pgid(uint64_t pgid, int sig) {
   list_for_each(&task_list, node) {
     struct task_t *task = container_of(node, struct task_t, task_list);
-    if (task->pgid == pgid && task->state != TASK_ZOMBIE) {
-      debugk("signal: sending signal %d to PID %llu (PGID %llu)\n", sig, task->pid, pgid);
-      add_signal_to_set(&task->signal_state.pending, sig);
+    if (task->pgid == pgid) {
+      send_signal(task, sig);
     }
   }
 }
 
 void check_and_deliver_signals(struct trap_frame *tf) {
+  // Check if we're returning to user mode (SPP=0 means returning to user mode)
+  // Note: tf->sstatus contains the SAVED status that will be restored on sret
   if (!current_task || (tf->sstatus & SSTATUS_SPP)) {
     return;
   }
@@ -70,7 +83,7 @@ void check_and_deliver_signals(struct trap_frame *tf) {
 
   debugk("signal: delivering signal %d to PID %llu\n", sig, current_task->pid);
 
-  struct sigaction_t *action = current_task->signal_state.actions[sig - 1];
+  struct sigaction_t *action = current_task->signal_state.actions[sig];
 
   if (action == (struct sigaction_t *)SIG_IGNORE) {
     debugk("signal: SIG_IGNORE for signal %d\n", sig);
@@ -89,11 +102,11 @@ void check_and_deliver_signals(struct trap_frame *tf) {
 
   uint64_t new_sp = (tf->sp - sizeof(struct signal_frame)) & ~15ULL;
 
-  debugk("signal: current sp=%llx, new_sp=%llx, stack_start=0x7FFFC000, stack_top=0x80000000\n",
-         tf->sp, new_sp);
+  debugk("signal: current sp=%llx, new_sp=%llx, stack_start=0x%llx, stack_top=0x%llx\n",
+         tf->sp, new_sp, DEFAULT_STACK_START, DEFAULT_STACK_TOP);
 
-  if (new_sp < 0x7FFFC000ULL) {
-    debugk("signal: ERROR - new_sp %llx is below stack start 0x7FFFC000!\n", new_sp);
+  if (new_sp < DEFAULT_STACK_START) {
+    debugk("signal: ERROR - new_sp %llx is below stack start 0x%llx!\n", new_sp, DEFAULT_STACK_START);
   }
 
   copy_to_user((void *)new_sp, tf, sizeof(struct trap_frame));

@@ -27,18 +27,20 @@ int validate_elf(const char *path) {
   return 0;
 }
 
-void load_elf(struct task_t *task, const char *path) {
+int load_elf(struct task_t *task, const char *path) {
   struct dentry_t *dentry;
   int32_t ret = vfs_resolve_path(path, &dentry);
   if (ret != 0) {
-    panic("load_elf: vfs_resolve_path returned with error\n");
+    debugk("load_elf: vfs_resolve_path returned with error\n");
+    return -1;
   }
 
   // Read ELF header
   struct Elf64_Ehdr header;
   ret = vfs_vnode_read(dentry->vnode, &header, sizeof(header), 0);
   if (ret < 0) {
-    panic("load_elf: Could not load elf\n");
+    debugk("load_elf: Could not load elf\n");
+    return -1;
   }
   task->mm_struct.entry_addr = (void *)header.e_entry;
 
@@ -109,8 +111,8 @@ void load_elf(struct task_t *task, const char *path) {
   }
 
   // Set up stack read/write
-  // 4 pages = 16KB stack grows down from DEFAULT_STACK_TOP
-  anon_memory_map(&task->mm_struct, DEFAULT_STACK_START, DEFAULT_STACK_SIZE, VM_READ | VM_WRITE, true);
+  // User stack grows down from DEFAULT_STACK_TOP
+  anon_memory_map(&task->mm_struct, DEFAULT_STACK_START, DEFAULT_STACK_SIZE, VM_READ | VM_WRITE, false);
 
   // Initialize trap frame - zero everything first
   memset(&task->tf, 0, sizeof(task->tf));
@@ -119,4 +121,6 @@ void load_elf(struct task_t *task, const char *path) {
   task->tf.sepc = header.e_entry;
   task->tf.sp = DEFAULT_STACK_TOP;  // 16-byte aligned (RISC-V ABI requirement)
   task->tf.sstatus = SSTATUS_SPIE | SSTATUS_UXL_64;
+
+  return 0;
 }

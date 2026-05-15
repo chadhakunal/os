@@ -1,5 +1,6 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/task/task.h"
+#include "kernel/memory/page_allocator.h"
 #include "lib/list.h"
 #include "errno.h"
 
@@ -129,6 +130,57 @@ int64_t vfs_dup2(struct files_table_t *file_table, int oldfd, int newfd) {
   return newfd;
 }
 
+static void vnode_drop_ref(struct vnode_t *vnode) {
+  if (vnode->refcount == 0)
+    return;
+  vnode->refcount--;
+  if (vnode->refcount > 0)
+    return;
+
+  /* Last reference gone — free all cached pages for this vnode. */
+  if (vnode->address_space == NULL)
+    return;
+
+  struct address_space_ops_t *as_ops = vnode->address_space->address_space_ops;
+
+  struct list_node *pos = vnode->address_space->page_cache_list.next;
+  while (pos != &vnode->address_space->page_cache_list) {
+    struct page_cache_entry_t *entry =
+      container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
+    pos = pos->next;
+
+    if (entry->dirty && as_ops != NULL && as_ops->write_page != NULL)
+      as_ops->write_page(vnode, entry->offset, entry->physical_page);
+
+    free_page(entry->physical_page);
+    list_remove(&entry->sibling_page_cache_entry);
+    page_cache_entry_t_free(entry);
+  }
+}
+
+int64_t vfs_fsync(struct files_table_t *file_table, int fd) {
+  struct file_t *file = find_file_by_fd(file_table, fd, NULL, NULL);
+  if (file == NULL)
+    return -EBADF;
+
+  struct vnode_t *vnode = file->vnode;
+  if (vnode->address_space == NULL)
+    return 0;
+
+  struct address_space_ops_t *as_ops = vnode->address_space->address_space_ops;
+
+  list_for_each(&vnode->address_space->page_cache_list, pos) {
+    struct page_cache_entry_t *entry =
+      container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
+    if (entry->dirty && as_ops != NULL && as_ops->write_page != NULL) {
+      as_ops->write_page(vnode, entry->offset, entry->physical_page);
+      entry->dirty = false;
+    }
+  }
+
+  return 0;
+}
+
 int64_t vfs_file_close(struct files_table_t *file_table, int fd) {
   struct files_list_t *files_list;
   int local_fd;
@@ -141,6 +193,7 @@ int64_t vfs_file_close(struct files_table_t *file_table, int fd) {
   file->refcount--;
 
   if (file->refcount == 0) {
+    vnode_drop_ref(file->vnode);
     file_t_free(file);
   }
 

@@ -70,6 +70,14 @@ trap_from_user:
   # Set sscratch to 0 so nested traps know we're in kernel
   csrw sscratch, zero
 
+  # NOTE: Interrupts remain DISABLED during trap_handler.
+  # Re-enabling them here causes timer IRQs to push 288-byte frames on the
+  # kernel stack for every tick, exhausting the 16KB kernel stack during any
+  # long-running syscall (waitpid, read, etc.).  Preemption is handled
+  # explicitly: blocking syscalls call schedule() themselves, and timer-based
+  # preemption only fires when returning to user mode (from_user_mode check in
+  # timer_handler).
+
   # Call C trap handler (NEVER RETURNS - it calls trap_return or panics)
   # Pass pointer to trap frame in task struct
   addi a0, tp, 120  # a0 = &current_task->tf
@@ -199,12 +207,17 @@ trap_from_kernel:
 .global trap_return
 trap_return:
   # a0 = trap_frame pointer
+  # We need to save a0 across the function call, but can't use stack (might overflow)
+  # Save in a callee-saved register that will be restored from trap frame later
+  # Use t6 as temporary - it will be restored from the trap frame anyway
+  mv t6, a0
+
   # Before returning to user space, check for pending signals
   # The trap_frame pointer is already in a0, which is the first argument
   call check_and_deliver_signals
 
-  # a0 still contains trap_frame pointer after the call
-  mv sp, a0
+  # Restore trap_frame pointer from t6
+  mv sp, t6
 
   # Restore sscratch to kernel stack TOP, before restoring general regs
   # This is critical! When the next trap occurs, trap_vector will do:
@@ -215,7 +228,7 @@ trap_return:
   # kernel_context.stack_start is at offset 112
   # We use t0 and t1 as scratch, but restore them later from the trap frame
   ld t0, 112(tp)       # t0 = kernel_context.stack_start
-  li t1, 8192          # t1 = KERNEL_STACK_SIZE (8KB = 8192 bytes)
+  li t1, 16384         # t1 = KERNEL_STACK_SIZE (16KB = 16384 bytes)
   add t0, t0, t1       # t0 = stack_start + KERNEL_STACK_SIZE
   csrw sscratch, t0    # sscratch = kernel stack TOP
 

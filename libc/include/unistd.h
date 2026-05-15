@@ -18,6 +18,7 @@
 #define SYS_execve          221
 #define SYS_waitpid         260
 #define SYS_getpid          172
+#define SYS_getppid         173
 #define SYS_kill            129
 #define SYS_fork            220
 #define SYS_sched_yield     124
@@ -27,6 +28,7 @@
 #define SYS_mkdirat         34
 #define SYS_unlinkat        35
 #define SYS_dup2            24
+#define SYS_fsync           82
 
 // RISC-V syscall ABI macros
 // Syscall number in a7, args in a0-a5, return value in a0
@@ -100,6 +102,10 @@
 #define SEEK_CUR 1
 #define SEEK_END 2
 
+/* TTY mode ioctls */
+#define TCSRAW   0x5411
+#define TCSCANON 0x5412
+
 extern char *optarg;
 extern int optind;
 extern int opterr;
@@ -123,9 +129,11 @@ int ioctl(int fd, unsigned long request, void *arg);
 pid_t tcgetpgrp(int fd);
 int tcsetpgrp(int fd, pid_t pgid);
 pid_t getpid(void);
+pid_t getppid(void);
 int setpgid(pid_t pid, pid_t pgid);
 int execve(const char *pathname, char *const argv[], char *const envp[]);
 int mkdir(const char *path, unsigned int mode);
 int unlink(const char *path);
 int rmdir(const char *path);
 int dup2(int oldfd, int newfd);
+int fsync(int fd);

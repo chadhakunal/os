@@ -71,10 +71,7 @@ static void format_print(const char **fmt_ptr, va_list *args) {
   (*fmt_ptr)++; // Move past the type character
 }
 
-void printk(const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  
+void vprintk(const char *fmt, va_list args) {
   while (*fmt) {
     if (*fmt == '%') {
       fmt++; // Skip the %
@@ -84,7 +81,12 @@ void printk(const char *fmt, ...) {
       fmt++;
     }
   }
-  
+}
+
+void printk(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  vprintk(fmt, args);
   va_end(args);
 }
 

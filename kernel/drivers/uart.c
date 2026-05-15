@@ -1,8 +1,10 @@
+#define DEBUG 0
 #include "kernel/drivers/uart.h"
 #include "platform.h"
 #include "types.h"
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/drivers/tty.h"
+#include "lib/printk/printk.h"
 
 static char hex_digit(const uint8_t c) {
   if (c < 10)
@@ -171,12 +173,23 @@ void handle_uart_interrupt() {
   #define PLIC_BASE       0x0c000000UL
   #define PLIC_S_CLAIM    (PLIC_BASE + 0x201004)
 
+  debugk("UART interrupt START\n");
+
   volatile uint32_t *plic_claim = (volatile uint32_t *)MMIO_PHYS_TO_VIRT(PLIC_S_CLAIM);
   uint32_t irq = *plic_claim;
 
+  debugk("UART interrupt: irq=%u\n", irq);
+
   char buff[16];
   uint64_t size = uart_getc(buff, 16);
+
+  debugk("UART interrupt: got %llu chars\n", size);
+
   tty_receive(buff, size);
 
+  debugk("UART interrupt: tty_receive done\n");
+
   *plic_claim = irq;
+
+  debugk("UART interrupt END\n");
 }

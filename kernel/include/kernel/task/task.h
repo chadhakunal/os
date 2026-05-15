@@ -66,6 +66,13 @@ struct kernel_context_t {
   uint64_t stack_start;
 };
 
+struct kernel_fault_recovery_t {
+  uint64_t active;
+  uint64_t sp;
+  uint64_t ra;
+  uint64_t s[12];
+};
+
 struct task_t {
   struct kernel_context_t kernel_context;
   struct trap_frame tf;
@@ -90,6 +97,8 @@ struct task_t {
 
   struct signal_state_t signal_state;
   uint32_t signal_handler_depth;  // Nesting depth of signal handlers (0 = not in handler)
+
+  struct kernel_fault_recovery_t fault_recovery;
 };
 
 DEFINE_POOL(task_t, struct task_t)

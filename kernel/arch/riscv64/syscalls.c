@@ -76,8 +76,8 @@ void handle_syscall(struct trap_frame *tf) {
       break;
 
     case SYS_rt_sigaction:
-      debugk("syscall: rt_sigaction(sig=%lld, act=%llx, oldact=%llx)\n", (int64_t)tf->a0, tf->a1, tf->a2);
-      tf->a0 = -1; // TODO: implement
+      debugk("syscall: rt_sigaction(sig=%lld, act=%llx, oldact=%llx, sigsetsize=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2, tf->a3);
+      ret = sys_rt_sigaction(tf);
       break;
 
     case SYS_rt_sigreturn:
@@ -104,6 +104,11 @@ void handle_syscall(struct trap_frame *tf) {
     case SYS_getpid:
       debugk("syscall: getpid()\n");
       ret = sys_getpid(tf);
+      break;
+
+    case SYS_getppid:
+      debugk("syscall: getppid()\n");
+      ret = sys_getppid(tf);
       break;
 
     case SYS_kill:
@@ -134,6 +139,11 @@ void handle_syscall(struct trap_frame *tf) {
     case SYS_dup2:
       debugk("syscall: dup2(oldfd=%lld, newfd=%lld)\n", (int64_t)tf->a0, (int64_t)tf->a1);
       ret = sys_dup2(tf);
+      break;
+
+    case SYS_fsync:
+      debugk("syscall: fsync(fd=%lld)\n", (int64_t)tf->a0);
+      ret = sys_fsync(tf);
       break;
 
     case SYS_setpgid:

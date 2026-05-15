@@ -139,10 +139,15 @@ int32_t vfs_vnode_write(struct vnode_t *vnode, const void *buf, size_t size, siz
 
     memcpy((uint8_t *)PHYS_TO_VIRT(page_phys) + offset_in_page, src, copy_size);
 
-    /* Flush the modified page back to the filesystem. */
-    int ret = vnode->address_space->address_space_ops->write_page(vnode, page_offset, page_phys);
-    if (ret < 0)
-      return total_written > 0 ? (int32_t)total_written : ret;
+    /* Mark the page dirty in the cache — it will be flushed on close. */
+    list_for_each(&vnode->address_space->page_cache_list, pos) {
+      struct page_cache_entry_t *entry =
+        container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
+      if (entry->offset == page_offset) {
+        entry->dirty = true;
+        break;
+      }
+    }
 
     src           += copy_size;
     offset        += copy_size;
@@ -200,6 +205,7 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dentry, struct dent
   }
 
   (*out)->parent = parent_dentry;
-  list_append(&parent_dir->children_dentries, &(*out)->sibling_dentry);
+  if (!(parent_dir->superblock->flags & SB_NODENTRY_CACHE))
+    list_append(&parent_dir->children_dentries, &(*out)->sibling_dentry);
   return 0;
 }

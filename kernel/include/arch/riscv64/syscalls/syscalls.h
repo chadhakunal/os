@@ -25,6 +25,7 @@
 #define SYS_wait4           260
 #define SYS_waitpid         260  // Same as wait4 on Linux
 #define SYS_getpid          172
+#define SYS_getppid         173
 #define SYS_kill            129
 #define SYS_fork            220
 #define SYS_sched_yield     124
@@ -34,6 +35,7 @@
 #define SYS_mkdirat         34
 #define SYS_unlinkat        35
 #define SYS_dup2            24
+#define SYS_fsync           82
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -50,14 +52,17 @@ int64_t sys_sched_yield(struct trap_frame *tf);
 int64_t sys_waitpid(struct trap_frame *tf);
 int64_t sys_exit(struct trap_frame *tf);
 int64_t sys_execve(struct trap_frame *tf);
+int64_t sys_rt_sigaction(struct trap_frame *tf);
 int64_t sys_rt_sigreturn(struct trap_frame *tf);
 int64_t sys_kill(struct trap_frame *tf);
 int64_t sys_ioctl(struct trap_frame *tf);
 int64_t sys_getpid(struct trap_frame *tf);
+int64_t sys_getppid(struct trap_frame *tf);
 int64_t sys_setpgid(struct trap_frame *tf);
 int64_t sys_getdents(struct trap_frame *tf);
 int64_t sys_mkdirat(struct trap_frame *tf);
 int64_t sys_unlinkat(struct trap_frame *tf);
 int64_t sys_dup2(struct trap_frame *tf);
+int64_t sys_fsync(struct trap_frame *tf);
 
 #endif

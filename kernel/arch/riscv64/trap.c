@@ -4,44 +4,17 @@
 #include "arch/riscv64/trap.h"
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "arch/riscv64/sbi.h"
+#include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
+#include "kernel/memory/page_fault.h"
+#include "kernel/time/timer.h"
+#include "kernel/drivers/plic.h"
 
-#define TIMER_INTERVAL_CYCLES 100000
-
-/* NEVER RETURNS - either calls trap_return() or panic() */
 void trap_handler(struct trap_frame *tf) {
-  // tf points to either:
-  // - &current_task->tf for user traps
-  // - kernel stack for kernel traps
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
   bool is_interrupt = (tf->scause >> 63) & 1;
-
-  // Don't print for timer interrupts
-  if (!(is_interrupt && cause_code == 5)) {
-    // printk("[trap_handler] current_task=%p, pid=%llu\n",
-    //        current_task, current_task->pid);
-
-    // printk("\n=== TRAP ===\n");
-    // printk("scause:  %llx\n", tf->scause);
-    // printk("sepc:    %llx\n", tf->sepc);
-    // printk("stval:   %llx\n", tf->stval);
-    // printk("sstatus: %llx\n", tf->sstatus);
-    if (is_interrupt) {
-      // printk("\n=== TRAP ===\n");
-      // printk("scause:  %llx\n", tf->scause);
-      // printk("sepc:    %llx\n", tf->sepc);
-      // printk("stval:   %llx\n", tf->stval);
-      // printk("sstatus: %llx\n", tf->sstatus);
-    } else if (cause_code != 8) {
-      // Print for non-syscall exceptions
-      // printk("\n=== TRAP ===\n");
-      // printk("scause:  %llx\n", tf->scause);
-      // printk("sepc:    %llx\n", tf->sepc);
-      // printk("stval:   %llx\n", tf->stval);
-      // printk("sstatus: %llx\n", tf->sstatus);
-    }
-  }
+  extern void trap_return(struct trap_frame *tf);
 
   if (is_interrupt) {
     switch (cause_code) {
@@ -49,40 +22,55 @@ void trap_handler(struct trap_frame *tf) {
         printk("Interrupt: Supervisor software interrupt\n");
         break;
       case 5:
-        // Timer interrupt
         trap_timer_handler(tf);
-        extern void trap_return(struct trap_frame *tf);
-
-        if (tf->sstatus & (1UL << 8)) {
-          // Kernel mode timer interrupt - just return to assembly restore code
+        if (tf->sstatus & SSTATUS_SPP) {
           return;
         }
-
-        // User mode timer interrupt - restore user context and return
+        // Sanity check trap frame before returning
+        if (current_task->tf.sepc == 0 || current_task->tf.sp == 0) {
+          panic("trap_handler: Timer interrupt - corrupted trap frame! sepc=%llx sp=%llx pid=%llu",
+                current_task->tf.sepc, current_task->tf.sp, current_task->pid);
+        }
         trap_return(&current_task->tf);
         break;
-      case 9:
-        // Supervisor external interrupt (UART)
+      case 9: {
         extern void handle_uart_interrupt(void);
-        handle_uart_interrupt();
+        uint32_t irq = plic_claim();
 
-        if (tf->sstatus & (1UL << 8)) {
-          return;
+        if (irq == PLIC_IRQ_UART) {
+          handle_uart_interrupt();
+        } else if (irq != 0) {
+          debugk("trap: unexpected external IRQ %u\n", irq);
         }
 
+        if (irq != 0)
+          plic_complete(irq);
+
+        if (tf->sstatus & SSTATUS_SPP) {
+          return;
+        }
         trap_return(&current_task->tf);
         break;
+      }
       default:
         printk("Interrupt: Unknown interrupt: %llu\n", cause_code);
         break;
     }
   } else {
-    // printk("Exception: ");
     switch (cause_code) {
-      case 0:  printk("Instruction address misaligned\n"); break;
-      case 1:  printk("Instruction access fault\n"); break;
-      case 2:  printk("Illegal instruction\n"); break;
-      case 3:  printk("Breakpoint\n"); break;
+      case 0:
+        printk("Instruction address misaligned at PC=0x%llx\n", tf->sepc);
+        break;
+      case 1:
+        printk("Instruction access fault at PC=0x%llx\n", tf->sepc);
+        break;
+      case 2:
+        printk("Illegal instruction at PC=0x%llx, instruction=0x%llx\n", tf->sepc, tf->stval);
+        printk("PID=%llu, SP=0x%llx, RA=0x%llx\n", current_task->pid, tf->sp, tf->ra);
+        break;
+      case 3:
+        printk("Breakpoint\n");
+        break;
       case 4:  printk("Load address misaligned\n"); break;
       case 5:  printk("Load access fault\n"); break;
       case 6:  printk("Store address misaligned\n"); break;
@@ -90,67 +78,27 @@ void trap_handler(struct trap_frame *tf) {
       case 8:
         debugk("Syscall from %llu\n", current_task->pid);
         handle_syscall(tf);
-
-        extern void trap_return(struct trap_frame *tf);
         trap_return(&current_task->tf);
         break;
-      case 9:  printk("Environment call from S-mode\n"); break;
+      case 9:
+        printk("Environment call from S-mode\n");
+        break;
       case 12:
-        debugk("=== INSTRUCTION PAGE FAULT ===\n");
-        debugk("  Mode: %s\n", (tf->sstatus & SSTATUS_SPP) ? "Supervisor" : "User");
-        debugk("  Faulting address (stval): 0x%llx\n", tf->stval);
-        debugk("  PC (sepc): 0x%llx\n", tf->sepc);
-        debugk("  PID: %llu\n", current_task->pid);
-        debugk("  Task: %p\n", current_task);
-        debugk("  Stack pointer (sp): 0x%llx\n", tf->sp);
-        debugk("  Return address (ra): 0x%llx\n", tf->ra);
-        debugk("  SATP: 0x%llx\n", current_task->mm_struct.root_satp);
-        debugk("  sstatus: 0x%llx\n", tf->sstatus);
-        debugk("  a0: 0x%llx, a1: 0x%llx, a2: 0x%llx\n", tf->a0, tf->a1, tf->a2);
-        debugk("  s0: 0x%llx, s1: 0x%llx\n", tf->s0, tf->s1);
-        break;
       case 13:
-        debugk("=== LOAD PAGE FAULT ===\n");
-        debugk("  Faulting address (stval): 0x%llx\n", tf->stval);
-        debugk("  PC (sepc): 0x%llx\n", tf->sepc);
-        debugk("  PID: %llu\n", current_task->pid);
-        break;
       case 15:
-        printk("=== STORE PAGE FAULT ===\n");
-        printk("  Faulting address (stval): 0x%llx\n", tf->stval);
-        printk("  PC (sepc): 0x%llx\n", tf->sepc);
-        printk("  PID: %llu\n", current_task->pid);
+        handle_page_fault(tf->stval, cause_code, tf);
+        if (tf->sstatus & SSTATUS_SPP) {
+          return; // kernel-mode fault (e.g. copy_to/from_user): trap_vector restores kernel context from stack
+        }
+        trap_return(&current_task->tf);
         break;
-      default: printk("Unknown exception: %llu\n", cause_code); break;
+      default:
+        printk("Unknown exception: %llu\n", cause_code);
+        break;
     }
   }
 
-  // For syscalls, schedule and return to user mode
-  // if (!is_interrupt && cause_code == 8) {
-  //   static int syscall_count = 0;
-  //   syscall_count++;
-  //
-  //   schedule();
-  //   // schedule() returns here (possibly as a different task)
-  //   // Return to user space
-  //   extern void trap_return(struct trap_frame *tf);
-  //   trap_return(&current_task->tf);
-  // }
-
-  // For all other traps, print registers and panic
-  // printk("current_task = %p, pid = %llu\n", current_task, current_task->pid);
-  // printk("\nRegisters:\n");
-  // printk("ra:  %llx  sp:  %llx  gp:  %llx  tp:  %llx\n", tf->ra, tf->sp, tf->gp, tf->tp);
-  // printk("t0:  %llx  t1:  %llx  t2:  %llx\n", tf->t0, tf->t1, tf->t2);
-  // printk("s0:  %llx  s1:  %llx\n", tf->s0, tf->s1);
-  // printk("a0:  %llx  a1:  %llx  a2:  %llx  a3:  %llx\n", tf->a0, tf->a1, tf->a2, tf->a3);
-  // printk("a4:  %llx  a5:  %llx  a6:  %llx  a7:  %llx\n", tf->a4, tf->a5, tf->a6, tf->a7);
-  // printk("s2:  %llx  s3:  %llx  s4:  %llx  s5:  %llx\n", tf->s2, tf->s3, tf->s4, tf->s5);
-  // printk("s6:  %llx  s7:  %llx  s8:  %llx  s9:  %llx\n", tf->s6, tf->s7, tf->s8, tf->s9);
-  // printk("s10: %llx  s11: %llx\n", tf->s10, tf->s11);
-  // printk("t3:  %llx  t4:  %llx  t5:  %llx  t6:  %llx\n", tf->t3, tf->t4, tf->t5, tf->t6);
-  //
-  panic("TRAP OCCURRED");
+  panic("Unhandled trap");
 }
 
 void init_trap_handler(void) {

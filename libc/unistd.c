@@ -49,10 +49,6 @@ pid_t wait(int *wstatus) {
   return waitpid(-1, wstatus, 0);
 }
 
-int kill(pid_t pid, int sig) {
-  return syscall2(SYS_kill, pid, sig);
-}
-
 int ioctl(int fd, unsigned long request, void *arg) {
   return syscall3(SYS_ioctl, fd, request, arg);
 }
@@ -71,6 +67,10 @@ int tcsetpgrp(int fd, pid_t pgid) {
 
 pid_t getpid(void) {
   return syscall0(SYS_getpid);
+}
+
+pid_t getppid(void) {
+  return syscall0(SYS_getppid);
 }
 
 int setpgid(pid_t pid, pid_t pgid) {
@@ -99,4 +99,8 @@ int rmdir(const char *path) {
 
 int dup2(int oldfd, int newfd) {
   return syscall2(SYS_dup2, oldfd, newfd);
+}
+
+int fsync(int fd) {
+  return syscall1(SYS_fsync, fd);
 }

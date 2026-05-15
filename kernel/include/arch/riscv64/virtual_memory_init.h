@@ -74,6 +74,11 @@
 #define PT2_OFFSET(x) (((uint64_t)(x) >> 21) & 0x1FF) // VPN[1]
 #define PT3_OFFSET(x) (((uint64_t)(x) >> 12) & 0x1FF) // VPN[0]
 
+// User space address range: 0x0 to END_USER_SPACE_ADDR (exclusive)
+// In Sv39, user space is 0x0 - 0x3FFFFFFFFF (256GB)
+// Kernel space starts at 0xFFFFFFC000000000 (upper 256GB)
+#define END_USER_SPACE_ADDR 0x0000004000000000ULL  // 256GB
+
 #define KERNEL_VIRTUAL_MEMORY_BASE                                             \
   0xFFFFFFFF80000000ULL // 510 GB Mark ie 254 GB After kernel area start
 #define PHYS_VIRTUAL_MEMORY_BASE                                               \
@@ -82,7 +87,7 @@
   0xFFFFFFD000000000ULL // 320 GB Mark ie 64 GB After kernel area start
 #define KERNEL_STACK_VIRTUAL_BASE                                              \
   0xFFFFFFE000000000ULL // 384 GB Mark - Per-process kernel stacks
-#define KERNEL_STACK_SIZE 8192 // 8KB = 2 pages
+#define KERNEL_STACK_SIZE 16384 // 16KB = 4 pages
 
 #define KERNEL_PHYS_BASE 0x80200000ULL
 #define KERNEL_VIRT_OFFSET (KERNEL_VIRTUAL_MEMORY_BASE - KERNEL_PHYS_BASE)

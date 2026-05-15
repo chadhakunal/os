@@ -1,35 +1,22 @@
 #define DEBUG 0
 #include "arch/riscv64/syscalls/syscall_macros.h"
-#include "kernel/task/task.h"
-#include "kernel/task/elf_loader.h"
-#include "kernel/task/signal.h"
+#include "arch/riscv64/virtual_memory_init.h"
+#include "kernel/memory/page_tables.h"
 #include "kernel/panic.h"
+#include "kernel/signal_jump_point.h"
+#include "kernel/task/elf_loader.h"
+#include "kernel/task/executable_loader.h"
+#include "kernel/task/signal.h"
+#include "kernel/task/task.h"
+#include "kernel/user_data_access.h"
+#include "lib/pool_allocator.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
-#include "lib/pool_allocator.h"
-#include "arch/riscv64/virtual_memory_init.h"
-#include "kernel/user_data_access.h"
-#include "kernel/memory/page_tables.h"
 #include "types.h"
-
-#define MAX_ARG_COUNT 16
-#define MAX_ARG_LEN 64
-#define MAX_PATH_LEN 128
-
-// Structure for execve arguments - must fit in one page (4096 bytes)
-// Size: 128 + 8 + (16*64) + (16*64) = 128 + 8 + 1024 + 1024 = 2184 bytes
-struct execve_args_t {
-  char pathname[MAX_PATH_LEN];
-  int argc;
-  int envc;
-  char argv[MAX_ARG_COUNT][MAX_ARG_LEN];
-  char envp[MAX_ARG_COUNT][MAX_ARG_LEN];
-};
 
 DEFINE_POOL(execve_args_t, struct execve_args_t)
 
-DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
-{
+DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
   debugk("execve: pathname=%p, argv=%p, envp=%p\n", pathname, argv, envp);
 
   // Validate pointers
@@ -58,7 +45,8 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
     debugk("execve: reading argv[%d] pointer\n", args->argc);
     copy_from_user(&user_arg_ptr, &argv[args->argc], sizeof(char *));
     debugk("execve: argv[%d] pointer = %p\n", args->argc, user_arg_ptr);
-    if (user_arg_ptr == NULL) break;
+    if (user_arg_ptr == NULL)
+      break;
 
     copy_string_from_user(args->argv[args->argc], user_arg_ptr, MAX_ARG_LEN);
     debugk("execve: argv[%d]=%s\n", args->argc, args->argv[args->argc]);
@@ -71,7 +59,8 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   if (envp != NULL) {
     while (args->envc < MAX_ARG_COUNT) {
       copy_from_user(&user_env_ptr, &envp[args->envc], sizeof(char *));
-      if (user_env_ptr == NULL) break;
+      if (user_env_ptr == NULL)
+        break;
 
       copy_string_from_user(args->envp[args->envc], user_env_ptr, MAX_ARG_LEN);
       debugk("execve: envp[%d]=%s\n", args->envc, args->envp[args->envc]);
@@ -81,8 +70,25 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
 
   debugk("execve: argc=%d, envc=%d\n", args->argc, args->envc);
 
-  // Validate ELF file exists and is valid before destroying current address space
-  if (validate_elf(args->pathname) != 0) {
+  // Validate file exists and detect type before destroying current address
+  // space
+  struct dentry_t *dentry;
+  if (vfs_resolve_path(args->pathname, &dentry) != 0) {
+    debugk("execve: failed to resolve path %s\n", args->pathname);
+    execve_args_t_free(args);
+    return -1;
+  }
+
+  int file_type = detect_file_type(dentry);
+  if (file_type == FILE_TYPE_INVALID) {
+    debugk("execve: invalid file type for %s\n", args->pathname);
+    execve_args_t_free(args);
+    return -1;
+  }
+
+  // For ELF files, validate before destroying address space
+  // For scripts, validation happens during script processing
+  if (file_type == FILE_TYPE_ELF && validate_elf(args->pathname) != 0) {
     debugk("execve: ELF validation failed for %s\n", args->pathname);
     execve_args_t_free(args);
     return -1;
@@ -99,13 +105,29 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
         old_action != (struct sigaction_t *)SIG_IGNORE) {
       sigaction_t_free(old_action);
     }
-    current_task->signal_state.actions[i] = (struct sigaction_t *)SIG_DEFAULT_HANDLER;
+    current_task->signal_state.actions[i] =
+        (struct sigaction_t *)SIG_DEFAULT_HANDLER;
   }
   current_task->signal_state.pending = 0;
+  current_task->signal_handler_depth = 0;
   debugk("execve: reset signal handlers\n");
 
-  load_elf(current_task, args->pathname);
-  debugk("execve: loaded elf, entry=%llx\n", current_task->mm_struct.entry_addr);
+  // Load executable (handles both ELF and scripts)
+  if (load_executable(current_task, args) != 0) {
+    debugk("execve: load_executable failed\n");
+    execve_args_t_free(args);
+    return -1;
+  }
+  debugk("execve: loaded executable, entry=%llx\n",
+         current_task->mm_struct.entry_addr);
+
+  // Re-map signal jump point — clear_vmas() removed it along with the old ELF
+  // mappings.
+  void *sjp = get_signal_jump_point_page();
+  if (sjp) {
+    map_page(current_task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
+             (uint64_t)sjp, PTE_VALID | PTE_U | PTE_R | PTE_X);
+  }
 
   // Set up user stack with argc, argv, envp
   // Stack layout (growing downward from 0x80000000):
@@ -114,9 +136,9 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   uint64_t sp = DEFAULT_STACK_TOP;
 
   // First, calculate how much space we need
-  size_t total_size = sizeof(uint64_t);  // argc
-  total_size += (args->argc + 1) * sizeof(uint64_t);  // argv[] + NULL
-  total_size += (args->envc + 1) * sizeof(uint64_t);  // envp[] + NULL
+  size_t total_size = sizeof(uint64_t);              // argc
+  total_size += (args->argc + 1) * sizeof(uint64_t); // argv[] + NULL
+  total_size += (args->envc + 1) * sizeof(uint64_t); // envp[] + NULL
 
   for (int i = 0; i < args->argc; i++) {
     total_size += str_len(args->argv[i], MAX_ARG_LEN) + 1;
@@ -179,10 +201,12 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   current_task->tf.sp = sp;
   current_task->tf.sepc = (uint64_t)current_task->mm_struct.entry_addr;
   current_task->tf.a0 = argc;
-  current_task->tf.a1 = sp + sizeof(uint64_t);  // Pointer to argv[]
-  current_task->tf.a2 = sp + sizeof(uint64_t) + (argc + 1) * sizeof(uint64_t);  // Pointer to envp[]
+  current_task->tf.a1 = sp + sizeof(uint64_t); // Pointer to argv[]
+  current_task->tf.a2 = sp + sizeof(uint64_t) +
+                        (argc + 1) * sizeof(uint64_t); // Pointer to envp[]
 
-  debugk("execve: sp=%llx, sepc=%llx\n", current_task->tf.sp, current_task->tf.sepc);
+  debugk("execve: sp=%llx, sepc=%llx\n", current_task->tf.sp,
+         current_task->tf.sepc);
   debugk("execve: a0(argc)=%llu, a1(argv)=%llx, a2(envp)=%llx\n",
          current_task->tf.a0, current_task->tf.a1, current_task->tf.a2);
 
@@ -199,10 +223,10 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp)
   current_task->tf.s10 = 0;
   current_task->tf.s11 = 0;
 
-  debugk("execve: done, sp=%llx, sepc=%llx, argc=%llu\n",
-         current_task->tf.sp, current_task->tf.sepc, current_task->tf.a0);
+  debugk("execve: done, sp=%llx, sepc=%llx, argc=%llu\n", current_task->tf.sp,
+         current_task->tf.sepc, current_task->tf.a0);
 
-  extern void trap_return(struct trap_frame *tf);
+  extern void trap_return(struct trap_frame * tf);
   trap_return(&current_task->tf);
 
   panic("execve: returned from trap_return!");

@@ -69,6 +69,13 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
     return -1;
   }
 
+  // Handle O_TRUNC: truncate file to 0 length
+  if (flags & O_TRUNC) {
+    // TODO: implement truncate operation
+    // For now, we can set offset to 0 and rely on writes to overwrite
+    file->offset = 0;
+  }
+
   int fd = alloc_fd(&current_task->file_table, file);
   if (fd < 0) {
     return -1;

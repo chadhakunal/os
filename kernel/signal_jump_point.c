@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/signal_jump_point.h"
 #include "kernel/memory/page_allocator.h"
 #include "arch/riscv64/virtual_memory_init.h"
@@ -8,8 +8,12 @@
 
 static void *signal_jump_point_page = NULL;
 
-extern char __signal_jump_point_start[];
-extern char __signal_jump_point_end[];
+// RISC-V trampoline: li a7, 139 (SYS_rt_sigreturn); ecall; j .
+static const uint8_t trampoline[] = {
+    0x93, 0x08, 0xB0, 0x08,  // li a7, 139
+    0x73, 0x00, 0x00, 0x00,  // ecall
+    0x6F, 0x00, 0x00, 0x00,  // j .
+};
 
 void init_signal_jump_point(void) {
   if (signal_jump_point_page != NULL) {
@@ -22,17 +26,11 @@ void init_signal_jump_point(void) {
   }
 
   void *jump_point_virt = PHYS_TO_VIRT(signal_jump_point_page);
-  size_t jump_point_size =
-      __signal_jump_point_end - __signal_jump_point_start;
+  memcpy(jump_point_virt, trampoline, sizeof(trampoline));
 
-  if (jump_point_size > DEFAULT_PAGE_SIZE) {
-    panic("Signal jump point code too large");
-  }
-
-  memcpy(jump_point_virt, __signal_jump_point_start, jump_point_size);
-
-  printk("Signal jump point initialized at physical address %p, size %d bytes\n",
-         signal_jump_point_page, jump_point_size);
+  uint32_t *instructions = (uint32_t *)jump_point_virt;
+  printk("Signal jump point initialized at physical address %p, first_insn=0x%08x\n",
+         signal_jump_point_page, instructions[0]);
 }
 
 void *get_signal_jump_point_page(void) { return signal_jump_point_page; }

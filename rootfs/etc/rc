@@ -1,5 +1,34 @@
 #!/bin/sh
-echo Running $0
-mount -t proc proc /proc
-mount -t disk virtio /mnt
-exec /bin/sh
+echo "========================================="
+echo "  System Initialization Script"
+echo "========================================="
+echo ""
+
+echo "Script: $1"
+echo "Arguments: $2 $3 $4"
+echo ""
+
+echo "Running kernel syscall tests..."
+test_syscalls
+
+echo ""
+echo "Running shell features tests..."
+test_shell
+
+echo ""
+echo "Running signal system tests..."
+test_signals
+
+echo ""
+echo "Running stack growth test..."
+stacktest
+
+echo ""
+echo "Running stack overflow test..."
+stacktest2
+
+echo ""
+echo "========================================="
+echo "  Initialization Complete"
+echo "========================================="
+echo ""

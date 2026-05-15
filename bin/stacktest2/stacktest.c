@@ -1,0 +1,31 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <signal.h>
+
+static void overflow_stack(void) {
+  char buf[65536 + 4096];
+  for (int i = 0; i < 65536 + 4096; i++)
+    buf[i] = (char)i;
+  printf("ERROR: should have received SIGSEGV (buf[0]=%d)\n", buf[0]);
+}
+
+int main(void) {
+  pid_t pid = fork();
+
+  if (pid == 0) {
+    overflow_stack();
+    return 0;
+  }
+
+  int status;
+  waitpid(pid, &status, 0);
+
+  if (status == 128 + SIGSEGV) {
+    printf("Stack overflow test passed: child killed by SIGSEGV\n");
+    return 0;
+  }
+
+  printf("Stack overflow test FAILED: exit status=%d (expected %d)\n",
+         status, 128 + SIGSEGV);
+  return 1;
+}

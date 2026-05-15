@@ -3,6 +3,9 @@
 
 #define NUM_PTE 512
 
+#define PAGE_ALIGN_DOWN(addr) ((addr) & ~0xFFFULL)
+#define PAGE_ALIGN_UP(addr)   (((addr) + 0xFFFULL) & ~0xFFFULL)
+
 typedef uint64_t pte_t;
 
 typedef struct page_table {
