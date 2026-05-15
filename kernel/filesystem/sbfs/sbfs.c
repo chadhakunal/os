@@ -292,6 +292,7 @@ struct superblock_t *sbfs_mount(void) {
   superblock->vnode_ops.mkdir                  = sbfs_mkdir;
   superblock->vnode_ops.unlink                 = sbfs_unlink;
   superblock->vnode_ops.rmdir                  = sbfs_rmdir;
+  superblock->vnode_ops.truncate               = sbfs_truncate;
   superblock->address_space_ops.fill_page      = sbfs_fill_page;
   superblock->address_space_ops.write_page     = sbfs_write_page;
   superblock->file_ops.read                    = NULL;
