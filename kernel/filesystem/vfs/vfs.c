@@ -186,6 +186,21 @@ void vfs_address_space_inc_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_
   }
 }
 
+void vfs_invalidate_page_cache(struct vnode_t *vnode) {
+  if (vnode->address_space == NULL)
+    return;
+
+  struct list_node *pos = vnode->address_space->page_cache_list.next;
+  while (pos != &vnode->address_space->page_cache_list) {
+    struct page_cache_entry_t *entry =
+      container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
+    pos = pos->next;
+    free_page(entry->physical_page);
+    list_remove(&entry->sibling_page_cache_entry);
+    page_cache_entry_t_free(entry);
+  }
+}
+
 void vfs_address_space_drop_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space) {
   for (uint64_t va = vaddr_start; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
     uint64_t page_index = (va - vaddr_start) / DEFAULT_PAGE_SIZE;
