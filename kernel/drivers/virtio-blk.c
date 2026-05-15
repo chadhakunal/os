@@ -181,7 +181,6 @@ static int virtio_blk_submit(uint32_t type, uint64_t sector, void *buf, uint32_t
             .buf = buf, .num_sectors = num_sectors,
         };
         uint16_t last_used = base_virtq_used->idx;
-        printk("virtio_blk: boot submit sector=%llu last_used=%u\n", sector, last_used);
         virtio_blk_hw_submit(&boot_req);
         uint64_t spin = 0;
         while (base_virtq_used->idx == last_used) {
@@ -189,7 +188,6 @@ static int virtio_blk_submit(uint32_t type, uint64_t sector, void *buf, uint32_t
             if (++spin > 10000000ULL)
                 panic("virtio_blk: device did not respond");
         }
-        printk("virtio_blk: boot done sector=%llu status=%u\n", sector, (uint32_t)*virtio_status_buf);
         disk_current = NULL;
         return (*virtio_status_buf != VIRTIO_BLK_S_OK) ? -1 : 0;
     }

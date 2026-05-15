@@ -81,8 +81,11 @@ void vfs_init() {
   printk("Mounted procfs at /proc\n");
 
   // Mount sbfs at /mnt
+  printk("calling sbfs_mount...\n");
   struct superblock_t *sbfs_sb = sbfs_mount();
+  printk("sbfs_mount returned %p\n", sbfs_sb);
   if (sbfs_sb != NULL) {
+    printk("calling vfs_mount /mnt...\n");
     vfs_mount("/mnt", sbfs_sb);
     printk("Mounted sbfs at /mnt\n");
   } else {
