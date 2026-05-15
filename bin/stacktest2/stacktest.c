@@ -7,10 +7,10 @@ int main(void) {
 
   if (pid == 0) {
     /* Child: allocate beyond 64KB stack limit to trigger SIGSEGV */
-    volatile char buf[65536 + 4096];
+    char buf[65536 + 4096];
     for (int i = 0; i < 65536 + 4096; i++)
       buf[i] = (char)i;
-    printf("ERROR: should have received SIGSEGV\n");
+    printf("ERROR: should have received SIGSEGV (buf[0]=%d)\n", buf[0]);
     return 0;
   }
 
