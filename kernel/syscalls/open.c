@@ -55,6 +55,10 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
 
     struct dentry_t *new_dentry;
     int ret = vfs_create(name, parent_vnode, &new_dentry);
+    if (ret == -EEXIST && !(flags & O_EXCL)) {
+      /* File already exists and O_EXCL not set — open the existing file. */
+      goto open_existing;
+    }
     if (ret < 0) {
       printk("open: O_CREAT: vfs_create('%s') failed: %d\n", name, ret);
       return ret;
@@ -69,6 +73,7 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
     return fd;
   }
 
+open_existing:;
   struct file_t *file;
   int ret = vfs_open(path, flags, &file);
   if (ret != 0) {
