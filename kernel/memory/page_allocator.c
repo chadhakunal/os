@@ -21,6 +21,7 @@ bool in_kernel_space(uintptr_t start, uintptr_t end) {
 }
 
 void init_page_allocator() {
+  printk("init_page_allocator: start\n");
   pages_metadata.pages_in_use = 0;
   pages_metadata.total_pages =
       memory_info.total_memory_size / DEFAULT_PAGE_SIZE;
@@ -28,10 +29,12 @@ void init_page_allocator() {
       pages_metadata.total_pages * sizeof(struct page);
 
   uintptr_t kernel_end = ALIGN_UP((uintptr_t)&_end, DEFAULT_PAGE_SIZE);
+  printk("init_page_allocator: kernel_end=0x%lx page_list_size=%lu\n", kernel_end, pages_metadata.page_list_size);
   page_t *last_free = NULL;
   memory_info.kernel_end =
       ALIGN_UP(kernel_end + pages_metadata.page_list_size, DEFAULT_PAGE_SIZE);
   pages_metadata.page_list = (page_t *)kernel_end;
+  printk("init_page_allocator: building page list\n");
   for (uint64_t i = 0; i < pages_metadata.total_pages; i++) {
     pages_metadata.page_list[i].page_frame_id = i;
     pages_metadata.page_list[i].is_zeroed = false;
@@ -60,11 +63,13 @@ void init_page_allocator() {
     }
   }
 
+  printk("init_page_allocator: page list built, in_use=%lu\n", pages_metadata.pages_in_use);
+
   // Zero all free pages and move them to zero list
   pages_metadata.zero_page_head = pages_metadata.free_page_head;
   pages_metadata.free_page_head = NULL;
 
-  debugk("init_page_allocator: starting to zero free pages\n");
+  printk("init_page_allocator: starting to zero free pages\n");
   page_t *cur = pages_metadata.zero_page_head;
   uint64_t pages_zeroed = 0;
   while (cur) {
@@ -77,7 +82,7 @@ void init_page_allocator() {
     }
     cur = cur->next_free_page;
   }
-  debugk("init_page_allocator: finished zeroing %llu pages\n", pages_zeroed);
+  printk("init_page_allocator: done zeroing %llu pages\n", pages_zeroed);
 }
 
 void print_pages_metadata() {
