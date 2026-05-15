@@ -46,8 +46,6 @@ static void send_sigsegv_and_abort_syscall(void) {
 }
 
 int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *tf) {
-  printk("[PF] fault_addr=0x%llx scause=%lld pid=%llu SPP=%d\n",
-         fault_addr, scause, current_task->pid, !!(tf->sstatus & SSTATUS_SPP));
   debugk("=== PAGE FAULT START ===\n");
   debugk("Fault addr=0x%llx, scause=%lld, pid=%llu, SPP=%d\n",
          fault_addr, scause, current_task->pid, !!(tf->sstatus & SSTATUS_SPP));
