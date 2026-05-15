@@ -437,6 +437,8 @@ int64_t sbfs_readdir(struct vnode_t *dir, uint32_t index, struct dentry_t **out)
   struct sbfs_vnode_t      *sv = (struct sbfs_vnode_t *)dir->fs_private_vnode;
   sbfs_inode_t *inode = sbfs_get_inode(sb, sv->inode_num);
 
+  printk("[sbfs_readdir] index=%u inode=%u\n", index, sv->inode_num);
+
   uint8_t  buf[SECTOR_BLOCK_SIZE];
   uint32_t dents = sb->block_size / sizeof(sbfs_dirent_t);
   uint32_t count = 0;
@@ -444,10 +446,14 @@ int64_t sbfs_readdir(struct vnode_t *dir, uint32_t index, struct dentry_t **out)
   for (int i = 0; i < SBFS_DIRECT_BLOCKS; i++) {
     uint32_t blk = inode->direct_blocks[i];
     if (blk == 0) continue;
+    printk("[sbfs_readdir] reading block %u (direct[%d])\n", blk, i);
     sbfs_read_data_block(sb, blk, buf);
+    printk("[sbfs_readdir] block %u read done\n", blk);
     sbfs_dirent_t *de = (sbfs_dirent_t *)buf;
     for (uint32_t j = 0; j < dents; j++) {
       if (de[j].inode_num == 0) continue;
+      printk("[sbfs_readdir] entry j=%u name='%s' ino=%u count=%u\n",
+             j, de[j].name, de[j].inode_num, count);
       if (count == index) {
         struct dentry_t *dentry = dentry_t_alloc();
         strncpy(dentry->name, de[j].name, sizeof(dentry->name) - 1);
@@ -455,11 +461,13 @@ int64_t sbfs_readdir(struct vnode_t *dir, uint32_t index, struct dentry_t **out)
         dentry->vnode       = NULL;
         dentry->readdir_ino = de[j].inode_num;
         *out = dentry;
+        printk("[sbfs_readdir] returning '%s'\n", dentry->name);
         return 0;
       }
       count++;
     }
   }
+  printk("[sbfs_readdir] no entry at index=%u, returning ENOENT\n", index);
   *out = NULL;
   return -ENOENT;
 }

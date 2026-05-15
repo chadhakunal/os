@@ -4,6 +4,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/user_data_access.h"
 #include "lib/list.h"
+#include "lib/printk/printk.h"
 #include "types.h"
 
 static bool dentry_is_child_of_dir(struct vnode_t *dir, struct dentry_t *d) {
@@ -34,15 +35,20 @@ DEFINE_SYSCALL3(getdents, int, fd, struct kernel_dirent *, buf, uint32_t, count)
 
   uint32_t filled = 0;
   while (filled < count) {
+    printk("[getdents] reading entry filled=%u\n", filled);
     struct dentry_t *dentry;
     int64_t ret = vfs_readdir(vnode, file->offset + filled, &dentry);
+    printk("[getdents] vfs_readdir ret=%lld dentry=%p\n", ret, dentry);
     if (ret < 0 || dentry == NULL)
       break;
 
     struct kernel_dirent kd;
     kd.d_ino = dentry->vnode != NULL ? dentry->vnode->id : dentry->readdir_ino;
+    printk("[getdents] copying name='%s' to user buf[%u]\n", dentry->name, filled);
     copy_string_to_user(buf[filled].d_name, dentry->name, 256);
+    printk("[getdents] copying ino=%u to user buf[%u]\n", kd.d_ino, filled);
     copy_to_user(&buf[filled].d_ino, &kd.d_ino, sizeof(kd.d_ino));
+    printk("[getdents] entry %u done\n", filled);
 
     filled++;
 
