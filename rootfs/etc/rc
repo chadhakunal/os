@@ -20,6 +20,14 @@ echo "Running signal system tests..."
 test_signals
 
 echo ""
+echo "Running stack growth test..."
+stacktest
+
+echo ""
+echo "Running stack overflow test..."
+stacktest2
+
+echo ""
 echo "========================================="
 echo "  Initialization Complete"
 echo "========================================="

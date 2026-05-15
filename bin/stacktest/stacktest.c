@@ -1,13 +1,12 @@
 #include <stdio.h>
 
 int main(void) {
-  char buf[49152]; /* 3 pages: first 2 eager, 3rd triggers lazy page fault */
+  /* 12KB: first 2 pages eagerly mapped, 3rd triggers lazy stack growth */
+  volatile char buf[12288];
 
-  for (int i = 0; i < 49152; i++)
+  for (int i = 0; i < 12288; i++)
     buf[i] = (char)i;
-  for (int i = 0; i < 49152; i++) {
-    if (i % 254 == 0) printf("buf[%d] = %d\n", i,buf[i]);
-  }
-  printf("Stack test passed: buf[0]=%d\n", buf[0]);
+
+  printf("Stack growth test passed: buf[0]=%d\n", (int)buf[0]);
   return 0;
 }

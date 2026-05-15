@@ -1,20 +1,28 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <signal.h>
 
-void fill_stack() {
-  char buffer[4096];
+int main(void) {
+  pid_t pid = fork();
 
-  for (int i = 0; i < 4096; i++) {
-    buffer[i] = (char)i;
+  if (pid == 0) {
+    /* Child: allocate beyond 64KB stack limit to trigger SIGSEGV */
+    volatile char buf[65536 + 4096];
+    for (int i = 0; i < 65536 + 4096; i++)
+      buf[i] = (char)i;
+    printf("ERROR: should have received SIGSEGV\n");
+    return 0;
   }
-  buffer[0] = 'h';
-  printf("%s\n", buffer);
-  printf("Printed full buffer returning\n");
-}
 
-int main(int argc, char **argv) {
-  printf("Stack test starting...\n");
-  fill_stack();
-  printf("Stack test complete\n");
-  return 0;
+  int status;
+  waitpid(pid, &status, 0);
+
+  if (status == SIGSEGV) {
+    printf("Stack overflow test passed: child killed by SIGSEGV\n");
+    return 0;
+  }
+
+  printf("Stack overflow test FAILED: exit status=%d (expected SIGSEGV=%d)\n",
+         status, SIGSEGV);
+  return 1;
 }
