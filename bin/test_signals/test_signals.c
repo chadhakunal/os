@@ -144,7 +144,6 @@ void test_signal_ignore() {
 
 void test_multiple_signals() {
   signal_received = 0;
-  int signal_count = 0;
 
   // Handler that counts signals
   struct sigaction sa = {0};
