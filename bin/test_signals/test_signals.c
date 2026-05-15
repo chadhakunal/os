@@ -52,9 +52,9 @@ void test_signal_delivery() {
   printf("[USER] test_signal_delivery: sending SIGUSR1 to self (PID %d)\n", my_pid);
   kill(my_pid, SIGUSR1);
 
-  // Yield until signal is delivered
+  // Sleep — signal should wake us early
   printf("[USER] test_signal_delivery: waiting for signal delivery...\n");
-  while (!signal_received) sched_yield();
+  sleep(10);
 
   printf("[USER] test_signal_delivery: after wait, signal_received=%d, signal_number=%d\n",
          signal_received, signal_number);
