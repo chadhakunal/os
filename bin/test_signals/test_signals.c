@@ -29,9 +29,8 @@ void signal_handler(int sig) {
 
 void test_signal_handler_registration() {
   // Test that we can register a signal handler
-  struct sigaction sa;
+  struct sigaction sa = {0};
   sa.sa_handler = signal_handler;
-  sa.sa_flags = 0;
 
   printf("[USER] test_signal_handler_registration: registering handler at %p\n", signal_handler);
   int ret = sigaction(SIGUSR1, &sa, NULL);
@@ -44,9 +43,8 @@ void test_signal_delivery() {
   signal_number = 0;
 
   // Register handler
-  struct sigaction sa;
+  struct sigaction sa = {0};
   sa.sa_handler = signal_handler;
-  sa.sa_flags = 0;
   sigaction(SIGUSR1, &sa, NULL);
 
   // Send signal to self
@@ -69,9 +67,8 @@ void test_signal_between_processes() {
   signal_number = 0;
 
   // Register handler in parent
-  struct sigaction sa;
+  struct sigaction sa = {0};
   sa.sa_handler = signal_handler;
-  sa.sa_flags = 0;
   sigaction(SIGUSR2, &sa, NULL);
 
   pid_t parent_pid = getpid();
@@ -100,9 +97,8 @@ void test_signal_default_behavior() {
 
   if (pid == 0) {
     // Child: reset SIGUSR1 to default handler
-    struct sigaction sa;
+    struct sigaction sa = {0};
     sa.sa_handler = SIG_DFL;
-    sa.sa_flags = 0;
     sigaction(SIGUSR1, &sa, NULL);
 
     // Send signal to self (should terminate)
@@ -125,9 +121,8 @@ void test_signal_ignore() {
   signal_received = 0;
 
   // Set SIGUSR1 to be ignored
-  struct sigaction sa;
+  struct sigaction sa = {0};
   sa.sa_handler = SIG_IGN;
-  sa.sa_flags = 0;
   sigaction(SIGUSR1, &sa, NULL);
 
   // Send signal to self
@@ -142,8 +137,9 @@ void test_signal_ignore() {
   test_result("SIG_IGN ignores signal", signal_received == 0);
 
   // Restore handler for other tests
-  sa.sa_handler = signal_handler;
-  sigaction(SIGUSR1, &sa, NULL);
+  struct sigaction sa2 = {0};
+  sa2.sa_handler = signal_handler;
+  sigaction(SIGUSR1, &sa2, NULL);
 }
 
 void test_multiple_signals() {
@@ -151,11 +147,7 @@ void test_multiple_signals() {
   int signal_count = 0;
 
   // Handler that counts signals
-  struct sigaction sa;
-  sa.sa_handler = (void (*)(int))((void *)&signal_count); // Hacky, but we'll increment manually
-  sa.sa_flags = 0;
-
-  // Actually, let's just send multiple signals and check we can receive them
+  struct sigaction sa = {0};
   sa.sa_handler = signal_handler;
   sigaction(SIGUSR1, &sa, NULL);
 
