@@ -112,6 +112,7 @@ struct task_t *task_init() {
   // Initialize VMA list (empty circular list)
   task->mm_struct.vma_list.next = &task->mm_struct.vma_list;
   task->mm_struct.vma_list.prev = &task->mm_struct.vma_list;
+  task->mm_struct.heap_end = 0;
 
   init_files(&(task->file_table));
 
@@ -204,6 +205,26 @@ struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr) {
     }
   }
   return NULL;
+}
+
+#define MMAP_BASE 0x10000000UL
+
+size_t find_free_vma(struct mm_struct_t *mm, size_t len) {
+  size_t candidate = MMAP_BASE;
+  bool found = false;
+  while (!found) {
+    found = true;
+    size_t candidate_end = candidate + len;
+    list_for_each(&mm->vma_list, pos) {
+      struct vma_t *vma = container_of(pos, struct vma_t, sibling_vma);
+      if (vma->end_addr <= candidate) continue;
+      if (vma->start_addr >= candidate_end) continue;
+      candidate = vma->end_addr;
+      found = false;
+      break;
+    }
+  }
+  return candidate;
 }
 
 int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
@@ -524,6 +545,7 @@ uint64_t fork_off() {
   new_task->mm_struct.root_satp = init_new_page_table();
   new_task->mm_struct.vma_list.next = &new_task->mm_struct.vma_list;
   new_task->mm_struct.vma_list.prev = &new_task->mm_struct.vma_list;
+  new_task->mm_struct.heap_end = current_task->mm_struct.heap_end;
 
   fork_sig_copy(&new_task->signal_state);
 

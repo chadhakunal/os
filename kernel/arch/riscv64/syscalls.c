@@ -61,18 +61,18 @@ void handle_syscall(struct trap_frame *tf) {
       break;
 
     case SYS_mmap:
-      debugk("syscall: mmap(addr=%llx, len=%llu, prot=%llu, flags=%llu)\n", tf->a0, tf->a1, tf->a2, tf->a3);
-      tf->a0 = -1; // TODO: implement
+      debugk("syscall: mmap(addr=%llx, len=%llu, prot=%llu, flags=%llu, fd=%lld, off=%llu)\n", tf->a0, tf->a1, tf->a2, tf->a3, (int64_t)tf->a4, tf->a5);
+      ret = sys_mmap(tf);
       break;
 
     case SYS_munmap:
       debugk("syscall: munmap(addr=%llx, len=%llu)\n", tf->a0, tf->a1);
-      tf->a0 = -1; // TODO: implement
+      ret = sys_munmap(tf);
       break;
 
     case SYS_brk:
       debugk("syscall: brk(addr=%llx)\n", tf->a0);
-      tf->a0 = -1; // TODO: implement
+      ret = sys_brk(tf);
       break;
 
     case SYS_rt_sigaction:

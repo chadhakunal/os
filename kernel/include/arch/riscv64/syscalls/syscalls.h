@@ -66,5 +66,8 @@ int64_t sys_unlinkat(struct trap_frame *tf);
 int64_t sys_dup2(struct trap_frame *tf);
 int64_t sys_fsync(struct trap_frame *tf);
 int64_t sys_nanosleep(struct trap_frame *tf);
+int64_t sys_mmap(struct trap_frame *tf);
+int64_t sys_munmap(struct trap_frame *tf);
+int64_t sys_brk(struct trap_frame *tf);
 
 #endif
