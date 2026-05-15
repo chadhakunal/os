@@ -84,8 +84,12 @@ open_existing:;
 
   // Handle O_TRUNC: truncate file to 0 length
   if (flags & O_TRUNC) {
-    // TODO: implement truncate operation
-    // For now, we can set offset to 0 and rely on writes to overwrite
+    struct vnode_t *vnode = file->vnode;
+    if (vnode->vnode_ops && vnode->vnode_ops->truncate) {
+      vnode->vnode_ops->truncate(vnode, 0);
+      /* Invalidate page cache so subsequent reads don't see stale data. */
+      vfs_invalidate_page_cache(vnode);
+    }
     file->offset = 0;
   }
 

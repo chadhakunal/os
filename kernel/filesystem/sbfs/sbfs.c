@@ -12,6 +12,7 @@
 #define SECTORS_PER_PAGE (DEFAULT_PAGE_SIZE / SECTOR_BLOCK_SIZE)
 
 static struct vnode_t *sbfs_alloc_vnode(struct superblock_t *superblock, uint32_t inode_num);
+static int64_t sbfs_truncate(struct vnode_t *vnode, uint64_t new_size);
 
 /* -------------------------------------------------------------------------
  * Low-level disk I/O — always a full page at a time
@@ -292,6 +293,7 @@ struct superblock_t *sbfs_mount(void) {
   superblock->vnode_ops.mkdir                  = sbfs_mkdir;
   superblock->vnode_ops.unlink                 = sbfs_unlink;
   superblock->vnode_ops.rmdir                  = sbfs_rmdir;
+  superblock->vnode_ops.truncate               = sbfs_truncate;
   superblock->address_space_ops.fill_page      = sbfs_fill_page;
   superblock->address_space_ops.write_page     = sbfs_write_page;
   superblock->file_ops.read                    = NULL;
@@ -670,5 +672,26 @@ int64_t sbfs_write_page(struct vnode_t *vnode, size_t offset, void *phys_page) {
   if (inode_dirty)
     sbfs_flush_inode(sb, sv->inode_num);
 
+  return 0;
+}
+
+static int64_t sbfs_truncate(struct vnode_t *vnode, uint64_t new_size) {
+  struct sbfs_superblock_t *sb = (struct sbfs_superblock_t *)vnode->superblock->private_data;
+  struct sbfs_vnode_t      *sv = (struct sbfs_vnode_t *)vnode->fs_private_vnode;
+  sbfs_inode_t *inode = sbfs_get_inode(sb, sv->inode_num);
+
+  uint32_t first_block_to_free = (uint32_t)((new_size + sb->block_size - 1) / sb->block_size);
+
+  for (uint32_t i = first_block_to_free; i < SBFS_DIRECT_BLOCKS; i++) {
+    if (inode->direct_blocks[i] != 0) {
+      sbfs_free_block(sb, inode->direct_blocks[i]);
+      inode->direct_blocks[i] = 0;
+    }
+  }
+
+  inode->size = (uint32_t)new_size;
+  sbfs_flush_inode(sb, sv->inode_num);
+
+  vnode->size = new_size;
   return 0;
 }
