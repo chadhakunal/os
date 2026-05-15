@@ -22,12 +22,12 @@ int64_t sys_rt_sigreturn(struct trap_frame *tf) {
   copy_from_user(&current_task->tf, (void *)frame_addr, sizeof(struct trap_frame));
 
   uint64_t old_blocked_mask;
-  copy_from_user(&old_blocked_mask, (void *)(frame_addr + 296), sizeof(uint64_t));
+  copy_from_user(&old_blocked_mask, (void *)(frame_addr + sizeof(struct trap_frame) + 8), sizeof(uint64_t));
   current_task->signal_state.blocked = old_blocked_mask;
 
   current_task->signal_handler_depth--;
 
-  debugk("syscall: rt_sigreturn() - restored context, will return to sp=%llx, sepc=%llx, ra=%llx, new_depth=%u\n",
+  printk("syscall: rt_sigreturn() - restored context, sp=%llx, sepc=%llx, ra=%llx, depth=%u\n",
          current_task->tf.sp, current_task->tf.sepc, current_task->tf.ra, current_task->signal_handler_depth);
 
   return 0;

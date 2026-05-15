@@ -84,7 +84,8 @@ void check_and_deliver_signals(struct trap_frame *tf) {
     return;
   }
 
-  printk("signal: delivering signal %d to PID %llu\n", sig, current_task->pid);
+  printk("signal: delivering signal %d to PID %llu, tf->sepc=%llx tf->sp=%llx\n",
+         sig, current_task->pid, tf->sepc, tf->sp);
 
   struct sigaction_t *action = current_task->signal_state.actions[sig];
 
@@ -104,7 +105,8 @@ void check_and_deliver_signals(struct trap_frame *tf) {
     return;
   }
 
-  printk("signal: custom handler at %p for signal %d\n", action->sa_handler, sig);
+  printk("signal: custom handler at %p for signal %d, returning from sepc=%llx\n",
+         action->sa_handler, sig, tf->sepc);
 
   uint64_t new_sp = (tf->sp - sizeof(struct signal_frame)) & ~15ULL;
 
