@@ -40,7 +40,7 @@ int64_t tty_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
   char *buf = (char *)buffer;
 
   for (uint64_t i = 0; i < size; i++) {
-    debugk("Printing at index: %llu\n", i);
+    debugk("Printing at index: %llu, addr: %p\n", i, &buf[i]);
     uart_putc(buf[i]);
   }
 
