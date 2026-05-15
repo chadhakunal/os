@@ -104,8 +104,8 @@ int load_elf(struct task_t *task, const char *path) {
           vfs_vnode_read(dentry->vnode, (void *)program_header.p_vaddr, program_header.p_filesz, program_header.p_offset);
         }
       } else {
-        // No BSS - can use file-backed mapping
-        file_backed_memory_map(&task->mm_struct, program_header.p_vaddr, dentry->vnode, program_header.p_offset, program_header.p_filesz, vm_flags, true);
+        // No BSS - use lazy file-backed mapping (pages loaded on demand via page fault)
+        file_backed_memory_map(&task->mm_struct, program_header.p_vaddr, dentry->vnode, program_header.p_offset, program_header.p_filesz, vm_flags, false);
       }
     }
   }
