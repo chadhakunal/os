@@ -52,9 +52,9 @@ void test_signal_delivery() {
   printf("[USER] test_signal_delivery: sending SIGUSR1 to self (PID %d)\n", my_pid);
   kill(my_pid, SIGUSR1);
 
-  // Sleep to allow timer interrupts to fire and deliver the signal
+  // Yield until signal is delivered
   printf("[USER] test_signal_delivery: waiting for signal delivery...\n");
-  sleep(1);
+  while (!signal_received) sched_yield();
 
   printf("[USER] test_signal_delivery: after wait, signal_received=%d, signal_number=%d\n",
          signal_received, signal_number);
@@ -125,14 +125,9 @@ void test_signal_ignore() {
   sa.sa_handler = SIG_IGN;
   sigaction(SIGUSR1, &sa, NULL);
 
-  // Send signal to self
+  // Send signal to self then yield once — signal should stay ignored
   kill(getpid(), SIGUSR1);
-
-  // Wait a bit
-  for (volatile int i = 0; i < 1000; i++);
-
-  // Sleep to confirm signal was NOT delivered
-  sleep(1);
+  sched_yield();
 
   test_result("SIG_IGN ignores signal", signal_received == 0);
 
@@ -154,14 +149,12 @@ void test_multiple_signals() {
 
   // Send signal multiple times
   kill(my_pid, SIGUSR1);
-  sleep(1);
-
+  while (!signal_received) sched_yield();
   int first_received = signal_received;
 
   signal_received = 0;
   kill(my_pid, SIGUSR1);
-  sleep(1);
-
+  while (!signal_received) sched_yield();
   int second_received = signal_received;
 
   test_result("multiple signals can be delivered", first_received && second_received);
