@@ -6,7 +6,6 @@
 #include "lib/list.h"
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
-#include "arch/riscv64/trap.h"
 
 struct virtq_desc_t* base_virtq_desc = NULL;
 struct virtq_avail_t* base_virtq_avail = NULL;
@@ -208,15 +207,10 @@ static int virtio_blk_submit(uint32_t type, uint64_t sector, void *buf, uint32_t
     else
         list_append(&disk_request_queue, &req->list);
 
-    /* Block until poll() wakes us.
-     * Re-enable interrupts so the timer fires and virtio_blk_poll() runs.
-     * The syscall path disables interrupts for trap handling, so we must
-     * re-enable them here before yielding, then disable again on wakeup. */
+    /* Block until poll() wakes us. */
     current_task->state = TASK_BLOCKED;
     current_task->wait_reason = WAIT_IO;
-    enable_interrupts();
     schedule();
-    disable_interrupts();
 
     int result = req->result;
     disk_request_t_free(req);
