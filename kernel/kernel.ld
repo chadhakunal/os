@@ -13,6 +13,7 @@ SECTIONS
     _kernel_start = .;
 
     .text : {
+        *(.text.init)
         *(.text)
         *(.text.*)
     } :text

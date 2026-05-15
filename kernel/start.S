@@ -1,4 +1,4 @@
-.section .text
+.section .text.init
 .global _start
 
 .extern __bss_start
