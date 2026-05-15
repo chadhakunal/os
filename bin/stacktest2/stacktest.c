@@ -20,12 +20,12 @@ int main(void) {
   int status;
   waitpid(pid, &status, 0);
 
-  if (status == SIGSEGV) {
+  if (status == 128 + SIGSEGV) {
     printf("Stack overflow test passed: child killed by SIGSEGV\n");
     return 0;
   }
 
-  printf("Stack overflow test FAILED: exit status=%d (expected SIGSEGV=%d)\n",
-         status, SIGSEGV);
+  printf("Stack overflow test FAILED: exit status=%d (expected %d)\n",
+         status, 128 + SIGSEGV);
   return 1;
 }
