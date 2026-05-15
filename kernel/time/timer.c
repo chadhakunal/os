@@ -15,20 +15,28 @@ void init_virtual_time() {
 }
 
 void timer_handler(uint64_t hardware_clock_ticks, int from_user_mode) {
-  // Check stack pointer to detect stack overflow
+  // Check stack pointer to detect stack overflow.
+  // Only valid after scheduler_ready: before that we're on the boot stack
+  // which is in the kernel code region, not at KERNEL_STACK_VIRTUAL_BASE.
   uint64_t sp;
   asm volatile("mv %0, sp" : "=r"(sp));
-  if (sp < KERNEL_STACK_VIRTUAL_BASE || sp >= KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE) {
+  if (scheduler_ready &&
+      (sp < KERNEL_STACK_VIRTUAL_BASE || sp >= KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE)) {
     panic("timer_handler: Stack overflow! SP out of kernel stack range");
   }
 
-  debugk("[TIMER] tick=%llu, PID=%llu, runtime=%llu, sp=%llx, from_user=%d\n",
-         virtual_time.os_ticks, current_task->pid, current_task->runtime, sp, from_user_mode);
   virtual_time.os_ticks += 1;
   virtual_time.system_uptime += TIMER_INTERVAL_CYCLES;
 
+  /* Everything below requires tasks to exist. */
+  if (current_task == NULL)
+    return;
+
   /* Check if a pending virtio I/O completed and unblock the waiting task. */
   virtio_blk_poll();
+
+  debugk("[TIMER] tick=%llu, PID=%llu, runtime=%llu, sp=%llx, from_user=%d\n",
+         virtual_time.os_ticks, current_task->pid, current_task->runtime, sp, from_user_mode);
 
   current_task->runtime += TIMER_INTERVAL_CYCLES;
 
