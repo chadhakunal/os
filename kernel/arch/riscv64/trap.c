@@ -75,9 +75,8 @@ void trap_handler(struct trap_frame *tf) {
       case 12:
       case 13:
       case 15:
-        handle_page_fault(tf->stval, cause_code, tf); // Buggy!
-        panic("Page Fault!\n");
-        // trap_return(&current_task->tf);
+        handle_page_fault(tf->stval, cause_code, tf);
+        trap_return(&current_task->tf);
         break;
       default:
         printk("Unknown exception: %llu\n", cause_code);

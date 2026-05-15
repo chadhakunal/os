@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "kernel/memory/page_fault.h"
 #include "kernel/task/task.h"
 #include "kernel/task/signal.h"
@@ -10,7 +10,7 @@
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
 
-#define STACK_LIMIT (32 * 1024)
+#define STACK_LIMIT (64 * 1024)
 
 static uint64_t vma_to_pte_flags(uint64_t vm_flags) {
   uint64_t pte_flags = PTE_VALID | PTE_A | PTE_U;
@@ -81,7 +81,6 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
     }
     panic("Kernel page fault at 0x%llx", fault_addr);
   }
-  panic("Kernel page fault\n");
 
   struct vma_t *vma = find_vma(&current_task->mm_struct, fault_addr);
 
