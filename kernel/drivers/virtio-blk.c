@@ -11,7 +11,7 @@ volatile struct virtq_desc_t* base_virtq_desc = NULL;
 volatile struct virtq_avail_t* base_virtq_avail = NULL;
 volatile struct virtq_used_t* base_virtq_used = NULL;
 
-static struct virtio_pci_common_cfg *common = NULL;
+static volatile struct virtio_pci_common_cfg *common = NULL;
 static uint64_t notify_addr = 0;
 static struct virtio_blk_req *virtio_req_buf = NULL;
 static volatile uint8_t *virtio_status_buf = NULL;
