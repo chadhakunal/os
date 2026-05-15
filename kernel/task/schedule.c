@@ -54,7 +54,7 @@ void unblock_task(struct task_t *task) {
     return;
   }
 
-  debugk("unblock_task: unblocking PID %llu\n", task->pid);
+  printk("[SCHED] unblock_task: waking PID %llu\n", task->pid);
 
   task->state = TASK_READY;
   task->wait_reason = WAIT_NONE;
@@ -86,6 +86,7 @@ void wake_up(struct list_node *wait_queue) {
 
 struct task_t *pick_next_task() {
   if (list_is_empty(scheduler.active_list) && list_is_empty(scheduler.expired_list)) {
+    printk("[SCHED] All tasks blocked — only idle runnable\n");
     return idle_task;
   }
 

@@ -208,9 +208,11 @@ static int virtio_blk_submit(uint32_t type, uint64_t sector, void *buf, uint32_t
         list_append(&disk_request_queue, &req->list);
 
     /* Block until poll() wakes us. */
+    printk("[virtio] PID %llu blocking on I/O (sector=%llu)\n", current_task->pid, sector);
     current_task->state = TASK_BLOCKED;
     current_task->wait_reason = WAIT_IO;
     schedule();
+    printk("[virtio] PID %llu woke from I/O\n", current_task->pid);
 
     int result = req->result;
     disk_request_t_free(req);
