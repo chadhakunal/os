@@ -93,7 +93,7 @@ int virtio_blk_init() {
 
     memset(base_virtq_desc,  0, DEFAULT_PAGE_SIZE);
     memset(base_virtq_avail, 0, DEFAULT_PAGE_SIZE);
-    memset(base_virtq_used,  0, DEFAULT_PAGE_SIZE);
+    memset((void *)base_virtq_used,  0, DEFAULT_PAGE_SIZE);
 
     common->queue_desc   = (uint64_t)desc_phys;
     common->queue_driver = (uint64_t)avail_phys;
@@ -137,7 +137,7 @@ static void virtio_blk_hw_submit(struct disk_request_t *req) {
     hdr->reserved = 0;
     hdr->sector   = req->sector;
 
-    uint8_t *status = virtio_status_buf;
+    volatile uint8_t *status = virtio_status_buf;
     *status = 0xFF;
 
     const uint16_t d0 = 0, d1 = 1, d2 = 2;
