@@ -76,6 +76,9 @@ void trap_handler(struct trap_frame *tf) {
       case 13:
       case 15:
         handle_page_fault(tf->stval, cause_code, tf);
+        if (tf->sstatus & SSTATUS_SPP) {
+          return; // kernel-mode fault (e.g. copy_to/from_user): trap_vector restores kernel context from stack
+        }
         trap_return(&current_task->tf);
         break;
       default:
