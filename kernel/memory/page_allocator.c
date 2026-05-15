@@ -60,6 +60,7 @@ void init_page_allocator() {
     }
   }
 
+
   // Zero all free pages and move them to zero list
   pages_metadata.zero_page_head = pages_metadata.free_page_head;
   pages_metadata.free_page_head = NULL;

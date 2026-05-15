@@ -6,6 +6,7 @@
 #include "kernel/panic.h"
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/drivers/virtio-blk.h"
+#include "lib/list.h"
 
 struct virtual_time_t virtual_time;
 
@@ -29,6 +30,15 @@ void timer_handler(uint64_t hardware_clock_ticks, int from_user_mode) {
 
   /* Check if a pending virtio I/O completed and unblock the waiting task. */
   virtio_blk_poll();
+
+  /* Wake any tasks whose sleep deadline has passed. */
+  struct list_node *node = scheduler.blocked_list->next;
+  while (node != scheduler.blocked_list) {
+    struct task_t *t = container_of(node, struct task_t, scheduler_list);
+    node = node->next;
+    if (t->wait_reason == WAIT_SLEEP && virtual_time.os_ticks >= t->sleep_until)
+      unblock_task(t);
+  }
 
   current_task->runtime += TIMER_INTERVAL_CYCLES;
 

@@ -6,9 +6,8 @@
 #include "kernel/user_data_access.h"
 #include "lib/printk/printk.h"
 #include "types.h"
+#include "errno.h"
 
-#define EINVAL 22
-#define ECHILD 10
 
 DEFINE_SYSCALL3(waitpid, int64_t, pid, int *, wstatus, int, options)
 {
@@ -52,5 +51,12 @@ DEFINE_SYSCALL3(waitpid, int64_t, pid, int *, wstatus, int, options)
 
     debugk("waitpid: PID %llu woke up from wait\n", current_task->pid);
     asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
+
+    sigset_t pending_unblocked = current_task->signal_state.pending
+                                 & ~current_task->signal_state.blocked;
+    if (pending_unblocked) {
+      debugk("waitpid: PID %llu returning -EINTR due to pending signal\n", current_task->pid);
+      return -EINTR;
+    }
   }
 }

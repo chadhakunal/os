@@ -55,12 +55,13 @@ struct file_ops_t {
 };
 
 struct vnode_ops_t {
-  int64_t (*lookup) (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
-  int64_t (*readdir)(struct vnode_t *dir, uint32_t index, struct dentry_t **out);
-  int64_t (*create) (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
-  int64_t (*mkdir)  (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
-  int64_t (*unlink) (const char *name, struct vnode_t *parent_dir);
-  int64_t (*rmdir)  (const char *name, struct vnode_t *parent_dir);
+  int64_t (*lookup)   (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
+  int64_t (*readdir)  (struct vnode_t *dir, uint32_t index, struct dentry_t **out);
+  int64_t (*create)   (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
+  int64_t (*mkdir)    (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
+  int64_t (*unlink)   (const char *name, struct vnode_t *parent_dir);
+  int64_t (*rmdir)    (const char *name, struct vnode_t *parent_dir);
+  int64_t (*truncate) (struct vnode_t *vnode, uint64_t new_size);
 };
 
 struct address_space_ops_t {
@@ -195,5 +196,6 @@ int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t off
 int32_t vfs_vnode_write(struct vnode_t *vnode, const void *buf, size_t size, size_t offset);
 void    vfs_address_space_inc_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space);
 void    vfs_address_space_drop_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space);
+void    vfs_invalidate_page_cache(struct vnode_t *vnode);
 
 #endif

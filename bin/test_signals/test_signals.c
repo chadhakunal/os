@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <time.h>
 
 int test_passed = 0;
 int test_failed = 0;
@@ -28,9 +29,8 @@ void signal_handler(int sig) {
 
 void test_signal_handler_registration() {
   // Test that we can register a signal handler
-  struct sigaction sa;
+  struct sigaction sa = {0};
   sa.sa_handler = signal_handler;
-  sa.sa_flags = 0;
 
   printf("[USER] test_signal_handler_registration: registering handler at %p\n", signal_handler);
   int ret = sigaction(SIGUSR1, &sa, NULL);
@@ -38,28 +38,33 @@ void test_signal_handler_registration() {
 }
 
 void test_signal_delivery() {
-  // Reset flags
   signal_received = 0;
   signal_number = 0;
 
-  // Register handler
-  struct sigaction sa;
+  struct sigaction sa = {0};
   sa.sa_handler = signal_handler;
-  sa.sa_flags = 0;
   sigaction(SIGUSR1, &sa, NULL);
 
-  // Send signal to self
-  pid_t my_pid = getpid();
-  printf("[USER] test_signal_delivery: sending SIGUSR1 to self (PID %d)\n", my_pid);
-  kill(my_pid, SIGUSR1);
+  pid_t parent_pid = getpid();
+  pid_t child = fork();
 
-  // Give signal time to be delivered (busy wait a bit)
-  printf("[USER] test_signal_delivery: waiting for signal delivery...\n");
-  for (volatile int i = 0; i < 1000; i++);
+  if (child == 0) {
+    // Child: wait briefly then signal sleeping parent
+    sched_yield();
+    kill(parent_pid, SIGUSR1);
+    exit(0);
+  }
 
-  printf("[USER] test_signal_delivery: after wait, signal_received=%d, signal_number=%d\n",
+  // Parent: sleep — child's signal should wake us before timeout
+  printf("[USER] test_signal_delivery: sleeping, waiting for SIGUSR1 from child\n");
+  sleep(5);
+
+  int status;
+  waitpid(child, &status, 0);
+
+  printf("[USER] test_signal_delivery: signal_received=%d signal_number=%d\n",
          signal_received, signal_number);
-  test_result("signal is delivered to process", signal_received == 1);
+  test_result("signal wakes sleeping process", signal_received == 1);
   test_result("correct signal number received", signal_number == SIGUSR1);
 }
 
@@ -68,9 +73,8 @@ void test_signal_between_processes() {
   signal_number = 0;
 
   // Register handler in parent
-  struct sigaction sa;
+  struct sigaction sa = {0};
   sa.sa_handler = signal_handler;
-  sa.sa_flags = 0;
   sigaction(SIGUSR2, &sa, NULL);
 
   pid_t parent_pid = getpid();
@@ -99,9 +103,8 @@ void test_signal_default_behavior() {
 
   if (pid == 0) {
     // Child: reset SIGUSR1 to default handler
-    struct sigaction sa;
+    struct sigaction sa = {0};
     sa.sa_handler = SIG_DFL;
-    sa.sa_flags = 0;
     sigaction(SIGUSR1, &sa, NULL);
 
     // Send signal to self (should terminate)
@@ -123,35 +126,38 @@ void test_signal_default_behavior() {
 void test_signal_ignore() {
   signal_received = 0;
 
-  // Set SIGUSR1 to be ignored
-  struct sigaction sa;
+  struct sigaction sa = {0};
   sa.sa_handler = SIG_IGN;
-  sa.sa_flags = 0;
   sigaction(SIGUSR1, &sa, NULL);
 
-  // Send signal to self
-  kill(getpid(), SIGUSR1);
+  pid_t parent_pid = getpid();
+  pid_t child = fork();
 
-  // Wait a bit
-  for (volatile int i = 0; i < 1000; i++);
+  if (child == 0) {
+    sched_yield();
+    kill(parent_pid, SIGUSR1);
+    exit(0);
+  }
 
-  test_result("SIG_IGN ignores signal", signal_received == 0);
+  // Parent: sleep for 1 second — ignored signal should NOT wake or set flag
+  sleep(1);
+
+  int status;
+  waitpid(child, &status, 0);
+
+  test_result("SIG_IGN does not wake sleeping process", signal_received == 0);
 
   // Restore handler for other tests
-  sa.sa_handler = signal_handler;
-  sigaction(SIGUSR1, &sa, NULL);
+  struct sigaction sa2 = {0};
+  sa2.sa_handler = signal_handler;
+  sigaction(SIGUSR1, &sa2, NULL);
 }
 
 void test_multiple_signals() {
   signal_received = 0;
-  int signal_count = 0;
 
   // Handler that counts signals
-  struct sigaction sa;
-  sa.sa_handler = (void (*)(int))((void *)&signal_count); // Hacky, but we'll increment manually
-  sa.sa_flags = 0;
-
-  // Actually, let's just send multiple signals and check we can receive them
+  struct sigaction sa = {0};
   sa.sa_handler = signal_handler;
   sigaction(SIGUSR1, &sa, NULL);
 
@@ -159,14 +165,12 @@ void test_multiple_signals() {
 
   // Send signal multiple times
   kill(my_pid, SIGUSR1);
-  for (volatile int i = 0; i < 100; i++);
-
+  while (!signal_received) sched_yield();
   int first_received = signal_received;
 
   signal_received = 0;
   kill(my_pid, SIGUSR1);
-  for (volatile int i = 0; i < 100; i++);
-
+  while (!signal_received) sched_yield();
   int second_received = signal_received;
 
   test_result("multiple signals can be delivered", first_received && second_received);

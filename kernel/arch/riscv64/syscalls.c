@@ -82,8 +82,8 @@ void handle_syscall(struct trap_frame *tf) {
 
     case SYS_rt_sigreturn:
       debugk("syscall: rt_sigreturn()\n");
-      ret = sys_rt_sigreturn(tf);
-      break;
+      sys_rt_sigreturn(tf);
+      trap_return(&current_task->tf);
 
     case SYS_exit:
       debugk("syscall: exit(status=%lld)\n", (int64_t)tf->a0);
@@ -167,6 +167,11 @@ void handle_syscall(struct trap_frame *tf) {
     case SYS_sched_yield:
       debugk("syscall: sched_yield()\n");
       ret = sys_sched_yield(tf);
+      break;
+
+    case SYS_nanosleep:
+      debugk("syscall: nanosleep(req=%llx, rem=%llx)\n", tf->a0, tf->a1);
+      ret = sys_nanosleep(tf);
       break;
 
     default:

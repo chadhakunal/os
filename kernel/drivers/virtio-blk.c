@@ -7,14 +7,14 @@
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
 
-struct virtq_desc_t* base_virtq_desc = NULL;
-struct virtq_avail_t* base_virtq_avail = NULL;
-struct virtq_used_t* base_virtq_used = NULL;
+volatile struct virtq_desc_t* base_virtq_desc = NULL;
+volatile struct virtq_avail_t* base_virtq_avail = NULL;
+volatile struct virtq_used_t* base_virtq_used = NULL;
 
-static struct virtio_pci_common_cfg *common = NULL;
+static volatile struct virtio_pci_common_cfg *common = NULL;
 static uint64_t notify_addr = 0;
 static struct virtio_blk_req *virtio_req_buf = NULL;
-static uint8_t *virtio_status_buf = NULL;
+static volatile uint8_t *virtio_status_buf = NULL;
 
 /* Request currently submitted to the virtio queue, or NULL. */
 static struct disk_request_t *disk_current = NULL;
@@ -91,9 +91,9 @@ int virtio_blk_init() {
     base_virtq_avail = PHYS_TO_VIRT(avail_phys);
     base_virtq_used  = PHYS_TO_VIRT(used_phys);
 
-    memset(base_virtq_desc,  0, DEFAULT_PAGE_SIZE);
-    memset(base_virtq_avail, 0, DEFAULT_PAGE_SIZE);
-    memset(base_virtq_used,  0, DEFAULT_PAGE_SIZE);
+    memset((void *)base_virtq_desc,  0, DEFAULT_PAGE_SIZE);
+    memset((void *)base_virtq_avail, 0, DEFAULT_PAGE_SIZE);
+    memset((void *)base_virtq_used,  0, DEFAULT_PAGE_SIZE);
 
     common->queue_desc   = (uint64_t)desc_phys;
     common->queue_driver = (uint64_t)avail_phys;
@@ -137,7 +137,7 @@ static void virtio_blk_hw_submit(struct disk_request_t *req) {
     hdr->reserved = 0;
     hdr->sector   = req->sector;
 
-    uint8_t *status = virtio_status_buf;
+    volatile uint8_t *status = virtio_status_buf;
     *status = 0xFF;
 
     const uint16_t d0 = 0, d1 = 1, d2 = 2;

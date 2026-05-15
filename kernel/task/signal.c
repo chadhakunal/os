@@ -57,6 +57,9 @@ void send_signal(struct task_t *task, int sig) {
   if (task->state != TASK_ZOMBIE) {
     debugk("signal: sending signal %d to PID %llu\n", sig, task->pid);
     add_signal_to_set(&task->signal_state.pending, sig);
+    if (task->state == TASK_BLOCKED && !sig_in_set(&task->signal_state.blocked, sig)) {
+      unblock_task(task);
+    }
   }
 }
 
@@ -110,8 +113,8 @@ void check_and_deliver_signals(struct trap_frame *tf) {
   }
 
   copy_to_user((void *)new_sp, tf, sizeof(struct trap_frame));
-  copy_to_user((void *)(new_sp + 288), &sig, sizeof(uint64_t));
-  copy_to_user((void *)(new_sp + 296), &current_task->signal_state.blocked, sizeof(uint64_t));
+  copy_to_user((void *)(new_sp + sizeof(struct trap_frame)), &sig, sizeof(uint64_t));
+  copy_to_user((void *)(new_sp + sizeof(struct trap_frame) + 8), &current_task->signal_state.blocked, sizeof(uint64_t));
 
   sigset_t new_blocked = current_task->signal_state.blocked | action->sa_mask;
   if (!(action->sa_flags & SA_NODEFER)) {

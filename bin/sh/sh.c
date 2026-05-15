@@ -252,12 +252,7 @@ static void expand_args(const char *input, char *output, size_t output_size) {
 }
 
 static void echo_write_arg(int fd, const char *s) {
-  size_t len = strlen(s);
-  if (len >= 2 && s[0] == '"' && s[len - 1] == '"') {
-    if (len > 2) write(fd, s + 1, len - 2);
-  } else {
-    write(fd, s, len);
-  }
+  write(fd, s, strlen(s));
 }
 
 static int builtin_echo(int argc, char *argv[], int out_fd) {
@@ -317,9 +312,17 @@ void parse_and_exec(const char *buf) {
   while (buf[i] != '\0' && argc < 15) {
     while (buf[i] == ' ') i++;
     if (buf[i] == '\0') break;
-    argv[argc++] = (char *)&buf[i];
-    while (buf[i] != ' ' && buf[i] != '\0') i++;
-    if (buf[i] == ' ') { ((char *)buf)[i] = '\0'; i++; }
+    if (buf[i] == '"') {
+      /* Quoted token: strip the surrounding quotes, treat contents as one arg. */
+      i++; /* skip opening quote */
+      argv[argc++] = (char *)&buf[i];
+      while (buf[i] != '"' && buf[i] != '\0') i++;
+      if (buf[i] == '"') { ((char *)buf)[i] = '\0'; i++; }
+    } else {
+      argv[argc++] = (char *)&buf[i];
+      while (buf[i] != ' ' && buf[i] != '\0') i++;
+      if (buf[i] == ' ') { ((char *)buf)[i] = '\0'; i++; }
+    }
   }
   argv[argc] = NULL;
 
