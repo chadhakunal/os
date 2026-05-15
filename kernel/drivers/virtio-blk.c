@@ -7,8 +7,8 @@
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
 
-struct virtq_desc_t* base_virtq_desc = NULL;
-struct virtq_avail_t* base_virtq_avail = NULL;
+volatile struct virtq_desc_t* base_virtq_desc = NULL;
+volatile struct virtq_avail_t* base_virtq_avail = NULL;
 volatile struct virtq_used_t* base_virtq_used = NULL;
 
 static struct virtio_pci_common_cfg *common = NULL;
@@ -91,8 +91,8 @@ int virtio_blk_init() {
     base_virtq_avail = PHYS_TO_VIRT(avail_phys);
     base_virtq_used  = PHYS_TO_VIRT(used_phys);
 
-    memset(base_virtq_desc,  0, DEFAULT_PAGE_SIZE);
-    memset(base_virtq_avail, 0, DEFAULT_PAGE_SIZE);
+    memset((void *)base_virtq_desc,  0, DEFAULT_PAGE_SIZE);
+    memset((void *)base_virtq_avail, 0, DEFAULT_PAGE_SIZE);
     memset((void *)base_virtq_used,  0, DEFAULT_PAGE_SIZE);
 
     common->queue_desc   = (uint64_t)desc_phys;
