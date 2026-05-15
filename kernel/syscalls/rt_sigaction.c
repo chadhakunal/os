@@ -9,7 +9,7 @@
 DEFINE_SYSCALL4(rt_sigaction, int, signum, const struct sigaction_t *, user_act,
                 struct sigaction_t *, user_oldact, size_t, sigsetsize)
 {
-  debugk("rt_sigaction: signum=%d, act=%p, oldact=%p, sigsetsize=%lu\n",
+  printk("rt_sigaction: signum=%d, act=%p, oldact=%p, sigsetsize=%lu\n",
          signum, user_act, user_oldact, sigsetsize);
 
   // Validate signal number
@@ -26,7 +26,7 @@ DEFINE_SYSCALL4(rt_sigaction, int, signum, const struct sigaction_t *, user_act,
 
   // Validate sigsetsize (should be sizeof(sigset_t))
   if (sigsetsize != sizeof(sigset_t)) {
-    debugk("rt_sigaction: invalid sigsetsize %lu (expected %lu)\n",
+    printk("rt_sigaction: invalid sigsetsize %lu (expected %lu)\n",
            sigsetsize, sizeof(sigset_t));
     return -1;
   }
@@ -68,7 +68,7 @@ DEFINE_SYSCALL4(rt_sigaction, int, signum, const struct sigaction_t *, user_act,
       return -1;
     }
 
-    debugk("rt_sigaction: new handler=%p, flags=%d\n",
+    printk("rt_sigaction: new handler=%p, flags=%d\n",
            new_action.sa_handler, new_action.sa_flags);
 
     // Free old action if it was allocated
@@ -99,7 +99,8 @@ DEFINE_SYSCALL4(rt_sigaction, int, signum, const struct sigaction_t *, user_act,
       current_task->signal_state.actions[signum] = kernel_action;
     }
 
-    debugk("rt_sigaction: successfully set handler for signal %d\n", signum);
+    printk("rt_sigaction: successfully set handler for signal %d, actions[%d]=%p\n",
+           signum, signum, current_task->signal_state.actions[signum]);
   }
 
   return 0;
