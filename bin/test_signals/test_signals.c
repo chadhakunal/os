@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdlib.h>
+#include <time.h>
 
 int test_passed = 0;
 int test_failed = 0;
@@ -53,9 +54,9 @@ void test_signal_delivery() {
   printf("[USER] test_signal_delivery: sending SIGUSR1 to self (PID %d)\n", my_pid);
   kill(my_pid, SIGUSR1);
 
-  // Give signal time to be delivered (busy wait a bit)
+  // Sleep to allow timer interrupts to fire and deliver the signal
   printf("[USER] test_signal_delivery: waiting for signal delivery...\n");
-  for (volatile int i = 0; i < 1000; i++);
+  sleep(1);
 
   printf("[USER] test_signal_delivery: after wait, signal_received=%d, signal_number=%d\n",
          signal_received, signal_number);
@@ -135,6 +136,9 @@ void test_signal_ignore() {
   // Wait a bit
   for (volatile int i = 0; i < 1000; i++);
 
+  // Sleep to confirm signal was NOT delivered
+  sleep(1);
+
   test_result("SIG_IGN ignores signal", signal_received == 0);
 
   // Restore handler for other tests
@@ -159,13 +163,13 @@ void test_multiple_signals() {
 
   // Send signal multiple times
   kill(my_pid, SIGUSR1);
-  for (volatile int i = 0; i < 100; i++);
+  sleep(1);
 
   int first_received = signal_received;
 
   signal_received = 0;
   kill(my_pid, SIGUSR1);
-  for (volatile int i = 0; i < 100; i++);
+  sleep(1);
 
   int second_received = signal_received;
 
