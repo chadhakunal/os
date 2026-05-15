@@ -55,7 +55,7 @@ static bool handle_default_signal_action(int sig) {
 
 void send_signal(struct task_t *task, int sig) {
   if (task->state != TASK_ZOMBIE) {
-    printk("send_signal: sig=%d pid=%llu state=%d\n", sig, task->pid, task->state);
+    debugk("signal: sending signal %d to PID %llu\n", sig, task->pid);
     add_signal_to_set(&task->signal_state.pending, sig);
     if (task->state == TASK_BLOCKED && !sig_in_set(&task->signal_state.blocked, sig)) {
       unblock_task(task);
@@ -79,41 +79,29 @@ void check_and_deliver_signals(struct trap_frame *tf) {
     return;
   }
 
-  static int delivery_count = 0;
-  delivery_count++;
-  if (delivery_count > 100) {
-    printk("check_and_deliver_signals: delivery_count=%d, pid=%llu, pending=%llx, blocked=%llx\n",
-           delivery_count, current_task->pid,
-           current_task->signal_state.pending, current_task->signal_state.blocked);
-  }
-
   int sig = get_pending_unblocked_signal(&current_task->signal_state);
   if (sig == 0) {
     return;
   }
 
-  printk("signal: delivering signal %d to PID %llu\n", sig, current_task->pid);
+  debugk("signal: delivering signal %d to PID %llu\n", sig, current_task->pid);
 
   struct sigaction_t *action = current_task->signal_state.actions[sig];
 
-  printk("signal: action=%p SIG_IGN=%p SIG_DFL=%p\n",
-         action, (void *)SIG_IGNORE, (void *)SIG_DEFAULT_HANDLER);
-
   if (action == (struct sigaction_t *)SIG_IGNORE) {
-    printk("signal: SIG_IGNORE for signal %d\n", sig);
+    debugk("signal: SIG_IGNORE for signal %d\n", sig);
     delete_signal_from_set(&current_task->signal_state.pending, sig);
     return;
   }
 
   if (action == (struct sigaction_t *)SIG_DEFAULT_HANDLER || action == NULL) {
-    printk("signal: SIG_DEFAULT_HANDLER for signal %d\n", sig);
+    debugk("signal: SIG_DEFAULT_HANDLER for signal %d\n", sig);
     delete_signal_from_set(&current_task->signal_state.pending, sig);
     handle_default_signal_action(sig);
     return;
   }
 
-  printk("signal: custom handler at %p for signal %d, returning from sepc=%llx\n",
-         action->sa_handler, sig, tf->sepc);
+  debugk("signal: custom handler at %p for signal %d\n", action->sa_handler, sig);
 
   uint64_t new_sp = (tf->sp - sizeof(struct signal_frame)) & ~15ULL;
 
@@ -142,8 +130,6 @@ void check_and_deliver_signals(struct trap_frame *tf) {
   tf->sepc = (uint64_t)action->sa_handler;
   tf->ra = SIGNAL_JUMP_POINT_ADDR;
   tf->a0 = sig;
-  printk("signal: dispatching handler, sepc=%llx ra=%llx sp=%llx a0=%llu\n",
-         tf->sepc, tf->ra, tf->sp, tf->a0);
 
   debugk("signal: setup complete, handler=%llx, sp=%llx, ra=%llx\n",
          tf->sepc, tf->sp, tf->ra);

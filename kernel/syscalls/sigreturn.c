@@ -6,8 +6,7 @@
 #include "lib/printk/printk.h"
 
 int64_t sys_rt_sigreturn(struct trap_frame *tf) {
-  printk("sys_rt_sigreturn: ENTERED pid=%llu sp=%llx sepc=%llx\n",
-         current_task->pid, tf->sp, tf->sepc);
+  debugk("syscall: rt_sigreturn() - ENTERED for PID %llu\n", current_task->pid);
 
   if (current_task->signal_handler_depth == 0) {
     debugk("syscall: rt_sigreturn() - ERROR: not in signal handler!\n");
@@ -25,8 +24,8 @@ int64_t sys_rt_sigreturn(struct trap_frame *tf) {
 
   current_task->signal_handler_depth--;
 
-  printk("syscall: rt_sigreturn() - restored context, sp=%llx, sepc=%llx, ra=%llx, depth=%u\n",
-         current_task->tf.sp, current_task->tf.sepc, current_task->tf.ra, current_task->signal_handler_depth);
+  debugk("syscall: rt_sigreturn() - restored context, sepc=%llx depth=%u\n",
+         current_task->tf.sepc, current_task->signal_handler_depth);
 
   return 0;
 }
