@@ -33,7 +33,7 @@
 
 extern struct virtq_desc_t* base_virtq_desc;
 extern struct virtq_avail_t* base_virtq_avail;
-extern struct virtq_used_t* base_virtq_used;
+extern volatile struct virtq_used_t* base_virtq_used;
 
 struct virtio_blk_req {
     uint32_t type;

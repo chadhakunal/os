@@ -9,12 +9,12 @@
 
 struct virtq_desc_t* base_virtq_desc = NULL;
 struct virtq_avail_t* base_virtq_avail = NULL;
-struct virtq_used_t* base_virtq_used = NULL;
+volatile struct virtq_used_t* base_virtq_used = NULL;
 
 static struct virtio_pci_common_cfg *common = NULL;
 static uint64_t notify_addr = 0;
 static struct virtio_blk_req *virtio_req_buf = NULL;
-static uint8_t *virtio_status_buf = NULL;
+static volatile uint8_t *virtio_status_buf = NULL;
 
 /* Request currently submitted to the virtio queue, or NULL. */
 static struct disk_request_t *disk_current = NULL;
