@@ -38,27 +38,33 @@ void test_signal_handler_registration() {
 }
 
 void test_signal_delivery() {
-  // Reset flags
   signal_received = 0;
   signal_number = 0;
 
-  // Register handler
   struct sigaction sa = {0};
   sa.sa_handler = signal_handler;
   sigaction(SIGUSR1, &sa, NULL);
 
-  // Send signal to self
-  pid_t my_pid = getpid();
-  printf("[USER] test_signal_delivery: sending SIGUSR1 to self (PID %d)\n", my_pid);
-  kill(my_pid, SIGUSR1);
+  pid_t parent_pid = getpid();
+  pid_t child = fork();
 
-  // Sleep — signal should wake us early
-  printf("[USER] test_signal_delivery: waiting for signal delivery...\n");
-  sleep(10);
+  if (child == 0) {
+    // Child: wait briefly then signal sleeping parent
+    sched_yield();
+    kill(parent_pid, SIGUSR1);
+    exit(0);
+  }
 
-  printf("[USER] test_signal_delivery: after wait, signal_received=%d, signal_number=%d\n",
+  // Parent: sleep — child's signal should wake us before timeout
+  printf("[USER] test_signal_delivery: sleeping, waiting for SIGUSR1 from child\n");
+  sleep(5);
+
+  int status;
+  waitpid(child, &status, 0);
+
+  printf("[USER] test_signal_delivery: signal_received=%d signal_number=%d\n",
          signal_received, signal_number);
-  test_result("signal is delivered to process", signal_received == 1);
+  test_result("signal wakes sleeping process", signal_received == 1);
   test_result("correct signal number received", signal_number == SIGUSR1);
 }
 
@@ -120,16 +126,26 @@ void test_signal_default_behavior() {
 void test_signal_ignore() {
   signal_received = 0;
 
-  // Set SIGUSR1 to be ignored
   struct sigaction sa = {0};
   sa.sa_handler = SIG_IGN;
   sigaction(SIGUSR1, &sa, NULL);
 
-  // Send signal to self then yield once — signal should stay ignored
-  kill(getpid(), SIGUSR1);
-  sched_yield();
+  pid_t parent_pid = getpid();
+  pid_t child = fork();
 
-  test_result("SIG_IGN ignores signal", signal_received == 0);
+  if (child == 0) {
+    sched_yield();
+    kill(parent_pid, SIGUSR1);
+    exit(0);
+  }
+
+  // Parent: sleep for 1 second — ignored signal should NOT wake or set flag
+  sleep(1);
+
+  int status;
+  waitpid(child, &status, 0);
+
+  test_result("SIG_IGN does not wake sleeping process", signal_received == 0);
 
   // Restore handler for other tests
   struct sigaction sa2 = {0};
