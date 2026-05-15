@@ -464,15 +464,18 @@ void reap_zombie(struct task_t *zombie) {
   debugk("reap_zombie: Removing from task list\n");
   list_remove(&zombie->task_list);
 
-  // Free kernel stack pages (4 pages at KERNEL_STACK_VIRTUAL_BASE)
+  // Free kernel stack pages and their page table nodes
   for (uint64_t va = KERNEL_STACK_VIRTUAL_BASE; va < KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE; va += DEFAULT_PAGE_SIZE) {
     uint64_t pte = get_pte(zombie->mm_struct.root_satp, va);
     if (pte & PTE_VALID) {
       void *phys_page = (void *)PTE_DECODE(pte);
       free_page(phys_page);
-      unmap_page(zombie->mm_struct.root_satp, va);
     }
+    unmap_page(zombie->mm_struct.root_satp, va);
   }
+
+  // Unmap signal jump point to free its intermediate page table nodes
+  unmap_page(zombie->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR);
 
   // Free the root page table itself
   free_page(zombie->mm_struct.root_satp);
