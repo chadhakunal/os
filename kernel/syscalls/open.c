@@ -6,6 +6,7 @@
 #include "lib/string.h"
 #include "lib/printk/printk.h"
 #include "types.h"
+#include "errno.h"
 
 #define MAX_PATH_COPY 256
 #define AT_FDCWD -100
