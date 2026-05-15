@@ -84,24 +84,27 @@ void check_and_deliver_signals(struct trap_frame *tf) {
     return;
   }
 
-  debugk("signal: delivering signal %d to PID %llu\n", sig, current_task->pid);
+  printk("signal: delivering signal %d to PID %llu\n", sig, current_task->pid);
 
   struct sigaction_t *action = current_task->signal_state.actions[sig];
 
+  printk("signal: action=%p SIG_IGN=%p SIG_DFL=%p\n",
+         action, (void *)SIG_IGNORE, (void *)SIG_DEFAULT_HANDLER);
+
   if (action == (struct sigaction_t *)SIG_IGNORE) {
-    debugk("signal: SIG_IGNORE for signal %d\n", sig);
+    printk("signal: SIG_IGNORE for signal %d\n", sig);
     delete_signal_from_set(&current_task->signal_state.pending, sig);
     return;
   }
 
   if (action == (struct sigaction_t *)SIG_DEFAULT_HANDLER || action == NULL) {
-    debugk("signal: SIG_DEFAULT_HANDLER for signal %d\n", sig);
+    printk("signal: SIG_DEFAULT_HANDLER for signal %d\n", sig);
     delete_signal_from_set(&current_task->signal_state.pending, sig);
     handle_default_signal_action(sig);
     return;
   }
 
-  debugk("signal: custom handler at %p for signal %d\n", action->sa_handler, sig);
+  printk("signal: custom handler at %p for signal %d\n", action->sa_handler, sig);
 
   uint64_t new_sp = (tf->sp - sizeof(struct signal_frame)) & ~15ULL;
 
