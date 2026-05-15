@@ -537,6 +537,12 @@ uint64_t fork_off() {
   copy_file_table(&current_task->file_table, &new_task->file_table);
   copy_mm(current_task, new_task);
 
+  void *sjp = get_signal_jump_point_page();
+  if (sjp) {
+    map_page(new_task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
+             (uint64_t)sjp, PTE_VALID | PTE_U | PTE_R | PTE_X);
+  }
+
   memcpy(&new_task->tf, &current_task->tf, sizeof(struct trap_frame));
   current_task->tf.a0 = new_task->pid;
   new_task->tf.a0 = 0;
