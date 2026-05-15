@@ -79,6 +79,14 @@ void check_and_deliver_signals(struct trap_frame *tf) {
     return;
   }
 
+  static int delivery_count = 0;
+  delivery_count++;
+  if (delivery_count > 100) {
+    printk("check_and_deliver_signals: delivery_count=%d, pid=%llu, pending=%llx, blocked=%llx\n",
+           delivery_count, current_task->pid,
+           current_task->signal_state.pending, current_task->signal_state.blocked);
+  }
+
   int sig = get_pending_unblocked_signal(&current_task->signal_state);
   if (sig == 0) {
     return;
