@@ -65,15 +65,16 @@ void kmain(void *dtb_ptr) {
 
   virtio_blk_init();
   printk("Initialized virtio-blk\n");
-  //
-  // struct superblock_t *sbfs_sb = sbfs_mount();
-  // if (sbfs_sb != NULL) {
-  //   vfs_mount("/mnt", sbfs_sb);
-  //   printk("Mounted sbfs at /mnt\n");
-  //   vfs_test_run();
-  // } else {
-  //   printk("sbfs mount failed\n");
-  // }
+
+   struct superblock_t *sbfs_sb = sbfs_mount();
+  if (sbfs_sb != NULL) {
+    printk("mounted sbfs\n");
+    // vfs_mount("/mnt", sbfs_sb);
+    // printk("Mounted sbfs at /mnt\n");
+    // vfs_test_run();
+  } else {
+    printk("sbfs mount failed\n");
+  }
 
   // printk("Starting read of /etc/rc\n");
   // // Test vfs_read with a loop
