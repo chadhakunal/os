@@ -46,6 +46,8 @@ static void send_sigsegv_and_abort_syscall(void) {
 }
 
 int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *tf) {
+  printk("[PF] fault_addr=0x%llx scause=%lld pid=%llu SPP=%d\n",
+         fault_addr, scause, current_task->pid, !!(tf->sstatus & SSTATUS_SPP));
   debugk("=== PAGE FAULT START ===\n");
   debugk("Fault addr=0x%llx, scause=%lld, pid=%llu, SPP=%d\n",
          fault_addr, scause, current_task->pid, !!(tf->sstatus & SSTATUS_SPP));
@@ -88,7 +90,7 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
     uint64_t stack_limit = DEFAULT_STACK_START - STACK_LIMIT;
 
     if (fault_addr < DEFAULT_STACK_START && fault_addr >= stack_limit) {
-      struct vma_t *stack_vma = find_vma(&current_task->mm_struct, DEFAULT_STACK_START - 1);
+      struct vma_t *stack_vma = find_vma(&current_task->mm_struct, DEFAULT_STACK_START);
 
       if (stack_vma && fault_addr < stack_vma->start_addr) {
         uint64_t new_start = PAGE_ALIGN_DOWN(fault_addr);
