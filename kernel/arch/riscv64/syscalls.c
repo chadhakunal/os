@@ -16,6 +16,8 @@
 void handle_syscall(struct trap_frame *tf) {
   uint64_t ret = -1;
   uint64_t syscall_num = tf->a7;
+  printk("handle_syscall: pid=%llu syscall=%llu sepc=%llx sp=%llx\n",
+         current_task->pid, syscall_num, tf->sepc, tf->sp);
 
   // Enable supervisor access to user memory (SUM bit in sstatus)
   // This allows kernel to read/write user buffers during syscalls
