@@ -84,8 +84,7 @@ void check_and_deliver_signals(struct trap_frame *tf) {
     return;
   }
 
-  printk("signal: delivering signal %d to PID %llu, tf->sepc=%llx tf->sp=%llx\n",
-         sig, current_task->pid, tf->sepc, tf->sp);
+  printk("signal: delivering signal %d to PID %llu\n", sig, current_task->pid);
 
   struct sigaction_t *action = current_task->signal_state.actions[sig];
 
@@ -118,8 +117,8 @@ void check_and_deliver_signals(struct trap_frame *tf) {
   }
 
   copy_to_user((void *)new_sp, tf, sizeof(struct trap_frame));
-  copy_to_user((void *)(new_sp + 288), &sig, sizeof(uint64_t));
-  copy_to_user((void *)(new_sp + 296), &current_task->signal_state.blocked, sizeof(uint64_t));
+  copy_to_user((void *)(new_sp + sizeof(struct trap_frame)), &sig, sizeof(uint64_t));
+  copy_to_user((void *)(new_sp + sizeof(struct trap_frame) + 8), &current_task->signal_state.blocked, sizeof(uint64_t));
 
   sigset_t new_blocked = current_task->signal_state.blocked | action->sa_mask;
   if (!(action->sa_flags & SA_NODEFER)) {
