@@ -25,23 +25,24 @@ static uint64_t vma_to_pte_flags(uint64_t vm_flags) {
 // If in supervisor mode, return to user space for signal delivery (never returns)
 static void send_sigsegv_and_abort_syscall(void) {
   extern void trap_return(struct trap_frame *tf);
+  extern void kernel_fault_recovery_jump(struct kernel_fault_recovery_t *r);
 
   debugk("Sending SIGSEGV to PID %llu\n", current_task->pid);
-  send_signal(current_task, SIGSEGV);
 
-  // If in supervisor mode (during syscall), return to user space for signal delivery
-  debugk("current_task->tf.sstatus = 0x%llx, SPP bit = %d\n",
-         current_task->tf.sstatus, !!(current_task->tf.sstatus & SSTATUS_SPP));
-
-  if (current_task->tf.sstatus & SSTATUS_SPP) {
-    debugk("Detected SPP=1 in saved tf, calling trap_return to user mode\n");
-    debugk("User mode PC = 0x%llx, SP = 0x%llx\n", current_task->tf.sepc, current_task->tf.sp);
-    trap_return(&current_task->tf);
-    // Never returns - signal delivered and process terminated
-    debugk("ERROR - trap_return returned!\n");
-  } else {
-    debugk("SPP=0 in saved tf, returning normally\n");
+  // If inside copy_to/from_user, jump back so it returns -1 to the syscall.
+  // Don't send SIGSEGV — the syscall will propagate the error to userspace.
+  if (current_task->fault_recovery.active) {
+    debugk("Kernel fault recovery active, jumping back to copy_to/from_user\n");
+    current_task->fault_recovery.active = 0;
+    kernel_fault_recovery_jump(&current_task->fault_recovery);
+    // never returns
   }
+
+  // Direct user-mode fault — send SIGSEGV and return to userspace for delivery.
+  send_signal(current_task, SIGSEGV);
+  debugk("Returning to user PC=0x%llx SP=0x%llx\n",
+         current_task->tf.sepc, current_task->tf.sp);
+  trap_return(&current_task->tf);
 }
 
 int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *tf) {
