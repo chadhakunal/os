@@ -2,6 +2,7 @@
 .global kernel_fault_recovery_setup
 .global kernel_fault_recovery_jump
 
+.align 4
 # int kernel_fault_recovery_setup(struct kernel_fault_recovery_t *r)
 # Saves sp, ra, s0-s11 into *r and marks it active.
 # Returns 0 on first call; when kernel_fault_recovery_jump is called,
@@ -26,6 +27,7 @@ kernel_fault_recovery_setup:
   li a0, 0         # return 0
   ret
 
+.align 4
 # void kernel_fault_recovery_jump(struct kernel_fault_recovery_t *r)
 # Restores sp, ra, s0-s11 and returns 1 to the kernel_fault_recovery_setup call site.
 kernel_fault_recovery_jump:
