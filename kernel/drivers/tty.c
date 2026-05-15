@@ -37,14 +37,11 @@ int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
 
 int64_t tty_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   extern void uart_putc(char c);
-  debugk("Printing!\n");
   char *buf = (char *)buffer;
 
-  // Use pointer arithmetic instead of index to avoid variable corruption
-  char *end = buf + size;
-  for (char *p = buf; p < end; p++) {
-    debugk("Printing: %s\n", p);
-    uart_putc(*p);
+  for (uint64_t i = 0; i < size; i++) {
+    debugk("Printing at index: %llu\n", i);
+    uart_putc(buf[i]);
   }
 
   return size;
