@@ -4,6 +4,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/user_data_access.h"
 #include "lib/string.h"
+#include "lib/printk/printk.h"
 #include "types.h"
 
 #define MAX_PATH_COPY 256
@@ -34,6 +35,7 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
   copy_string_from_user(path, user_path, MAX_PATH_COPY);
 
   if (path[0] != '/' && dirfd != AT_FDCWD) {
+    printk("open: relative path '%s' without AT_FDCWD not supported\n", path);
     return -1;
   }
 
@@ -42,8 +44,10 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
     split_path(path, parent_path, name);
 
     struct dentry_t *parent_dentry;
-    if (vfs_resolve_path(parent_path, &parent_dentry) < 0)
+    if (vfs_resolve_path(parent_path, &parent_dentry) < 0) {
+      printk("open: O_CREAT: parent path '%s' not found\n", parent_path);
       return -1;
+    }
 
     struct vnode_t *parent_vnode = parent_dentry->vnode->mounted_vnode
                                    ? parent_dentry->vnode->mounted_vnode
@@ -51,8 +55,10 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
 
     struct dentry_t *new_dentry;
     int ret = vfs_create(name, parent_vnode, &new_dentry);
-    if (ret < 0)
-      return -1;
+    if (ret < 0) {
+      printk("open: O_CREAT: vfs_create('%s') failed: %d\n", name, ret);
+      return ret;
+    }
 
     if (new_dentry != NULL) {
       new_dentry->parent = parent_dentry;
@@ -66,7 +72,8 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
   struct file_t *file;
   int ret = vfs_open(path, flags, &file);
   if (ret != 0) {
-    return -1;
+    printk("open: vfs_open('%s') failed: %d\n", path, ret);
+    return ret;
   }
 
   // Handle O_TRUNC: truncate file to 0 length
