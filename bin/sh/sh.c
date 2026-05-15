@@ -6,9 +6,155 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <dirent.h> 
+#include <dirent.h>
 
-#define COMMAND_BUF_SIZE 256
+/* -------------------------------------------------------------------------
+ * Constants
+ * ---------------------------------------------------------------------- */
+#define COMMAND_BUF_SIZE  256
+#define MAX_HISTORY       128
+#define HISTORY_FILE      "/.history"
+
+/* -------------------------------------------------------------------------
+ * History subsystem
+ * ---------------------------------------------------------------------- */
+static char history[MAX_HISTORY][COMMAND_BUF_SIZE];
+static int  history_count = 0;
+
+static void history_load(void) {
+  int fd = open(HISTORY_FILE, O_RDONLY);
+  if (fd < 0) return;
+
+  static char buf[MAX_HISTORY * COMMAND_BUF_SIZE];
+  ssize_t n = read(fd, buf, sizeof(buf) - 1);
+  close(fd);
+  if (n <= 0) return;
+  buf[n] = '\0';
+
+  char *p = buf;
+  char *end = buf + n;
+  while (p < end && history_count < MAX_HISTORY) {
+    char *nl = p;
+    while (nl < end && *nl != '\n') nl++;
+    int len = nl - p;
+    if (len > 0 && len < COMMAND_BUF_SIZE) {
+      memcpy(history[history_count], p, len);
+      history[history_count][len] = '\0';
+      history_count++;
+    }
+    p = nl + 1;
+  }
+}
+
+static void history_push(const char *cmd) {
+  if (cmd[0] == '\0') return;
+  /* Don't add if same as last entry. */
+  if (history_count > 0 &&
+      strcmp(history[history_count - 1], cmd) == 0)
+    return;
+
+  if (history_count < MAX_HISTORY) {
+    strncpy(history[history_count], cmd, COMMAND_BUF_SIZE - 1);
+    history[history_count][COMMAND_BUF_SIZE - 1] = '\0';
+    history_count++;
+  } else {
+    /* Shift oldest out. */
+    for (int i = 0; i < MAX_HISTORY - 1; i++)
+      memcpy(history[i], history[i + 1], COMMAND_BUF_SIZE);
+    strncpy(history[MAX_HISTORY - 1], cmd, COMMAND_BUF_SIZE - 1);
+    history[MAX_HISTORY - 1][COMMAND_BUF_SIZE - 1] = '\0';
+  }
+
+  /* Append to history file. */
+  int fd = open(HISTORY_FILE, O_WRONLY | O_CREAT);
+  if (fd >= 0) {
+    lseek(fd, 0, SEEK_END);
+    write(fd, cmd, strlen(cmd));
+    write(fd, "\n", 1);
+    close(fd);
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Line editor — char-by-char readline with history navigation.
+ * Requires the TTY to be in raw mode (TCSRAW) before calling.
+ * Returns the number of bytes placed in out_buf (not counting '\0').
+ * ---------------------------------------------------------------------- */
+
+static void term_erase(int n) {
+  for (int i = 0; i < n; i++)
+    write(1, "\b \b", 3);
+}
+
+static int readline_with_history(const char *prompt, char *out_buf,
+                                  int max_len) {
+  char line[COMMAND_BUF_SIZE];
+  int  line_len = 0;
+
+  char saved_line[COMMAND_BUF_SIZE] = {0};
+  int  hist_pos = history_count;
+
+  write(1, prompt, strlen(prompt));
+
+  while (1) {
+    char c;
+    if (read(0, &c, 1) <= 0) continue;
+
+    if (c == '\n' || c == '\r') {
+      write(1, "\n", 1);
+      line[line_len] = '\0';
+      memcpy(out_buf, line, line_len + 1);
+      return line_len;
+    }
+
+    if (c == 0x7f || c == 0x08) {
+      if (line_len > 0) { line_len--; term_erase(1); }
+      continue;
+    }
+
+    if (c == '\x1b') {
+      char seq[2];
+      if (read(0, &seq[0], 1) <= 0) continue;
+      if (read(0, &seq[1], 1) <= 0) continue;
+      if (seq[0] != '[') continue;
+
+      if (seq[1] == 'A') {
+        /* Up arrow — older history entry. */
+        if (hist_pos == 0) continue;
+        if (hist_pos == history_count)
+          memcpy(saved_line, line, line_len + 1);
+        hist_pos--;
+        term_erase(line_len);
+        line_len = strlen(history[hist_pos]);
+        memcpy(line, history[hist_pos], line_len + 1);
+        write(1, line, line_len);
+      } else if (seq[1] == 'B') {
+        /* Down arrow — newer entry or restore live input. */
+        if (hist_pos == history_count) continue;
+        hist_pos++;
+        term_erase(line_len);
+        if (hist_pos == history_count) {
+          line_len = strlen(saved_line);
+          memcpy(line, saved_line, line_len + 1);
+        } else {
+          line_len = strlen(history[hist_pos]);
+          memcpy(line, history[hist_pos], line_len + 1);
+        }
+        write(1, line, line_len);
+      }
+      continue;
+    }
+
+    if (c >= 0x20 && line_len < max_len - 1) {
+      line[line_len++] = c;
+      write(1, &c, 1);
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Builtins
+ * ---------------------------------------------------------------------- */
 
 // Global variables for script arguments
 static char **script_argv = NULL;
@@ -16,289 +162,8 @@ static int script_argc = 0;
 
 void parse_and_exec(const char *buf);
 
-/* Expand * to list all files in current directory */
-void expand_glob(const char *input, char *output, size_t output_size) {
-  size_t in_pos = 0;
-  size_t out_pos = 0;
-
-  while (input[in_pos] != '\0' && out_pos < output_size - 1) {
-    if (input[in_pos] == '*') {
-      // Expand * to all files in current directory
-      int fd = open(".", O_RDONLY);
-      if (fd >= 0) {
-        struct dirent entries[64];
-        int n = getdents(fd, entries, sizeof(entries));
-        if (n > 0) {
-          int num_entries = n / sizeof(struct dirent);
-          bool first = true;
-
-          for (int i = 0; i < num_entries; i++) {
-            // Skip . and ..
-            if (strcmp(entries[i].d_name, ".") == 0 || strcmp(entries[i].d_name, "..") == 0) {
-              continue;
-            }
-
-            // Add space before entry if not the first
-            if (!first && out_pos < output_size - 1) {
-              output[out_pos++] = ' ';
-            }
-            first = false;
-
-            // Copy the filename
-            const char *name = entries[i].d_name;
-            size_t name_len = strlen(name);
-            for (size_t j = 0; j < name_len && out_pos < output_size - 1; j++) {
-              output[out_pos++] = name[j];
-            }
-          }
-        }
-        close(fd);
-      }
-      in_pos++;
-    } else {
-      // Regular character, just copy it
-      output[out_pos++] = input[in_pos++];
-    }
-  }
-
-  output[out_pos] = '\0';
-}
-
-/* Expand $0, $1, $2, etc. in the input string with script arguments */
-void expand_args(const char *input, char *output, size_t output_size) {
-  size_t in_pos = 0;
-  size_t out_pos = 0;
-
-  while (input[in_pos] != '\0' && out_pos < output_size - 1) {
-    if (input[in_pos] == '$' && input[in_pos + 1] >= '0' && input[in_pos + 1] <= '9') {
-      // Found $N where N is a digit
-      int arg_num = input[in_pos + 1] - '0';
-      in_pos += 2;
-
-      // Replace with the corresponding argument if it exists
-      if (arg_num < script_argc && script_argv[arg_num] != NULL) {
-        const char *arg = script_argv[arg_num];
-        size_t arg_len = strlen(arg);
-
-        // Copy the argument value
-        for (size_t i = 0; i < arg_len && out_pos < output_size - 1; i++) {
-          output[out_pos++] = arg[i];
-        }
-      }
-      // If argument doesn't exist, just skip the $N (replace with empty string)
-    } else {
-      // Regular character, just copy it
-      output[out_pos++] = input[in_pos++];
-    }
-  }
-
-  output[out_pos] = '\0';
-}
-
-int main(int argc, char **argv, char **envp) {
-  // Handle -c option: sh -c "command string"
-  if (argc >= 3 && strcmp(argv[1], "-c") == 0) {
-    const char *command = argv[2];
-
-    // Set global script arguments for $0, $1, etc. expansion
-    // In -c mode: $0 = sh, $1 = -c, $2 = command, etc.
-    script_argv = argv;
-    script_argc = argc;
-
-    char expanded[1024];
-    char glob_expanded[1024];
-
-    // Expand arguments and globs
-    expand_args(command, expanded, sizeof(expanded));
-    expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
-    parse_and_exec(glob_expanded);
-
-    return 0;
-  }
-
-  // If a script file is provided as argv[1], execute it and exit
-  if (argc >= 2) {
-    const char *script_path = argv[1];
-
-    // Strip surrounding quotes if present
-    size_t path_len = strlen(script_path);
-    char stripped_path[256];
-    if (path_len >= 2 && script_path[0] == '"' && script_path[path_len - 1] == '"') {
-      // Copy without the quotes
-      for (size_t i = 1; i < path_len - 1 && i < sizeof(stripped_path); i++) {
-        stripped_path[i - 1] = script_path[i];
-      }
-      stripped_path[path_len - 2] = '\0';
-      script_path = stripped_path;
-    }
-
-    // Set global script arguments for $0, $1, etc. expansion
-    // $0 = script path, $1 = first arg to script, etc.
-    script_argv = argv;
-    script_argc = argc;
-
-    int fd = open(script_path, O_RDONLY);
-    if (fd < 0) {
-      printf("sh: cannot open script '%s'\n", script_path);
-      return 1;
-    }
-
-    char buf[1024];
-    char expanded[1024];
-    char glob_expanded[1024];
-    ssize_t n;
-    size_t line_start = 0;
-    size_t total_read = 0;
-
-    // Read and execute the script line by line
-    while ((n = read(fd, buf + total_read, sizeof(buf) - total_read - 1)) > 0) {
-      total_read += n;
-      buf[total_read] = '\0';
-
-      // Process complete lines
-      for (size_t i = line_start; i < total_read; i++) {
-        if (buf[i] == '\n') {
-          buf[i] = '\0';
-          if (line_start < i && buf[line_start] != '#') {
-            // Expand $0, $1, etc. first
-            expand_args(&buf[line_start], expanded, sizeof(expanded));
-            // Then expand * for glob
-            expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
-            parse_and_exec(glob_expanded);
-          }
-          line_start = i + 1;
-        }
-      }
-
-      // Move any incomplete line to the start of the buffer
-      if (line_start < total_read) {
-        size_t remaining = total_read - line_start;
-        for (size_t i = 0; i < remaining; i++) {
-          buf[i] = buf[line_start + i];
-        }
-        total_read = remaining;
-        line_start = 0;
-      } else {
-        total_read = 0;
-        line_start = 0;
-      }
-    }
-
-    // Execute any remaining line
-    if (total_read > 0 && buf[0] != '#') {
-      buf[total_read] = '\0';
-      expand_args(buf, expanded, sizeof(expanded));
-      expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
-      parse_and_exec(glob_expanded);
-    }
-
-    close(fd);
-    return 0;
-  }
-
-  // Interactive mode - no script provided
-  printf("Shell started!\n");
-  printf("argc = %d\n", argc);
-
-  printf("Arguments:\n");
-  for (int i = 0; i < argc; i++) {
-    printf("  argv[%d] = %s\n", i, argv[i]);
-  }
-
-  printf("Environment:\n");
-  printf("envp pointer = %p\n", envp);
-  if (envp != NULL) {
-    printf("envp[0] = %p\n", envp[0]);
-    for (int i = 0; envp[i] != NULL; i++) {
-      printf("  envp[%d] = %s\n", i, envp[i]);
-    }
-  }
-
-  pid_t shell_pgid = getpid();
-  tcsetpgrp(0, shell_pgid);
-
-  char buf[1024];
-  char glob_expanded[1024];
-  char cwd[256];
-  while (true) {
-    if (getcwd(cwd, sizeof(cwd)) != NULL) {
-      printf("%s $ ", cwd);
-    } else {
-      printf("$ ");
-    }
-    ssize_t n = read(0, buf, sizeof(buf) - 1);
-    if (n > 0) {
-      buf[n] = '\0';
-
-      if (n > 0 && buf[n - 1] == '\n') {
-        buf[n - 1] = '\0';
-      }
-
-      if (buf[0] != '\0') {
-        // Expand * for glob in interactive mode too
-        expand_glob(buf, glob_expanded, sizeof(glob_expanded));
-        parse_and_exec(glob_expanded);
-      }
-    }
-  }
-
-  return 0;
-}
-
-/* Write a string to fd, stripping one layer of surrounding "..." quotes. */
-static void echo_write_arg(int fd, const char *s) {
-  size_t len = strlen(s);
-  if (len >= 2 && s[0] == '"' && s[len - 1] == '"') {
-    if (len > 2)
-      write(fd, s + 1, len - 2);
-    /* empty string: nothing to write before the newline */
-  } else {
-    write(fd, s, len);
-  }
-}
-
-int echo(int argc, char *argv[], int out_fd) {
-  for (int i = 1; i < argc; i++) {
-    if (i > 1)
-      write(out_fd, " ", 1);
-    echo_write_arg(out_fd, argv[i]);
-  }
-  write(out_fd, "\n", 1);
-  return 0;
-}
-
-int pwd(int argc, char *argv[]) {
-  char buf[256];
-
-  char *result = getcwd(buf, sizeof(buf));
-  if (result == NULL) {
-    printf("pwd: error getting current directory\n");
-    return 1;
-  }
-
-  printf("%s\n", buf);
-  return 0;
-}
-
-int cd(int argc, char *argv[]) {
-  const char *path;
-
-  if (argc < 2) {
-    path = "/"; // When we do cd
-  } else {
-    path = argv[1]; // when we do cd x
-  }
-
-  if (chdir(path) < 0) {
-    printf("cd: cannot change directory to '%s'\n", path);
-    return 1;
-  }
-
-  return 0;
-}
-
 /* Check if a file exists and is accessible */
-int file_exists(const char *path) {
+static int file_exists(const char *path) {
   int fd = open(path, O_RDONLY);
   if (fd >= 0) {
     close(fd);
@@ -308,26 +173,129 @@ int file_exists(const char *path) {
 }
 
 /* Resolve command to full path, returns 1 on success, 0 on failure */
-int resolve_command(const char *command, char *resolved_path, size_t path_size) {
-  // If command contains '/' (absolute or relative path), use as-is
+static int resolve_command(const char *command, char *resolved_path, size_t path_size) {
   if (strchr(command, '/') != NULL) {
     snprintf(resolved_path, path_size, "%s", command);
     return file_exists(resolved_path);
   }
 
-  // Search through PATH
-  // For now, hardcode PATH as "/bin:/usr/bin"
   const char *path_dirs[] = {"/bin", "/usr/bin", NULL};
-
   for (int i = 0; path_dirs[i] != NULL; i++) {
     snprintf(resolved_path, path_size, "%s/%s", path_dirs[i], command);
     if (file_exists(resolved_path)) {
       return 1;
     }
   }
-
   return 0;
 }
+
+/* Expand * to list all files in current directory */
+static void expand_glob(const char *input, char *output, size_t output_size) {
+  size_t in_pos = 0;
+  size_t out_pos = 0;
+
+  while (input[in_pos] != '\0' && out_pos < output_size - 1) {
+    if (input[in_pos] == '*') {
+      int fd = open(".", O_RDONLY);
+      if (fd >= 0) {
+        struct dirent entries[64];
+        int n = getdents(fd, entries, sizeof(entries));
+        if (n > 0) {
+          int num_entries = n / sizeof(struct dirent);
+          bool first = true;
+
+          for (int i = 0; i < num_entries; i++) {
+            if (strcmp(entries[i].d_name, ".") == 0 || strcmp(entries[i].d_name, "..") == 0)
+              continue;
+
+            if (!first && out_pos < output_size - 1)
+              output[out_pos++] = ' ';
+            first = false;
+
+            const char *name = entries[i].d_name;
+            size_t name_len = strlen(name);
+            for (size_t j = 0; j < name_len && out_pos < output_size - 1; j++)
+              output[out_pos++] = name[j];
+          }
+        }
+        close(fd);
+      }
+      in_pos++;
+    } else {
+      output[out_pos++] = input[in_pos++];
+    }
+  }
+  output[out_pos] = '\0';
+}
+
+/* Expand $0, $1, $2, etc. in the input string with script arguments */
+static void expand_args(const char *input, char *output, size_t output_size) {
+  size_t in_pos = 0;
+  size_t out_pos = 0;
+
+  while (input[in_pos] != '\0' && out_pos < output_size - 1) {
+    if (input[in_pos] == '$' && input[in_pos + 1] >= '0' && input[in_pos + 1] <= '9') {
+      int arg_num = input[in_pos + 1] - '0';
+      in_pos += 2;
+
+      if (arg_num < script_argc && script_argv[arg_num] != NULL) {
+        const char *arg = script_argv[arg_num];
+        size_t arg_len = strlen(arg);
+        for (size_t i = 0; i < arg_len && out_pos < output_size - 1; i++)
+          output[out_pos++] = arg[i];
+      }
+    } else {
+      output[out_pos++] = input[in_pos++];
+    }
+  }
+  output[out_pos] = '\0';
+}
+
+static void echo_write_arg(int fd, const char *s) {
+  size_t len = strlen(s);
+  if (len >= 2 && s[0] == '"' && s[len - 1] == '"') {
+    if (len > 2) write(fd, s + 1, len - 2);
+  } else {
+    write(fd, s, len);
+  }
+}
+
+static int builtin_echo(int argc, char *argv[], int out_fd) {
+  for (int i = 1; i < argc; i++) {
+    if (i > 1) write(out_fd, " ", 1);
+    echo_write_arg(out_fd, argv[i]);
+  }
+  write(out_fd, "\n", 1);
+  return 0;
+}
+
+static int builtin_pwd(void) {
+  char buf[256];
+  if (getcwd(buf, sizeof(buf)) != NULL)
+    printf("%s\n", buf);
+  else
+    printf("pwd: error\n");
+  return 0;
+}
+
+static int builtin_cd(int argc, char *argv[]) {
+  const char *path = (argc < 2) ? "/" : argv[1];
+  if (chdir(path) < 0) {
+    printf("cd: cannot change directory to '%s'\n", path);
+    return 1;
+  }
+  return 0;
+}
+
+static int builtin_history(void) {
+  for (int i = 0; i < history_count; i++)
+    printf("  %d  %s\n", i + 1, history[i]);
+  return 0;
+}
+
+/* -------------------------------------------------------------------------
+ * Command parser / executor
+ * ---------------------------------------------------------------------- */
 
 void parse_and_exec(const char *buf) {
   char command_buf[COMMAND_BUF_SIZE];
@@ -337,67 +305,22 @@ void parse_and_exec(const char *buf) {
   size_t i = 0;
   size_t cmd_len = 0;
 
-  // Skip leading quotes if present
-  if (buf[i] == '"') {
-    i++;
-  }
-
-  // Parse command
-  while (i < COMMAND_BUF_SIZE - 1 && buf[i] != ' ' && buf[i] != '\0' && buf[i] != '"') {
-    command_buf[cmd_len] = buf[i];
-    i++;
-    cmd_len++;
-  }
+  while (i < COMMAND_BUF_SIZE - 1 && buf[i] != ' ' && buf[i] != '\0')
+    command_buf[cmd_len++] = buf[i++];
   command_buf[cmd_len] = '\0';
 
-  // Skip trailing quote if present
-  if (buf[i] == '"') {
-    i++;
-  }
-
-  if (cmd_len == 0) {
-    return;
-  }
+  if (cmd_len == 0) return;
 
   char full_path[256];
   argv[argc++] = full_path;
 
   while (buf[i] != '\0' && argc < 15) {
-    while (buf[i] == ' ') {
-      i++;
-    }
-
-    if (buf[i] == '\0') {
-      break;
-    }
-
-    // Handle quoted arguments
-    if (buf[i] == '"') {
-      i++; // Skip opening quote
-      argv[argc++] = (char *)&buf[i];
-      // Find closing quote
-      while (buf[i] != '"' && buf[i] != '\0') {
-        i++;
-      }
-      if (buf[i] == '"') {
-        ((char *)buf)[i] = '\0'; // Replace closing quote with null terminator
-        i++;
-      }
-    } else {
-      // Regular unquoted argument
-      argv[argc++] = (char *)&buf[i];
-
-      while (buf[i] != ' ' && buf[i] != '\0') {
-        i++;
-      }
-
-      if (buf[i] == ' ') {
-        ((char *)buf)[i] = '\0';
-        i++;
-      }
-    }
+    while (buf[i] == ' ') i++;
+    if (buf[i] == '\0') break;
+    argv[argc++] = (char *)&buf[i];
+    while (buf[i] != ' ' && buf[i] != '\0') i++;
+    if (buf[i] == ' ') { ((char *)buf)[i] = '\0'; i++; }
   }
-
   argv[argc] = NULL;
 
   /* Scan for redirections: pull them out of argv */
@@ -406,145 +329,109 @@ void parse_and_exec(const char *buf) {
   int append_mode = 0;
 
   for (int ri = 1; ri < argc - 1; ri++) {
-    // Check for output redirection: > or >>
     if (argv[ri][0] == '>' && argv[ri][1] == '>') {
-      // Append mode >>
       redirect_out = argv[ri + 1];
       append_mode = 1;
-      /* Collapse the two slots out of argv. */
       for (int rj = ri; rj < argc - 2; rj++)
         argv[rj] = argv[rj + 2];
       argc -= 2;
       argv[argc] = NULL;
-      ri--; // Re-check this position
+      ri--;
     } else if (argv[ri][0] == '>' && argv[ri][1] == '\0') {
-      // Regular output redirection >
       redirect_out = argv[ri + 1];
       append_mode = 0;
-      /* Collapse the two slots out of argv. */
       for (int rj = ri; rj < argc - 2; rj++)
         argv[rj] = argv[rj + 2];
       argc -= 2;
       argv[argc] = NULL;
-      ri--; // Re-check this position
+      ri--;
     } else if (argv[ri][0] == '<' && argv[ri][1] == '\0') {
-      // Input redirection <
       redirect_in = argv[ri + 1];
-      /* Collapse the two slots out of argv. */
       for (int rj = ri; rj < argc - 2; rj++)
         argv[rj] = argv[rj + 2];
       argc -= 2;
       argv[argc] = NULL;
-      ri--; // Re-check this position
+      ri--;
     }
   }
 
-  // Check for builtin commands first
+  /* Builtins */
   if (strcmp("echo", command_buf) == 0) {
-    int out_fd = 1; /* stdout */
+    int out_fd = 1;
     if (redirect_out != NULL) {
       int flags = O_WRONLY | O_CREAT;
       flags |= append_mode ? O_APPEND : O_TRUNC;
       out_fd = open(redirect_out, flags);
-      if (out_fd < 0) {
-        printf("sh: cannot open '%s' for writing\n", redirect_out);
-        return;
-      }
+      if (out_fd < 0) { printf("sh: cannot open '%s'\n", redirect_out); return; }
     }
-    echo(argc, argv, out_fd);
-    if (redirect_out != NULL)
-      close(out_fd);
+    builtin_echo(argc, argv, out_fd);
+    if (redirect_out != NULL) close(out_fd);
     return;
-  } else if (strcmp("cd", command_buf) == 0) {
-    cd(argc, argv);
-    return;
-  } else if (strcmp("pwd", command_buf) == 0) {
-    pwd(argc, argv);
-    return;
-  } else if (strcmp("exec", command_buf) == 0) {
-    // exec command: replace current shell process with new command
-    if (argc < 2) {
-      printf("exec: usage: exec command [args...]\n");
+  }
+
+  if (strcmp("exec", command_buf) == 0) {
+    if (argc < 2) { printf("exec: usage: exec command [args...]\n"); return; }
+
+    if (!resolve_command(argv[1], full_path, sizeof(full_path))) {
+      printf("sh: exec: %s: command not found\n", argv[1]);
       return;
     }
 
-    // The new command is argv[1]
-    const char *exec_cmd = argv[1];
-
-    // Resolve the command path
-    if (!resolve_command(exec_cmd, full_path, sizeof(full_path))) {
-      printf("sh: exec: %s: command not found\n", exec_cmd);
-      return;
-    }
-
-    // Build new argv starting from argv[1]
     char *new_argv[16];
     int new_argc = 0;
     new_argv[new_argc++] = full_path;
-    for (int i = 2; i < argc && new_argc < 15; i++) {
-      new_argv[new_argc++] = argv[i];
-    }
+    for (int j = 2; j < argc && new_argc < 15; j++)
+      new_argv[new_argc++] = argv[j];
     new_argv[new_argc] = NULL;
 
-    // Handle redirections before exec
     if (redirect_in != NULL) {
       int fd = open(redirect_in, O_RDONLY);
-      if (fd >= 0) {
-        dup2(fd, 0);
-        close(fd);
-      }
+      if (fd >= 0) { dup2(fd, 0); close(fd); }
     }
     if (redirect_out != NULL) {
       int flags = O_WRONLY | O_CREAT;
       flags |= append_mode ? O_APPEND : O_TRUNC;
       int fd = open(redirect_out, flags);
-      if (fd >= 0) {
-        dup2(fd, 1);
-        close(fd);
-      }
+      if (fd >= 0) { dup2(fd, 1); close(fd); }
     }
 
-    // Replace current process with new command
     char *envp[] = { NULL };
     execve(full_path, new_argv, envp);
-
-    // If we get here, exec failed
-    printf("sh: exec: %s failed\n", exec_cmd);
+    printf("sh: exec: %s failed\n", argv[1]);
     return;
   }
 
-  // Not a builtin - resolve the command path
+  if (strcmp("cd",      command_buf) == 0) { builtin_cd(argc, argv);  return; }
+  if (strcmp("pwd",     command_buf) == 0) { builtin_pwd();            return; }
+  if (strcmp("history", command_buf) == 0) { builtin_history();        return; }
+  if (strcmp("exit",    command_buf) == 0) { exit(0); }
+
+  /* External command — switch to canonical so the child gets a normal TTY. */
+  ioctl(0, TCSCANON, (void*)0);
+
   if (!resolve_command(command_buf, full_path, sizeof(full_path))) {
     printf("sh: command not found: %s\n", command_buf);
+    ioctl(0, TCSRAW, (void*)0);
     return;
   }
 
-  // Execute the resolved command
   pid_t pid = fork();
   if (pid == 0) {
     setpgid(0, 0);
 
-    // Handle input redirection
     if (redirect_in != NULL) {
       int fd = open(redirect_in, O_RDONLY);
-      if (fd < 0) {
-        printf("sh: cannot open '%s' for reading\n", redirect_in);
-        exit(1);
-      }
-      dup2(fd, 0);  // Redirect stdin
+      if (fd < 0) { printf("sh: cannot open '%s' for reading\n", redirect_in); exit(1); }
+      dup2(fd, 0);
       close(fd);
     }
 
-    // Handle output redirection
     if (redirect_out != NULL) {
       int flags = O_WRONLY | O_CREAT;
       flags |= append_mode ? O_APPEND : O_TRUNC;
       int fd = open(redirect_out, flags);
-      if (fd < 0) {
-        printf("sh: cannot open '%s' for writing\n", redirect_out);
-        exit(1);
-      }
-      dup2(fd, 1);  // Redirect stdout
+      if (fd < 0) { printf("sh: cannot open '%s' for writing\n", redirect_out); exit(1); }
+      dup2(fd, 1);
       close(fd);
     }
 
@@ -561,4 +448,124 @@ void parse_and_exec(const char *buf) {
   } else {
     printf("sh: fork failed\n");
   }
+
+  /* Restore raw mode for our own readline. */
+  ioctl(0, TCSRAW, (void*)0);
+}
+
+/* -------------------------------------------------------------------------
+ * Entry point
+ * ---------------------------------------------------------------------- */
+
+int main(int argc, char **argv, char **envp) {
+  // Handle -c option: sh -c "command string"
+  if (argc >= 3 && strcmp(argv[1], "-c") == 0) {
+    script_argv = argv;
+    script_argc = argc;
+
+    char expanded[1024];
+    char glob_expanded[1024];
+    expand_args(argv[2], expanded, sizeof(expanded));
+    expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
+    parse_and_exec(glob_expanded);
+    return 0;
+  }
+
+  // If a script file is provided as argv[1], execute it and exit
+  if (argc >= 2) {
+    const char *script_path = argv[1];
+
+    size_t path_len = strlen(script_path);
+    char stripped_path[256];
+    if (path_len >= 2 && script_path[0] == '"' && script_path[path_len - 1] == '"') {
+      for (size_t j = 1; j < path_len - 1 && j < sizeof(stripped_path); j++)
+        stripped_path[j - 1] = script_path[j];
+      stripped_path[path_len - 2] = '\0';
+      script_path = stripped_path;
+    }
+
+    script_argv = argv;
+    script_argc = argc;
+
+    int fd = open(script_path, O_RDONLY);
+    if (fd < 0) {
+      printf("sh: cannot open script '%s'\n", script_path);
+      return 1;
+    }
+
+    char buf[1024];
+    char expanded[1024];
+    char glob_expanded[1024];
+    ssize_t n;
+    size_t line_start = 0;
+    size_t total_read = 0;
+
+    while ((n = read(fd, buf + total_read, sizeof(buf) - total_read - 1)) > 0) {
+      total_read += n;
+      buf[total_read] = '\0';
+
+      for (size_t j = line_start; j < total_read; j++) {
+        if (buf[j] == '\n') {
+          buf[j] = '\0';
+          if (line_start < j && buf[line_start] != '#') {
+            expand_args(&buf[line_start], expanded, sizeof(expanded));
+            expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
+            parse_and_exec(glob_expanded);
+          }
+          line_start = j + 1;
+        }
+      }
+
+      if (line_start < total_read) {
+        size_t remaining = total_read - line_start;
+        for (size_t j = 0; j < remaining; j++)
+          buf[j] = buf[line_start + j];
+        total_read = remaining;
+        line_start = 0;
+      } else {
+        total_read = 0;
+        line_start = 0;
+      }
+    }
+
+    if (total_read > 0 && buf[0] != '#') {
+      buf[total_read] = '\0';
+      expand_args(buf, expanded, sizeof(expanded));
+      expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
+      parse_and_exec(glob_expanded);
+    }
+
+    close(fd);
+    return 0;
+  }
+
+  // Interactive mode
+  (void)envp;
+  pid_t shell_pgid = getpid();
+  tcsetpgrp(0, shell_pgid);
+
+  history_load();
+  ioctl(0, TCSRAW, (void*)0);
+
+  char buf[COMMAND_BUF_SIZE];
+  char cwd[256];
+  char prompt[300];
+
+  while (1) {
+    if (getcwd(cwd, sizeof(cwd)) == NULL)
+      cwd[0] = '\0';
+
+    int pi = 0;
+    for (int j = 0; cwd[j] && pi < 280; j++) prompt[pi++] = cwd[j];
+    prompt[pi++] = ' '; prompt[pi++] = '$'; prompt[pi++] = ' ';
+    prompt[pi] = '\0';
+
+    int n = readline_with_history(prompt, buf, sizeof(buf));
+    if (n > 0) {
+      history_push(buf);
+      parse_and_exec(buf);
+    }
+  }
+
+  return 0;
 }

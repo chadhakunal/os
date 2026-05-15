@@ -28,6 +28,7 @@
 #define SYS_mkdirat         34
 #define SYS_unlinkat        35
 #define SYS_dup2            24
+#define SYS_fsync           82
 
 // RISC-V syscall ABI macros
 // Syscall number in a7, args in a0-a5, return value in a0
@@ -101,6 +102,10 @@
 #define SEEK_CUR 1
 #define SEEK_END 2
 
+/* TTY mode ioctls */
+#define TCSRAW   0x5411
+#define TCSCANON 0x5412
+
 extern char *optarg;
 extern int optind;
 extern int opterr;
@@ -131,3 +136,4 @@ int mkdir(const char *path, unsigned int mode);
 int unlink(const char *path);
 int rmdir(const char *path);
 int dup2(int oldfd, int newfd);
+int fsync(int fd);

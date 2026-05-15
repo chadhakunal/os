@@ -42,6 +42,7 @@ struct pci_virtio_blk_device {
     uint32_t notify_off_multiplier;
     uint64_t isr_cfg_mmio_reg;
     uint64_t device_cfg_mmio_reg;
+    uint32_t irq;
 };
 
 struct platform_info {
@@ -54,6 +55,8 @@ struct platform_info {
 
     struct virtio_dev virtio[8];
     int virtio_count;
+
+    uint64_t plic_base;
 };
 
 

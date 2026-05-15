@@ -9,12 +9,12 @@
 #include "kernel/task/schedule.h"
 #include "kernel/memory/page_fault.h"
 #include "kernel/time/timer.h"
+#include "kernel/drivers/plic.h"
 
 void trap_handler(struct trap_frame *tf) {
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
   bool is_interrupt = (tf->scause >> 63) & 1;
   extern void trap_return(struct trap_frame *tf);
-
 
   if (is_interrupt) {
     switch (cause_code) {
@@ -33,14 +33,25 @@ void trap_handler(struct trap_frame *tf) {
         }
         trap_return(&current_task->tf);
         break;
-      case 9:
+      case 9: {
         extern void handle_uart_interrupt(void);
-        handle_uart_interrupt();
+        uint32_t irq = plic_claim();
+
+        if (irq == PLIC_IRQ_UART) {
+          handle_uart_interrupt();
+        } else if (irq != 0) {
+          debugk("trap: unexpected external IRQ %u\n", irq);
+        }
+
+        if (irq != 0)
+          plic_complete(irq);
+
         if (tf->sstatus & SSTATUS_SPP) {
           return;
         }
         trap_return(&current_task->tf);
         break;
+      }
       default:
         printk("Interrupt: Unknown interrupt: %llu\n", cause_code);
         break;

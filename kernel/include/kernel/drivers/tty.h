@@ -7,12 +7,15 @@
 
 #define TIOCGPGRP 0x540F
 #define TIOCSPGRP 0x5410
+#define TCSRAW    0x5411  /* switch TTY to raw mode (no echo, no buffering) */
+#define TCSCANON  0x5412  /* switch TTY to canonical mode (line-buffered, echo) */
 
 struct tty_driver_t {
   struct file_ops_t file_ops;
   char tty_line_buffer[1024];
   uint64_t tty_line_buffer_size;
   bool buffer_ready;
+  bool raw_mode;
   struct list_node wait_queue;
   uint64_t foreground_pgid;
 };

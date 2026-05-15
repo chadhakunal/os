@@ -272,15 +272,18 @@ static void map_devices(void) {
   
 
 
-  /* Map PLIC (Platform-Level Interrupt Controller) pages
-   * Only map the pages we actually use (3 pages = 12KB):
-   * - 0x0c000000: Interrupt priorities
-   * - 0x0c002000: Interrupt enables
-   * - 0x0c201000: Priority threshold and claim/complete */
-  #define PLIC_BASE 0x0c000000UL
-  boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + PLIC_BASE, PLIC_BASE);
-  boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + PLIC_BASE + 0x2000, PLIC_BASE + 0x2000);
-  boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + PLIC_BASE + 0x201000, PLIC_BASE + 0x201000);
+  /* Map PLIC (Platform-Level Interrupt Controller) pages.
+   * Base address comes from the DTB at boot time via platform.plic_base.
+   * We map the three pages we actually touch:
+   *   base+0x000000 : priority registers  (one 32-bit word per source)
+   *   base+0x002000 : enable registers    (per context, 128 bytes each)
+   *   base+0x201000 : threshold + claim/complete for hart0 supervisor context */
+  if (platform.plic_base) {
+    uint64_t pb = platform.plic_base;
+    boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + pb,             pb);
+    boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + pb + 0x2000,    pb + 0x2000);
+    boot_map_page(root_page_table, MMIO_VIRTUAL_MEMORY_BASE + pb + 0x201000,  pb + 0x201000);
+  }
 }
 
 void init_kernel_page_mapping() {

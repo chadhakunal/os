@@ -8,6 +8,7 @@
 #include "lib/printk/printk.h"
 
 struct scheduler_t scheduler;
+int scheduler_ready = 0;
 
 void init_scheduler() {
 
@@ -25,6 +26,7 @@ void init_scheduler() {
   // Add init task to active list
   list_append(scheduler.active_list, &current_task->scheduler_list);
 
+  scheduler_ready = 1;
   debugk("Scheduler initialized, added task PID %llu to active list\n", current_task->pid);
 }
 

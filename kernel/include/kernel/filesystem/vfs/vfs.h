@@ -28,6 +28,9 @@
 #define VFS_PAGE_NOREF  0x0000
 #define VFS_PAGE_REF    0x0001
 
+/* superblock_t flags */
+#define SB_NODENTRY_CACHE  0x0001  /* don't cache vnode_ops->lookup results in children_dentries */
+
 /* -------------------------------------------------------------------------
  * Forward declarations
  * ---------------------------------------------------------------------- */
@@ -128,6 +131,7 @@ struct superblock_t {
   struct dentry_t           *root_dentry;
   void                      *private_data;
   uint64_t                   block_size;
+  uint32_t                   flags;
   char                       device[32];
 };
 
@@ -181,6 +185,7 @@ struct file_t  *vfs_init_file(struct vnode_t *vnode, int flags);
 int64_t         vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 int64_t         vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 int64_t         vfs_file_close(struct files_table_t *file_table, int fd);
+int64_t         vfs_fsync(struct files_table_t *file_table, int fd);
 int64_t         vfs_dup2(struct files_table_t *file_table, int oldfd, int newfd);
 int64_t         vfs_file_lseek(struct files_table_t *file_table, int fd, int64_t offset, int whence);
 

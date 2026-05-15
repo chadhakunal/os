@@ -93,8 +93,9 @@ struct file_t *vfs_init_file(struct vnode_t *vnode, int flags) {
   file->vnode = vnode;
   file->file_ops = vnode->file_ops;
   file->offset = 0;
-  file->refcount = 1;  // Start with refcount = 1
+  file->refcount = 1;
   file->flags = flags;
+  vnode->refcount++;
   return file;
 }
 
@@ -104,6 +105,9 @@ int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
   if (file == NULL) {
     panic("vfs_read: File is NULL\n");
   }
+
+  if (IS_DIR(file->vnode->permission_mode))
+    return -EISDIR;
 
   debugk("  file->vnode=%p\n", file->vnode);
   debugk("  file->vnode->address_space=%p\n", file->vnode->address_space);

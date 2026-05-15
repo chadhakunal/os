@@ -5,9 +5,9 @@
 #include "platform.h"
 #include "lib/string.h"
 #include "lib/printk/printk.h"
+#include "lib/list.h"
 #include "arch/riscv64/virtual_memory_init.h"
 #include "lib/pool_allocator.h"
-#include "arch/riscv64/virtual_memory_init.h"
 
 #define SECTOR_BLOCK_SIZE 512
 
@@ -93,9 +93,29 @@ struct virtq_used_t {
     struct virtq_used_elem ring[QUEUE_SIZE];
 };
 
+/* Per-request descriptor queued by callers. */
+struct disk_request_t {
+  uint32_t         type;         /* VIRTIO_BLK_T_IN or VIRTIO_BLK_T_OUT */
+  uint64_t         sector;
+  void            *buf;
+  uint32_t         num_sectors;
+  struct task_t   *waiter;       /* task to unblock on completion */
+  int              result;       /* 0 = ok, -1 = error (set by poll) */
+  struct list_node list;
+};
+
+DEFINE_POOL(disk_request_t, struct disk_request_t)
+
 int virtio_blk_init();
 int virtio_blk_read(uint64_t sector, void *buf, uint32_t num_sectors);
 int virtio_blk_write(uint64_t sector, const void *buf, uint32_t num_sectors);
+
+/* Called from the timer handler each tick to check if a pending I/O completed,
+ * unblock the waiter, and start the next queued request. */
+void virtio_blk_poll(void);
+
+/* Remove any queued requests belonging to `task` (called on task exit). */
+void virtio_blk_cancel_task(struct task_t *task);
 
 typedef struct superblock {
   uint32_t magic;

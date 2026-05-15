@@ -12,6 +12,7 @@
 #include "kernel/task/elf_loader.h"
 #include "kernel/task/schedule.h"
 #include "kernel/signal_jump_point.h"
+#include "kernel/drivers/virtio-blk.h"
 
 // Global task tracking
 struct task_t *current_task = NULL;  // Currently running task
@@ -464,6 +465,7 @@ void task_cleanup(int exit_status) {
   debugk("task_cleanup: closing all files for PID %llu\n", current_task->pid);
   close_all_files(current_task);
   debugk("task_cleanup: clearing VMAs for PID %llu\n", current_task->pid);
+  virtio_blk_cancel_task(current_task);
   clear_vmas(current_task);
   debugk("task_cleanup: marking PID %llu as ZOMBIE\n", current_task->pid);
   current_task->state = TASK_ZOMBIE;

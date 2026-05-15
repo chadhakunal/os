@@ -1,6 +1,8 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/filesystem/tarfs/tarfs.h"
 #include "kernel/filesystem/devfs/devfs.h"
+#include "kernel/filesystem/procfs/procfs.h"
+#include "kernel/filesystem/sbfs/sbfs.h"
 #include "kernel/filesystem/mode.h"
 #include "lib/list.h"
 #include "lib/string.h"
@@ -65,4 +67,25 @@ void vfs_init() {
   mnt_dentry->vnode = mnt_vnode;
   mnt_dentry->parent = base_mount->superblock->root_dentry;
   list_append(&base_mount->superblock->root_vnode->children_dentries, &mnt_dentry->sibling_dentry);
+
+  // Create /proc mountpoint and mount procfs
+  struct vnode_t *proc_vnode = tarfs_alloc_vnode(base_mount->superblock);
+  proc_vnode->permission_mode = READ_EXECUTE_PERM | S_IFDIR;
+  struct dentry_t *proc_dentry = dentry_t_alloc();
+  strncpy(proc_dentry->name, "proc", 256);
+  proc_dentry->vnode = proc_vnode;
+  proc_dentry->parent = base_mount->superblock->root_dentry;
+  list_append(&base_mount->superblock->root_vnode->children_dentries, &proc_dentry->sibling_dentry);
+  struct superblock_t *proc_sb = procfs_mount();
+  vfs_mount("/proc", proc_sb);
+  printk("Mounted procfs at /proc\n");
+
+  // Mount sbfs at /mnt
+  struct superblock_t *sbfs_sb = sbfs_mount();
+  if (sbfs_sb != NULL) {
+    vfs_mount("/mnt", sbfs_sb);
+    printk("Mounted sbfs at /mnt\n");
+  } else {
+    printk("sbfs mount failed\n");
+  }
 }

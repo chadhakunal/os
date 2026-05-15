@@ -1,6 +1,9 @@
 #define DEBUG 0
 #include "kernel/drivers/virtio-blk.h"
 #include "kernel/memory/page_allocator.h"
+#include "kernel/task/task.h"
+#include "kernel/task/schedule.h"
+#include "lib/list.h"
 #include "kernel/panic.h"
 #include "lib/printk/printk.h"
 
@@ -12,6 +15,13 @@ static struct virtio_pci_common_cfg *common = NULL;
 static uint64_t notify_addr = 0;
 static struct virtio_blk_req *virtio_req_buf = NULL;
 static uint8_t *virtio_status_buf = NULL;
+
+/* Request currently submitted to the virtio queue, or NULL. */
+static struct disk_request_t *disk_current = NULL;
+/* used->idx value we expect when the current request is done. */
+static uint16_t virtio_expected_used_idx = 0;
+/* Queue of pending requests not yet submitted. */
+static struct list_node disk_request_queue;
 
 int virtio_blk_init() {
     struct virtio_blk_device_config device_cfg  = *(struct virtio_blk_device_config *)platform.virtio_disk.device_cfg_mmio_reg;
@@ -115,7 +125,48 @@ int virtio_blk_init() {
     virtio_req_buf    = PHYS_TO_VIRT(req_phys);
     virtio_status_buf = (uint8_t *)virtio_req_buf + sizeof(struct virtio_blk_req);
 
+    list_init(&disk_request_queue);
+
     return 0;
+}
+
+/* Submit one request directly to the virtio hardware queue (no blocking). */
+static void virtio_blk_hw_submit(struct disk_request_t *req) {
+    struct virtio_blk_req *hdr = virtio_req_buf;
+    hdr->type     = req->type;
+    hdr->reserved = 0;
+    hdr->sector   = req->sector;
+
+    uint8_t *status = virtio_status_buf;
+    *status = 0xFF;
+
+    const uint16_t d0 = 0, d1 = 1, d2 = 2;
+
+    base_virtq_desc[d0].addr  = (uint64_t)VIRT_TO_PHYS(virtio_req_buf);
+    base_virtq_desc[d0].len   = sizeof(struct virtio_blk_req);
+    base_virtq_desc[d0].flags = VIRTQ_DESC_F_NEXT;
+    base_virtq_desc[d0].next  = d1;
+
+    base_virtq_desc[d1].addr  = (uint64_t)VIRT_TO_PHYS(req->buf);
+    base_virtq_desc[d1].len   = req->num_sectors * SECTOR_BLOCK_SIZE;
+    base_virtq_desc[d1].flags = VIRTQ_DESC_F_NEXT |
+                                 (req->type == VIRTIO_BLK_T_IN ? VIRTQ_DESC_F_WRITE : 0);
+    base_virtq_desc[d1].next  = d2;
+
+    base_virtq_desc[d2].addr  = (uint64_t)VIRT_TO_PHYS(virtio_status_buf);
+    base_virtq_desc[d2].len   = 1;
+    base_virtq_desc[d2].flags = VIRTQ_DESC_F_WRITE;
+    base_virtq_desc[d2].next  = 0;
+
+    virtio_expected_used_idx  = (uint16_t)(base_virtq_used->idx + 1);
+    disk_current              = req;
+
+    uint16_t avail_slot = (uint16_t)(base_virtq_avail->idx % QUEUE_SIZE);
+    base_virtq_avail->ring[avail_slot] = d0;
+    __sync_synchronize();
+    base_virtq_avail->idx++;
+    __sync_synchronize();
+    *(volatile uint32_t *)notify_addr = 0;
 }
 
 static int virtio_blk_submit(uint32_t type, uint64_t sector, void *buf, uint32_t num_sectors) {
@@ -123,68 +174,83 @@ static int virtio_blk_submit(uint32_t type, uint64_t sector, void *buf, uint32_t
         panic("virtio_blk_submit: driver not initialized");
     }
 
-    struct virtio_blk_req *req = virtio_req_buf;
-    req->type     = type;
-    req->reserved = 0;
-    req->sector   = sector;
-
-    uint8_t *status = virtio_status_buf;
-    *status = 0xFF;
-
-    /*
-     * Descriptor table indices are not the same as avail->ring slots.
-     * We use a fixed 3-descriptor chain (0→1→2) for each request; only the
-     * avail ring index advances to queue the chain head for the device.
-     */
-    const uint16_t d0 = 0;
-    const uint16_t d1 = 1;
-    const uint16_t d2 = 2;
-
-    /* descriptor 0: request header (device reads) */
-    base_virtq_desc[d0].addr  = (uint64_t)VIRT_TO_PHYS(virtio_req_buf);
-    base_virtq_desc[d0].len   = sizeof(struct virtio_blk_req);
-    base_virtq_desc[d0].flags = VIRTQ_DESC_F_NEXT;
-    base_virtq_desc[d0].next  = d1;
-
-    /* descriptor 1: data buffer */
-    base_virtq_desc[d1].addr  = (uint64_t)VIRT_TO_PHYS(buf);
-    base_virtq_desc[d1].len   = num_sectors * SECTOR_BLOCK_SIZE;
-    base_virtq_desc[d1].flags = VIRTQ_DESC_F_NEXT | (type == VIRTIO_BLK_T_IN ? VIRTQ_DESC_F_WRITE : 0);
-    base_virtq_desc[d1].next  = d2;
-
-    /* descriptor 2: status byte (device writes) */
-    base_virtq_desc[d2].addr  = (uint64_t)VIRT_TO_PHYS(virtio_status_buf);
-    base_virtq_desc[d2].len   = 1;
-    base_virtq_desc[d2].flags = VIRTQ_DESC_F_WRITE;
-    base_virtq_desc[d2].next  = 0;
-
-    uint16_t last_used = base_virtq_used->idx;
-
-    uint16_t avail_slot = (uint16_t)(base_virtq_avail->idx % QUEUE_SIZE);
-    base_virtq_avail->ring[avail_slot] = d0;
-
-    __sync_synchronize();
-    base_virtq_avail->idx++;
-    __sync_synchronize();
-
-    debugk("Notifying device at 0x%llx\n", notify_addr);
-    debugk("last_used=%u, avail->idx=%u\n", last_used, base_virtq_avail->idx);
-
-    *(volatile uint32_t *)notify_addr = 0;
-
-    uint64_t spin = 0;
-    while (base_virtq_used->idx == last_used) {
-        __sync_synchronize();
-        if (++spin > 10000000ULL) {
-            debugk("TIMEOUT: used->idx still %u after %llu spins\n", base_virtq_used->idx, spin);
-            debugk("device_status = 0x%x\n", common->device_status);
-            panic("virtio_blk: device did not respond");
+    if (!scheduler_ready) {
+        /* Early boot: no scheduler yet — submit directly and spin-wait. */
+        struct disk_request_t boot_req = {
+            .type = type, .sector = sector,
+            .buf = buf, .num_sectors = num_sectors,
+        };
+        uint16_t last_used = base_virtq_used->idx;
+        virtio_blk_hw_submit(&boot_req);
+        uint64_t spin = 0;
+        while (base_virtq_used->idx == last_used) {
+            __sync_synchronize();
+            if (++spin > 10000000ULL)
+                panic("virtio_blk: device did not respond");
         }
+        disk_current = NULL;
+        return (*virtio_status_buf != VIRTIO_BLK_S_OK) ? -1 : 0;
     }
 
-    debugk("Device responded! used->idx=%u, status=0x%x\n", base_virtq_used->idx, *status);
+    /* Scheduler is live — create a request, enqueue it, and block. */
+    struct disk_request_t *req = disk_request_t_alloc();
+    req->type        = type;
+    req->sector      = sector;
+    req->buf         = buf;
+    req->num_sectors = num_sectors;
+    req->waiter      = current_task;
+    req->result      = 0;
 
-    return (*status != VIRTIO_BLK_S_OK) ? -1 : 0;
+    /* If the disk is free, submit immediately; otherwise just enqueue. */
+    if (disk_current == NULL)
+        virtio_blk_hw_submit(req);
+    else
+        list_append(&disk_request_queue, &req->list);
+
+    /* Block until poll() wakes us. */
+    current_task->state = TASK_BLOCKED;
+    current_task->wait_reason = WAIT_IO;
+    schedule();
+
+    int result = req->result;
+    disk_request_t_free(req);
+    return result;
+}
+
+void virtio_blk_cancel_task(struct task_t *task) {
+    struct list_node *pos = disk_request_queue.next;
+    while (pos != &disk_request_queue) {
+        struct disk_request_t *req =
+            container_of(pos, struct disk_request_t, list);
+        pos = pos->next;
+        if (req->waiter == task) {
+            list_remove(&req->list);
+            disk_request_t_free(req);
+        }
+    }
+}
+
+void virtio_blk_poll(void) {
+    if (disk_current == NULL)
+        return;
+
+    __sync_synchronize();
+    if (base_virtq_used->idx != virtio_expected_used_idx)
+        return;
+
+    /* Current request done — record result and wake the waiter. */
+    struct disk_request_t *done = disk_current;
+    disk_current = NULL;
+    done->result = (*virtio_status_buf != VIRTIO_BLK_S_OK) ? -1 : 0;
+    unblock_task(done->waiter);
+
+    /* Start the next queued request if any. */
+    if (!list_is_empty(&disk_request_queue)) {
+        struct disk_request_t *next = container_of(
+            disk_request_queue.next, struct disk_request_t, list);
+        list_remove(&next->list);
+        virtio_blk_hw_submit(next);
+    }
 }
 
 int virtio_blk_read(uint64_t sector, void *buf, uint32_t num_sectors) {
