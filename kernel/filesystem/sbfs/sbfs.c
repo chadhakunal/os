@@ -12,6 +12,7 @@
 #define SECTORS_PER_PAGE (DEFAULT_PAGE_SIZE / SECTOR_BLOCK_SIZE)
 
 static struct vnode_t *sbfs_alloc_vnode(struct superblock_t *superblock, uint32_t inode_num);
+static int64_t sbfs_truncate(struct vnode_t *vnode, uint64_t new_size);
 
 /* -------------------------------------------------------------------------
  * Low-level disk I/O — always a full page at a time
