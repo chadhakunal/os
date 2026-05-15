@@ -134,6 +134,8 @@ void check_and_deliver_signals(struct trap_frame *tf) {
   tf->sepc = (uint64_t)action->sa_handler;
   tf->ra = SIGNAL_JUMP_POINT_ADDR;
   tf->a0 = sig;
+  printk("signal: dispatching handler, sepc=%llx ra=%llx sp=%llx a0=%llu\n",
+         tf->sepc, tf->ra, tf->sp, tf->a0);
 
   debugk("signal: setup complete, handler=%llx, sp=%llx, ra=%llx\n",
          tf->sepc, tf->sp, tf->ra);
