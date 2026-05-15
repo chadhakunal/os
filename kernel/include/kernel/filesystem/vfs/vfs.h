@@ -55,12 +55,13 @@ struct file_ops_t {
 };
 
 struct vnode_ops_t {
-  int64_t (*lookup) (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
-  int64_t (*readdir)(struct vnode_t *dir, uint32_t index, struct dentry_t **out);
-  int64_t (*create) (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
-  int64_t (*mkdir)  (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
-  int64_t (*unlink) (const char *name, struct vnode_t *parent_dir);
-  int64_t (*rmdir)  (const char *name, struct vnode_t *parent_dir);
+  int64_t (*lookup)   (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
+  int64_t (*readdir)  (struct vnode_t *dir, uint32_t index, struct dentry_t **out);
+  int64_t (*create)   (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
+  int64_t (*mkdir)    (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
+  int64_t (*unlink)   (const char *name, struct vnode_t *parent_dir);
+  int64_t (*rmdir)    (const char *name, struct vnode_t *parent_dir);
+  int64_t (*truncate) (struct vnode_t *vnode, uint64_t new_size);
 };
 
 struct address_space_ops_t {
