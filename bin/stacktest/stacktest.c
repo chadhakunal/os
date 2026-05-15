@@ -6,6 +6,6 @@ int main(void) {
   for (int i = 0; i < 12288; i++)
     buf[i] = (char)i;
 
-  printf("Stack test passed\n");
+  printf("Stack test passed: buf[0]=%d\n", buf[0]);
   return 0;
 }
