@@ -10,7 +10,6 @@
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
 
-#define STACK_LIMIT (64 * 1024)
 
 static uint64_t vma_to_pte_flags(uint64_t vm_flags) {
   uint64_t pte_flags = PTE_VALID | PTE_A | PTE_U;
@@ -87,28 +86,6 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
   struct vma_t *vma = find_vma(&current_task->mm_struct, fault_addr);
 
   if (!vma) {
-    uint64_t stack_limit = DEFAULT_STACK_START - STACK_LIMIT;
-
-    if (fault_addr < DEFAULT_STACK_START && fault_addr >= stack_limit) {
-      struct vma_t *stack_vma = find_vma(&current_task->mm_struct, DEFAULT_STACK_START);
-
-      if (stack_vma && fault_addr < stack_vma->start_addr) {
-        uint64_t new_start = PAGE_ALIGN_DOWN(fault_addr);
-        debugk("Growing stack from 0x%llx to 0x%llx\n",
-               stack_vma->start_addr, new_start);
-        stack_vma->start_addr = new_start;
-
-        void *phys_page = get_zero_page(false);
-        uint64_t pte_flags = PTE_R | PTE_W | PTE_U | PTE_VALID | PTE_A | PTE_D;
-        map_page(current_task->mm_struct.root_satp, PAGE_ALIGN_DOWN(fault_addr),
-                 (uint64_t)phys_page, pte_flags);
-
-        debugk("Stack grown successfully, mapped page at 0x%llx\n",
-               PAGE_ALIGN_DOWN(fault_addr));
-        return 0;
-      }
-    }
-
     debugk("No VMA found for fault address 0x%llx, sending SIGSEGV\n", fault_addr);
     send_sigsegv_and_abort_syscall();
     return -1;

@@ -112,7 +112,7 @@ int load_elf(struct task_t *task, const char *path) {
 
   // Set up stack read/write
   // User stack grows down from DEFAULT_STACK_TOP
-  anon_memory_map(&task->mm_struct, DEFAULT_STACK_START, DEFAULT_STACK_SIZE, VM_READ | VM_WRITE, true);
+  anon_memory_map(&task->mm_struct, DEFAULT_STACK_START, DEFAULT_STACK_SIZE, VM_READ | VM_WRITE, false);
 
   // Initialize trap frame - zero everything first
   memset(&task->tf, 0, sizeof(task->tf));

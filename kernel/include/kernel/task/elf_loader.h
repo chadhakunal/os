@@ -5,10 +5,10 @@
 #include "kernel/task/task.h"
 
 /* User stack: place it high in user space, just below kernel boundary (0x80000000) */
-#define DEFAULT_STACK_PAGES 2
-#define DEFAULT_STACK_SIZE  (DEFAULT_STACK_PAGES * 4096)  /* 8KB = 2 pages */
+#define DEFAULT_STACK_PAGES 16
+#define DEFAULT_STACK_SIZE  (DEFAULT_STACK_PAGES * 4096)  /* 64KB = 16 pages */
 #define DEFAULT_STACK_TOP   0x80000000  /* Top of user space */
-#define DEFAULT_STACK_START (DEFAULT_STACK_TOP - DEFAULT_STACK_SIZE)  /* 0x7FFFE000 */
+#define DEFAULT_STACK_START (DEFAULT_STACK_TOP - DEFAULT_STACK_SIZE)  /* 0x7FFF0000 */
 
 /* ELF magic number */
 #define ELF_MAGIC 0x464C457FU  /* "\x7fELF" in little endian */
