@@ -57,6 +57,9 @@ void send_signal(struct task_t *task, int sig) {
   if (task->state != TASK_ZOMBIE) {
     debugk("signal: sending signal %d to PID %llu\n", sig, task->pid);
     add_signal_to_set(&task->signal_state.pending, sig);
+    if (task->state == TASK_BLOCKED && !sig_in_set(&task->signal_state.blocked, sig)) {
+      unblock_task(task);
+    }
   }
 }
 

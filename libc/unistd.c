@@ -3,6 +3,7 @@
 #include <dirent.h>
 #include <types.h>
 #include <stddef.h>
+#include <time.h>
 
 char *getcwd(char *buf, size_t size) {
   if (buf == NULL) {
@@ -103,4 +104,24 @@ int dup2(int oldfd, int newfd) {
 
 int fsync(int fd) {
   return syscall1(SYS_fsync, fd);
+}
+
+unsigned int sleep(unsigned int seconds) {
+  struct timespec req = { .tv_sec = seconds, .tv_nsec = 0 };
+  struct timespec rem = { 0, 0 };
+  if (nanosleep(&req, &rem) == 0)
+    return 0;
+  return (unsigned int)rem.tv_sec;
+}
+
+int usleep(unsigned long usec) {
+  struct timespec req = {
+    .tv_sec  = (long)(usec / 1000000),
+    .tv_nsec = (long)(usec % 1000000) * 1000,
+  };
+  return nanosleep(&req, (struct timespec *)0);
+}
+
+int nanosleep(const struct timespec *req, struct timespec *rem) {
+  return syscall2(SYS_nanosleep, req, rem);
 }

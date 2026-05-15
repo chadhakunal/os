@@ -169,6 +169,11 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_sched_yield(tf);
       break;
 
+    case SYS_nanosleep:
+      debugk("syscall: nanosleep(req=%llx, rem=%llx)\n", tf->a0, tf->a1);
+      ret = sys_nanosleep(tf);
+      break;
+
     default:
       debugk("syscall: unknown syscall %llu\n", syscall_num);
       tf->a0 = -1; // ENOSYS

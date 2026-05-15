@@ -32,6 +32,7 @@ enum wait_reason {
   WAIT_NONE,
   WAIT_CHILD,
   WAIT_IO,
+  WAIT_SLEEP,
 };
 
 struct vma_t {
@@ -94,6 +95,8 @@ struct task_t {
   struct list_node wait_list;
   
   struct dentry_t *cwd;
+
+  uint64_t sleep_until; // os_ticks deadline for WAIT_SLEEP
 
   struct signal_state_t signal_state;
   uint32_t signal_handler_depth;  // Nesting depth of signal handlers (0 = not in handler)
