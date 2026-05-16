@@ -143,9 +143,8 @@ char *strcpy(char *restrict dst, const char *restrict src) {
 }
 
 char *stpcpy(char *restrict dst, const char *restrict src) {
-  while ((*dst++ = *src++)) {
-    ;
-  }
+  while ((*dst = *src++) != '\0')
+    dst++;
   return dst;
 }
 

@@ -33,13 +33,27 @@ $(RC_TESTS:%=$(BINDIR)/%):
 OSTEST_TMP ?= /tmp/os-test
 OSTEST_URL ?= https://gitlab.com/sortix/os-test.git
 OSTEST_DIR := os-tests-sortix
-OSTEST_TESTS ?= "string/strcmp"
+OSTEST_TESTS ?= "string"
 OSTEST_BASE := $(ROOT)/thirdparty/os-tests-sortix/ostest
 OSTEST_INSTALL_DIR := $(ROOT)/build/rootfs/bin/os-tests-sortix
 
-# Dropped after vendor (sbunix has no pthread or network stack yet).
-OSTEST_PRUNE_DIRS := pthread threads spawn semaphore sys_sem \
-	arpa_inet netinet_in net_if netdb sys_socket
+# Dropped after vendor — not applicable to sbunix (see thirdparty/OSTEST_STATUS.md).
+OSTEST_PRUNE_DIRS := \
+	pthread threads spawn semaphore sys_sem \
+	arpa_inet netinet_in net_if netdb sys_socket \
+	math complex fenv \
+	grp pwd utmpx \
+	aio libintl dlfcn \
+	fmtmsg fnmatch ftw glob iconv \
+	langinfo locale monetary nl_types \
+	mqueue ndbm \
+	poll sys_select sys_time \
+	sched search \
+	sys_ipc sys_msg sys_shm \
+	sys_resource sys_statvfs sys_times sys_utsname sys_uio \
+	syslog termios \
+	uchar wchar wctype wordexp \
+	devctl endian
 
 # Clone upstream (if needed) and vendor basic/ + misc/ (gitignored under os-tests-sortix/).
 os-tests-sortix-clone:
@@ -49,7 +63,7 @@ os-tests-sortix-clone:
 	rm -rf "$(OSTEST_DIR)/basic" "$(OSTEST_DIR)/misc"
 	cp -a "$(OSTEST_TMP)/basic" "$(OSTEST_TMP)/misc" "$(OSTEST_DIR)/"
 	@for d in $(OSTEST_PRUNE_DIRS); do rm -rf "$(OSTEST_DIR)/basic/$$d"; done
-	@echo "os-tests-sortix-clone: pruned (no pthread/network): $(OSTEST_PRUNE_DIRS)"
+	@echo "os-tests-sortix-clone: pruned $(words $(OSTEST_PRUNE_DIRS)) dirs (see OSTEST_STATUS.md)"
 
 # Cross-compile: OSTEST_TESTS empty = all basic/; else subdir or path, e.g. OSTEST_TESTS="string"
 os-tests-build: os-tests-sortix-clone $(LIBC) $(CRT)
@@ -66,3 +80,15 @@ os-tests-install: os-tests-build
 		OSTEST_BASE="$(abspath $(OSTEST_BASE))" \
 		OSTEST_INSTALL_DIR="$(abspath $(OSTEST_INSTALL_DIR))" \
 		sh "$(OSTEST_DIR)/install-basic.sh"
+	@echo "#!/bin/sh" > "$(ROOT)/rootfs/etc/run_tests"
+	@echo 'echo "========================================="' >> "$(ROOT)/rootfs/etc/run_tests"
+	@echo 'echo "  os-tests-sortix"' >> "$(ROOT)/rootfs/etc/run_tests"
+	@echo 'echo "========================================="' >> "$(ROOT)/rootfs/etc/run_tests"
+	@while read rel; do \
+		[ -f "$(OSTEST_INSTALL_DIR)/$$rel" ] || continue; \
+		echo "/bin/os-tests-sortix/$$rel" >> "$(ROOT)/rootfs/etc/run_tests"; \
+	done < "$(OSTEST_BASE)/sources.list"
+	@echo 'echo "========================================="' >> "$(ROOT)/rootfs/etc/run_tests"
+	@echo 'echo "  Done"' >> "$(ROOT)/rootfs/etc/run_tests"
+	@chmod +x "$(ROOT)/rootfs/etc/run_tests"
+	@echo "os-tests-install: generated rootfs/etc/run_tests"

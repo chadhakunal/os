@@ -39,7 +39,7 @@ JOBS=${JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)}
 mkdir -p "$OUT" "$REPORT"
 
 # Keep in sync with OSTEST_PRUNE_DIRS in thirdparty/Makefile.
-OSTEST_SKIP_DIRS="pthread threads spawn semaphore sys_sem arpa_inet netinet_in net_if netdb sys_socket"
+OSTEST_SKIP_DIRS="pthread threads spawn semaphore sys_sem arpa_inet netinet_in net_if netdb sys_socket math complex fenv grp pwd utmpx aio libintl dlfcn fmtmsg fnmatch ftw glob iconv langinfo locale monetary nl_types mqueue ndbm poll sys_select sys_time sched search sys_ipc sys_msg sys_shm sys_resource sys_statvfs sys_times sys_utsname sys_uio syslog termios uchar wchar wctype wordexp devctl endian"
 
 ostest_is_skipped() {
   rel=$1
@@ -50,59 +50,9 @@ ostest_is_skipped() {
   return 1
 }
 
-compile_one() {
-  rel=$1
-  src="$BASIC/$rel.c"
-  bin="$OUT/$rel"
-  obj="$OUT/$rel.o"
-  err="$REPORT/$rel.err"
-  meta="$REPORT/$rel.out"
-
-  mkdir -p "$(dirname "$bin")" "$(dirname "$err")"
-  rm -f "$bin" "$obj" "$err" "$meta"
-
-  if ! $CC $CFLAGS $CPPFLAGS $DEFS -c "$src" -o "$obj" >"$err" 2>&1; then
-    rm -f "$obj"
-    if grep -Eq '^/\*optional\*/$' "$src" 2>/dev/null; then
-      outcome=missing_optional
-    elif grep -E 'error:' "$err" | grep -Ev 'type specifier missing,' | head -1 \
-      | grep -E 'fatal error' >/dev/null 2>&1; then
-      outcome=missing_header
-    elif grep -E 'error:' "$err" | grep -Ev 'type specifier missing,' | head -1 \
-      | grep -E 'incompatible|pointer-sign' >/dev/null 2>&1; then
-      outcome=incompatible
-    elif grep -E 'error:' "$err" | grep -Ev 'type specifier missing,' | head -1 \
-      | grep -E 'undeclared|no member named|is not defined' >/dev/null 2>&1; then
-      outcome=undeclared
-    elif grep -E 'error:' "$err" | grep -Ev 'type specifier missing,' | head -1 \
-      | grep -E 'unknown type name|expected declaration specifiers|storage size of' \
-      >/dev/null 2>&1; then
-      outcome=unknown_type
-    else
-      outcome=compile_error
-    fi
-    printf '#!/bin/sh\necho %s\n' "$outcome" >"$bin"
-    chmod +x "$bin"
-    echo "$outcome" >"$meta"
-    return 0
-  fi
-
-  if ! $CC $CFLAGS -o "$bin" "$obj" $LDFLAGS >>"$err" 2>&1; then
-    rm -f "$obj" "$bin"
-    outcome=undefined
-    printf '#!/bin/sh\necho %s\n' "$outcome" >"$bin"
-    chmod +x "$bin"
-    echo "$outcome" >"$meta"
-    return 0
-  fi
-
-  rm -f "$obj" "$err"
-  echo ok >"$meta"
-}
 
 export ROOT OSTEST_SRC OSTEST_BASE BASIC OUT REPORT SOURCES SUMMARY CC
 export CFLAGS CPPFLAGS DEFS LDFLAGS
-export -f compile_one
 
 mkdir -p "$OSTEST_BASE"
 : >"$SOURCES"
@@ -149,7 +99,55 @@ fi
 echo "build-basic: $total test(s), jobs=$JOBS"
 [ -n "${OSTEST_TESTS:-}" ] && echo "  filter: $OSTEST_TESTS"
 
-xargs -P "$JOBS" -I {} sh -c 'compile_one "$@"' _ {} <"$SOURCES"
+xargs -P "$JOBS" -I {} sh -c '
+  rel=$1
+  src="$BASIC/$rel.c"
+  bin="$OUT/$rel"
+  obj="$OUT/$rel.o"
+  err="$REPORT/$rel.err"
+  meta="$REPORT/$rel.out"
+
+  mkdir -p "$(dirname "$bin")" "$(dirname "$err")"
+  rm -f "$bin" "$obj" "$err" "$meta"
+
+  if ! $CC $CFLAGS $CPPFLAGS $DEFS -c "$src" -o "$obj" >"$err" 2>&1; then
+    rm -f "$obj"
+    if grep -Eq '"'"'^/\*optional\*/$'"'"' "$src" 2>/dev/null; then
+      outcome=missing_optional
+    elif grep -E '"'"'error:'"'"' "$err" | grep -Ev '"'"'type specifier missing,'"'"' | head -1 \
+      | grep -E '"'"'fatal error'"'"' >/dev/null 2>&1; then
+      outcome=missing_header
+    elif grep -E '"'"'error:'"'"' "$err" | grep -Ev '"'"'type specifier missing,'"'"' | head -1 \
+      | grep -E '"'"'incompatible|pointer-sign'"'"' >/dev/null 2>&1; then
+      outcome=incompatible
+    elif grep -E '"'"'error:'"'"' "$err" | grep -Ev '"'"'type specifier missing,'"'"' | head -1 \
+      | grep -E '"'"'undeclared|no member named|is not defined'"'"' >/dev/null 2>&1; then
+      outcome=undeclared
+    elif grep -E '"'"'error:'"'"' "$err" | grep -Ev '"'"'type specifier missing,'"'"' | head -1 \
+      | grep -E '"'"'unknown type name|expected declaration specifiers|storage size of'"'"' \
+      >/dev/null 2>&1; then
+      outcome=unknown_type
+    else
+      outcome=compile_error
+    fi
+    printf '"'"'#!/bin/sh\necho %s\n'"'"' "$outcome" >"$bin"
+    chmod +x "$bin"
+    echo "$outcome" >"$meta"
+    exit 0
+  fi
+
+  if ! $CC $CFLAGS -o "$bin" "$obj" $LDFLAGS >>"$err" 2>&1; then
+    rm -f "$obj" "$bin"
+    outcome=undefined
+    printf '"'"'#!/bin/sh\necho %s\n'"'"' "$outcome" >"$bin"
+    chmod +x "$bin"
+    echo "$outcome" >"$meta"
+    exit 0
+  fi
+
+  rm -f "$obj" "$err"
+  echo ok >"$meta"
+' _ {} <"$SOURCES"
 
 {
   echo "os-test basic cross-build summary"

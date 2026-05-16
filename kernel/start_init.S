@@ -13,8 +13,14 @@ start_init_task:
     # Switch to init task's kernel stack
     mv sp, a1
 
-    # Call trap_return (a0 already has trap_frame pointer)
-    # This will never return
+    # Save trap_frame pointer (a0) across the enable_interrupts call
+    mv s0, a0
+
+    # Enable interrupts now that we are on the init task's kernel stack
+    call enable_interrupts
+
+    # Restore trap_frame pointer and jump to user mode (never returns)
+    mv a0, s0
     call trap_return
 
     # Should never reach here

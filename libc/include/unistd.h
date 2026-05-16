@@ -1,5 +1,7 @@
 #pragma once
 
+extern char **environ;
+
 #include <stddef.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -44,6 +46,11 @@ pid_t getpid(void);
 pid_t getppid(void);
 int setpgid(pid_t pid, pid_t pgid);
 int execve(const char *pathname, char *const argv[], char *const envp[]);
+int execv(const char *pathname, char *const argv[]);
+int execl(const char *pathname, const char *arg, ...);
+int execle(const char *pathname, const char *arg, ...);
+int execlp(const char *file, const char *arg, ...);
+int execvp(const char *file, char *const argv[]);
 int mkdir(const char *path, mode_t mode);
 int unlink(const char *path);
 int rmdir(const char *path);

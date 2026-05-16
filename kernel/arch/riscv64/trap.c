@@ -16,6 +16,8 @@ void trap_handler(struct trap_frame *tf) {
   bool is_interrupt = (tf->scause >> 63) & 1;
   extern void trap_return(struct trap_frame *tf);
 
+
+
   if (is_interrupt) {
     switch (cause_code) {
       case 1:
@@ -26,7 +28,6 @@ void trap_handler(struct trap_frame *tf) {
         if (tf->sstatus & SSTATUS_SPP) {
           return;
         }
-        // Sanity check trap frame before returning
         if (current_task->tf.sepc == 0 || current_task->tf.sp == 0) {
           panic("trap_handler: Timer interrupt - corrupted trap frame! sepc=%llx sp=%llx pid=%llu",
                 current_task->tf.sepc, current_task->tf.sp, current_task->pid);

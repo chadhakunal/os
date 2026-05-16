@@ -4,6 +4,9 @@
 #include <dirent.h>
 #include <time.h>
 #include <stdint.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 
 char *getcwd(char *buf, size_t size) {
   if (buf == NULL) {
@@ -80,6 +83,136 @@ int setpgid(pid_t pid, pid_t pgid) {
 
 int execve(const char *pathname, char *const argv[], char *const envp[]) {
   return syscall3(SYS_execve, pathname, argv, envp);
+}
+
+int execv(const char *pathname, char *const argv[]) {
+
+  return execve(pathname, argv, environ);
+}
+
+static char **build_argv(const char *arg, va_list ap) {
+  va_list ap2;
+  va_copy(ap2, ap);
+  int argc = 1;
+  while (va_arg(ap2, const char *) != NULL)
+    argc++;
+  va_end(ap2);
+
+  char **argv = malloc((argc + 1) * sizeof(char *));
+  if (!argv)
+    return NULL;
+  argv[0] = (char *)arg;
+  for (int i = 1; i <= argc; i++)
+    argv[i] = va_arg(ap, char *);
+  return argv;
+}
+
+int execl(const char *pathname, const char *arg, ...) {
+
+  va_list ap;
+  va_start(ap, arg);
+  char **argv = build_argv(arg, ap);
+  va_end(ap);
+  if (!argv)
+    return -1;
+  int ret = execve(pathname, argv, environ);
+  free(argv);
+  return ret;
+}
+
+int execle(const char *pathname, const char *arg, ...) {
+  va_list ap, ap2;
+  va_start(ap, arg);
+
+  /* count args to find where envp sits */
+  va_copy(ap2, ap);
+  int argc = 1;
+  while (va_arg(ap2, const char *) != NULL)
+    argc++;
+  char **envp = va_arg(ap2, char **);
+  va_end(ap2);
+
+  char **argv = build_argv(arg, ap);
+  va_end(ap);
+  if (!argv)
+    return -1;
+  int ret = execve(pathname, argv, envp);
+  free(argv);
+  return ret;
+}
+
+int execlp(const char *file, const char *arg, ...) {
+  va_list ap;
+  va_start(ap, arg);
+  char **argv = build_argv(arg, ap);
+  va_end(ap);
+  if (!argv)
+    return -1;
+  int ret = execvp(file, argv);
+  free(argv);
+  return ret;
+}
+
+char *getenv(const char *name) {
+
+  if (!environ)
+    return NULL;
+  size_t nlen = strlen(name);
+  for (char **ep = environ; *ep; ep++) {
+    if (strncmp(*ep, name, nlen) == 0 && (*ep)[nlen] == '=')
+      return *ep + nlen + 1;
+  }
+  return NULL;
+}
+
+int mkstemp(char *tmpl) {
+  size_t len = strlen(tmpl);
+  if (len < 6 || strcmp(tmpl + len - 6, "XXXXXX") != 0)
+    return -1;
+  static unsigned seed = 0x12345678;
+  for (int tries = 0; tries < 100; tries++) {
+    seed = seed * 1664525u + 1013904223u;
+    unsigned r = seed;
+    for (int i = 0; i < 6; i++) {
+      unsigned idx = r % 62;
+      r /= 62;
+      const char *chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      tmpl[len - 6 + i] = chars[idx];
+    }
+    int fd = open(tmpl, O_RDWR | O_CREAT | O_EXCL, 0600);
+    if (fd >= 0)
+      return fd;
+  }
+  return -1;
+}
+
+int execvp(const char *file, char *const argv[]) {
+
+  if (strchr(file, '/'))
+    return execve(file, argv, environ);
+
+  const char *path = getenv("PATH");
+  if (!path)
+    path = "/bin";
+
+  size_t flen = strlen(file);
+  const char *p = path;
+  while (1) {
+    const char *colon = strchr(p, ':');
+    size_t dlen = colon ? (size_t)(colon - p) : strlen(p);
+    char *buf = malloc(dlen + 1 + flen + 1);
+    if (!buf)
+      return -1;
+    memcpy(buf, p, dlen);
+    buf[dlen] = '/';
+    memcpy(buf + dlen + 1, file, flen + 1);
+    execve(buf, argv, environ);
+    free(buf);
+    if (!colon)
+      break;
+    p = colon + 1;
+  }
+  return -1;
 }
 
 int getdents(int fd, struct dirent *buf, unsigned int count) {

@@ -189,11 +189,19 @@ void create_idle_task(void) {
 void create_init_process() {
   init_task_system();
   init_task = task_init();
-  load_elf(init_task , "/bin/init");
   list_append(&task_list, &init_task->task_list);
   init_task->cwd = base_mount->superblock->root_dentry;
   set_current_task(init_task);
   init_task->state = TASK_RUNNING;
+
+  // Switch to init's page table before load_elf so that direct writes to
+  // user virtual addresses (e.g. BSS zero-fill) go through the right MMU mapping.
+  asm volatile("csrw sscratch, %0" :: "r"(init_task->kernel_context.sp));
+  switch_to_page_table(init_task);
+  asm volatile("fence.i");
+
+  if (load_elf(init_task, "/bin/init") != 0)
+    panic("create_init_process: failed to load /bin/init");
 }
 
 void start_init_process();
@@ -290,7 +298,8 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
   }
 
   size_t vaddr_aligned = vaddr & ~(DEFAULT_PAGE_SIZE - 1);
-  size_t num_pages = (size + DEFAULT_PAGE_SIZE - 1) / DEFAULT_PAGE_SIZE;
+  size_t page_offset = vaddr - vaddr_aligned;
+  size_t num_pages = (size + page_offset + DEFAULT_PAGE_SIZE - 1) / DEFAULT_PAGE_SIZE;
   size_t vaddr_end = vaddr_aligned + (num_pages * DEFAULT_PAGE_SIZE);
 
   for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
