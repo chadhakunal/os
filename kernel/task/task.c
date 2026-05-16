@@ -290,7 +290,8 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
   }
 
   size_t vaddr_aligned = vaddr & ~(DEFAULT_PAGE_SIZE - 1);
-  size_t num_pages = (size + DEFAULT_PAGE_SIZE - 1) / DEFAULT_PAGE_SIZE;
+  size_t page_offset = vaddr - vaddr_aligned;
+  size_t num_pages = (size + page_offset + DEFAULT_PAGE_SIZE - 1) / DEFAULT_PAGE_SIZE;
   size_t vaddr_end = vaddr_aligned + (num_pages * DEFAULT_PAGE_SIZE);
 
   for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
