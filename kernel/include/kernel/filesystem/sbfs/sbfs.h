@@ -92,6 +92,11 @@ int64_t sbfs_create (const char *name, struct vnode_t *parent_dir, struct dentry
 int64_t sbfs_mkdir  (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
 int64_t sbfs_unlink (const char *name, struct vnode_t *parent_dir);
 int64_t sbfs_rmdir  (const char *name, struct vnode_t *parent_dir);
+int64_t sbfs_rename (const char *old_name, struct vnode_t *old_parent,
+                     const char *new_name, struct vnode_t *new_parent);
+
+/* superblock_ops */
+int64_t sbfs_statfs (struct superblock_t *sb, struct vfs_statfs *buf);
 
 /* address_space_ops */
 int64_t sbfs_fill_page (struct vnode_t *vnode, size_t offset, void **phys_page);

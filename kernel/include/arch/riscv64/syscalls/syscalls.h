@@ -37,6 +37,8 @@
 #define SYS_dup2            24
 #define SYS_fsync           82
 #define SYS_nanosleep       101
+#define SYS_statfs          43
+#define SYS_renameat        38
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -69,5 +71,7 @@ int64_t sys_nanosleep(struct trap_frame *tf);
 int64_t sys_mmap(struct trap_frame *tf);
 int64_t sys_munmap(struct trap_frame *tf);
 int64_t sys_brk(struct trap_frame *tf);
+int64_t sys_statfs(struct trap_frame *tf);
+int64_t sys_renameat(struct trap_frame *tf);
 
 #endif

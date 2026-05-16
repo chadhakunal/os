@@ -181,13 +181,19 @@ static int virtio_blk_submit(uint32_t type, uint64_t sector, void *buf, uint32_t
             .buf = buf, .num_sectors = num_sectors,
         };
         uint16_t last_used = base_virtq_used->idx;
+        debugk("[virtio] boot submit: type=%u sector=%llu last_used=%u\n",
+               type, sector, last_used);
         virtio_blk_hw_submit(&boot_req);
+        debugk("[virtio] hw submitted, expected_used=%u, spinning...\n",
+               virtio_expected_used_idx);
         uint64_t spin = 0;
         while (base_virtq_used->idx == last_used) {
             __sync_synchronize();
             if (++spin > 10000000ULL)
                 panic("virtio_blk: device did not respond");
         }
+        debugk("[virtio] boot complete after %llu spins, status=%u\n",
+               spin, (unsigned)*virtio_status_buf);
         disk_current = NULL;
         return (*virtio_status_buf != VIRTIO_BLK_S_OK) ? -1 : 0;
     }
@@ -242,7 +248,8 @@ void virtio_blk_poll(void) {
     struct disk_request_t *done = disk_current;
     disk_current = NULL;
     done->result = (*virtio_status_buf != VIRTIO_BLK_S_OK) ? -1 : 0;
-    unblock_task(done->waiter);
+    if (done->waiter != NULL)
+        unblock_task(done->waiter);
 
     /* Start the next queued request if any. */
     if (!list_is_empty(&disk_request_queue)) {

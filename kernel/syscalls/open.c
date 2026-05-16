@@ -78,7 +78,8 @@ open_existing:;
   struct file_t *file;
   int ret = vfs_open(path, flags, &file);
   if (ret != 0) {
-    printk("open: vfs_open('%s') failed: %d\n", path, ret);
+    if (ret != -ENOENT)
+      printk("open: vfs_open('%s') failed: %d\n", path, ret);
     return ret;
   }
 
