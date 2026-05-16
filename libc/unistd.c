@@ -153,7 +153,7 @@ int execlp(const char *file, const char *arg, ...) {
   return ret;
 }
 
-static const char *libc_getenv(const char *name) {
+char *getenv(const char *name) {
   extern char **environ;
   if (!environ)
     return NULL;
@@ -165,12 +165,33 @@ static const char *libc_getenv(const char *name) {
   return NULL;
 }
 
+int mkstemp(char *tmpl) {
+  size_t len = strlen(tmpl);
+  if (len < 6 || strcmp(tmpl + len - 6, "XXXXXX") != 0)
+    return -1;
+  static unsigned seed = 0x12345678;
+  for (int tries = 0; tries < 100; tries++) {
+    seed = seed * 1664525u + 1013904223u;
+    unsigned r = seed;
+    for (int i = 0; i < 6; i++) {
+      unsigned idx = r % 62;
+      r /= 62;
+      const char *chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+      tmpl[len - 6 + i] = chars[idx];
+    }
+    int fd = open(tmpl, O_RDWR | O_CREAT | O_EXCL, 0600);
+    if (fd >= 0)
+      return fd;
+  }
+  return -1;
+}
+
 int execvp(const char *file, char *const argv[]) {
   extern char **environ;
   if (strchr(file, '/'))
     return execve(file, argv, environ);
 
-  const char *path = libc_getenv("PATH");
+  const char *path = getenv("PATH");
   if (!path)
     path = "/bin";
 
