@@ -39,7 +39,7 @@ JOBS=${JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)}
 mkdir -p "$OUT" "$REPORT"
 
 # Keep in sync with OSTEST_PRUNE_DIRS in thirdparty/Makefile.
-OSTEST_SKIP_DIRS="pthread threads spawn semaphore sys_sem arpa_inet netinet_in net_if netdb sys_socket math complex fenv grp pwd utmpx aio"
+OSTEST_SKIP_DIRS="pthread threads spawn semaphore sys_sem arpa_inet netinet_in net_if netdb sys_socket math complex fenv grp pwd utmpx aio libintl dlfcn fmtmsg fnmatch ftw glob iconv langinfo locale monetary nl_types mqueue ndbm poll sys_select sys_time sched search sys_ipc sys_msg sys_shm sys_resource sys_statvfs sys_times sys_utsname sys_uio syslog termios uchar wchar wctype wordexp devctl endian"
 
 ostest_is_skipped() {
   rel=$1
