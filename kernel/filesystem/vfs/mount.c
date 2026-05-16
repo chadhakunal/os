@@ -107,15 +107,7 @@ void vfs_init() {
   struct vnode_t *root  = sbfs_sb->root_vnode;
   struct dentry_t *root_de = sbfs_sb->root_dentry;
 
-  printk("vfs: tarfs root entries:");
-  list_for_each(&tarfs_sb->root_vnode->children_dentries, pos) {
-    struct dentry_t *d = container_of(pos, struct dentry_t, sibling_dentry);
-    printk(" '%s'", d->name);
-  }
-  printk("\n");
-
   if (tarfs_bin) add_mount_stub(tarfs_sb, root, root_de, "bin", tarfs_bin);
-  else printk("vfs: WARNING: no bin/ in tarfs - /bin/init will not be found\n");
   if (tarfs_etc) add_mount_stub(tarfs_sb, root, root_de, "etc", tarfs_etc);
 
   add_mount_stub(tarfs_sb, root, root_de, "dev",  devfs_mount()->root_vnode);

@@ -200,9 +200,8 @@ void create_init_process() {
   switch_to_page_table(init_task);
   asm volatile("fence.i");
 
-  int elf_ret = load_elf(init_task, "/bin/init");
-  printk("load_elf returned %d, sepc=0x%llx sp=0x%llx sstatus=0x%llx\n",
-         elf_ret, init_task->tf.sepc, init_task->tf.sp, init_task->tf.sstatus);
+  if (load_elf(init_task, "/bin/init") != 0)
+    panic("create_init_process: failed to load /bin/init");
 }
 
 void start_init_process();

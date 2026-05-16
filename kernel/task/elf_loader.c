@@ -33,11 +33,9 @@ int load_elf(struct task_t *task, const char *path) {
   struct dentry_t *dentry;
   int32_t ret = vfs_resolve_path(path, &dentry);
   if (ret != 0) {
-    printk("load_elf: vfs_resolve_path('%s') failed: %d\n", path, ret);
+    printk("load_elf: vfs_resolve_path('%s') failed: %d\n", path, (int)ret);
     return -1;
   }
-  printk("load_elf: resolved '%s', vnode=%p\n", path, dentry->vnode);
-
   // Read ELF header
   struct Elf64_Ehdr header;
   ret = vfs_vnode_read(dentry->vnode, &header, sizeof(header), 0);
@@ -45,9 +43,6 @@ int load_elf(struct task_t *task, const char *path) {
     printk("load_elf: vfs_vnode_read header failed: %d\n", ret);
     return -1;
   }
-  printk("load_elf: read header, magic=0x%x%x%x%x entry=0x%llx phnum=%d\n",
-         header.e_ident[0], header.e_ident[1], header.e_ident[2], header.e_ident[3],
-         header.e_entry, header.e_phnum);
   task->mm_struct.entry_addr = (void *)header.e_entry;
 
   // Print ELF header information
