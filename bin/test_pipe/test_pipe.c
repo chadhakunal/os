@@ -146,10 +146,7 @@ static void test_multiple_writes(void) {
     while (total < 15 && (n = read(fds[0], buf + total, sizeof(buf) - total)) > 0)
       total += n;
     close(fds[0]);
-    exit(total == 15 &&
-          buf[0]  == 'o' && buf[4]  == 'e' &&
-          buf[5]  == 't' && buf[9]  == 'o' &&
-          buf[10] == 't' && buf[14] == 'e' ? 0 : 1);
+    exit(total == 15 && memcmp(buf, "one  two  three", 15) == 0 ? 0 : 1);
   }
   close(fds[0]);
   write(fds[1], "one  ", 5);
