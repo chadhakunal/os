@@ -1,6 +1,7 @@
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "kernel/task/task.h"
+#include "kernel/resource.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/user_data_access.h"
 #include "lib/string.h"
@@ -24,6 +25,10 @@ DEFINE_SYSCALL2(truncate, const char *, user_path, int64_t, length)
   struct vnode_t *vnode = dentry->vnode->mounted_vnode
                           ? dentry->vnode->mounted_vnode
                           : dentry->vnode;
+
+  int fsize_ret = rlimit_check_fsize(current_task, (uint64_t)length);
+  if (fsize_ret < 0)
+    return fsize_ret;
 
   return vfs_truncate(vnode, (uint64_t)length);
 }

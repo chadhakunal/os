@@ -236,45 +236,6 @@ int fprintf(FILE *stream, const char *fmt, ...) {
   va_end(ap); return n;
 }
 
-int vfprintf(FILE *stream, const char *fmt, va_list args) {
-  if (!stream || !fmt)
-    return -1;
-
-  int fd = stream->fd;
-  char buffer[PRINTF_BUF_SIZE];
-  int pos = 0;
-  int total = 0;
-
-  for (const char *p = fmt; *p; p++) {
-    if (*p == '%' && *(p + 1)) {
-      p++;
-      if (pos >= PRINTF_BUF_SIZE) {
-        write(fd, buffer, PRINTF_BUF_SIZE);
-        total += PRINTF_BUF_SIZE;
-        pos = 0;
-      }
-      buf_format_one(fd, buffer, &pos, &p, &args);
-    } else {
-      buf_putchar(fd, buffer, &pos, *p);
-    }
-  }
-
-  if (pos > 0) {
-    write(fd, buffer, (size_t)pos);
-    total += pos;
-  }
-
-  return total;
-}
-
-int fprintf(FILE *stream, const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  int n = vfprintf(stream, fmt, args);
-  va_end(args);
-  return n;
-}
-
 int printf(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   int n = vfprintf(stdout, fmt, ap);

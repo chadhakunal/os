@@ -14,6 +14,8 @@
 #include "kernel/signal_jump_point.h"
 #include "kernel/drivers/virtio-blk.h"
 #include "kernel/filesystem/pipefs/pipe.h"
+#include "kernel/resource.h"
+#include "errno.h"
 
 // Global task tracking
 struct task_t *current_task = NULL;  // Currently running task
@@ -136,6 +138,8 @@ struct task_t *task_init() {
   // Initialize signal state
   init_signal_state(task);
 
+  rlimit_init_defaults(&task->rlimits);
+
   return task;
 }
 
@@ -179,6 +183,7 @@ void create_idle_task(void) {
 
   // Initialize signal state
   init_signal_state(idle_task);
+  rlimit_init_defaults(&idle_task->rlimits);
 
   idle_task->scheduler_list.next = &idle_task->scheduler_list;
   idle_task->scheduler_list.prev = &idle_task->scheduler_list;
@@ -610,6 +615,7 @@ uint64_t fork_off() {
   }
 
   copy_file_table(&current_task->file_table, &new_task->file_table);
+  rlimit_copy(&new_task->rlimits, &current_task->rlimits);
   copy_mm(current_task, new_task);
 
   void *sjp = get_signal_jump_point_page();
@@ -658,6 +664,12 @@ int alloc_fd(struct files_table_t *file_table, struct file_t *file) {
   struct files_list_t *files_list = NULL;
   int fd = -1;
 
+  if (current_task != NULL) {
+    int rlimit_ret = rlimit_check_nofile(current_task, 1);
+    if (rlimit_ret < 0)
+      return rlimit_ret;
+  }
+
   list_for_each(&file_table->files_list, pos) {
     files_list = container_of(pos, struct files_list_t, files_list);
 
@@ -673,7 +685,7 @@ int alloc_fd(struct files_table_t *file_table, struct file_t *file) {
   if (fd == -1) {
     files_list = files_list_t_alloc();
     if (!files_list) {
-      return -1;
+      return -ENFILE;
     }
     files_list->used_file_bitmap = 0;
     list_append(&file_table->files_list, &files_list->files_list);

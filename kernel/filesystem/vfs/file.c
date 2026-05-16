@@ -1,6 +1,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/filesystem/pipefs/pipe.h"
 #include "kernel/task/task.h"
+#include "kernel/resource.h"
 #include "kernel/memory/page_allocator.h"
 #include "lib/list.h"
 #include "errno.h"
@@ -96,8 +97,16 @@ int64_t vfs_dup2(struct files_table_t *file_table, int oldfd, int newfd) {
   if (src == NULL)
     return -EBADF;
 
+  bool newfd_was_open = find_file_by_fd(file_table, newfd, NULL, NULL) != NULL;
+
   /* Close newfd if it is already open. */
   vfs_file_close(file_table, newfd);
+
+  if (!newfd_was_open && current_task != NULL) {
+    int rlimit_ret = rlimit_check_nofile(current_task, 1);
+    if (rlimit_ret < 0)
+      return rlimit_ret;
+  }
 
   /* Walk to the files_list node that owns newfd, allocating a new node if
    * the fd falls beyond the current highest node. */

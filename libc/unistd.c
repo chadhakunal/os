@@ -1,6 +1,7 @@
 #include <arch/riscv64/syscall.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <dirent.h>
 #include <time.h>
 #include <stdint.h>
@@ -26,7 +27,12 @@ ssize_t read(int fd, void *buf, size_t n) {
 }
 
 ssize_t write(int fd, const void *buf, size_t n) {
-  return syscall3(SYS_write, fd, buf, n);
+  long ret = syscall3(SYS_write, fd, buf, n);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return (ssize_t)ret;
 }
 
 int close(int fd) {

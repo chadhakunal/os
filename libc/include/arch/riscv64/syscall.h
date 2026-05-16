@@ -41,6 +41,8 @@
 #define SYS_fstatat         79
 #define SYS_chmod           52
 #define SYS_reboot          88
+#define SYS_getrlimit       163
+#define SYS_setrlimit       164
 
 #define syscall0(n) ({ \
   register long _a0 asm("a0"); \
