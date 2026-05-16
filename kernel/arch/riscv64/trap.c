@@ -86,7 +86,6 @@ void trap_handler(struct trap_frame *tf) {
       case 12:
       case 13:
       case 15:
-        panic("Page fault!\n");
         handle_page_fault(tf->stval, cause_code, tf);
         if (tf->sstatus & SSTATUS_SPP) {
           return; // kernel-mode fault (e.g. copy_to/from_user): trap_vector restores kernel context from stack
