@@ -2,8 +2,10 @@
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/task/task.h"
+#include "kernel/resource.h"
 #include "kernel/memory/page_tables.h"
 #include "kernel/memory/page_allocator.h"
+#include "errno.h"
 
 DEFINE_SYSCALL1(brk, size_t, new_brk)
 {
@@ -15,6 +17,10 @@ DEFINE_SYSCALL1(brk, size_t, new_brk)
   new_brk = (new_brk + DEFAULT_PAGE_SIZE - 1) & ~(DEFAULT_PAGE_SIZE - 1);
 
   if (new_brk > cur) {
+    int as_ret = rlimit_check_as(current_task, new_brk - cur);
+    if (as_ret < 0)
+      return (int64_t)cur;
+
     int64_t ret = anon_memory_map(&current_task->mm_struct, cur,
                                   new_brk - cur, VM_READ | VM_WRITE, false);
     if (ret < 0) return (int64_t)cur;

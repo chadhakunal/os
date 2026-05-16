@@ -10,7 +10,7 @@ CRT := $(ROOT)/build/libc/crt.S.o
 LIBC := $(ROOT)/build/libc.a
 BINDIR := $(ROOT)/build/rootfs/bin
 
-RC_TESTS := test_syscalls test_shell test_signals stacktest stacktest2
+RC_TESTS := test_syscalls test_shell test_signals stacktest stacktest2 test_rlimit
 
 .PHONY: install os-tests-sortix-clone os-tests-build os-tests-install
 
@@ -24,6 +24,7 @@ $(BINDIR)/test_shell: test_shell/test_shell.c $(CRT) $(LIBC)
 $(BINDIR)/test_signals: test_signals/test_signals.c $(CRT) $(LIBC)
 $(BINDIR)/stacktest: stacktest/stacktest.c $(CRT) $(LIBC)
 $(BINDIR)/stacktest2: stacktest2/stacktest.c $(CRT) $(LIBC)
+$(BINDIR)/test_rlimit: test_rlimit/test_rlimit.c $(CRT) $(LIBC)
 
 $(RC_TESTS:%=$(BINDIR)/%):
 	@mkdir -p $(BINDIR)
@@ -33,7 +34,7 @@ $(RC_TESTS:%=$(BINDIR)/%):
 OSTEST_TMP ?= /tmp/os-test
 OSTEST_URL ?= https://gitlab.com/sortix/os-test.git
 OSTEST_DIR := os-tests-sortix
-OSTEST_TESTS ?= "string"
+OSTEST_TESTS ?= ""
 OSTEST_BASE := $(ROOT)/thirdparty/os-tests-sortix/ostest
 OSTEST_INSTALL_DIR := $(ROOT)/build/rootfs/bin/os-tests-sortix
 

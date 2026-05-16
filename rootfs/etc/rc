@@ -32,6 +32,14 @@ echo "Skipping test_signals (/bin/test_signals not installed)"
 fi
 
 echo ""
+if [ -x /bin/test_rlimit ]; then
+echo "Running test_rlimit..."
+/bin/test_rlimit
+else
+echo "Skipping test_rlimit (/bin/test_rlimit not installed)"
+fi
+
+echo ""
 if [ -x /bin/stacktest ]; then
 echo "Running stacktest..."
 /bin/stacktest

@@ -239,6 +239,14 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_reboot(tf);
       break;
 
+    case SYS_getrlimit:
+      ret = sys_getrlimit(tf);
+      break;
+
+    case SYS_setrlimit:
+      ret = sys_setrlimit(tf);
+      break;
+
     default:
       debugk("syscall: unknown syscall %llu\n", syscall_num);
       tf->a0 = -1; // ENOSYS

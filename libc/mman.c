@@ -1,9 +1,13 @@
 #include <arch/riscv64/syscall.h>
 #include <sys/mman.h>
+#include <errno.h>
 
 void *mmap(void *addr, unsigned long len, int prot, int flags, int fd, long offset) {
   long ret = syscall6(SYS_mmap, addr, len, prot, flags, fd, offset);
-  if (ret < 0) return (void *)-1;
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return (void *)-1;
+  }
   return (void *)ret;
 }
 
