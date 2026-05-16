@@ -4,20 +4,28 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/user_data_access.h"
 #include "lib/string.h"
-#define DEBUG 0
 #include "lib/printk/printk.h"
 #include "errno.h"
 
 #define MAX_PATH_COPY 256
 
-DEFINE_SYSCALL2(statfs, const char *, user_path, struct vfs_statfs *, user_buf)
+/* fstatat(dirfd, path, statbuf, flags) */
+DEFINE_SYSCALL4(fstatat,
+                int,              dirfd,
+                const char *,     user_path,
+                struct vfs_stat *, user_buf,
+                int,              flags)
 {
+  (void)flags;
+
   char path[MAX_PATH_COPY];
   copy_string_from_user(path, user_path, MAX_PATH_COPY);
 
+  struct dentry_t *start = task_dirfd_to_dentry(dirfd);
+  if (start == (struct dentry_t *)-1) return -EBADF;
+
   struct dentry_t *dentry;
-  if (vfs_resolve_path(path, &dentry) < 0) {
-    debugk("statfs: path '%s' not found\n", path);
+  if (vfs_resolve_path_at(path, start, &dentry) < 0) {
     return -ENOENT;
   }
 
@@ -25,10 +33,9 @@ DEFINE_SYSCALL2(statfs, const char *, user_path, struct vfs_statfs *, user_buf)
                           ? dentry->vnode->mounted_vnode
                           : dentry->vnode;
 
-  struct vfs_statfs kbuf;
-  int64_t ret = vfs_statfs(vnode, &kbuf);
-  if (ret < 0)
-    return ret;
+  struct vfs_stat kbuf;
+  int64_t ret = vfs_stat(vnode, &kbuf);
+  if (ret < 0) return ret;
 
   copy_to_user(user_buf, &kbuf, sizeof(kbuf));
   return 0;

@@ -1,6 +1,7 @@
 #include "kernel/drivers/plic.h"
 #include "platform.h"
 #include "arch/riscv64/virtual_memory_init.h"
+#define DEBUG 0
 #include "lib/printk/printk.h"
 
 /*
@@ -35,10 +36,10 @@ void plic_init(void) {
         return;
     }
 
-    printk("plic_init: base=0x%llx\n", plic_base);
+    debugk("plic_init: base=0x%llx\n", plic_base);
 
     uint32_t virtio_irq = platform.virtio_disk.irq;
-    printk("plic_init: uart_irq=%u virtio_blk_irq=%u\n", PLIC_IRQ_UART, virtio_irq);
+    debugk("plic_init: uart_irq=%u virtio_blk_irq=%u\n", PLIC_IRQ_UART, virtio_irq);
 
     /* Set priority 1 (lowest non-zero) for every IRQ we care about. */
     *(volatile uint32_t *)PLIC_PRIORITY(PLIC_IRQ_UART) = 1;

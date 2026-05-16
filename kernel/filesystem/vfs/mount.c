@@ -115,3 +115,56 @@ void vfs_init() {
 
   printk("vfs: sbfs at /, bin/etc from tarfs, dev/proc virtual\n");
 }
+
+/* Flush all dirty page-cache pages in one vnode. */
+static void sync_vnode(struct vnode_t *vnode) {
+  if (vnode == NULL || vnode->address_space == NULL)
+    return;
+
+  struct address_space_ops_t *as_ops = vnode->address_space->address_space_ops;
+  if (as_ops == NULL || as_ops->write_page == NULL)
+    return;
+
+  list_for_each(&vnode->address_space->page_cache_list, pos) {
+    struct page_cache_entry_t *entry =
+      container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
+    if (entry->dirty) {
+      as_ops->write_page(vnode, entry->offset, entry->physical_page);
+      entry->dirty = false;
+    }
+  }
+}
+
+/* Recursively flush every vnode reachable from dentry. */
+static void sync_dentry_tree(struct dentry_t *dentry, int depth) {
+  if (dentry == NULL || depth > 32)
+    return;
+
+  struct vnode_t *vnode = dentry->vnode;
+  if (vnode == NULL)
+    return;
+
+  /* Flush the real vnode (follow mounted_vnode if present). */
+  struct vnode_t *effective = vnode->mounted_vnode ? vnode->mounted_vnode : vnode;
+  sync_vnode(effective);
+
+  /* Recurse into in-memory children. */
+  list_for_each(&effective->children_dentries, pos) {
+    struct dentry_t *child = container_of(pos, struct dentry_t, sibling_dentry);
+    sync_dentry_tree(child, depth + 1);
+  }
+}
+
+void vfs_sync_all(void) {
+  printk("vfs: syncing all dirty pages to disk...\n");
+
+  /* Walk every mounted filesystem's dentry tree. */
+  list_for_each(&mount_list, pos) {
+    struct mount_t *mount = container_of(pos, struct mount_t, sibling_mount);
+    if (mount->superblock == NULL || mount->superblock->root_dentry == NULL)
+      continue;
+    sync_dentry_tree(mount->superblock->root_dentry, 0);
+  }
+
+  printk("vfs: sync complete\n");
+}

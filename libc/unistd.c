@@ -169,3 +169,20 @@ ssize_t readlinkat(int dirfd, const char *path, char *buf, size_t bufsiz) {
 int statfs(const char *path, struct statfs *buf) {
   return syscall2(SYS_statfs, path, buf);
 }
+
+int fstatat(int dirfd, const char *path, struct stat *buf, int flags) {
+  return syscall4(SYS_fstatat, (uint64_t)(int64_t)dirfd,
+                  (uint64_t)path, (uint64_t)buf, (uint64_t)flags);
+}
+
+int stat(const char *path, struct stat *buf) {
+  return fstatat(AT_FDCWD, path, buf, 0);
+}
+
+int chmod(const char *path, unsigned int mode) {
+  return syscall2(SYS_chmod, (uint64_t)path, (uint64_t)mode);
+}
+
+int reboot(int cmd) {
+  return (int)syscall1(SYS_reboot, (uint64_t)(int64_t)cmd);
+}

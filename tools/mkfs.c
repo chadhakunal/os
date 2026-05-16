@@ -7,9 +7,10 @@
 #define INODE_COUNT   1024
 #define FS_BLOCK_SIZE 512
 
-#define INODE_FREE 0
-#define INODE_FILE 1
-#define INODE_DIR  2
+#define S_IFREG  0100000
+#define S_IFDIR  0040000
+#define SBFS_MODE_FILE  (S_IFREG | 0666)
+#define SBFS_MODE_DIR   (S_IFDIR | 0777)
 
 typedef struct superblock {
   uint32_t magic;
@@ -36,14 +37,13 @@ typedef struct superblock {
 } superblock_t;
 
 typedef struct inode {
-  uint16_t type;
+  uint16_t mode;    /* type + permission bits */
   uint16_t nlinks;
-  uint32_t size;              // file size in bytes
+  uint32_t size;
 
   uint32_t direct_blocks[12];
   uint32_t indirect_block;
-
-  uint32_t reserved;
+  uint32_t mtime;
 } inode_t;
 
 _Static_assert(sizeof(superblock_t) == 512, "superblock must be 512 bytes");
@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
   /* write inode 1: the test file */
   inode_t file_inode;
   memset(&file_inode, 0, sizeof(file_inode));
-  file_inode.type = INODE_FILE;
+  file_inode.mode = SBFS_MODE_FILE;
   file_inode.nlinks = 1;
   file_inode.size = test_content_len;
   file_inode.direct_blocks[0] = file_data_block;
@@ -206,7 +206,7 @@ int main(int argc, char **argv) {
   /* write root inode with size and dir block pointer */
   inode_t root;
   memset(&root, 0, sizeof(root));
-  root.type = INODE_DIR;
+  root.mode = SBFS_MODE_DIR;
   root.nlinks = 1;
   root.size = sizeof(dirent_t);
   root.direct_blocks[0] = root_dir_block;

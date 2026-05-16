@@ -1,3 +1,4 @@
+#define DEBUG 0
 #include "kernel/filesystem/vfs/vfs.h"
 #include "lib/printk/printk.h"
 #include "kernel/filesystem/mode.h"
@@ -12,7 +13,7 @@ void vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id)
   vnode->vnode_ops = &sb->vnode_ops;
   vnode->file_ops = &sb->file_ops;
   vnode->id = id;
-  vnode->refcount = 1;
+  vnode->refcount = 0;
   vnode->owner_uid = 0;
   vnode->owner_gid = 0;
   vnode->permission_mode = 0;
@@ -24,10 +25,10 @@ void vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id)
 
 void vfs_print_vnode(struct vnode_t *vnode) {
   if (vnode == NULL) {
-    printk("[vnode: NULL]\n");
+    debugk("[vnode: NULL]\n");
     return;
   }
-  printk("[vnode id=%d, size=%lld, refcount=%d, uid=%d, gid=%d, mode=0x%x%s, fs_private=%p]\n",
+  debugk("[vnode id=%d, size=%lld, refcount=%d, uid=%d, gid=%d, mode=0x%x%s, fs_private=%p]\n",
          vnode->id,
          vnode->size,
          vnode->refcount,
@@ -43,8 +44,12 @@ int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t off
     panic("vfs_vnode_read: NULL parameter\n");
   }
 
+  debugk("[vfs_vnode_read] vnode=%p vnode->size=%llu offset=%zu req=%zu\n",
+         vnode, (unsigned long long)vnode->size, offset, size);
+
   // Handle EOF
   if (offset >= vnode->size) {
+    debugk("[vfs_vnode_read] returning 0 (EOF)\n");
     return 0;  // 0 bytes read = EOF
   }
 
@@ -83,33 +88,35 @@ int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t off
   return total_copied;
 }
 
+#define DIR_W_CHECK(dir) \
+  if ((dir) == NULL || !IS_DIR((dir)->permission_mode)) return -ENOTDIR; \
+  if (!((dir)->permission_mode & PERM_WUSR)) return -EACCES;
+
 int64_t vfs_create(const char *name, struct vnode_t *parent_dir, struct dentry_t **out) {
-  if (parent_dir == NULL || !IS_DIR(parent_dir->permission_mode))
-    return -ENOTDIR;
+  debugk("[vfs_create] name=%s parent_mode=0x%x\n", name, parent_dir ? parent_dir->permission_mode : 0);
+  DIR_W_CHECK(parent_dir);
   if (parent_dir->vnode_ops == NULL || parent_dir->vnode_ops->create == NULL)
     return -1;
   return parent_dir->vnode_ops->create(name, parent_dir, out);
 }
 
 int64_t vfs_mkdir(const char *name, struct vnode_t *parent_dir, struct dentry_t **out) {
-  if (parent_dir == NULL || !IS_DIR(parent_dir->permission_mode))
-    return -ENOTDIR;
+  debugk("[vfs_mkdir] name=%s parent_mode=0x%x\n", name, parent_dir ? parent_dir->permission_mode : 0);
+  DIR_W_CHECK(parent_dir);
   if (parent_dir->vnode_ops == NULL || parent_dir->vnode_ops->mkdir == NULL)
     return -1;
   return parent_dir->vnode_ops->mkdir(name, parent_dir, out);
 }
 
 int64_t vfs_unlink(const char *name, struct vnode_t *parent_dir) {
-  if (parent_dir == NULL || !IS_DIR(parent_dir->permission_mode))
-    return -ENOTDIR;
+  DIR_W_CHECK(parent_dir);
   if (parent_dir->vnode_ops == NULL || parent_dir->vnode_ops->unlink == NULL)
     return -1;
   return parent_dir->vnode_ops->unlink(name, parent_dir);
 }
 
 int64_t vfs_rmdir(const char *name, struct vnode_t *parent_dir) {
-  if (parent_dir == NULL || !IS_DIR(parent_dir->permission_mode))
-    return -ENOTDIR;
+  DIR_W_CHECK(parent_dir);
   if (parent_dir->vnode_ops == NULL || parent_dir->vnode_ops->rmdir == NULL)
     return -1;
   return parent_dir->vnode_ops->rmdir(name, parent_dir);
@@ -135,6 +142,8 @@ int64_t vfs_rename(const char *old_name, struct vnode_t *old_parent,
     return -ENOTDIR;
   if (new_parent == NULL || !IS_DIR(new_parent->permission_mode))
     return -ENOTDIR;
+  if (!(old_parent->permission_mode & PERM_WUSR)) return -EACCES;
+  if (!(new_parent->permission_mode & PERM_WUSR)) return -EACCES;
   if (old_parent->superblock != new_parent->superblock)
     return -EXDEV;
   if (old_parent->vnode_ops == NULL || old_parent->vnode_ops->rename == NULL)
@@ -152,6 +161,7 @@ int64_t vfs_symlink(const char *target, const char *name,
                     struct vnode_t *parent_dir, struct dentry_t **out) {
   if (parent_dir == NULL || !IS_DIR(parent_dir->permission_mode))
     return -ENOTDIR;
+  if (!(parent_dir->permission_mode & PERM_WUSR)) return -EACCES;
   if (parent_dir->vnode_ops == NULL || parent_dir->vnode_ops->symlink == NULL)
     return -1;
   return parent_dir->vnode_ops->symlink(target, name, parent_dir, out);
@@ -171,11 +181,35 @@ int64_t vfs_link(const char *old_name, struct vnode_t *old_parent,
     return -ENOTDIR;
   if (new_parent == NULL || !IS_DIR(new_parent->permission_mode))
     return -ENOTDIR;
+  if (!(new_parent->permission_mode & PERM_WUSR)) return -EACCES;
   if (old_parent->superblock != new_parent->superblock)
     return -EXDEV;
   if (old_parent->vnode_ops == NULL || old_parent->vnode_ops->link == NULL)
     return -1;
   return old_parent->vnode_ops->link(old_name, old_parent, new_name, new_parent);
+}
+
+int64_t vfs_stat(struct vnode_t *vnode, struct vfs_stat *buf) {
+  if (vnode == NULL || buf == NULL)
+    return -1;
+  buf->st_ino   = vnode->id;
+  buf->st_mode  = vnode->permission_mode;
+  buf->st_nlink = 1;
+  buf->st_size  = vnode->size;
+  buf->st_mtime = vnode->mtime;
+  return 0;
+}
+
+int64_t vfs_chmod(struct vnode_t *vnode, uint32_t mode) {
+  if (vnode == NULL)
+    return -1;
+  if (vnode->vnode_ops == NULL || vnode->vnode_ops->chmod == NULL) {
+    /* For read-only or virtual filesystems, just update the in-memory vnode. */
+    uint32_t type_bits = vnode->permission_mode & S_IFMT;
+    vnode->permission_mode = type_bits | (mode & ~(uint32_t)S_IFMT);
+    return 0;
+  }
+  return vnode->vnode_ops->chmod(vnode, mode);
 }
 
 int64_t vfs_statfs(struct vnode_t *vnode, struct vfs_statfs *buf) {

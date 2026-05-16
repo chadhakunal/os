@@ -4,6 +4,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/user_data_access.h"
 #include "lib/string.h"
+#define DEBUG 0
 #include "lib/printk/printk.h"
 #include "errno.h"
 
@@ -45,7 +46,7 @@ DEFINE_SYSCALL3(symlinkat,
 
   struct dentry_t *parent_dentry;
   if (vfs_resolve_path_at(parent_path, start, &parent_dentry) < 0) {
-    printk("symlinkat: parent '%s' not found\n", parent_path);
+    debugk("symlinkat: parent '%s' not found\n", parent_path);
     return -ENOENT;
   }
 
@@ -56,7 +57,7 @@ DEFINE_SYSCALL3(symlinkat,
   struct dentry_t *new_dentry;
   int64_t ret = vfs_symlink(target, name, parent_vnode, &new_dentry);
   if (ret < 0) {
-    printk("symlinkat: vfs_symlink('%s' -> '%s') failed: %lld\n", linkpath, target, ret);
+    debugk("symlinkat: vfs_symlink('%s' -> '%s') failed: %lld\n", linkpath, target, ret);
     return ret;
   }
 

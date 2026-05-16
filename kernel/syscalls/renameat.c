@@ -4,6 +4,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/user_data_access.h"
 #include "lib/string.h"
+#define DEBUG 0
 #include "lib/printk/printk.h"
 #include "errno.h"
 
@@ -53,7 +54,7 @@ DEFINE_SYSCALL4(renameat,
 
   struct dentry_t *old_parent_dentry;
   if (vfs_resolve_path_at(old_parent_path, old_start, &old_parent_dentry) < 0) {
-    printk("renameat: old parent '%s' not found\n", old_parent_path);
+    debugk("renameat: old parent '%s' not found\n", old_parent_path);
     return -ENOENT;
   }
   struct vnode_t *old_parent = old_parent_dentry->vnode->mounted_vnode
@@ -66,7 +67,7 @@ DEFINE_SYSCALL4(renameat,
 
   struct dentry_t *new_parent_dentry;
   if (vfs_resolve_path_at(new_parent_path, new_start, &new_parent_dentry) < 0) {
-    printk("renameat: new parent '%s' not found\n", new_parent_path);
+    debugk("renameat: new parent '%s' not found\n", new_parent_path);
     return -ENOENT;
   }
   struct vnode_t *new_parent = new_parent_dentry->vnode->mounted_vnode
@@ -75,6 +76,6 @@ DEFINE_SYSCALL4(renameat,
 
   int64_t ret = vfs_rename(old_name, old_parent, new_name, new_parent);
   if (ret < 0)
-    printk("renameat: rename '%s' -> '%s' failed: %lld\n", old_path, new_path, ret);
+    debugk("renameat: rename '%s' -> '%s' failed: %lld\n", old_path, new_path, ret);
   return ret;
 }

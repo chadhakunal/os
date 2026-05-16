@@ -203,6 +203,22 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_readlinkat(tf);
       break;
 
+    case SYS_fstatat:
+      debugk("syscall: fstatat(dirfd=%lld, path=%llx, buf=%llx, flags=%lld)\n",
+             (int64_t)tf->a0, tf->a1, tf->a2, (int64_t)tf->a3);
+      ret = sys_fstatat(tf);
+      break;
+
+    case SYS_chmod:
+      debugk("syscall: chmod(path=%llx, mode=%lld)\n", tf->a0, (int64_t)tf->a1);
+      ret = sys_chmod(tf);
+      break;
+
+    case SYS_reboot:
+      debugk("syscall: reboot(cmd=%lld)\n", (int64_t)tf->a0);
+      ret = sys_reboot(tf);
+      break;
+
     default:
       debugk("syscall: unknown syscall %llu\n", syscall_num);
       tf->a0 = -1; // ENOSYS

@@ -4,6 +4,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/user_data_access.h"
 #include "lib/string.h"
+#define DEBUG 0
 #include "lib/printk/printk.h"
 #include "errno.h"
 
@@ -50,13 +51,13 @@ DEFINE_SYSCALL4(readlinkat,
 
   struct dentry_t *parent_dentry;
   if (vfs_resolve_path_at(parent_path, start, &parent_dentry) < 0) {
-    printk("readlinkat: parent '%s' not found\n", parent_path);
+    debugk("readlinkat: parent '%s' not found\n", parent_path);
     return -ENOENT;
   }
 
   struct dentry_t *link_dentry;
   if (vfs_lookup(name, parent_dentry, &link_dentry) < 0) {
-    printk("readlinkat: '%s' not found\n", name);
+    debugk("readlinkat: '%s' not found\n", name);
     return -ENOENT;
   }
 
@@ -67,7 +68,7 @@ DEFINE_SYSCALL4(readlinkat,
   char kbuf[MAX_PATH_COPY];
   int64_t ret = vfs_readlink(vnode, kbuf, sizeof(kbuf));
   if (ret < 0) {
-    printk("readlinkat: vfs_readlink failed: %lld\n", ret);
+    debugk("readlinkat: vfs_readlink failed: %lld\n", ret);
     return ret;
   }
 

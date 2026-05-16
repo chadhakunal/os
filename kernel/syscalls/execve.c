@@ -9,10 +9,12 @@
 #include "kernel/task/signal.h"
 #include "kernel/task/task.h"
 #include "kernel/user_data_access.h"
+#include "kernel/filesystem/mode.h"
 #include "lib/pool_allocator.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
 #include "types.h"
+#include "errno.h"
 
 DEFINE_POOL(execve_args_t, struct execve_args_t)
 
@@ -76,14 +78,30 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
   if (vfs_resolve_path(args->pathname, &dentry) != 0) {
     debugk("execve: failed to resolve path %s\n", args->pathname);
     execve_args_t_free(args);
-    return -1;
+    return -ENOENT;
+  }
+
+  struct vnode_t *exec_vnode = dentry->vnode->mounted_vnode
+                               ? dentry->vnode->mounted_vnode
+                               : dentry->vnode;
+
+  if (IS_DIR(exec_vnode->permission_mode)) {
+    debugk("execve: %s is a directory\n", args->pathname);
+    execve_args_t_free(args);
+    return -EISDIR;
+  }
+
+  if (!(exec_vnode->permission_mode & PERM_XUSR)) {
+    debugk("execve: permission denied for %s\n", args->pathname);
+    execve_args_t_free(args);
+    return -EACCES;
   }
 
   int file_type = detect_file_type(dentry);
   if (file_type == FILE_TYPE_INVALID) {
     debugk("execve: invalid file type for %s\n", args->pathname);
     execve_args_t_free(args);
-    return -1;
+    return -ENOEXEC;
   }
 
   // For ELF files, validate before destroying address space
@@ -91,7 +109,7 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
   if (file_type == FILE_TYPE_ELF && validate_elf(args->pathname) != 0) {
     debugk("execve: ELF validation failed for %s\n", args->pathname);
     execve_args_t_free(args);
-    return -1;
+    return -ENOEXEC;
   }
 
   clear_vmas(current_task);

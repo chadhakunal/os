@@ -4,6 +4,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/user_data_access.h"
 #include "lib/string.h"
+#define DEBUG 0
 #include "lib/printk/printk.h"
 #include "errno.h"
 
@@ -50,7 +51,7 @@ DEFINE_SYSCALL5(linkat,
 
   struct dentry_t *old_parent_dentry;
   if (vfs_resolve_path_at(old_parent_path, old_start, &old_parent_dentry) < 0) {
-    printk("linkat: old parent '%s' not found\n", old_parent_path);
+    debugk("linkat: old parent '%s' not found\n", old_parent_path);
     return -ENOENT;
   }
   struct vnode_t *old_parent = old_parent_dentry->vnode->mounted_vnode
@@ -62,7 +63,7 @@ DEFINE_SYSCALL5(linkat,
 
   struct dentry_t *new_parent_dentry;
   if (vfs_resolve_path_at(new_parent_path, new_start, &new_parent_dentry) < 0) {
-    printk("linkat: new parent '%s' not found\n", new_parent_path);
+    debugk("linkat: new parent '%s' not found\n", new_parent_path);
     return -ENOENT;
   }
   struct vnode_t *new_parent = new_parent_dentry->vnode->mounted_vnode
@@ -71,6 +72,6 @@ DEFINE_SYSCALL5(linkat,
 
   int64_t ret = vfs_link(old_name, old_parent, new_name, new_parent);
   if (ret < 0)
-    printk("linkat: link '%s' -> '%s' failed: %lld\n", old_path, new_path, ret);
+    debugk("linkat: link '%s' -> '%s' failed: %lld\n", old_path, new_path, ret);
   return ret;
 }

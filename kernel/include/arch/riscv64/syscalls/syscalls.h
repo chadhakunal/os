@@ -42,6 +42,9 @@
 #define SYS_linkat          37
 #define SYS_symlinkat       266
 #define SYS_readlinkat      267
+#define SYS_fstatat         79
+#define SYS_chmod           52
+#define SYS_reboot          88
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -76,5 +79,8 @@ int64_t sys_renameat(struct trap_frame *tf);
 int64_t sys_linkat(struct trap_frame *tf);
 int64_t sys_symlinkat(struct trap_frame *tf);
 int64_t sys_readlinkat(struct trap_frame *tf);
+int64_t sys_fstatat(struct trap_frame *tf);
+int64_t sys_chmod(struct trap_frame *tf);
+int64_t sys_reboot(struct trap_frame *tf);
 
 #endif
