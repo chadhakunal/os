@@ -36,6 +36,12 @@
 #define SYS_symlinkat       266
 #define SYS_readlinkat      267
 #define SYS_pipe            59
+#define SYS_fstatat         79
+#define SYS_chmod           52
+#define SYS_reboot          88
+
+#define RB_POWER_OFF  0
+#define RB_AUTOBOOT   1
 
 // RISC-V syscall ABI macros
 // Syscall number in a7, args in a0-a5, return value in a0
@@ -175,3 +181,17 @@ struct statfs {
 };
 
 int statfs(const char *path, struct statfs *buf);
+
+/* Per-file metadata — matches the kernel's vfs_stat layout. */
+struct stat {
+  uint64_t st_ino;
+  uint32_t st_mode;
+  uint32_t st_nlink;
+  uint64_t st_size;
+  uint64_t st_mtime;
+};
+
+int fstatat(int dirfd, const char *path, struct stat *buf, int flags);
+int stat(const char *path, struct stat *buf);
+int chmod(const char *path, unsigned int mode);
+int reboot(int cmd);

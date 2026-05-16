@@ -1,3 +1,4 @@
+#define DEBUG 0
 #include "kernel/stack.h"
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
@@ -17,16 +18,17 @@ int check_stack_bounds(uint64_t stack_bottom, uint64_t stack_top) {
 }
 
 void print_stack_usage(const char *label, uint64_t stack_bottom, uint64_t stack_top) {
-  uint64_t sp = get_sp();
+  uint64_t sp         = get_sp();
   uint64_t stack_size = stack_top - stack_bottom;
-  uint64_t used = stack_top - sp;
-  uint64_t remaining = sp - stack_bottom;
+  uint64_t used       = stack_top - sp;
+  uint64_t remaining  = sp - stack_bottom;
+  (void)stack_size; (void)used;
 
-  printk("[STACK %s] sp=0x%lx, size=%lu bytes, used=%lu bytes (%lu%%), remaining=%lu bytes\n",
+  debugk("[STACK %s] sp=0x%lx, size=%lu bytes, used=%lu bytes (%lu%%), remaining=%lu bytes\n",
          label, sp, stack_size, used, (used * 100) / stack_size, remaining);
 
   if (remaining < 1024) {
-    printk("  WARNING: Less than 1KB of stack remaining!\n");
+    printk("stack: WARNING: less than 1KB remaining on '%s' stack\n", label);
   }
 }
 

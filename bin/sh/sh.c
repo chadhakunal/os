@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <errno.h>
 #include <types.h>
 #include <stddef.h>
 #include <fcntl.h>
@@ -440,7 +441,17 @@ void parse_and_exec(const char *buf) {
 
     char *envp[] = { NULL };
     int ret = execve(full_path, argv, envp);
-    printf("sh: failed to execute %s (execve returned %d)\n", full_path, ret);
+    /* execve only returns on failure */
+    if (ret == -EACCES)
+      printf("sh: %s: Permission denied\n", full_path);
+    else if (ret == -ENOENT)
+      printf("sh: %s: No such file or directory\n", full_path);
+    else if (ret == -EISDIR)
+      printf("sh: %s: Is a directory\n", full_path);
+    else if (ret == -ENOEXEC)
+      printf("sh: %s: Exec format error\n", full_path);
+    else
+      printf("sh: %s: Cannot execute (error %d)\n", full_path, ret);
     exit(1);
   } else if (pid > 0) {
     setpgid(pid, pid);

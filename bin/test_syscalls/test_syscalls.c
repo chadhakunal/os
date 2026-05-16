@@ -258,6 +258,71 @@ void test_symlinks() {
   unlink(sl_loop1); unlink(sl_loop2);
 }
 
+void test_chmod_stat() {
+  const char *path = "/chmod_test.txt";
+  const char *msg  = "permission test";
+
+  unlink(path);
+
+  /* Create a file with default permissions. */
+  int fd = open(path, O_WRONLY | O_CREAT, 0);
+  test_result("chmod/stat: create file", fd >= 0);
+  if (fd < 0) return;
+  write(fd, msg, strlen(msg));
+  close(fd);
+
+  /* stat() should return a regular-file mode. */
+  struct stat st;
+  int ret = stat(path, &st);
+  test_result("chmod/stat: stat() succeeds", ret == 0);
+  test_result("chmod/stat: st_ino is non-zero", st.st_ino > 0);
+  test_result("chmod/stat: st_size matches written data", st.st_size == (uint64_t)strlen(msg));
+  test_result("chmod/stat: default mode has write bit",
+              (st.st_mode & 0200) != 0);
+
+  /* chmod 444 — read-only for owner. */
+  ret = chmod(path, 0444);
+  test_result("chmod/stat: chmod(0444) succeeds", ret == 0);
+
+  /* stat should now reflect the new permission bits. */
+  ret = stat(path, &st);
+  test_result("chmod/stat: stat() after chmod succeeds", ret == 0);
+  test_result("chmod/stat: mode has read bit set",   (st.st_mode & 0400) != 0);
+  test_result("chmod/stat: mode has write bit clear", (st.st_mode & 0200) == 0);
+
+  /* Opening for write must be denied. */
+  fd = open(path, O_WRONLY, 0);
+  test_result("chmod/stat: open for write denied after chmod(0444)", fd < 0);
+  if (fd >= 0) close(fd);
+
+  /* Reading is still allowed. */
+  fd = open(path, O_RDONLY, 0);
+  test_result("chmod/stat: open for read allowed after chmod(0444)", fd >= 0);
+  if (fd >= 0) {
+    char buf[64];
+    int rd = read(fd, buf, sizeof(buf) - 1);
+    buf[rd > 0 ? rd : 0] = '\0';
+    close(fd);
+    test_result("chmod/stat: content readable after chmod(0444)", strcmp(buf, msg) == 0);
+  }
+
+  /* Restore write permission and verify writing works again. */
+  test_result("chmod/stat: chmod(0666) succeeds", chmod(path, 0666) == 0);
+  fd = open(path, O_WRONLY | O_TRUNC, 0);
+  test_result("chmod/stat: open for write allowed after chmod(0666)", fd >= 0);
+  if (fd >= 0) close(fd);
+
+  /* chmod a non-existent path must fail. */
+  test_result("chmod/stat: chmod on missing file fails", chmod("/no_such_file_xyz", 0644) < 0);
+
+  /* stat a non-existent path must fail. */
+  ret = stat("/no_such_file_xyz", &st);
+  test_result("chmod/stat: stat on missing file fails", ret < 0);
+
+  /* Cleanup. */
+  unlink(path);
+}
+
 void test_chdir_getcwd() {
   char cwd1[256], cwd2[256];
 
@@ -317,6 +382,7 @@ int main(int argc, char **argv) {
   test_chdir_getcwd();
   test_hardlinks();
   test_symlinks();
+  test_chmod_stat();
 
   printf("\n=== Test Summary ===\n");
   printf("Passed: %d\n", test_passed);

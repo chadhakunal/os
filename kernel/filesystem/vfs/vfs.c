@@ -14,6 +14,7 @@
 #define SYMLINK_FOLLOW_MAX 40
 
 int32_t vfs_resolve_path_at(const char *path, struct dentry_t *start, struct dentry_t **out) {
+  debugk("[vfs_resolve_path_at] path=%s\n", path);
   debugk("vfs_resolve_path_at: path=%s\n", path);
 
   /* Work on a local copy so we can restart on symlink follows. */
@@ -49,12 +50,24 @@ restart:;
         curr_dentry = curr_dentry->parent;
     } else {
       struct dentry_t *next_dentry = NULL;
+      debugk("[vfs_resolve] lookup '%s'\n", current_name);
       ret = vfs_lookup(current_name, curr_dentry, &next_dentry);
       if (ret != 0) {
         debugk("vfs_resolve_path_at: lookup failed, returning %d\n", ret);
         return ret;
       }
       curr_dentry = next_dentry;
+      debugk("[vfs_resolve] found '%s' vnode=%p mode=0x%x\n",
+             current_name,
+             curr_dentry->vnode,
+             curr_dentry->vnode ? curr_dentry->vnode->permission_mode : 0);
+
+      /* Entering a directory requires execute (traverse) permission. */
+      struct vnode_t *cv = curr_dentry->vnode->mounted_vnode
+                           ? curr_dentry->vnode->mounted_vnode
+                           : curr_dentry->vnode;
+      if (IS_DIR(cv->permission_mode) && !(cv->permission_mode & PERM_XUSR))
+        return -EACCES;
 
       /* Follow symlinks on intermediate components and on the final one. */
       struct vnode_t *v = curr_dentry->vnode->mounted_vnode
@@ -143,6 +156,8 @@ struct file_t *vfs_init_file(struct vnode_t *vnode, int flags) {
   file->pipe = NULL;
   file->pipe_write_end = 0;
   vnode->refcount++;
+  debugk("[vfs_init_file] file=%p vnode=%p file_ops=%p mode=0x%x\n",
+         file, vnode, vnode->file_ops, vnode->permission_mode);
   return file;
 }
 
@@ -218,6 +233,16 @@ int64_t vfs_open(const char *path, int flags, struct file_t **file) {
     return -ENOENT;
 
   struct vnode_t *vnode = dentry->vnode->mounted_vnode ? dentry->vnode->mounted_vnode : dentry->vnode;
+
+  /* Permission check — only applies to regular files and symlinks (not dirs). */
+  if (!IS_DIR(vnode->permission_mode)) {
+    int acc = flags & O_ACCMODE;
+    if (acc == O_RDONLY && !(vnode->permission_mode & PERM_RUSR))
+      return -EACCES;
+    if ((acc == O_WRONLY || acc == O_RDWR) && !(vnode->permission_mode & PERM_WUSR))
+      return -EACCES;
+  }
+
   *file = vfs_init_file(vnode, flags);
   (*file)->dentry = dentry;
   return 0;

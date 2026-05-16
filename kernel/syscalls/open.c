@@ -4,6 +4,7 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/user_data_access.h"
 #include "lib/string.h"
+#define DEBUG 0
 #include "lib/printk/printk.h"
 #include "types.h"
 #include "errno.h"
@@ -45,7 +46,7 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
 
     struct dentry_t *parent_dentry;
     if (vfs_resolve_path_at(parent_path, start, &parent_dentry) < 0) {
-      printk("open: O_CREAT: parent path '%s' not found\n", parent_path);
+      debugk("open: O_CREAT: parent path '%s' not found\n", parent_path);
       return -1;
     }
 
@@ -60,7 +61,7 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
       goto open_existing;
     }
     if (ret < 0) {
-      printk("open: O_CREAT: vfs_create('%s') failed: %d\n", name, ret);
+      debugk("open: O_CREAT: vfs_create('%s') failed: %d\n", name, ret);
       return ret;
     }
 
@@ -80,7 +81,7 @@ open_existing:;
   int ret = vfs_open(path, flags, &file);
   if (ret != 0) {
     if (ret != -ENOENT)
-      printk("open: vfs_open('%s') failed: %d\n", path, ret);
+      debugk("open: vfs_open('%s') failed: %d\n", path, ret);
     return ret;
   }
 

@@ -70,11 +70,21 @@ struct vnode_ops_t {
   int64_t (*symlink)  (const char *target, const char *name,
                        struct vnode_t *parent_dir, struct dentry_t **out);
   int64_t (*readlink) (struct vnode_t *vnode, char *buf, size_t size);
+  int64_t (*chmod)    (struct vnode_t *vnode, uint32_t mode);
 };
 
 struct address_space_ops_t {
   int64_t (*fill_page) (struct vnode_t *vnode, size_t offset, void **phys_page);
   int64_t (*write_page)(struct vnode_t *vnode, size_t offset, void *phys_page);
+};
+
+/* Per-file metadata returned by stat(2) / fstatat(2). */
+struct vfs_stat {
+  uint64_t st_ino;   /* inode number */
+  uint32_t st_mode;  /* file type + permission bits */
+  uint32_t st_nlink; /* number of hard links */
+  uint64_t st_size;  /* file size in bytes */
+  uint64_t st_mtime; /* last modification time (seconds since epoch) */
 };
 
 /* Filesystem-wide statistics returned by statfs(2). */
@@ -142,6 +152,7 @@ struct vnode_t {
   uint32_t               owner_uid;
   uint32_t               owner_gid;
   mode_t                 permission_mode;
+  uint32_t               mtime;          /* last modification time (seconds since epoch) */
   struct vnode_t        *mounted_vnode;
   struct superblock_t   *superblock;
   struct list_node       children_dentries;
@@ -190,6 +201,7 @@ DEFINE_POOL(file_t, struct file_t)
 /* Init / mount */
 void    vfs_init(void);
 int32_t vfs_mount(char *path, struct superblock_t *superblock);
+void    vfs_sync_all(void); /* flush all dirty pages across all mounted filesystems */
 
 /* Vnode / dentry helpers */
 void    vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id);
@@ -215,6 +227,8 @@ int64_t vfs_link    (const char *old_name, struct vnode_t *old_parent,
 int64_t vfs_symlink (const char *target, const char *name,
                      struct vnode_t *parent_dir, struct dentry_t **out);
 int64_t vfs_readlink(struct vnode_t *vnode, char *buf, size_t size);
+int64_t vfs_stat    (struct vnode_t *vnode, struct vfs_stat *buf);
+int64_t vfs_chmod   (struct vnode_t *vnode, uint32_t mode);
 void    vfs_dentry_evict(struct vnode_t *parent_vnode, const char *name);
 
 /* Filesystem statistics */

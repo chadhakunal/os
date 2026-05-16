@@ -10,14 +10,15 @@
 
 #define MAX_PATH_COPY 256
 
-DEFINE_SYSCALL2(statfs, const char *, user_path, struct vfs_statfs *, user_buf)
+/* chmod(path, mode) */
+DEFINE_SYSCALL2(chmod, const char *, user_path, uint32_t, mode)
 {
   char path[MAX_PATH_COPY];
   copy_string_from_user(path, user_path, MAX_PATH_COPY);
 
   struct dentry_t *dentry;
   if (vfs_resolve_path(path, &dentry) < 0) {
-    debugk("statfs: path '%s' not found\n", path);
+    debugk("chmod: path '%s' not found\n", path);
     return -ENOENT;
   }
 
@@ -25,11 +26,8 @@ DEFINE_SYSCALL2(statfs, const char *, user_path, struct vfs_statfs *, user_buf)
                           ? dentry->vnode->mounted_vnode
                           : dentry->vnode;
 
-  struct vfs_statfs kbuf;
-  int64_t ret = vfs_statfs(vnode, &kbuf);
+  int64_t ret = vfs_chmod(vnode, mode);
   if (ret < 0)
-    return ret;
-
-  copy_to_user(user_buf, &kbuf, sizeof(kbuf));
-  return 0;
+    debugk("chmod: failed on '%s': %lld\n", path, ret);
+  return ret;
 }

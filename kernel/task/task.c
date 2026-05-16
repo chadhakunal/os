@@ -60,10 +60,10 @@ void init_files(struct files_table_t *files_table) {
   struct files_list_t *files_list = files_list_t_alloc();
   files_list->used_file_bitmap = 1 | 1 << 1 | 1 << 2;  // Mark FDs 0, 1, 2 as used
 
-  struct file_t *stdin, *stdout, *stderr;
-  vfs_open("/dev/tty", O_RDONLY, &stdin);
-  vfs_open("/dev/tty", O_WRONLY, &stdout);
-  vfs_open("/dev/tty", O_WRONLY, &stderr);
+  struct file_t *stdin = NULL, *stdout = NULL, *stderr = NULL;
+  if (vfs_open("/dev/tty", O_RDONLY, &stdin)  < 0) debugk("init_files: failed to open stdin\n");
+  if (vfs_open("/dev/tty", O_WRONLY, &stdout) < 0) debugk("init_files: failed to open stdout\n");
+  if (vfs_open("/dev/tty", O_WRONLY, &stderr) < 0) debugk("init_files: failed to open stderr\n");
 
   files_list->files[0] = stdin;
   files_list->files[1] = stdout;
@@ -640,6 +640,8 @@ struct file_t *find_file(struct files_table_t *file_table, int fd) {
       break;
     }
   }
+  debugk("[find_file] fd=%d -> file=%p vnode=%p\n",
+         fd, file, file ? file->vnode : (void*)0);
   return file;
 }
 
@@ -671,6 +673,10 @@ int alloc_fd(struct files_table_t *file_table, struct file_t *file) {
 
   files_list->used_file_bitmap |= (1 << fd);
   files_list->files[fd] = file;
+
+  debugk("[alloc_fd] pid=%llu fd=%d file=%p vnode=%p\n",
+         current_task ? current_task->pid : 9999ULL,
+         fd, file, file ? file->vnode : (void*)0);
 
   return fd;
 }
