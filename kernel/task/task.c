@@ -189,11 +189,18 @@ void create_idle_task(void) {
 void create_init_process() {
   init_task_system();
   init_task = task_init();
-  load_elf(init_task , "/bin/init");
   list_append(&task_list, &init_task->task_list);
   init_task->cwd = base_mount->superblock->root_dentry;
   set_current_task(init_task);
   init_task->state = TASK_RUNNING;
+
+  // Switch to init's page table before load_elf so that direct writes to
+  // user virtual addresses (e.g. BSS zero-fill) go through the right MMU mapping.
+  asm volatile("csrw sscratch, %0" :: "r"(init_task->kernel_context.sp));
+  switch_to_page_table(init_task);
+  asm volatile("fence.i");
+
+  load_elf(init_task, "/bin/init");
 }
 
 void start_init_process();

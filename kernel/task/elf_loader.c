@@ -3,6 +3,8 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/panic.h"
 #include "lib/string.h"
+#include "kernel/memory/page_tables.h"
+#include "arch/riscv64/virtual_memory_init.h"
 
 int validate_elf(const char *path) {
   struct dentry_t *dentry;

@@ -105,10 +105,6 @@ void kmain(void *dtb_ptr) {
   printk("Created init process from /bin/init (PID 1)\n");
   debugk("Size of task struct: %lld\n", sizeof(struct task_t));
 
-  asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
-  switch_to_page_table(current_task);
-  asm volatile("fence.i");
-
   init_virtual_time();
   init_timer();
   printk("Initialized Timer\n");
