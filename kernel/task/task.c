@@ -13,6 +13,7 @@
 #include "kernel/task/schedule.h"
 #include "kernel/signal_jump_point.h"
 #include "kernel/drivers/virtio-blk.h"
+#include "kernel/filesystem/pipefs/pipe.h"
 
 // Global task tracking
 struct task_t *current_task = NULL;  // Currently running task
@@ -129,6 +130,8 @@ struct task_t *task_init() {
   task->wait_pid = 0;
   task->runtime = 0;
   task->max_runtime = MAX_RUNTIME;
+
+  list_init(&task->wait_list);
 
   // Initialize signal state
   init_signal_state(task);
@@ -406,7 +409,26 @@ void copy_file_table(struct files_table_t *old_table, struct files_table_t *new_
       new_files_list->files[i] = old_files_list->files[i];
 
       if (old_files_list->files[i] != NULL) {
-        old_files_list->files[i]->refcount++;
+        struct file_t *f = old_files_list->files[i];
+        if (f->pipe != NULL) {
+          /* Give the child its own file_t so each end closes independently. */
+          struct file_t *child_file = file_t_alloc();
+          child_file->vnode          = NULL;
+          child_file->dentry         = NULL;
+          child_file->file_ops       = NULL;
+          child_file->offset         = 0;
+          child_file->refcount       = 1;
+          child_file->flags          = f->flags;
+          child_file->pipe           = f->pipe;
+          child_file->pipe_write_end = f->pipe_write_end;
+          if (f->pipe_write_end)
+            f->pipe->writer_count++;
+          else
+            f->pipe->reader_count++;
+          new_files_list->files[i] = child_file;
+        } else {
+          f->refcount++;
+        }
       }
     }
 
@@ -491,8 +513,25 @@ void task_cleanup(int exit_status) {
   debugk("task_cleanup: clearing VMAs for PID %llu\n", current_task->pid);
   virtio_blk_cancel_task(current_task);
   clear_vmas(current_task);
+  /* Remove from any wait queue (e.g. pipe, TTY) before becoming a zombie
+   * so wake_up() never dereferences this task after it is freed. */
+  list_remove(&current_task->wait_list);
+
   debugk("task_cleanup: marking PID %llu as ZOMBIE\n", current_task->pid);
   current_task->state = TASK_ZOMBIE;
+
+  // Reparent any children to init (PID 1) and wake init if it's waiting
+  list_for_each(&task_list, pos) {
+    struct task_t *child = container_of(pos, struct task_t, task_list);
+    if (child->ppid == current_task->pid) {
+      child->ppid = 1;
+      if (child->state == TASK_ZOMBIE && init_task &&
+          init_task->state == TASK_BLOCKED &&
+          init_task->wait_reason == WAIT_CHILD) {
+        unblock_task(init_task);
+      }
+    }
+  }
 
   debugk("task_cleanup: looking for parent (PPID %llu)\n", current_task->ppid);
   struct task_t *parent = find_task_by_pid(current_task->ppid);
@@ -549,6 +588,8 @@ uint64_t fork_off() {
   new_task->mm_struct.vma_list.next = &new_task->mm_struct.vma_list;
   new_task->mm_struct.vma_list.prev = &new_task->mm_struct.vma_list;
   new_task->mm_struct.heap_end = current_task->mm_struct.heap_end;
+
+  list_init(&new_task->wait_list);
 
   fork_sig_copy(&new_task->signal_state);
 
@@ -704,6 +745,8 @@ void close_all_files(struct task_t *task) {
       if (files_list->files[i] != NULL) {
         files_list->files[i]->refcount--;
         if (files_list->files[i]->refcount == 0) {
+          if (files_list->files[i]->pipe != NULL)
+            pipe_close(files_list->files[i]->pipe, files_list->files[i]->pipe_write_end);
           file_t_free(files_list->files[i]);
         }
         files_list->files[i] = NULL;

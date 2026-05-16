@@ -35,6 +35,7 @@
 #define SYS_linkat          37
 #define SYS_symlinkat       266
 #define SYS_readlinkat      267
+#define SYS_pipe            59
 
 // RISC-V syscall ABI macros
 // Syscall number in a7, args in a0-a5, return value in a0
@@ -155,6 +156,7 @@ int symlink(const char *target, const char *linkpath);
 int symlinkat(const char *target, int dirfd, const char *linkpath);
 ssize_t readlink(const char *path, char *buf, size_t bufsiz);
 ssize_t readlinkat(int dirfd, const char *path, char *buf, size_t bufsiz);
+int pipe(int pipefd[2]);
 
 /* Filesystem statistics — matches the kernel's vfs_statfs layout. */
 struct statfs {

@@ -41,6 +41,7 @@ struct address_space_t;
 struct file_t;
 struct superblock_t;
 struct files_table_t;
+struct pipe_t;
 
 extern struct mount_t *base_mount;
 
@@ -108,6 +109,8 @@ struct file_t {
   size_t             offset;
   size_t             refcount;
   int                flags;
+  struct pipe_t     *pipe;         /* non-NULL when this fd is a pipe end */
+  int                pipe_write_end; /* 1 = write end, 0 = read end */
 };
 
 struct dentry_t {

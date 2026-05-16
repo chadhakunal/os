@@ -1,5 +1,6 @@
 #define DEBUG 0
 #include "kernel/filesystem/vfs/vfs.h"
+#include "kernel/filesystem/pipefs/pipe.h"
 #include "lib/string.h"
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
@@ -139,6 +140,8 @@ struct file_t *vfs_init_file(struct vnode_t *vnode, int flags) {
   file->offset = 0;
   file->refcount = 1;
   file->flags = flags;
+  file->pipe = NULL;
+  file->pipe_write_end = 0;
   vnode->refcount++;
   return file;
 }
@@ -149,6 +152,9 @@ int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
   if (file == NULL) {
     panic("vfs_read: File is NULL\n");
   }
+
+  if (file->pipe != NULL)
+    return pipe_read(file->pipe, buffer, size);
 
   if (IS_DIR(file->vnode->permission_mode))
     return -EISDIR;
@@ -179,6 +185,9 @@ int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
   debugk("vfs_write: file=%p, offset=%lu, size=%lu\n", file, offset, size);
   if (file == NULL)
     panic("vfs_write: file is null");
+
+  if (file->pipe != NULL)
+    return pipe_write(file->pipe, buffer, size);
 
   if (file->vnode->address_space != NULL &&
       file->vnode->address_space->address_space_ops != NULL &&

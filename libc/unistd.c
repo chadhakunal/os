@@ -169,3 +169,7 @@ ssize_t readlinkat(int dirfd, const char *path, char *buf, size_t bufsiz) {
 int statfs(const char *path, struct statfs *buf) {
   return syscall2(SYS_statfs, path, buf);
 }
+
+int pipe(int pipefd[2]) {
+  return syscall1(SYS_pipe, pipefd);
+}
