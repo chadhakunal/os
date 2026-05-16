@@ -38,5 +38,8 @@ int sscanf(const char *str, const char *fmt, ...);
 int vsscanf(const char *str, const char *fmt, va_list ap);
 int fputs(const char *s, FILE *stream);
 int fputc(int c, FILE *stream);
+int fflush(FILE *stream);
+size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
+int ferror(FILE *stream);
 
 #endif

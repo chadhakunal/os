@@ -286,6 +286,23 @@ int fputc(int c, FILE *stream) {
   return write(stream->fd, &ch, 1) == 1 ? (unsigned char)c : EOF;
 }
 
+int fflush(FILE *stream) {
+  (void)stream;
+  return 0;
+}
+
+size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+  if (!stream || size == 0 || nmemb == 0) return 0;
+  ssize_t n = read(stream->fd, ptr, size * nmemb);
+  if (n <= 0) return 0;
+  return (size_t)n / size;
+}
+
+int ferror(FILE *stream) {
+  (void)stream;
+  return 0;
+}
+
 /* scanf family — stubs, no scanner implemented yet */
 int vfscanf(FILE *stream, const char *fmt, va_list ap) {
   (void)stream; (void)fmt; (void)ap; return EOF;
