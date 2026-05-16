@@ -47,7 +47,7 @@ static void out_puts(fmt_out *o, const char *s) {
 }
 
 static void out_flush(fmt_out *o) {
-  if (o->kind == OUT_FD && o->u.fd.pos > 0) {
+  if (o->kind == OUT_FD && o->u.fd.pos > 0 && o->u.fd.fd >= 0) {
     write(o->u.fd.fd, o->u.fd.buf, (size_t)o->u.fd.pos);
     o->u.fd.pos = 0;
   } else if (o->kind == OUT_STR) {
@@ -196,6 +196,19 @@ static int core_vprintf(fmt_out *o, const char *fmt, va_list args) {
 
 int vfprintf(FILE *stream, const char *fmt, va_list ap) {
   if (!stream || !fmt) return -1;
+  if (stream->memonly) {
+    fmt_out o = {
+      .kind  = OUT_STR,
+      .u.str = { .buf  = stream->membuf + stream->mempos,
+                 .size = stream->memsize - stream->mempos,
+                 .pos  = 0 },
+      .total = 0,
+    };
+    int n = core_vprintf(&o, fmt, ap);
+    stream->mempos += (size_t)o.u.str.pos < stream->memsize - stream->mempos
+                      ? (size_t)o.u.str.pos : stream->memsize - stream->mempos;
+    return n;
+  }
   fmt_out o = { .kind = OUT_FD, .u.fd = { .fd = stream->fd, .pos = 0 }, .total = 0 };
   return core_vprintf(&o, fmt, ap);
 }
@@ -272,36 +285,6 @@ int asprintf(char **strp, const char *fmt, ...) {
   va_end(ap); return n;
 }
 
-int fputs(const char *s, FILE *stream) {
-  if (!s || !stream) return EOF;
-  size_t len = strlen(s);
-  if (len == 0) return 0;
-  ssize_t n = write(stream->fd, s, len);
-  return (n < 0 || (size_t)n != len) ? EOF : 0;
-}
-
-int fputc(int c, FILE *stream) {
-  if (!stream) return EOF;
-  unsigned char ch = (unsigned char)c;
-  return write(stream->fd, &ch, 1) == 1 ? (unsigned char)c : EOF;
-}
-
-int fflush(FILE *stream) {
-  (void)stream;
-  return 0;
-}
-
-size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
-  if (!stream || size == 0 || nmemb == 0) return 0;
-  ssize_t n = read(stream->fd, ptr, size * nmemb);
-  if (n <= 0) return 0;
-  return (size_t)n / size;
-}
-
-int ferror(FILE *stream) {
-  (void)stream;
-  return 0;
-}
 
 /* scanf family — stubs, no scanner implemented yet */
 int vfscanf(FILE *stream, const char *fmt, va_list ap) {
