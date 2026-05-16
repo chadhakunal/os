@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 
 #define PRINTF_BUF_SIZE 256
 
@@ -262,16 +264,6 @@ int fputc(int c, FILE *stream) {
   return (unsigned char)c;
 }
 
-static void str_putchar(char *buf, size_t size, int *pos, char c) {
-  if (*pos < (int)size - 1)
-    buf[(*pos)++] = c;
-}
-
-static void str_puts_str(char *buf, size_t size, int *pos, const char *s) {
-  while (*s && *pos < (int)size - 1)
-    buf[(*pos)++] = *s++;
-}
-
 static void str_print_num(char *buf, size_t size, int *pos, long long num) {
   if (num < 0) {
     str_putchar(buf, size, pos, '-');
@@ -294,14 +286,12 @@ static void str_print_num(char *buf, size_t size, int *pos, long long num) {
     str_putchar(buf, size, pos, tmp[--i]);
 }
 
-int snprintf(char *str, size_t size, const char *fmt, ...) {
-  if (size == 0)
-    return 0;
-
-  va_list args;
-  va_start(args, fmt);
-
+int vsnprintf(char *str, size_t size, const char *fmt, va_list args) {
+  /* size==0 with str!=NULL: count only (no writes) */
   int pos = 0;
+  char dummy[1];
+  char *buf = (str && size > 0) ? str : dummy;
+  size_t bufsz = (str && size > 0) ? size : 1;
 
   for (const char *p = fmt; *p; p++) {
     if (*p == '%' && *(p + 1)) {
@@ -319,42 +309,156 @@ int snprintf(char *str, size_t size, const char *fmt, ...) {
       switch (*p) {
       case 's': {
         const char *s = va_arg(args, const char *);
-        if (s)
-          str_puts_str(str, size, &pos, s);
-        else
-          str_puts_str(str, size, &pos, "(null)");
+        /* count chars without writing past bufsz */
+        const char *sv = s ? s : "(null)";
+        for (; *sv; sv++) {
+          if (pos < (int)bufsz - 1)
+            buf[pos] = *sv;
+          pos++;
+        }
         break;
       }
       case 'd':
       case 'i': {
-        if (is_long_long) {
-          long long val = va_arg(args, long long);
-          str_print_num(str, size, &pos, val);
-        } else {
-          int val = va_arg(args, int);
-          str_print_num(str, size, &pos, val);
+        char tmp[32];
+        int tpos = 0;
+        long long v = is_long_long ? va_arg(args, long long)
+                                   : (long long)va_arg(args, int);
+        str_print_num(tmp, sizeof(tmp), &tpos, v);
+        tmp[tpos] = '\0';
+        for (int i = 0; i < tpos; i++) {
+          if (pos < (int)bufsz - 1)
+            buf[pos] = tmp[i];
+          pos++;
         }
         break;
       }
       case '%':
-        str_putchar(str, size, &pos, '%');
+        if (pos < (int)bufsz - 1)
+          buf[pos] = '%';
+        pos++;
         break;
       default:
-        str_putchar(str, size, &pos, '%');
+        if (pos < (int)bufsz - 1)
+          buf[pos] = '%';
+        pos++;
         if (is_long_long) {
-          str_putchar(str, size, &pos, 'l');
-          str_putchar(str, size, &pos, 'l');
+          if (pos < (int)bufsz - 1)
+            buf[pos] = 'l';
+          pos++;
+          if (pos < (int)bufsz - 1)
+            buf[pos] = 'l';
+          pos++;
         }
-        str_putchar(str, size, &pos, *p);
+        if (pos < (int)bufsz - 1)
+          buf[pos] = *p;
+        pos++;
         break;
       }
     } else {
-      str_putchar(str, size, &pos, *p);
+      if (pos < (int)bufsz - 1)
+        buf[pos] = *p;
+      pos++;
     }
   }
 
-  str[pos] = '\0';
-
-  va_end(args);
+  if (bufsz > 0)
+    buf[pos < (int)bufsz ? pos : (int)bufsz - 1] = '\0';
   return pos;
+}
+
+int snprintf(char *str, size_t size, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int n = vsnprintf(str, size, fmt, args);
+  va_end(args);
+  return n;
+}
+
+int vsprintf(char *str, const char *fmt, va_list ap) {
+  return vsnprintf(str, (size_t)-1, fmt, ap);
+}
+
+int sprintf(char *str, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int n = vsprintf(str, fmt, args);
+  va_end(args);
+  return n;
+}
+
+int vprintf(const char *fmt, va_list ap) {
+  return vfprintf(stdout, fmt, ap);
+}
+
+int vdprintf(int fd, const char *fmt, va_list ap) {
+  FILE f = { .fd = fd };
+  return vfprintf(&f, fmt, ap);
+}
+
+int dprintf(int fd, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int n = vdprintf(fd, fmt, args);
+  va_end(args);
+  return n;
+}
+
+int vasprintf(char **strp, const char *fmt, va_list ap) {
+  va_list ap2;
+  va_copy(ap2, ap);
+  int len = vsnprintf(NULL, 0, fmt, ap2);
+  va_end(ap2);
+  if (len < 0)
+    return -1;
+  *strp = malloc((size_t)len + 1);
+  if (!*strp)
+    return -1;
+  return vsnprintf(*strp, (size_t)len + 1, fmt, ap);
+}
+
+int asprintf(char **strp, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int n = vasprintf(strp, fmt, args);
+  va_end(args);
+  return n;
+}
+
+int vfscanf(FILE *stream, const char *fmt, va_list ap) {
+  (void)stream; (void)fmt; (void)ap;
+  return EOF;
+}
+
+int fscanf(FILE *stream, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int n = vfscanf(stream, fmt, args);
+  va_end(args);
+  return n;
+}
+
+int vscanf(const char *fmt, va_list ap) {
+  return vfscanf(stdin, fmt, ap);
+}
+
+int scanf(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int n = vscanf(fmt, args);
+  va_end(args);
+  return n;
+}
+
+int vsscanf(const char *str, const char *fmt, va_list ap) {
+  (void)str; (void)fmt; (void)ap;
+  return EOF;
+}
+
+int sscanf(const char *str, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int n = vsscanf(str, fmt, args);
+  va_end(args);
+  return n;
 }

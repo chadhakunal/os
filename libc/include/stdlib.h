@@ -3,6 +3,7 @@
 #include <stddef.h>
 
 void exit(int);
+void _Exit(int);
 int atoi(const char *str);
 
 void *malloc(size_t size);
