@@ -185,6 +185,24 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_renameat(tf);
       break;
 
+    case SYS_linkat:
+      debugk("syscall: linkat(olddirfd=%lld, old=%llx, newdirfd=%lld, new=%llx, flags=%lld)\n",
+             (int64_t)tf->a0, tf->a1, (int64_t)tf->a2, tf->a3, (int64_t)tf->a4);
+      ret = sys_linkat(tf);
+      break;
+
+    case SYS_symlinkat:
+      debugk("syscall: symlinkat(target=%llx, newdirfd=%lld, linkpath=%llx)\n",
+             tf->a0, (int64_t)tf->a1, tf->a2);
+      ret = sys_symlinkat(tf);
+      break;
+
+    case SYS_readlinkat:
+      debugk("syscall: readlinkat(dirfd=%lld, path=%llx, buf=%llx, bufsiz=%lld)\n",
+             (int64_t)tf->a0, tf->a1, tf->a2, (int64_t)tf->a3);
+      ret = sys_readlinkat(tf);
+      break;
+
     default:
       debugk("syscall: unknown syscall %llu\n", syscall_num);
       tf->a0 = -1; // ENOSYS

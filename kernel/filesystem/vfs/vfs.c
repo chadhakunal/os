@@ -10,51 +10,94 @@
 #include "kernel/task/task.h"
 #include "errno.h"
 
-int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
-  debugk("vfs_resolve_path: path=%s\n", path);
+#define SYMLINK_FOLLOW_MAX 40
+
+int32_t vfs_resolve_path_at(const char *path, struct dentry_t *start, struct dentry_t **out) {
+  debugk("vfs_resolve_path_at: path=%s\n", path);
+
+  /* Work on a local copy so we can restart on symlink follows. */
+  char work[512];
+  strncpy(work, path, sizeof(work) - 1);
+  work[sizeof(work) - 1] = '\0';
+
+  int follow_count = 0;
   struct dentry_t *curr_dentry;
+
+restart:;
+  const char *current_path = work;
   int32_t ret;
   int name_len;
   char current_name[256];
-  const char *current_path = path;
-  if (path[0] == '/') {
+
+  if (work[0] == '/') {
     curr_dentry = base_mount->superblock->root_dentry;
-    name_len = str_tok_no_delim(&current_path, current_name, '/', 256); // Strip the first /
+    name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
   } else {
-    // Relative path! we should attach the cwd path then perform the lookup with full path
-    // ie start from curr_dentry = current_task->cwd;
-    curr_dentry = current_task->cwd;
+    curr_dentry = (start != NULL) ? start : current_task->cwd;
   }
-  debugk("vfs_resolve_path: root_dentry=%p\n", curr_dentry);
+
+  debugk("vfs_resolve_path_at: starting dentry=%p\n", curr_dentry);
   name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
-  debugk("vfs_resolve_path: first component='%s', len=%d\n", current_name, name_len);
+
   while (name_len > 0) {
-    debugk("vfs_resolve_path: looking up '%s' in vnode=%p\n", current_name, curr_dentry->vnode);
-    debugk("vfs_resolve_path: mounted_vnode=%p\n", curr_dentry->vnode->mounted_vnode);
+    debugk("vfs_resolve_path_at: looking up '%s'\n", current_name);
     if (!strncmp(current_name, ".")) {
-      // keep the current dentry the same
-      curr_dentry = curr_dentry; // nop
+      /* stay */
     } else if (!strncmp(current_name, "..")) {
-      if (curr_dentry->parent != NULL) {
+      if (curr_dentry->parent != NULL)
         curr_dentry = curr_dentry->parent;
-      }
     } else {
       struct dentry_t *next_dentry = NULL;
       ret = vfs_lookup(current_name, curr_dentry, &next_dentry);
-      debugk("vfs_resolve_path: vfs_lookup returned %d, next_dentry=%p\n", ret, next_dentry);
       if (ret != 0) {
-        debugk("vfs_resolve_path: lookup failed, returning %d\n", ret);
+        debugk("vfs_resolve_path_at: lookup failed, returning %d\n", ret);
         return ret;
       }
       curr_dentry = next_dentry;
-      debugk("vfs_resolve_path: next component='%s', len=%d\n", current_name, name_len);
+
+      /* Follow symlinks on intermediate components and on the final one. */
+      struct vnode_t *v = curr_dentry->vnode->mounted_vnode
+                          ? curr_dentry->vnode->mounted_vnode
+                          : curr_dentry->vnode;
+      if (IS_LNK(v->permission_mode)) {
+        if (++follow_count > SYMLINK_FOLLOW_MAX)
+          return -ELOOP;
+
+        /* Read the symlink target. */
+        char link_target[512];
+        int64_t lret = vfs_readlink(v, link_target, sizeof(link_target));
+        if (lret < 0) return (int32_t)lret;
+
+        /* If there are remaining path components, append them. */
+        if (name_len > 0 && *current_path != '\0') {
+          /* current_path points at the rest of the path after this component */
+          char combined[512];
+          int tlen = str_len(link_target, sizeof(link_target));
+          memcpy(combined, link_target, tlen);
+          combined[tlen] = '/';
+          strncpy(combined + tlen + 1, current_path, sizeof(combined) - tlen - 2);
+          combined[sizeof(combined) - 1] = '\0';
+          strncpy(work, combined, sizeof(work) - 1);
+        } else {
+          strncpy(work, link_target, sizeof(work) - 1);
+        }
+        work[sizeof(work) - 1] = '\0';
+
+        /* Relative symlinks resolve from the symlink's parent directory. */
+        start = (work[0] == '/') ? NULL : curr_dentry->parent;
+        goto restart;
+      }
     }
-    // Move to next portion of path
     name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
   }
-  debugk("vfs_resolve_path: success, returning dentry=%p\n", curr_dentry);
+
+  debugk("vfs_resolve_path_at: success, returning dentry=%p\n", curr_dentry);
   *out = curr_dentry;
   return 0;
+}
+
+int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
+  return vfs_resolve_path_at(path, NULL, out);
 }
 
 
@@ -91,6 +134,7 @@ void *vfs_get_page(struct vnode_t *vnode, size_t offset, int flags){
 struct file_t *vfs_init_file(struct vnode_t *vnode, int flags) {
   struct file_t *file = file_t_alloc();
   file->vnode = vnode;
+  file->dentry = NULL;
   file->file_ops = vnode->file_ops;
   file->offset = 0;
   file->refcount = 1;
@@ -166,6 +210,7 @@ int64_t vfs_open(const char *path, int flags, struct file_t **file) {
 
   struct vnode_t *vnode = dentry->vnode->mounted_vnode ? dentry->vnode->mounted_vnode : dentry->vnode;
   *file = vfs_init_file(vnode, flags);
+  (*file)->dentry = dentry;
   return 0;
 }
 

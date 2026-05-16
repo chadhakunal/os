@@ -634,6 +634,15 @@ int alloc_fd(struct files_table_t *file_table, struct file_t *file) {
   return fd;
 }
 
+struct dentry_t *task_dirfd_to_dentry(int dirfd) {
+  if (dirfd == AT_FDCWD)
+    return NULL;
+  struct file_t *f = find_file(&current_task->file_table, dirfd);
+  if (f == NULL)
+    return (struct dentry_t *)-1; /* invalid fd → caller returns -EBADF */
+  return f->dentry;
+}
+
 void clear_vmas(struct task_t *task) {
   debugk("clear_vmas: task=%p\n", task);
   if (!task || !task->mm_struct.root_satp) {

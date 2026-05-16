@@ -39,6 +39,9 @@
 #define SYS_nanosleep       101
 #define SYS_statfs          43
 #define SYS_renameat        38
+#define SYS_linkat          37
+#define SYS_symlinkat       266
+#define SYS_readlinkat      267
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -73,5 +76,8 @@ int64_t sys_munmap(struct trap_frame *tf);
 int64_t sys_brk(struct trap_frame *tf);
 int64_t sys_statfs(struct trap_frame *tf);
 int64_t sys_renameat(struct trap_frame *tf);
+int64_t sys_linkat(struct trap_frame *tf);
+int64_t sys_symlinkat(struct trap_frame *tf);
+int64_t sys_readlinkat(struct trap_frame *tf);
 
 #endif

@@ -64,6 +64,11 @@ struct vnode_ops_t {
   int64_t (*truncate) (struct vnode_t *vnode, uint64_t new_size);
   int64_t (*rename)   (const char *old_name, struct vnode_t *old_parent,
                        const char *new_name, struct vnode_t *new_parent);
+  int64_t (*link)     (const char *old_name, struct vnode_t *old_parent,
+                       const char *new_name, struct vnode_t *new_parent);
+  int64_t (*symlink)  (const char *target, const char *name,
+                       struct vnode_t *parent_dir, struct dentry_t **out);
+  int64_t (*readlink) (struct vnode_t *vnode, char *buf, size_t size);
 };
 
 struct address_space_ops_t {
@@ -98,6 +103,7 @@ struct superblock_ops_t {
 
 struct file_t {
   struct vnode_t    *vnode;
+  struct dentry_t   *dentry;
   struct file_ops_t *file_ops;
   size_t             offset;
   size_t             refcount;
@@ -190,6 +196,7 @@ int64_t vfs_dentry_get_path(struct dentry_t *dentry, char *buf, size_t size);
 
 /* Path resolution */
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out);
+int32_t vfs_resolve_path_at(const char *path, struct dentry_t *start, struct dentry_t **out);
 int32_t vfs_lookup(const char *name, struct dentry_t *parent_dentry, struct dentry_t **out);
 
 /* Directory operations */
@@ -200,6 +207,11 @@ int64_t vfs_unlink(const char *name, struct vnode_t *parent_dir);
 int64_t vfs_rmdir(const char *name, struct vnode_t *parent_dir);
 int64_t vfs_rename(const char *old_name, struct vnode_t *old_parent,
                    const char *new_name, struct vnode_t *new_parent);
+int64_t vfs_link    (const char *old_name, struct vnode_t *old_parent,
+                     const char *new_name, struct vnode_t *new_parent);
+int64_t vfs_symlink (const char *target, const char *name,
+                     struct vnode_t *parent_dir, struct dentry_t **out);
+int64_t vfs_readlink(struct vnode_t *vnode, char *buf, size_t size);
 void    vfs_dentry_evict(struct vnode_t *parent_vnode, const char *name);
 
 /* Filesystem statistics */
