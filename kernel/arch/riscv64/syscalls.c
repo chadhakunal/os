@@ -203,11 +203,6 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_readlinkat(tf);
       break;
 
-    case SYS_pipe:
-      debugk("syscall: pipe(pipefd=%llx)\n", tf->a0);
-      ret = sys_pipe(tf);
-      break;
-
     default:
       debugk("syscall: unknown syscall %llu\n", syscall_num);
       tf->a0 = -1; // ENOSYS

@@ -42,7 +42,6 @@
 #define SYS_linkat          37
 #define SYS_symlinkat       266
 #define SYS_readlinkat      267
-#define SYS_pipe            59
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -80,6 +79,5 @@ int64_t sys_renameat(struct trap_frame *tf);
 int64_t sys_linkat(struct trap_frame *tf);
 int64_t sys_symlinkat(struct trap_frame *tf);
 int64_t sys_readlinkat(struct trap_frame *tf);
-int64_t sys_pipe(struct trap_frame *tf);
 
 #endif
