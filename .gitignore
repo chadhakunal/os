@@ -1,3 +1,4 @@
 build/
 disk.qcow2
 .DS_Store
+rootfs/etc/run_tests
