@@ -126,6 +126,7 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
   uint64_t pte_flags = vma_to_pte_flags(vma->vm_flags);
   map_page(current_task->mm_struct.root_satp, PAGE_ALIGN_DOWN(fault_addr),
            (uint64_t)phys_page, pte_flags);
+  asm volatile("sfence.vma %0, zero" :: "r"(PAGE_ALIGN_DOWN(fault_addr)) : "memory");
 
   debugk("Page fault handled successfully, mapped 0x%llx -> 0x%llx\n",
          PAGE_ALIGN_DOWN(fault_addr), (uint64_t)phys_page);
