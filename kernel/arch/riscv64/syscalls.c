@@ -61,18 +61,18 @@ void handle_syscall(struct trap_frame *tf) {
       break;
 
     case SYS_mmap:
-      debugk("syscall: mmap(addr=%llx, len=%llu, prot=%llu, flags=%llu)\n", tf->a0, tf->a1, tf->a2, tf->a3);
-      tf->a0 = -1; // TODO: implement
+      debugk("syscall: mmap(addr=%llx, len=%llu, prot=%llu, flags=%llu, fd=%lld, off=%llu)\n", tf->a0, tf->a1, tf->a2, tf->a3, (int64_t)tf->a4, tf->a5);
+      ret = sys_mmap(tf);
       break;
 
     case SYS_munmap:
       debugk("syscall: munmap(addr=%llx, len=%llu)\n", tf->a0, tf->a1);
-      tf->a0 = -1; // TODO: implement
+      ret = sys_munmap(tf);
       break;
 
     case SYS_brk:
       debugk("syscall: brk(addr=%llx)\n", tf->a0);
-      tf->a0 = -1; // TODO: implement
+      ret = sys_brk(tf);
       break;
 
     case SYS_rt_sigaction:
@@ -172,6 +172,56 @@ void handle_syscall(struct trap_frame *tf) {
     case SYS_nanosleep:
       debugk("syscall: nanosleep(req=%llx, rem=%llx)\n", tf->a0, tf->a1);
       ret = sys_nanosleep(tf);
+      break;
+
+    case SYS_statfs:
+      debugk("syscall: statfs(path=%llx, buf=%llx)\n", tf->a0, tf->a1);
+      ret = sys_statfs(tf);
+      break;
+
+    case SYS_renameat:
+      debugk("syscall: renameat(olddirfd=%lld, old=%llx, newdirfd=%lld, new=%llx)\n",
+             (int64_t)tf->a0, tf->a1, (int64_t)tf->a2, tf->a3);
+      ret = sys_renameat(tf);
+      break;
+
+    case SYS_linkat:
+      debugk("syscall: linkat(olddirfd=%lld, old=%llx, newdirfd=%lld, new=%llx, flags=%lld)\n",
+             (int64_t)tf->a0, tf->a1, (int64_t)tf->a2, tf->a3, (int64_t)tf->a4);
+      ret = sys_linkat(tf);
+      break;
+
+    case SYS_symlinkat:
+      debugk("syscall: symlinkat(target=%llx, newdirfd=%lld, linkpath=%llx)\n",
+             tf->a0, (int64_t)tf->a1, tf->a2);
+      ret = sys_symlinkat(tf);
+      break;
+
+    case SYS_readlinkat:
+      debugk("syscall: readlinkat(dirfd=%lld, path=%llx, buf=%llx, bufsiz=%lld)\n",
+             (int64_t)tf->a0, tf->a1, tf->a2, (int64_t)tf->a3);
+      ret = sys_readlinkat(tf);
+      break;
+
+    case SYS_pipe:
+      debugk("syscall: pipe(pipefd=%llx)\n", tf->a0);
+      ret = sys_pipe(tf);
+      break;
+      
+    case SYS_fstatat:
+      debugk("syscall: fstatat(dirfd=%lld, path=%llx, buf=%llx, flags=%lld)\n",
+             (int64_t)tf->a0, tf->a1, tf->a2, (int64_t)tf->a3);
+      ret = sys_fstatat(tf);
+      break;
+
+    case SYS_chmod:
+      debugk("syscall: chmod(path=%llx, mode=%lld)\n", tf->a0, (int64_t)tf->a1);
+      ret = sys_chmod(tf);
+      break;
+
+    case SYS_reboot:
+      debugk("syscall: reboot(cmd=%lld)\n", (int64_t)tf->a0);
+      ret = sys_reboot(tf);
       break;
 
     default:

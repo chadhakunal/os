@@ -14,6 +14,8 @@ extern struct task_t *idle_task;     // Idle task (PID 0)
 extern struct task_t *init_task;     // First task (PID 1)
 extern struct list_node task_list;   // Global list of all tasks
 
+#define MMAP_BASE 0x10000000UL
+
 // VMA flags
 #define VM_READ     0x0001
 #define VM_WRITE    0x0002
@@ -48,6 +50,7 @@ struct mm_struct_t {
   page_table_t *root_satp;
   void *entry_addr;
   struct list_node vma_list;
+  size_t heap_end;
 };
 
 struct files_table_t {
@@ -132,6 +135,15 @@ void set_current_task(struct task_t *task);
 void switch_to_page_table(struct task_t *task);
 
 struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr);
+size_t find_free_vma(struct mm_struct_t *mm_struct, size_t len);
+
+/*
+ * Resolve an at-syscall dirfd to a starting dentry for vfs_resolve_path_at.
+ * Returns NULL if dirfd == AT_FDCWD (caller should pass NULL → use cwd).
+ * Returns (struct dentry_t *)-1 if dirfd is invalid (caller returns -EBADF).
+ */
+#define AT_FDCWD (-100)
+struct dentry_t *task_dirfd_to_dentry(int dirfd);
 
 int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
                                 struct vnode_t *vnode, size_t offset,

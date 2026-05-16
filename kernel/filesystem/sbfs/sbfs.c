@@ -1,4 +1,6 @@
+#define DEBUG 0
 #include "kernel/filesystem/sbfs/sbfs.h"
+#include "kernel/drivers/rtc/rtc.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/drivers/virtio-blk.h"
 #include "kernel/memory/page_allocator.h"
@@ -209,11 +211,11 @@ static struct vnode_t *sbfs_alloc_vnode(struct superblock_t *superblock, uint32_
 
   debugk("[sbfs_alloc_vnode] calling sbfs_get_inode\n");
   sbfs_inode_t *inode = sbfs_get_inode(sb, inode_num);
-  debugk("[sbfs_alloc_vnode] inode=%p size=%u type=%u\n", inode, inode->size, inode->type);
-  vnode->size = inode->size;
-  vnode->permission_mode = (inode->type == SBFS_INODE_DIR)
-    ? (S_IFDIR | READ_EXECUTE_PERM | PERM_WUSR)
-    : (S_IFREG | RW_PERM);
+  debugk("[sbfs_alloc_vnode] inode=%p size=%u mode=%u direct[0]=%u\n",
+         inode, inode->size, inode->mode, inode->direct_blocks[0]);
+  vnode->size  = inode->size;
+  vnode->mtime = inode->mtime;
+  vnode->permission_mode = inode->mode;
 
   debugk("[sbfs_alloc_vnode] done vnode=%p\n", vnode);
   return vnode;
@@ -294,6 +296,12 @@ struct superblock_t *sbfs_mount(void) {
   superblock->vnode_ops.unlink                 = sbfs_unlink;
   superblock->vnode_ops.rmdir                  = sbfs_rmdir;
   superblock->vnode_ops.truncate               = sbfs_truncate;
+  superblock->vnode_ops.rename                 = sbfs_rename;
+  superblock->vnode_ops.link                   = sbfs_link;
+  superblock->vnode_ops.symlink                = sbfs_symlink;
+  superblock->vnode_ops.readlink               = sbfs_readlink;
+  superblock->vnode_ops.chmod                  = sbfs_chmod;
+  superblock->superblock_ops.statfs            = sbfs_statfs;
   superblock->address_space_ops.fill_page      = sbfs_fill_page;
   superblock->address_space_ops.write_page     = sbfs_write_page;
   superblock->file_ops.read                    = NULL;
@@ -479,8 +487,9 @@ int64_t sbfs_create(const char *name, struct vnode_t *parent_dir, struct dentry_
 
   sbfs_inode_t *inode = sbfs_get_inode(sb, (uint32_t)ino);
   memset(inode, 0, sb->inode_size);
-  inode->type   = SBFS_INODE_FILE;
+  inode->mode   = SBFS_MODE_FILE;
   inode->nlinks = 1;
+  inode->mtime  = (uint32_t)rtc_read_time_sec();
   sbfs_flush_inode(sb, (uint32_t)ino);
 
   if (sbfs_dir_add(sb, parent_inode, sv->inode_num, (uint32_t)ino, name) < 0) {
@@ -516,8 +525,9 @@ int64_t sbfs_mkdir(const char *name, struct vnode_t *parent_dir, struct dentry_t
   sbfs_inode_t *inode = sbfs_get_inode(sb, (uint32_t)ino);
   debugk("[sbfs_mkdir] new inode ptr=%p\n", inode);
   memset(inode, 0, sb->inode_size);
-  inode->type   = SBFS_INODE_DIR;
+  inode->mode   = SBFS_MODE_DIR;
   inode->nlinks = 1;
+  inode->mtime  = (uint32_t)rtc_read_time_sec();
   debugk("[sbfs_mkdir] flushing inode %lld\n", ino);
   sbfs_flush_inode(sb, (uint32_t)ino);
 
@@ -551,7 +561,7 @@ int64_t sbfs_unlink(const char *name, struct vnode_t *parent_dir) {
   if (ino == 0) return -ENOENT;
 
   sbfs_inode_t *inode = sbfs_get_inode(sb, ino);
-  if (inode->type == SBFS_INODE_DIR) return -EISDIR;
+  if (IS_DIR(inode->mode)) return -EISDIR;
   if (inode->nlinks == 0) return -EINVAL;
 
   inode->nlinks--;
@@ -577,7 +587,7 @@ int64_t sbfs_rmdir(const char *name, struct vnode_t *parent_dir) {
   if (ino == 0) return -ENOENT;
 
   sbfs_inode_t *inode = sbfs_get_inode(sb, ino);
-  if (inode->type != SBFS_INODE_DIR) return -ENOTDIR;
+  if (!IS_DIR(inode->mode)) return -ENOTDIR;
 
   /* Refuse to remove a non-empty directory. */
   uint8_t  buf[SECTOR_BLOCK_SIZE];
@@ -598,6 +608,194 @@ int64_t sbfs_rmdir(const char *name, struct vnode_t *parent_dir) {
   sbfs_free_inode(sb, ino);
 
   return sbfs_dir_remove(sb, parent_inode, name);
+}
+
+int64_t sbfs_symlink(const char *target, const char *name,
+                     struct vnode_t *parent_dir, struct dentry_t **out) {
+  struct sbfs_superblock_t *sb = (struct sbfs_superblock_t *)parent_dir->superblock->private_data;
+  struct sbfs_vnode_t      *sv = (struct sbfs_vnode_t *)parent_dir->fs_private_vnode;
+  sbfs_inode_t *parent_inode = sbfs_get_inode(sb, sv->inode_num);
+
+  if (sbfs_dir_find(sb, parent_inode, name) != 0)
+    return -EEXIST;
+
+  int64_t ino = sbfs_alloc_inode(sb);
+  if (ino < 0) return -ENOSPC;
+
+  sbfs_inode_t *inode = sbfs_get_inode(sb, (uint32_t)ino);
+  memset(inode, 0, sb->inode_size);
+  inode->mode   = SBFS_MODE_SYMLINK;
+  inode->nlinks = 1;
+  inode->mtime  = (uint32_t)rtc_read_time_sec();
+
+  /* Write the target path string into the first data block. */
+  int64_t blk = sbfs_alloc_block(sb);
+  if (blk < 0) { sbfs_free_inode(sb, (uint32_t)ino); return -ENOSPC; }
+
+  uint32_t target_len = str_len(target, sb->block_size);
+  char block_buf[512]; /* block_size ≤ 512 in practice */
+  memset(block_buf, 0, sb->block_size);
+  memcpy(block_buf, target, target_len);
+  sbfs_write_data_block(sb, (uint32_t)blk, block_buf);
+
+  inode->direct_blocks[0] = (uint32_t)blk;
+  inode->size = target_len;
+  sbfs_flush_inode(sb, (uint32_t)ino);
+
+  if (sbfs_dir_add(sb, parent_inode, sv->inode_num, (uint32_t)ino, name) < 0) {
+    sbfs_free_inode(sb, (uint32_t)ino);
+    sbfs_free_block(sb, (uint32_t)blk);
+    return -ENOSPC;
+  }
+
+  struct dentry_t *dentry = dentry_t_alloc();
+  strncpy(dentry->name, name, sizeof(dentry->name) - 1);
+  dentry->name[sizeof(dentry->name) - 1] = '\0';
+  dentry->vnode  = sbfs_alloc_vnode(parent_dir->superblock, (uint32_t)ino);
+  dentry->parent = NULL;
+  *out = dentry;
+  return 0;
+}
+
+int64_t sbfs_readlink(struct vnode_t *vnode, char *buf, size_t size) {
+  struct sbfs_superblock_t *sb = (struct sbfs_superblock_t *)vnode->superblock->private_data;
+  struct sbfs_vnode_t      *sv = (struct sbfs_vnode_t *)vnode->fs_private_vnode;
+  sbfs_inode_t *inode = sbfs_get_inode(sb, sv->inode_num);
+
+  if (!IS_LNK(inode->mode))
+    return -EINVAL;
+  if (inode->direct_blocks[0] == 0)
+    return -EIO;
+
+  char block_buf[512];
+  sbfs_read_data_block(sb, inode->direct_blocks[0], block_buf);
+
+  uint32_t len = inode->size;
+  if (len >= size) len = size - 1;
+  memcpy(buf, block_buf, len);
+  buf[len] = '\0';
+  return (int64_t)len;
+}
+
+int64_t sbfs_link(const char *old_name, struct vnode_t *old_parent,
+                  const char *new_name, struct vnode_t *new_parent) {
+  struct sbfs_superblock_t *sb      = (struct sbfs_superblock_t *)old_parent->superblock->private_data;
+  struct sbfs_vnode_t      *sv_old  = (struct sbfs_vnode_t *)old_parent->fs_private_vnode;
+  struct sbfs_vnode_t      *sv_new  = (struct sbfs_vnode_t *)new_parent->fs_private_vnode;
+
+  sbfs_inode_t *old_parent_inode = sbfs_get_inode(sb, sv_old->inode_num);
+  sbfs_inode_t *new_parent_inode = sbfs_get_inode(sb, sv_new->inode_num);
+
+  uint32_t ino = sbfs_dir_find(sb, old_parent_inode, old_name);
+  if (ino == 0)
+    return -ENOENT;
+
+  sbfs_inode_t *inode = sbfs_get_inode(sb, ino);
+  if (IS_DIR(inode->mode))
+    return -EPERM;  /* hardlinks to directories are forbidden */
+
+  if (sbfs_dir_find(sb, new_parent_inode, new_name) != 0)
+    return -EEXIST;
+
+  int ret = sbfs_dir_add(sb, new_parent_inode, sv_new->inode_num, ino, new_name);
+  if (ret < 0)
+    return ret;
+
+  inode->nlinks++;
+  sbfs_flush_inode(sb, ino);
+  return 0;
+}
+
+int64_t sbfs_chmod(struct vnode_t *vnode, uint32_t mode) {
+  struct sbfs_superblock_t *sb = (struct sbfs_superblock_t *)vnode->superblock->private_data;
+  struct sbfs_vnode_t      *sv = (struct sbfs_vnode_t *)vnode->fs_private_vnode;
+  sbfs_inode_t *inode = sbfs_get_inode(sb, sv->inode_num);
+
+  /* Preserve the file type bits; only replace the permission bits. */
+  uint32_t type_bits = inode->mode & S_IFMT;
+  inode->mode = (uint16_t)(type_bits | (mode & ~S_IFMT));
+  sbfs_flush_inode(sb, sv->inode_num);
+
+  inode->mtime = (uint32_t)rtc_read_time_sec();
+  /* Mirror into the in-memory vnode. */
+  vnode->permission_mode = inode->mode;
+  vnode->mtime           = inode->mtime;
+  return 0;
+}
+
+int64_t sbfs_statfs(struct superblock_t *superblock, struct vfs_statfs *buf) {
+  struct sbfs_superblock_t *sb = (struct sbfs_superblock_t *)superblock->private_data;
+
+  int64_t free_blocks = 0;
+  for (uint32_t b = sb->data_start; b < sb->total_blocks; b++) {
+    uint8_t *byte = sbfs_block_bitmap_byte(sb, b);
+    if (!(*byte & (1 << (b % 8))))
+      free_blocks++;
+  }
+
+  int64_t free_inodes = 0;
+  for (uint32_t i = 0; i < sb->inode_count; i++) {
+    uint8_t *byte = sbfs_inode_bitmap_byte(sb, i);
+    if (!(*byte & (1 << (i % 8))))
+      free_inodes++;
+  }
+
+  buf->f_type    = SBFS_MAGIC;
+  buf->f_bsize   = sb->block_size;
+  buf->f_blocks  = sb->total_blocks - sb->data_start;
+  buf->f_bfree   = free_blocks;
+  buf->f_bavail  = free_blocks;
+  buf->f_files   = sb->inode_count;
+  buf->f_ffree   = free_inodes;
+  buf->f_fsid[0] = 0;
+  buf->f_fsid[1] = 0;
+  buf->f_namelen = SBFS_DIRENT_NAME_LEN - 1;
+  buf->f_frsize  = sb->block_size;
+  buf->f_flags   = 0;
+  buf->f_spare[0] = buf->f_spare[1] = buf->f_spare[2] = buf->f_spare[3] = 0;
+  return 0;
+}
+
+int64_t sbfs_rename(const char *old_name, struct vnode_t *old_parent,
+                    const char *new_name, struct vnode_t *new_parent) {
+  struct sbfs_superblock_t *sb   = (struct sbfs_superblock_t *)old_parent->superblock->private_data;
+  struct sbfs_vnode_t      *sv_old = (struct sbfs_vnode_t *)old_parent->fs_private_vnode;
+  struct sbfs_vnode_t      *sv_new = (struct sbfs_vnode_t *)new_parent->fs_private_vnode;
+
+  sbfs_inode_t *old_parent_inode = sbfs_get_inode(sb, sv_old->inode_num);
+  sbfs_inode_t *new_parent_inode = sbfs_get_inode(sb, sv_new->inode_num);
+
+  uint32_t ino = sbfs_dir_find(sb, old_parent_inode, old_name);
+  if (ino == 0)
+    return -ENOENT;
+
+  /* If new_name already exists in new_parent, unlink it (file) or reject (dir). */
+  uint32_t existing_ino = sbfs_dir_find(sb, new_parent_inode, new_name);
+  if (existing_ino != 0) {
+    sbfs_inode_t *existing = sbfs_get_inode(sb, existing_ino);
+    if (IS_DIR(existing->mode))
+      return -ENOTEMPTY;
+    /* Unlink the existing file. */
+    existing->nlinks--;
+    if (existing->nlinks == 0) {
+      for (int i = 0; i < SBFS_DIRECT_BLOCKS; i++) {
+        if (existing->direct_blocks[i] != 0)
+          sbfs_free_block(sb, existing->direct_blocks[i]);
+      }
+      sbfs_free_inode(sb, existing_ino);
+    } else {
+      sbfs_flush_inode(sb, existing_ino);
+    }
+    sbfs_dir_remove(sb, new_parent_inode, new_name);
+  }
+
+  /* Add new dirent in new_parent, remove old dirent from old_parent. */
+  int ret = sbfs_dir_add(sb, new_parent_inode, sv_new->inode_num, ino, new_name);
+  if (ret < 0)
+    return ret;
+
+  sbfs_dir_remove(sb, old_parent_inode, old_name);
+  return 0;
 }
 
 int64_t sbfs_truncate(struct vnode_t *vnode, uint64_t new_size) {
@@ -627,6 +825,9 @@ int64_t sbfs_fill_page(struct vnode_t *vnode, size_t offset, void **phys_page) {
   struct sbfs_vnode_t      *sv = (struct sbfs_vnode_t *)vnode->fs_private_vnode;
   sbfs_inode_t *inode = sbfs_get_inode(sb, sv->inode_num);
 
+  debugk("[sbfs_fill_page] ino=%u offset=%zu inode->size=%u inode->direct[0]=%u\n",
+         sv->inode_num, offset, inode->size, inode->direct_blocks[0]);
+
   void    *phys = get_page(true);
   uint8_t *virt = (uint8_t *)PHYS_TO_VIRT(phys);
   uint32_t bpp  = sbfs_blocks_per_page(sb);
@@ -636,6 +837,7 @@ int64_t sbfs_fill_page(struct vnode_t *vnode, size_t offset, void **phys_page) {
     uint32_t fb = file_block_start + i;
     if (fb >= SBFS_DIRECT_BLOCKS) break;
     uint32_t disk_blk = inode->direct_blocks[fb];
+    debugk("[sbfs_fill_page] fb=%u disk_blk=%u\n", fb, disk_blk);
     if (disk_blk == 0) continue;
     sbfs_read_data_block(sb, disk_blk, virt + i * sb->block_size);
   }
@@ -648,6 +850,8 @@ int64_t sbfs_write_page(struct vnode_t *vnode, size_t offset, void *phys_page) {
   struct sbfs_superblock_t *sb = (struct sbfs_superblock_t *)vnode->superblock->private_data;
   struct sbfs_vnode_t      *sv = (struct sbfs_vnode_t *)vnode->fs_private_vnode;
   sbfs_inode_t *inode = sbfs_get_inode(sb, sv->inode_num);
+  debugk("[sbfs_write_page] ino=%u offset=%zu inode->size=%u inode->direct[0]=%u\n",
+         sv->inode_num, offset, inode->size, inode->direct_blocks[0]);
 
   uint8_t *virt = (uint8_t *)PHYS_TO_VIRT(phys_page);
   uint32_t bpp  = sbfs_blocks_per_page(sb);
@@ -683,12 +887,18 @@ int64_t sbfs_write_page(struct vnode_t *vnode, size_t offset, void *phys_page) {
   if (new_size > (size_t)SBFS_DIRECT_BLOCKS * sb->block_size)
     new_size = (size_t)SBFS_DIRECT_BLOCKS * sb->block_size;
   if (new_size > inode->size) {
-    inode->size = new_size;
-    inode_dirty = true;
+    inode->size  = new_size;
+    inode->mtime = (uint32_t)rtc_read_time_sec();
+    inode_dirty  = true;
   }
 
-  if (inode_dirty)
+  if (inode_dirty) {
+    /* Mirror mtime into the in-memory vnode so stat() sees it immediately. */
+    vnode->mtime = inode->mtime;
+    debugk("[sbfs_write_page] flushing ino=%u new_size=%u direct[0]=%u\n",
+           sv->inode_num, inode->size, inode->direct_blocks[0]);
     sbfs_flush_inode(sb, sv->inode_num);
+  }
 
   return 0;
 }

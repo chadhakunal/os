@@ -21,6 +21,7 @@
 #include "kernel/task/schedule.h"
 #include "kernel/drivers/virtio-blk.h"
 
+#define DEBUG 0
 #include "lib/printk/printk.h"
 #include "kernel/signal_jump_point.h"
 
@@ -100,7 +101,7 @@ void kmain(void *dtb_ptr) {
 
   create_init_process();
   printk("Created init process from /bin/init (PID 1)\n");
-  printk("Size of task struct: %lld\n", sizeof(struct task_t));
+  debugk("Size of task struct: %lld\n", sizeof(struct task_t));
 
   asm volatile("csrw sscratch, %0" :: "r"(current_task->kernel_context.sp));
   switch_to_page_table(current_task);

@@ -66,6 +66,7 @@ int load_elf(struct task_t *task, const char *path) {
   // printk("Section Headers: offset=0x%lx, count=%d, size=%d\n",
   //        header.e_shoff, header.e_shnum, header.e_shentsize);
   // Read first program header
+  size_t max_vaddr_end = 0;
   struct Elf64_Phdr program_header;
   for (size_t pheader_idx = 0; pheader_idx < header.e_phnum; pheader_idx ++) {
     vfs_vnode_read(dentry->vnode, &program_header, sizeof(program_header), (size_t) (header.e_phoff + sizeof(program_header) * pheader_idx));
@@ -95,6 +96,9 @@ int load_elf(struct task_t *task, const char *path) {
       if (program_header.p_flags & PF_W) vm_flags |= VM_WRITE;
       if (program_header.p_flags & PF_X) vm_flags |= VM_EXEC;
 
+      size_t seg_end = (program_header.p_vaddr + program_header.p_memsz + DEFAULT_PAGE_SIZE - 1) & ~(DEFAULT_PAGE_SIZE - 1);
+      if (seg_end > max_vaddr_end) max_vaddr_end = seg_end;
+
       if (program_header.p_filesz != program_header.p_memsz) {
         // This segment has BSS - use anonymous mapping
         anon_memory_map(&task->mm_struct, program_header.p_vaddr, program_header.p_memsz, vm_flags, true);
@@ -104,11 +108,13 @@ int load_elf(struct task_t *task, const char *path) {
           vfs_vnode_read(dentry->vnode, (void *)program_header.p_vaddr, program_header.p_filesz, program_header.p_offset);
         }
       } else {
-        // No BSS - can use file-backed mapping
-        file_backed_memory_map(&task->mm_struct, program_header.p_vaddr, dentry->vnode, program_header.p_offset, program_header.p_filesz, vm_flags, true);
+        // No BSS - use lazy file-backed mapping (pages loaded on demand via page fault)
+        file_backed_memory_map(&task->mm_struct, program_header.p_vaddr, dentry->vnode, program_header.p_offset, program_header.p_filesz, vm_flags, false);
       }
     }
   }
+
+  task->mm_struct.heap_end = max_vaddr_end;
 
   // Set up stack read/write
   // User stack grows down from DEFAULT_STACK_TOP

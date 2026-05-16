@@ -41,6 +41,7 @@ struct address_space_t;
 struct file_t;
 struct superblock_t;
 struct files_table_t;
+struct pipe_t;
 
 extern struct mount_t *base_mount;
 
@@ -62,6 +63,14 @@ struct vnode_ops_t {
   int64_t (*unlink)   (const char *name, struct vnode_t *parent_dir);
   int64_t (*rmdir)    (const char *name, struct vnode_t *parent_dir);
   int64_t (*truncate) (struct vnode_t *vnode, uint64_t new_size);
+  int64_t (*rename)   (const char *old_name, struct vnode_t *old_parent,
+                       const char *new_name, struct vnode_t *new_parent);
+  int64_t (*link)     (const char *old_name, struct vnode_t *old_parent,
+                       const char *new_name, struct vnode_t *new_parent);
+  int64_t (*symlink)  (const char *target, const char *name,
+                       struct vnode_t *parent_dir, struct dentry_t **out);
+  int64_t (*readlink) (struct vnode_t *vnode, char *buf, size_t size);
+  int64_t (*chmod)    (struct vnode_t *vnode, uint32_t mode);
 };
 
 struct address_space_ops_t {
@@ -69,8 +78,34 @@ struct address_space_ops_t {
   int64_t (*write_page)(struct vnode_t *vnode, size_t offset, void *phys_page);
 };
 
+/* Per-file metadata returned by stat(2) / fstatat(2). */
+struct vfs_stat {
+  uint64_t st_ino;   /* inode number */
+  uint32_t st_mode;  /* file type + permission bits */
+  uint32_t st_nlink; /* number of hard links */
+  uint64_t st_size;  /* file size in bytes */
+  uint64_t st_mtime; /* last modification time (seconds since epoch) */
+};
+
+/* Filesystem-wide statistics returned by statfs(2). */
+struct vfs_statfs {
+  int64_t  f_type;    /* filesystem magic */
+  int64_t  f_bsize;   /* optimal block size */
+  int64_t  f_blocks;  /* total data blocks */
+  int64_t  f_bfree;   /* free blocks */
+  int64_t  f_bavail;  /* free blocks available to non-root */
+  int64_t  f_files;   /* total inodes */
+  int64_t  f_ffree;   /* free inodes */
+  int64_t  f_fsid[2]; /* filesystem id */
+  int64_t  f_namelen; /* maximum filename length */
+  int64_t  f_frsize;  /* fragment size */
+  int64_t  f_flags;   /* mount flags */
+  int64_t  f_spare[4];
+};
+
 struct superblock_ops_t {
   struct vnode_t *(*alloc_vnode)(struct superblock_t superblock);
+  int64_t         (*statfs)     (struct superblock_t *sb, struct vfs_statfs *buf);
 };
 
 /* -------------------------------------------------------------------------
@@ -79,10 +114,13 @@ struct superblock_ops_t {
 
 struct file_t {
   struct vnode_t    *vnode;
+  struct dentry_t   *dentry;
   struct file_ops_t *file_ops;
   size_t             offset;
   size_t             refcount;
   int                flags;
+  struct pipe_t     *pipe;         /* non-NULL when this fd is a pipe end */
+  int                pipe_write_end; /* 1 = write end, 0 = read end */
 };
 
 struct dentry_t {
@@ -114,6 +152,7 @@ struct vnode_t {
   uint32_t               owner_uid;
   uint32_t               owner_gid;
   mode_t                 permission_mode;
+  uint32_t               mtime;          /* last modification time (seconds since epoch) */
   struct vnode_t        *mounted_vnode;
   struct superblock_t   *superblock;
   struct list_node       children_dentries;
@@ -162,6 +201,7 @@ DEFINE_POOL(file_t, struct file_t)
 /* Init / mount */
 void    vfs_init(void);
 int32_t vfs_mount(char *path, struct superblock_t *superblock);
+void    vfs_sync_all(void); /* flush all dirty pages across all mounted filesystems */
 
 /* Vnode / dentry helpers */
 void    vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id);
@@ -171,6 +211,7 @@ int64_t vfs_dentry_get_path(struct dentry_t *dentry, char *buf, size_t size);
 
 /* Path resolution */
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out);
+int32_t vfs_resolve_path_at(const char *path, struct dentry_t *start, struct dentry_t **out);
 int32_t vfs_lookup(const char *name, struct dentry_t *parent_dentry, struct dentry_t **out);
 
 /* Directory operations */
@@ -179,6 +220,19 @@ int64_t vfs_create(const char *name, struct vnode_t *parent_dir, struct dentry_t
 int64_t vfs_mkdir(const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
 int64_t vfs_unlink(const char *name, struct vnode_t *parent_dir);
 int64_t vfs_rmdir(const char *name, struct vnode_t *parent_dir);
+int64_t vfs_rename(const char *old_name, struct vnode_t *old_parent,
+                   const char *new_name, struct vnode_t *new_parent);
+int64_t vfs_link    (const char *old_name, struct vnode_t *old_parent,
+                     const char *new_name, struct vnode_t *new_parent);
+int64_t vfs_symlink (const char *target, const char *name,
+                     struct vnode_t *parent_dir, struct dentry_t **out);
+int64_t vfs_readlink(struct vnode_t *vnode, char *buf, size_t size);
+int64_t vfs_stat    (struct vnode_t *vnode, struct vfs_stat *buf);
+int64_t vfs_chmod   (struct vnode_t *vnode, uint32_t mode);
+void    vfs_dentry_evict(struct vnode_t *parent_vnode, const char *name);
+
+/* Filesystem statistics */
+int64_t vfs_statfs(struct vnode_t *vnode, struct vfs_statfs *buf);
 
 /* File operations */
 int64_t         vfs_open(const char *path, int flags, struct file_t **file);

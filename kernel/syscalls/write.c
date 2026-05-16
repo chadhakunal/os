@@ -28,6 +28,10 @@ DEFINE_SYSCALL3(write, int, fd, const void *, buf, size_t, count) {
   }
 
   struct file_t *file = find_file(&current_task->file_table, fd);
+  debugk("[write] pid=%llu fd=%d file=%p vnode=%p file_ops=%p\n",
+         current_task->pid, fd, file,
+         file ? file->vnode : (void*)0xDEAD,
+         file ? file->file_ops : (void*)0xDEAD);
 
   if (file == NULL) {
     debugk("write syscall: file not found\n");

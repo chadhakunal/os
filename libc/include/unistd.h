@@ -30,6 +30,18 @@
 #define SYS_dup2            24
 #define SYS_fsync           82
 #define SYS_nanosleep       101
+#define SYS_statfs          43
+#define SYS_renameat        38
+#define SYS_linkat          37
+#define SYS_symlinkat       266
+#define SYS_readlinkat      267
+#define SYS_pipe            59
+#define SYS_fstatat         79
+#define SYS_chmod           52
+#define SYS_reboot          88
+
+#define RB_POWER_OFF  0
+#define RB_AUTOBOOT   1
 
 // RISC-V syscall ABI macros
 // Syscall number in a7, args in a0-a5, return value in a0
@@ -140,3 +152,46 @@ int dup2(int oldfd, int newfd);
 int fsync(int fd);
 unsigned int sleep(unsigned int seconds);
 int usleep(unsigned long usec);
+int mkdirat(int dirfd, const char *path, unsigned int mode);
+int unlinkat(int dirfd, const char *path, int flags);
+int linkat(int old_dirfd, const char *oldpath, int new_dirfd, const char *newpath, int flags);
+int renameat(int old_dirfd, const char *oldpath, int new_dirfd, const char *newpath);
+int rename(const char *oldpath, const char *newpath);
+int link(const char *oldpath, const char *newpath);
+int symlink(const char *target, const char *linkpath);
+int symlinkat(const char *target, int dirfd, const char *linkpath);
+ssize_t readlink(const char *path, char *buf, size_t bufsiz);
+ssize_t readlinkat(int dirfd, const char *path, char *buf, size_t bufsiz);
+int pipe(int pipefd[2]);
+
+/* Filesystem statistics — matches the kernel's vfs_statfs layout. */
+struct statfs {
+  long f_type;
+  long f_bsize;
+  long f_blocks;
+  long f_bfree;
+  long f_bavail;
+  long f_files;
+  long f_ffree;
+  long f_fsid[2];
+  long f_namelen;
+  long f_frsize;
+  long f_flags;
+  long f_spare[4];
+};
+
+int statfs(const char *path, struct statfs *buf);
+
+/* Per-file metadata — matches the kernel's vfs_stat layout. */
+struct stat {
+  uint64_t st_ino;
+  uint32_t st_mode;
+  uint32_t st_nlink;
+  uint64_t st_size;
+  uint64_t st_mtime;
+};
+
+int fstatat(int dirfd, const char *path, struct stat *buf, int flags);
+int stat(const char *path, struct stat *buf);
+int chmod(const char *path, unsigned int mode);
+int reboot(int cmd);

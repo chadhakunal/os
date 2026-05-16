@@ -125,3 +125,68 @@ int usleep(unsigned long usec) {
 int nanosleep(const struct timespec *req, struct timespec *rem) {
   return syscall2(SYS_nanosleep, req, rem);
 }
+
+int mkdirat(int dirfd, const char *path, unsigned int mode) {
+  return syscall3(SYS_mkdirat, dirfd, path, mode);
+}
+
+int unlinkat(int dirfd, const char *path, int flags) {
+  return syscall3(SYS_unlinkat, dirfd, path, flags);
+}
+
+int linkat(int old_dirfd, const char *oldpath, int new_dirfd, const char *newpath, int flags) {
+  return syscall5(SYS_linkat, old_dirfd, oldpath, new_dirfd, newpath, flags);
+}
+
+int renameat(int old_dirfd, const char *oldpath, int new_dirfd, const char *newpath) {
+  return syscall4(SYS_renameat, old_dirfd, oldpath, new_dirfd, newpath);
+}
+
+int rename(const char *oldpath, const char *newpath) {
+  return syscall4(SYS_renameat, AT_FDCWD, oldpath, AT_FDCWD, newpath);
+}
+
+int link(const char *oldpath, const char *newpath) {
+  return syscall5(SYS_linkat, AT_FDCWD, oldpath, AT_FDCWD, newpath, 0);
+}
+
+int symlink(const char *target, const char *linkpath) {
+  return syscall3(SYS_symlinkat, target, AT_FDCWD, linkpath);
+}
+
+int symlinkat(const char *target, int dirfd, const char *linkpath) {
+  return syscall3(SYS_symlinkat, target, dirfd, linkpath);
+}
+
+ssize_t readlink(const char *path, char *buf, size_t bufsiz) {
+  return syscall4(SYS_readlinkat, AT_FDCWD, path, buf, bufsiz);
+}
+
+ssize_t readlinkat(int dirfd, const char *path, char *buf, size_t bufsiz) {
+  return syscall4(SYS_readlinkat, dirfd, path, buf, bufsiz);
+}
+
+int statfs(const char *path, struct statfs *buf) {
+  return syscall2(SYS_statfs, path, buf);
+}
+
+int pipe(int pipefd[2]) {
+  return syscall1(SYS_pipe, pipefd);
+}
+
+int fstatat(int dirfd, const char *path, struct stat *buf, int flags) {
+  return syscall4(SYS_fstatat, (uint64_t)(int64_t)dirfd,
+                  (uint64_t)path, (uint64_t)buf, (uint64_t)flags);
+}
+
+int stat(const char *path, struct stat *buf) {
+  return fstatat(AT_FDCWD, path, buf, 0);
+}
+
+int chmod(const char *path, unsigned int mode) {
+  return syscall2(SYS_chmod, (uint64_t)path, (uint64_t)mode);
+}
+
+int reboot(int cmd) {
+  return (int)syscall1(SYS_reboot, (uint64_t)(int64_t)cmd);
+}

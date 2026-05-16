@@ -1,4 +1,5 @@
 #include "kernel/filesystem/vfs/vfs.h"
+#include "kernel/filesystem/pipefs/pipe.h"
 #include "kernel/task/task.h"
 #include "kernel/memory/page_allocator.h"
 #include "lib/list.h"
@@ -193,7 +194,11 @@ int64_t vfs_file_close(struct files_table_t *file_table, int fd) {
   file->refcount--;
 
   if (file->refcount == 0) {
-    vnode_drop_ref(file->vnode);
+    if (file->pipe != NULL) {
+      pipe_close(file->pipe, file->pipe_write_end);
+    } else {
+      vnode_drop_ref(file->vnode);
+    }
     file_t_free(file);
   }
 

@@ -2,6 +2,7 @@
 #define SBFS_H
 
 #include "kernel/filesystem/vfs/vfs.h"
+#include "kernel/filesystem/mode.h"
 #include "lib/pool_allocator.h"
 #include "types.h"
 
@@ -9,9 +10,10 @@
 #define SBFS_DIRECT_BLOCKS 12
 #define SBFS_DIRENT_NAME_LEN 28
 
-#define SBFS_INODE_FREE 0
-#define SBFS_INODE_FILE 1
-#define SBFS_INODE_DIR  2
+/* Default permission masks — open to all since there is only one user. */
+#define SBFS_MODE_FILE    (S_IFREG | 0666)
+#define SBFS_MODE_DIR     (S_IFDIR | 0777)
+#define SBFS_MODE_SYMLINK (S_IFLNK | 0777)
 
 /* On-disk superblock — exactly as written by mkfs, lives at block 0. */
 typedef struct sbfs_disk_superblock {
@@ -31,14 +33,17 @@ typedef struct sbfs_disk_superblock {
   uint8_t  reserved[512 - 13 * 4];
 } sbfs_disk_superblock_t;
 
-/* On-disk inode — 64 bytes. */
+/* On-disk inode — 64 bytes.
+ * `mode` stores the full Linux-style mode word: upper bits = file type
+ * (S_IFREG/S_IFDIR/S_IFLNK), lower 9 bits = rwxrwxrwx permissions.
+ * A zero mode means the inode slot is unused / freshly zeroed. */
 typedef struct sbfs_inode {
-  uint16_t type;
+  uint16_t mode;    /* type + permission bits (same layout as VFS permission_mode) */
   uint16_t nlinks;
   uint32_t size;
   uint32_t direct_blocks[SBFS_DIRECT_BLOCKS];
   uint32_t indirect_block;
-  uint32_t reserved;
+  uint32_t mtime;  /* modification time (seconds since epoch) */
 } sbfs_inode_t;
 
 /* On-disk directory entry — 32 bytes. */
@@ -92,6 +97,17 @@ int64_t sbfs_create (const char *name, struct vnode_t *parent_dir, struct dentry
 int64_t sbfs_mkdir  (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
 int64_t sbfs_unlink (const char *name, struct vnode_t *parent_dir);
 int64_t sbfs_rmdir  (const char *name, struct vnode_t *parent_dir);
+int64_t sbfs_rename (const char *old_name, struct vnode_t *old_parent,
+                     const char *new_name, struct vnode_t *new_parent);
+int64_t sbfs_link   (const char *old_name, struct vnode_t *old_parent,
+                     const char *new_name, struct vnode_t *new_parent);
+int64_t sbfs_symlink (const char *target, const char *name, struct vnode_t *parent_dir,
+                      struct dentry_t **out);
+int64_t sbfs_readlink(struct vnode_t *vnode, char *buf, size_t size);
+int64_t sbfs_chmod   (struct vnode_t *vnode, uint32_t mode);
+
+/* superblock_ops */
+int64_t sbfs_statfs (struct superblock_t *sb, struct vfs_statfs *buf);
 
 /* address_space_ops */
 int64_t sbfs_fill_page (struct vnode_t *vnode, size_t offset, void **phys_page);

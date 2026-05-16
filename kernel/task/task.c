@@ -13,6 +13,7 @@
 #include "kernel/task/schedule.h"
 #include "kernel/signal_jump_point.h"
 #include "kernel/drivers/virtio-blk.h"
+#include "kernel/filesystem/pipefs/pipe.h"
 
 // Global task tracking
 struct task_t *current_task = NULL;  // Currently running task
@@ -59,10 +60,10 @@ void init_files(struct files_table_t *files_table) {
   struct files_list_t *files_list = files_list_t_alloc();
   files_list->used_file_bitmap = 1 | 1 << 1 | 1 << 2;  // Mark FDs 0, 1, 2 as used
 
-  struct file_t *stdin, *stdout, *stderr;
-  vfs_open("/dev/tty", O_RDONLY, &stdin);
-  vfs_open("/dev/tty", O_WRONLY, &stdout);
-  vfs_open("/dev/tty", O_WRONLY, &stderr);
+  struct file_t *stdin = NULL, *stdout = NULL, *stderr = NULL;
+  if (vfs_open("/dev/tty", O_RDONLY, &stdin)  < 0) debugk("init_files: failed to open stdin\n");
+  if (vfs_open("/dev/tty", O_WRONLY, &stdout) < 0) debugk("init_files: failed to open stdout\n");
+  if (vfs_open("/dev/tty", O_WRONLY, &stderr) < 0) debugk("init_files: failed to open stderr\n");
 
   files_list->files[0] = stdin;
   files_list->files[1] = stdout;
@@ -112,6 +113,7 @@ struct task_t *task_init() {
   // Initialize VMA list (empty circular list)
   task->mm_struct.vma_list.next = &task->mm_struct.vma_list;
   task->mm_struct.vma_list.prev = &task->mm_struct.vma_list;
+  task->mm_struct.heap_end = 0;
 
   init_files(&(task->file_table));
 
@@ -128,6 +130,8 @@ struct task_t *task_init() {
   task->wait_pid = 0;
   task->runtime = 0;
   task->max_runtime = MAX_RUNTIME;
+
+  list_init(&task->wait_list);
 
   // Initialize signal state
   init_signal_state(task);
@@ -204,6 +208,26 @@ struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr) {
     }
   }
   return NULL;
+}
+
+#define MMAP_BASE 0x10000000UL
+
+size_t find_free_vma(struct mm_struct_t *mm, size_t len) {
+  size_t candidate = MMAP_BASE;
+  bool found = false;
+  while (!found) {
+    found = true;
+    size_t candidate_end = candidate + len;
+    list_for_each(&mm->vma_list, pos) {
+      struct vma_t *vma = container_of(pos, struct vma_t, sibling_vma);
+      if (vma->end_addr <= candidate) continue;
+      if (vma->start_addr >= candidate_end) continue;
+      candidate = vma->end_addr;
+      found = false;
+      break;
+    }
+  }
+  return candidate;
 }
 
 int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
@@ -385,7 +409,26 @@ void copy_file_table(struct files_table_t *old_table, struct files_table_t *new_
       new_files_list->files[i] = old_files_list->files[i];
 
       if (old_files_list->files[i] != NULL) {
-        old_files_list->files[i]->refcount++;
+        struct file_t *f = old_files_list->files[i];
+        if (f->pipe != NULL) {
+          /* Give the child its own file_t so each end closes independently. */
+          struct file_t *child_file = file_t_alloc();
+          child_file->vnode          = NULL;
+          child_file->dentry         = NULL;
+          child_file->file_ops       = NULL;
+          child_file->offset         = 0;
+          child_file->refcount       = 1;
+          child_file->flags          = f->flags;
+          child_file->pipe           = f->pipe;
+          child_file->pipe_write_end = f->pipe_write_end;
+          if (f->pipe_write_end)
+            f->pipe->writer_count++;
+          else
+            f->pipe->reader_count++;
+          new_files_list->files[i] = child_file;
+        } else {
+          f->refcount++;
+        }
       }
     }
 
@@ -443,15 +486,18 @@ void reap_zombie(struct task_t *zombie) {
   debugk("reap_zombie: Removing from task list\n");
   list_remove(&zombie->task_list);
 
-  // Free kernel stack pages (4 pages at KERNEL_STACK_VIRTUAL_BASE)
+  // Free kernel stack pages and their page table nodes
   for (uint64_t va = KERNEL_STACK_VIRTUAL_BASE; va < KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE; va += DEFAULT_PAGE_SIZE) {
     uint64_t pte = get_pte(zombie->mm_struct.root_satp, va);
     if (pte & PTE_VALID) {
       void *phys_page = (void *)PTE_DECODE(pte);
       free_page(phys_page);
-      unmap_page(zombie->mm_struct.root_satp, va);
     }
+    unmap_page(zombie->mm_struct.root_satp, va);
   }
+
+  // Unmap signal jump point to free its intermediate page table nodes
+  unmap_page(zombie->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR);
 
   // Free the root page table itself
   free_page(zombie->mm_struct.root_satp);
@@ -467,8 +513,25 @@ void task_cleanup(int exit_status) {
   debugk("task_cleanup: clearing VMAs for PID %llu\n", current_task->pid);
   virtio_blk_cancel_task(current_task);
   clear_vmas(current_task);
+  /* Remove from any wait queue (e.g. pipe, TTY) before becoming a zombie
+   * so wake_up() never dereferences this task after it is freed. */
+  list_remove(&current_task->wait_list);
+
   debugk("task_cleanup: marking PID %llu as ZOMBIE\n", current_task->pid);
   current_task->state = TASK_ZOMBIE;
+
+  // Reparent any children to init (PID 1) and wake init if it's waiting
+  list_for_each(&task_list, pos) {
+    struct task_t *child = container_of(pos, struct task_t, task_list);
+    if (child->ppid == current_task->pid) {
+      child->ppid = 1;
+      if (child->state == TASK_ZOMBIE && init_task &&
+          init_task->state == TASK_BLOCKED &&
+          init_task->wait_reason == WAIT_CHILD) {
+        unblock_task(init_task);
+      }
+    }
+  }
 
   debugk("task_cleanup: looking for parent (PPID %llu)\n", current_task->ppid);
   struct task_t *parent = find_task_by_pid(current_task->ppid);
@@ -524,6 +587,9 @@ uint64_t fork_off() {
   new_task->mm_struct.root_satp = init_new_page_table();
   new_task->mm_struct.vma_list.next = &new_task->mm_struct.vma_list;
   new_task->mm_struct.vma_list.prev = &new_task->mm_struct.vma_list;
+  new_task->mm_struct.heap_end = current_task->mm_struct.heap_end;
+
+  list_init(&new_task->wait_list);
 
   fork_sig_copy(&new_task->signal_state);
 
@@ -574,6 +640,8 @@ struct file_t *find_file(struct files_table_t *file_table, int fd) {
       break;
     }
   }
+  debugk("[find_file] fd=%d -> file=%p vnode=%p\n",
+         fd, file, file ? file->vnode : (void*)0);
   return file;
 }
 
@@ -606,7 +674,20 @@ int alloc_fd(struct files_table_t *file_table, struct file_t *file) {
   files_list->used_file_bitmap |= (1 << fd);
   files_list->files[fd] = file;
 
+  debugk("[alloc_fd] pid=%llu fd=%d file=%p vnode=%p\n",
+         current_task ? current_task->pid : 9999ULL,
+         fd, file, file ? file->vnode : (void*)0);
+
   return fd;
+}
+
+struct dentry_t *task_dirfd_to_dentry(int dirfd) {
+  if (dirfd == AT_FDCWD)
+    return NULL;
+  struct file_t *f = find_file(&current_task->file_table, dirfd);
+  if (f == NULL)
+    return (struct dentry_t *)-1; /* invalid fd → caller returns -EBADF */
+  return f->dentry;
 }
 
 void clear_vmas(struct task_t *task) {
@@ -670,6 +751,8 @@ void close_all_files(struct task_t *task) {
       if (files_list->files[i] != NULL) {
         files_list->files[i]->refcount--;
         if (files_list->files[i]->refcount == 0) {
+          if (files_list->files[i]->pipe != NULL)
+            pipe_close(files_list->files[i]->pipe, files_list->files[i]->pipe_write_end);
           file_t_free(files_list->files[i]);
         }
         files_list->files[i] = NULL;

@@ -41,7 +41,7 @@ struct vnode_t *build_devfs(struct superblock_t *superblock) {
   struct vnode_t *root_vnode = vnode_t_alloc();
   uint32_t id = 0;
   vfs_init_vnode(root_vnode, superblock, id++);
-  root_vnode->permission_mode = RW_PERM | S_IFDIR;
+  root_vnode->permission_mode = S_IFDIR | 0777;
   
   struct vnode_t *tty_vnode = vnode_t_alloc();
   vfs_init_vnode(tty_vnode, superblock, id++);

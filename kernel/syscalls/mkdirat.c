@@ -5,8 +5,8 @@
 #include "kernel/user_data_access.h"
 #include "lib/string.h"
 #include "types.h"
+#include "errno.h"
 
-#define AT_FDCWD -100
 
 /* Split path into parent path and final component.
    e.g. "/mnt/foo" -> parent="/mnt", name="foo"
@@ -31,16 +31,20 @@ static void split_path(const char *path, char *parent, char *name) {
 }
 
 DEFINE_SYSCALL3(mkdirat, int, dirfd, const char *, user_path, uint32_t, mode) {
-  (void)dirfd; (void)mode;
+  (void)mode;
 
   char path[256];
   copy_string_from_user(path, user_path, 256);
+
+  struct dentry_t *start = task_dirfd_to_dentry(dirfd);
+  if (start == (struct dentry_t *)-1)
+    return -EBADF;
 
   char parent_path[256], name[256];
   split_path(path, parent_path, name);
 
   struct dentry_t *parent_dentry;
-  if (vfs_resolve_path(parent_path, &parent_dentry) < 0)
+  if (vfs_resolve_path_at(parent_path, start, &parent_dentry) < 0)
     return -1;
 
   struct vnode_t *parent_vnode = parent_dentry->vnode->mounted_vnode

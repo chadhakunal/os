@@ -26,11 +26,10 @@ static struct list_node disk_request_queue;
 int virtio_blk_init() {
     struct virtio_blk_device_config device_cfg  = *(struct virtio_blk_device_config *)platform.virtio_disk.device_cfg_mmio_reg;
     uint64_t sectors = device_cfg.capacity;
-    uint64_t bytes = sectors * SECTOR_BLOCK_SIZE;
+    uint64_t bytes   = sectors * SECTOR_BLOCK_SIZE;
+    (void)bytes;
 
-    printk("virtio-blk sectors: %llu\n", sectors);
-    printk("virtio-blk size bytes: %llu\n", bytes);
-    printk("virtio-blk size MiB: %llu\n", bytes / (1024 * 1024));
+    debugk("virtio-blk: %llu sectors, %llu MiB\n", sectors, bytes / (1024 * 1024));
 
     common = (struct virtio_pci_common_cfg *)platform.virtio_disk.common_cfg_mmio_reg;
     
@@ -56,7 +55,8 @@ int virtio_blk_init() {
     uint32_t features_hi = common->device_feature;
 
     uint64_t features = ((uint64_t)features_hi << 32) | features_lo;
-    printk("virtio device features = 0x%llx\n", features);
+    (void)features;
+    debugk("virtio device features = 0x%llx\n", features);
 
     uint64_t driver_features = (1ULL << VIRTIO_F_VERSION_1_FEATURE);
     common->driver_feature_select = 0;
@@ -74,10 +74,10 @@ int virtio_blk_init() {
 
     common->queue_select = 0;
     uint16_t max_qsize = common->queue_size;
-    printk("queue0 max size = %u\n", max_qsize);
+    debugk("queue0 max size = %u\n", max_qsize);
 
     if (max_qsize < QUEUE_SIZE) {
-        printk("queue too small\n");
+        printk("virtio-blk: queue too small (%u < %u)\n", max_qsize, QUEUE_SIZE);
         return -1;
     }
 
@@ -181,13 +181,19 @@ static int virtio_blk_submit(uint32_t type, uint64_t sector, void *buf, uint32_t
             .buf = buf, .num_sectors = num_sectors,
         };
         uint16_t last_used = base_virtq_used->idx;
+        debugk("[virtio] boot submit: type=%u sector=%llu last_used=%u\n",
+               type, sector, last_used);
         virtio_blk_hw_submit(&boot_req);
+        debugk("[virtio] hw submitted, expected_used=%u, spinning...\n",
+               virtio_expected_used_idx);
         uint64_t spin = 0;
         while (base_virtq_used->idx == last_used) {
             __sync_synchronize();
             if (++spin > 10000000ULL)
                 panic("virtio_blk: device did not respond");
         }
+        debugk("[virtio] boot complete after %llu spins, status=%u\n",
+               spin, (unsigned)*virtio_status_buf);
         disk_current = NULL;
         return (*virtio_status_buf != VIRTIO_BLK_S_OK) ? -1 : 0;
     }
@@ -242,7 +248,8 @@ void virtio_blk_poll(void) {
     struct disk_request_t *done = disk_current;
     disk_current = NULL;
     done->result = (*virtio_status_buf != VIRTIO_BLK_S_OK) ? -1 : 0;
-    unblock_task(done->waiter);
+    if (done->waiter != NULL)
+        unblock_task(done->waiter);
 
     /* Start the next queued request if any. */
     if (!list_is_empty(&disk_request_queue)) {

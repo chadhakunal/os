@@ -1,3 +1,4 @@
+#define DEBUG 0
 #include "kernel/filesystem/vfs/vfs.h"
 #include "lib/printk/printk.h"
 #include "kernel/filesystem/mode.h"
@@ -12,7 +13,7 @@ void vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id)
   vnode->vnode_ops = &sb->vnode_ops;
   vnode->file_ops = &sb->file_ops;
   vnode->id = id;
-  vnode->refcount = 1;
+  vnode->refcount = 0;
   vnode->owner_uid = 0;
   vnode->owner_gid = 0;
   vnode->permission_mode = 0;
@@ -24,10 +25,10 @@ void vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id)
 
 void vfs_print_vnode(struct vnode_t *vnode) {
   if (vnode == NULL) {
-    printk("[vnode: NULL]\n");
+    debugk("[vnode: NULL]\n");
     return;
   }
-  printk("[vnode id=%d, size=%lld, refcount=%d, uid=%d, gid=%d, mode=0x%x%s, fs_private=%p]\n",
+  debugk("[vnode id=%d, size=%lld, refcount=%d, uid=%d, gid=%d, mode=0x%x%s, fs_private=%p]\n",
          vnode->id,
          vnode->size,
          vnode->refcount,
@@ -43,8 +44,12 @@ int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t off
     panic("vfs_vnode_read: NULL parameter\n");
   }
 
+  debugk("[vfs_vnode_read] vnode=%p vnode->size=%llu offset=%zu req=%zu\n",
+         vnode, (unsigned long long)vnode->size, offset, size);
+
   // Handle EOF
   if (offset >= vnode->size) {
+    debugk("[vfs_vnode_read] returning 0 (EOF)\n");
     return 0;  // 0 bytes read = EOF
   }
 
@@ -83,36 +88,137 @@ int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t off
   return total_copied;
 }
 
+#define DIR_W_CHECK(dir) \
+  if ((dir) == NULL || !IS_DIR((dir)->permission_mode)) return -ENOTDIR; \
+  if (!((dir)->permission_mode & PERM_WUSR)) return -EACCES;
+
 int64_t vfs_create(const char *name, struct vnode_t *parent_dir, struct dentry_t **out) {
-  if (parent_dir == NULL || !IS_DIR(parent_dir->permission_mode))
-    return -ENOTDIR;
+  debugk("[vfs_create] name=%s parent_mode=0x%x\n", name, parent_dir ? parent_dir->permission_mode : 0);
+  DIR_W_CHECK(parent_dir);
   if (parent_dir->vnode_ops == NULL || parent_dir->vnode_ops->create == NULL)
     return -1;
   return parent_dir->vnode_ops->create(name, parent_dir, out);
 }
 
 int64_t vfs_mkdir(const char *name, struct vnode_t *parent_dir, struct dentry_t **out) {
-  if (parent_dir == NULL || !IS_DIR(parent_dir->permission_mode))
-    return -ENOTDIR;
+  debugk("[vfs_mkdir] name=%s parent_mode=0x%x\n", name, parent_dir ? parent_dir->permission_mode : 0);
+  DIR_W_CHECK(parent_dir);
   if (parent_dir->vnode_ops == NULL || parent_dir->vnode_ops->mkdir == NULL)
     return -1;
   return parent_dir->vnode_ops->mkdir(name, parent_dir, out);
 }
 
 int64_t vfs_unlink(const char *name, struct vnode_t *parent_dir) {
-  if (parent_dir == NULL || !IS_DIR(parent_dir->permission_mode))
-    return -ENOTDIR;
+  DIR_W_CHECK(parent_dir);
   if (parent_dir->vnode_ops == NULL || parent_dir->vnode_ops->unlink == NULL)
     return -1;
   return parent_dir->vnode_ops->unlink(name, parent_dir);
 }
 
 int64_t vfs_rmdir(const char *name, struct vnode_t *parent_dir) {
-  if (parent_dir == NULL || !IS_DIR(parent_dir->permission_mode))
-    return -ENOTDIR;
+  DIR_W_CHECK(parent_dir);
   if (parent_dir->vnode_ops == NULL || parent_dir->vnode_ops->rmdir == NULL)
     return -1;
   return parent_dir->vnode_ops->rmdir(name, parent_dir);
+}
+
+/* Remove a cached dentry by name from a vnode's children_dentries list. */
+void vfs_dentry_evict(struct vnode_t *parent_vnode, const char *name) {
+  struct list_node *pos = parent_vnode->children_dentries.next;
+  while (pos != &parent_vnode->children_dentries) {
+    struct dentry_t *d = container_of(pos, struct dentry_t, sibling_dentry);
+    pos = pos->next;
+    if (strncmp(d->name, name) == 0) {
+      list_remove(&d->sibling_dentry);
+      dentry_t_free(d);
+      return;
+    }
+  }
+}
+
+int64_t vfs_rename(const char *old_name, struct vnode_t *old_parent,
+                   const char *new_name, struct vnode_t *new_parent) {
+  if (old_parent == NULL || !IS_DIR(old_parent->permission_mode))
+    return -ENOTDIR;
+  if (new_parent == NULL || !IS_DIR(new_parent->permission_mode))
+    return -ENOTDIR;
+  if (!(old_parent->permission_mode & PERM_WUSR)) return -EACCES;
+  if (!(new_parent->permission_mode & PERM_WUSR)) return -EACCES;
+  if (old_parent->superblock != new_parent->superblock)
+    return -EXDEV;
+  if (old_parent->vnode_ops == NULL || old_parent->vnode_ops->rename == NULL)
+    return -1;
+
+  int64_t ret = old_parent->vnode_ops->rename(old_name, old_parent, new_name, new_parent);
+  if (ret == 0) {
+    vfs_dentry_evict(old_parent, old_name);
+    vfs_dentry_evict(new_parent, new_name);
+  }
+  return ret;
+}
+
+int64_t vfs_symlink(const char *target, const char *name,
+                    struct vnode_t *parent_dir, struct dentry_t **out) {
+  if (parent_dir == NULL || !IS_DIR(parent_dir->permission_mode))
+    return -ENOTDIR;
+  if (!(parent_dir->permission_mode & PERM_WUSR)) return -EACCES;
+  if (parent_dir->vnode_ops == NULL || parent_dir->vnode_ops->symlink == NULL)
+    return -1;
+  return parent_dir->vnode_ops->symlink(target, name, parent_dir, out);
+}
+
+int64_t vfs_readlink(struct vnode_t *vnode, char *buf, size_t size) {
+  if (vnode == NULL || !IS_LNK(vnode->permission_mode))
+    return -EINVAL;
+  if (vnode->vnode_ops == NULL || vnode->vnode_ops->readlink == NULL)
+    return -1;
+  return vnode->vnode_ops->readlink(vnode, buf, size);
+}
+
+int64_t vfs_link(const char *old_name, struct vnode_t *old_parent,
+                 const char *new_name, struct vnode_t *new_parent) {
+  if (old_parent == NULL || !IS_DIR(old_parent->permission_mode))
+    return -ENOTDIR;
+  if (new_parent == NULL || !IS_DIR(new_parent->permission_mode))
+    return -ENOTDIR;
+  if (!(new_parent->permission_mode & PERM_WUSR)) return -EACCES;
+  if (old_parent->superblock != new_parent->superblock)
+    return -EXDEV;
+  if (old_parent->vnode_ops == NULL || old_parent->vnode_ops->link == NULL)
+    return -1;
+  return old_parent->vnode_ops->link(old_name, old_parent, new_name, new_parent);
+}
+
+int64_t vfs_stat(struct vnode_t *vnode, struct vfs_stat *buf) {
+  if (vnode == NULL || buf == NULL)
+    return -1;
+  buf->st_ino   = vnode->id;
+  buf->st_mode  = vnode->permission_mode;
+  buf->st_nlink = 1;
+  buf->st_size  = vnode->size;
+  buf->st_mtime = vnode->mtime;
+  return 0;
+}
+
+int64_t vfs_chmod(struct vnode_t *vnode, uint32_t mode) {
+  if (vnode == NULL)
+    return -1;
+  if (vnode->vnode_ops == NULL || vnode->vnode_ops->chmod == NULL) {
+    /* For read-only or virtual filesystems, just update the in-memory vnode. */
+    uint32_t type_bits = vnode->permission_mode & S_IFMT;
+    vnode->permission_mode = type_bits | (mode & ~(uint32_t)S_IFMT);
+    return 0;
+  }
+  return vnode->vnode_ops->chmod(vnode, mode);
+}
+
+int64_t vfs_statfs(struct vnode_t *vnode, struct vfs_statfs *buf) {
+  if (vnode == NULL || buf == NULL)
+    return -1;
+  struct superblock_t *sb = vnode->superblock;
+  if (sb == NULL || sb->superblock_ops.statfs == NULL)
+    return -1;
+  return sb->superblock_ops.statfs(sb, buf);
 }
 
 int32_t vfs_vnode_write(struct vnode_t *vnode, const void *buf, size_t size, size_t offset) {
@@ -165,9 +271,64 @@ int32_t vfs_vnode_write(struct vnode_t *vnode, const void *buf, size_t size, siz
 int64_t vfs_readdir(struct vnode_t *dir, uint32_t index, struct dentry_t **out) {
   if (dir == NULL || !IS_DIR(dir->permission_mode))
     return -1;
+
+  /*
+   * Phase 1: serve entries from the in-memory children_dentries list.
+   * These are mount-point stubs (bin, etc, dev, proc, …) registered by
+   * vfs_init.  They must appear in readdir even when the underlying
+   * filesystem knows nothing about them.
+   */
+  uint32_t mem_count = 0;
+  list_for_each(&dir->children_dentries, pos) {
+    if (mem_count == index) {
+      *out = container_of(pos, struct dentry_t, sibling_dentry);
+      return 0;
+    }
+    mem_count++;
+  }
+
+  /*
+   * Phase 2: delegate to the filesystem's readdir for on-disk entries,
+   * skipping any name that is already covered by a children_dentries stub
+   * so that mount points are never reported twice.
+   */
   if (dir->vnode_ops == NULL || dir->vnode_ops->readdir == NULL)
     return -1;
-  return dir->vnode_ops->readdir(dir, index, out);
+
+  uint32_t fs_index = index - mem_count;
+  uint32_t fs_scanned = 0;
+
+  while (1) {
+    struct dentry_t *candidate = NULL;
+    int64_t ret = dir->vnode_ops->readdir(dir, fs_scanned, &candidate);
+    if (ret < 0 || candidate == NULL)
+      return -1;
+
+    /* Skip if this name is already exposed via children_dentries. */
+    bool shadowed = false;
+    list_for_each(&dir->children_dentries, pos) {
+      struct dentry_t *stub = container_of(pos, struct dentry_t, sibling_dentry);
+      if (strncmp(stub->name, candidate->name) == 0) {
+        shadowed = true;
+        break;
+      }
+    }
+
+    if (!shadowed) {
+      if (fs_index == 0) {
+        *out = candidate;
+        return 0;
+      }
+      fs_index--;
+    } else {
+      /* Free the ephemeral dentry if it was freshly allocated by the FS
+       * (vnode == NULL is the convention used by sbfs_readdir). */
+      if (candidate->vnode == NULL)
+        dentry_t_free(candidate);
+    }
+
+    fs_scanned++;
+  }
 }
 
 int32_t vfs_lookup(const char *name, struct dentry_t *parent_dentry, struct dentry_t **out) {

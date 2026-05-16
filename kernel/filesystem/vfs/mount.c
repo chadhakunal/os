@@ -35,57 +35,136 @@ int32_t vfs_mount(char *path, struct superblock_t *superblock) {
   return 0;
 }
 
+/*
+ * Add an in-memory directory stub to a parent vnode's children_dentries list
+ * and point it at a target vnode via mounted_vnode.  This is how mount points
+ * for tarfs subtrees, devfs, and procfs are grafted onto the sbfs root without
+ * those filesystems needing to know about each other.
+ */
+static void add_mount_stub(struct superblock_t *alloc_sb,
+                            struct vnode_t *parent_vnode,
+                            struct dentry_t *parent_dentry,
+                            const char *name,
+                            struct vnode_t *target_vnode) {
+  struct vnode_t *stub = tarfs_alloc_vnode(alloc_sb);
+  stub->permission_mode = READ_EXECUTE_PERM | S_IFDIR;
+  stub->mounted_vnode   = target_vnode;
+
+  struct dentry_t *de = dentry_t_alloc();
+  strncpy(de->name, name, 256);
+  de->vnode  = stub;
+  de->parent = parent_dentry;
+  list_append(&parent_vnode->children_dentries, &de->sibling_dentry);
+}
+
 void vfs_init() {
-  // Here we will be mounting tarfs as the root fs
-  // Initialize mount list
   mount_list.next = &mount_list;
   mount_list.prev = &mount_list;
+
+  /* Always build the tarfs tree — it holds /bin and /etc content. */
+  struct superblock_t *tarfs_sb = tarfs_mount((void *)_tarfs_start, (uint64_t)_tarfs_size);
 
   base_mount = mount_t_alloc();
   base_mount->root_path[0] = '/';
   base_mount->root_path[1] = '\0';
-  base_mount->superblock = tarfs_mount((void *) _tarfs_start, (uint64_t) _tarfs_size);
-
-  // Add to mount list
   list_append(&mount_list, &base_mount->sibling_mount);
 
-  // Mount devfs at /dev
-  struct vnode_t *dev_vnode = tarfs_alloc_vnode(base_mount->superblock);
-  struct dentry_t *dentry = dentry_t_alloc();
-  strncpy(dentry->name, "dev", 256);
-  dentry->vnode = dev_vnode;
-  dentry->parent = base_mount->superblock->root_dentry;
-  list_append(&base_mount->superblock->root_vnode->children_dentries, &dentry->sibling_dentry);
-  struct superblock_t *devfs_sb = devfs_mount();
-  vfs_mount("/dev", devfs_sb);
-
-  // Create /mnt mountpoint in the root tarfs tree
-  struct vnode_t *mnt_vnode = tarfs_alloc_vnode(base_mount->superblock);
-  mnt_vnode->permission_mode = RW_PERM | S_IFDIR;
-  struct dentry_t *mnt_dentry = dentry_t_alloc();
-  strncpy(mnt_dentry->name, "mnt", 256);
-  mnt_dentry->vnode = mnt_vnode;
-  mnt_dentry->parent = base_mount->superblock->root_dentry;
-  list_append(&base_mount->superblock->root_vnode->children_dentries, &mnt_dentry->sibling_dentry);
-
-  // Create /proc mountpoint and mount procfs
-  struct vnode_t *proc_vnode = tarfs_alloc_vnode(base_mount->superblock);
-  proc_vnode->permission_mode = READ_EXECUTE_PERM | S_IFDIR;
-  struct dentry_t *proc_dentry = dentry_t_alloc();
-  strncpy(proc_dentry->name, "proc", 256);
-  proc_dentry->vnode = proc_vnode;
-  proc_dentry->parent = base_mount->superblock->root_dentry;
-  list_append(&base_mount->superblock->root_vnode->children_dentries, &proc_dentry->sibling_dentry);
-  struct superblock_t *proc_sb = procfs_mount();
-  vfs_mount("/proc", proc_sb);
-  printk("Mounted procfs at /proc\n");
-
-  // Mount sbfs at /mnt
+  /* Try to bring up the disk. */
   struct superblock_t *sbfs_sb = sbfs_mount();
-  if (sbfs_sb != NULL) {
-    vfs_mount("/mnt", sbfs_sb);
-    printk("Mounted sbfs at /mnt\n");
-  } else {
-    printk("sbfs mount failed\n");
+
+  if (sbfs_sb == NULL) {
+    /*
+     * Fallback: no disk available — tarfs stays as root, same as before.
+     * Wire dev and proc stubs directly into the tarfs tree.
+     */
+    printk("vfs: sbfs unavailable, using tarfs as root\n");
+    base_mount->superblock = tarfs_sb;
+
+    add_mount_stub(tarfs_sb, tarfs_sb->root_vnode, tarfs_sb->root_dentry,
+                   "dev", devfs_mount()->root_vnode);
+    add_mount_stub(tarfs_sb, tarfs_sb->root_vnode, tarfs_sb->root_dentry,
+                   "proc", procfs_mount()->root_vnode);
+    return;
   }
+
+  /*
+   * Normal path: sbfs is the root filesystem.
+   * Make the sbfs root dentry self-referential so that vfs_dentry_get_path
+   * recognises it as the root (same convention as tarfs uses).
+   */
+  sbfs_sb->root_dentry->parent = sbfs_sb->root_dentry;
+  base_mount->superblock = sbfs_sb;
+
+  /* Find the tarfs bin/ and etc/ vnodes to graft them onto the sbfs root. */
+  struct vnode_t *tarfs_bin = NULL;
+  struct vnode_t *tarfs_etc = NULL;
+  list_for_each(&tarfs_sb->root_vnode->children_dentries, pos) {
+    struct dentry_t *d = container_of(pos, struct dentry_t, sibling_dentry);
+    if (strncmp(d->name, "bin") == 0) tarfs_bin = d->vnode;
+    if (strncmp(d->name, "etc") == 0) tarfs_etc = d->vnode;
+  }
+
+  struct vnode_t *root  = sbfs_sb->root_vnode;
+  struct dentry_t *root_de = sbfs_sb->root_dentry;
+
+  if (tarfs_bin) add_mount_stub(tarfs_sb, root, root_de, "bin", tarfs_bin);
+  if (tarfs_etc) add_mount_stub(tarfs_sb, root, root_de, "etc", tarfs_etc);
+
+  add_mount_stub(tarfs_sb, root, root_de, "dev",  devfs_mount()->root_vnode);
+  add_mount_stub(tarfs_sb, root, root_de, "proc", procfs_mount()->root_vnode);
+
+  printk("vfs: sbfs at /, bin/etc from tarfs, dev/proc virtual\n");
+}
+
+/* Flush all dirty page-cache pages in one vnode. */
+static void sync_vnode(struct vnode_t *vnode) {
+  if (vnode == NULL || vnode->address_space == NULL)
+    return;
+
+  struct address_space_ops_t *as_ops = vnode->address_space->address_space_ops;
+  if (as_ops == NULL || as_ops->write_page == NULL)
+    return;
+
+  list_for_each(&vnode->address_space->page_cache_list, pos) {
+    struct page_cache_entry_t *entry =
+      container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
+    if (entry->dirty) {
+      as_ops->write_page(vnode, entry->offset, entry->physical_page);
+      entry->dirty = false;
+    }
+  }
+}
+
+/* Recursively flush every vnode reachable from dentry. */
+static void sync_dentry_tree(struct dentry_t *dentry, int depth) {
+  if (dentry == NULL || depth > 32)
+    return;
+
+  struct vnode_t *vnode = dentry->vnode;
+  if (vnode == NULL)
+    return;
+
+  /* Flush the real vnode (follow mounted_vnode if present). */
+  struct vnode_t *effective = vnode->mounted_vnode ? vnode->mounted_vnode : vnode;
+  sync_vnode(effective);
+
+  /* Recurse into in-memory children. */
+  list_for_each(&effective->children_dentries, pos) {
+    struct dentry_t *child = container_of(pos, struct dentry_t, sibling_dentry);
+    sync_dentry_tree(child, depth + 1);
+  }
+}
+
+void vfs_sync_all(void) {
+  printk("vfs: syncing all dirty pages to disk...\n");
+
+  /* Walk every mounted filesystem's dentry tree. */
+  list_for_each(&mount_list, pos) {
+    struct mount_t *mount = container_of(pos, struct mount_t, sibling_mount);
+    if (mount->superblock == NULL || mount->superblock->root_dentry == NULL)
+      continue;
+    sync_dentry_tree(mount->superblock->root_dentry, 0);
+  }
+
+  printk("vfs: sync complete\n");
 }
