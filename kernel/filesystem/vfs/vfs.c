@@ -140,6 +140,8 @@ struct file_t *vfs_init_file(struct vnode_t *vnode, int flags) {
   file->offset = 0;
   file->refcount = 1;
   file->flags = flags;
+  file->pipe = NULL;
+  file->pipe_write_end = 0;
   vnode->refcount++;
   return file;
 }
