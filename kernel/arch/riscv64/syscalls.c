@@ -50,6 +50,16 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_close(tf);
       break;
 
+    case SYS_truncate:
+      debugk("syscall: truncate(path=%llx, length=%lld)\n", tf->a0, (int64_t)tf->a1);
+      ret = sys_truncate(tf);
+      break;
+
+    case SYS_ftruncate:
+      debugk("syscall: ftruncate(fd=%llu, length=%lld)\n", tf->a0, (int64_t)tf->a1);
+      ret = sys_ftruncate(tf);
+      break;
+
     case SYS_lseek:
       debugk("syscall: lseek(fd=%llu, offset=%lld, whence=%llu)\n", tf->a0, (int64_t)tf->a1, tf->a2);
       ret = sys_lseek(tf);
@@ -208,6 +218,11 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_pipe(tf);
       break;
       
+    case SYS_fstat:
+      debugk("syscall: fstat(fd=%llu, buf=%llx)\n", tf->a0, tf->a1);
+      ret = sys_fstat(tf);
+      break;
+
     case SYS_fstatat:
       debugk("syscall: fstatat(dirfd=%lld, path=%llx, buf=%llx, flags=%lld)\n",
              (int64_t)tf->a0, tf->a1, tf->a2, (int64_t)tf->a3);

@@ -1,0 +1,4 @@
+# Vendored from upstream; run: make -C thirdparty os-tests-sortix-clone
+basic/
+misc/
+ostest/

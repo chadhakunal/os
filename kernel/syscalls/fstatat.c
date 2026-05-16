@@ -16,16 +16,18 @@ DEFINE_SYSCALL4(fstatat,
                 struct vfs_stat *, user_buf,
                 int,              flags)
 {
-  (void)flags;
-
   char path[MAX_PATH_COPY];
   copy_string_from_user(path, user_path, MAX_PATH_COPY);
 
   struct dentry_t *start = task_dirfd_to_dentry(dirfd);
   if (start == (struct dentry_t *)-1) return -EBADF;
 
+  uint32_t resolve_flags = VFS_RESOLVE_FOLLOW_ALL;
+  if (flags & 0x100) /* AT_SYMLINK_NOFOLLOW */
+    resolve_flags = VFS_RESOLVE_NOFOLLOW_FINAL;
+
   struct dentry_t *dentry;
-  if (vfs_resolve_path_at(path, start, &dentry) < 0) {
+  if (vfs_resolve_path_at(path, start, &dentry, resolve_flags) < 0) {
     return -ENOENT;
   }
 

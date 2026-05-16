@@ -1,9 +1,9 @@
+#include <arch/riscv64/syscall.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
-#include <types.h>
-#include <stddef.h>
 #include <time.h>
+#include <stdint.h>
 
 char *getcwd(char *buf, size_t size) {
   if (buf == NULL) {
@@ -174,6 +174,10 @@ int pipe(int pipefd[2]) {
   return syscall1(SYS_pipe, pipefd);
 }
 
+int fstat(int fd, struct stat *buf) {
+  return syscall2(SYS_fstat, (uint64_t)(int64_t)fd, (uint64_t)buf);
+}
+
 int fstatat(int dirfd, const char *path, struct stat *buf, int flags) {
   return syscall4(SYS_fstatat, (uint64_t)(int64_t)dirfd,
                   (uint64_t)path, (uint64_t)buf, (uint64_t)flags);
@@ -183,8 +187,20 @@ int stat(const char *path, struct stat *buf) {
   return fstatat(AT_FDCWD, path, buf, 0);
 }
 
+int lstat(const char *path, struct stat *buf) {
+  return fstatat(AT_FDCWD, path, buf, AT_SYMLINK_NOFOLLOW);
+}
+
 int chmod(const char *path, unsigned int mode) {
   return syscall2(SYS_chmod, (uint64_t)path, (uint64_t)mode);
+}
+
+int truncate(const char *path, off_t length) {
+  return syscall2(SYS_truncate, (uint64_t)path, (uint64_t)length);
+}
+
+int ftruncate(int fd, off_t length) {
+  return syscall2(SYS_ftruncate, (uint64_t)(int64_t)fd, (uint64_t)length);
 }
 
 int reboot(int cmd) {

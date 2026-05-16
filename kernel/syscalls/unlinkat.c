@@ -43,7 +43,8 @@ DEFINE_SYSCALL3(unlinkat, int, dirfd, const char *, user_path, int, flags) {
   split_path(path, parent_path, name);
 
   struct dentry_t *parent_dentry;
-  if (vfs_resolve_path_at(parent_path, start, &parent_dentry) < 0)
+  if (vfs_resolve_path_at(parent_path, start, &parent_dentry,
+                          VFS_RESOLVE_FOLLOW_ALL) < 0)
     return -1;
 
   struct vnode_t *parent_vnode = parent_dentry->vnode->mounted_vnode

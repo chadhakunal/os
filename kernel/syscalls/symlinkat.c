@@ -45,7 +45,8 @@ DEFINE_SYSCALL3(symlinkat,
   split_path(linkpath, parent_path, name);
 
   struct dentry_t *parent_dentry;
-  if (vfs_resolve_path_at(parent_path, start, &parent_dentry) < 0) {
+  if (vfs_resolve_path_at(parent_path, start, &parent_dentry,
+                          VFS_RESOLVE_FOLLOW_ALL) < 0) {
     debugk("symlinkat: parent '%s' not found\n", parent_path);
     return -ENOENT;
   }
