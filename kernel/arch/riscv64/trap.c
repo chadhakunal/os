@@ -16,6 +16,12 @@ void trap_handler(struct trap_frame *tf) {
   bool is_interrupt = (tf->scause >> 63) & 1;
   extern void trap_return(struct trap_frame *tf);
 
+  printk("[trap] scause=0x%llx cause=%llu is_int=%d SPP=%d sepc=0x%llx sp=0x%llx pid=%llu\n",
+         tf->scause, cause_code, (int)is_interrupt,
+         !!(tf->sstatus & SSTATUS_SPP),
+         tf->sepc, tf->sp,
+         current_task ? current_task->pid : 0xDEADULL);
+
   if (is_interrupt) {
     switch (cause_code) {
       case 1:
@@ -24,9 +30,11 @@ void trap_handler(struct trap_frame *tf) {
       case 5:
         trap_timer_handler(tf);
         if (tf->sstatus & SSTATUS_SPP) {
+          printk("[trap] timer from kernel, returning to kernel sepc=0x%llx\n", tf->sepc);
           return;
         }
-        // Sanity check trap frame before returning
+        printk("[trap] timer -> trap_return sepc=0x%llx sp=0x%llx pid=%llu\n",
+               current_task->tf.sepc, current_task->tf.sp, current_task->pid);
         if (current_task->tf.sepc == 0 || current_task->tf.sp == 0) {
           panic("trap_handler: Timer interrupt - corrupted trap frame! sepc=%llx sp=%llx pid=%llu",
                 current_task->tf.sepc, current_task->tf.sp, current_task->pid);
@@ -47,8 +55,11 @@ void trap_handler(struct trap_frame *tf) {
           plic_complete(irq);
 
         if (tf->sstatus & SSTATUS_SPP) {
+          printk("[trap] ext IRQ from kernel, returning to kernel sepc=0x%llx\n", tf->sepc);
           return;
         }
+        printk("[trap] ext IRQ -> trap_return sepc=0x%llx sp=0x%llx pid=%llu\n",
+               current_task->tf.sepc, current_task->tf.sp, current_task->pid);
         trap_return(&current_task->tf);
         break;
       }
