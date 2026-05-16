@@ -69,6 +69,16 @@ char *strncpy(char *dst, const char *src, size_t n) {
   return dst;
 }
 
+int memcmp(const void *s1, const void *s2, size_t n) {
+  const uint8_t *a = (const uint8_t *)s1;
+  const uint8_t *b = (const uint8_t *)s2;
+  for (size_t i = 0; i < n; i++) {
+    if (a[i] != b[i])
+      return a[i] - b[i];
+  }
+  return 0;
+}
+
 char *strchr(const char *s, int c) {
   while (*s != '\0') {
     if (*s == (char)c) {
