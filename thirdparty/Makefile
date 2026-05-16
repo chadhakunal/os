@@ -33,7 +33,7 @@ $(RC_TESTS:%=$(BINDIR)/%):
 OSTEST_TMP ?= /tmp/os-test
 OSTEST_URL ?= https://gitlab.com/sortix/os-test.git
 OSTEST_DIR := os-tests-sortix
-OSTEST_TESTS ?= "string"
+OSTEST_TESTS ?= ""
 OSTEST_BASE := $(ROOT)/thirdparty/os-tests-sortix/ostest
 OSTEST_INSTALL_DIR := $(ROOT)/build/rootfs/bin/os-tests-sortix
 
