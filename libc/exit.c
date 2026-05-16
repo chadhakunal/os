@@ -1,5 +1,5 @@
+#include <arch/riscv64/syscall.h>
 #include <stdlib.h>
-#include <unistd.h>
 
 void exit(int status) {
   syscall1(SYS_exit, status);

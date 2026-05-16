@@ -1,5 +1,5 @@
+#include <arch/riscv64/syscall.h>
 #include <sys/mman.h>
-#include <unistd.h>
 
 void *mmap(void *addr, unsigned long len, int prot, int flags, int fd, long offset) {
   long ret = syscall6(SYS_mmap, addr, len, prot, flags, fd, offset);

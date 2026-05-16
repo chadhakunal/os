@@ -1,10 +1,9 @@
+#include <arch/riscv64/syscall.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <fcntl.h>
 #include <dirent.h>
-#include <types.h>
-#include <stddef.h>
 #include <time.h>
+#include <stdint.h>
 
 char *getcwd(char *buf, size_t size) {
   if (buf == NULL) {

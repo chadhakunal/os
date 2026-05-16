@@ -1,5 +1,5 @@
+#include <arch/riscv64/syscall.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <stdarg.h>
 
 int open(const char *pathname, int flags, ...) {
