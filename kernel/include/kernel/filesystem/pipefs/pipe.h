@@ -5,7 +5,7 @@
 #include "lib/pool_allocator.h"
 #include "lib/list.h"
 
-#define PIPE_BUF_SIZE 4096
+#define PIPE_BUF_SIZE 2048
 
 struct pipe_t {
   uint8_t          buf[PIPE_BUF_SIZE];
