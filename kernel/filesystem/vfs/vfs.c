@@ -13,7 +13,7 @@
 
 #define SYMLINK_FOLLOW_MAX 40
 
-int32_t vfs_resolve_path_at(const char *path, struct dentry_t *start, struct dentry_t **out) {
+int32_t vfs_resolve_path_at(const char *path, struct dentry_t *start, struct dentry_t **out, uint32_t resolve_flags) {
   debugk("[vfs_resolve_path_at] path=%s\n", path);
   debugk("vfs_resolve_path_at: path=%s\n", path);
 
@@ -74,6 +74,10 @@ restart:;
                           ? curr_dentry->vnode->mounted_vnode
                           : curr_dentry->vnode;
       if (IS_LNK(v->permission_mode)) {
+        bool is_final = (*current_path == '\0');
+        if (is_final && (resolve_flags & VFS_RESOLVE_NOFOLLOW_FINAL))
+          ; /* stat/lstat on symlink: leave dentry at the link itself */
+        else {
         if (++follow_count > SYMLINK_FOLLOW_MAX)
           return -ELOOP;
 
@@ -100,6 +104,7 @@ restart:;
         /* Relative symlinks resolve from the symlink's parent directory. */
         start = (work[0] == '/') ? NULL : curr_dentry->parent;
         goto restart;
+        }
       }
     }
     name_len = str_tok_no_delim(&current_path, current_name, '/', 256);
@@ -111,7 +116,7 @@ restart:;
 }
 
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out) {
-  return vfs_resolve_path_at(path, NULL, out);
+  return vfs_resolve_path_at(path, NULL, out, VFS_RESOLVE_FOLLOW_ALL);
 }
 
 
@@ -261,6 +266,25 @@ void vfs_address_space_inc_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_
         entry->refcount++;
         break;
       }
+    }
+  }
+}
+
+void vfs_flush_dirty_pages(struct vnode_t *vnode) {
+  if (vnode == NULL || vnode->address_space == NULL)
+    return;
+
+  struct address_space_ops_t *as_ops =
+      vnode->address_space->address_space_ops;
+  if (as_ops == NULL || as_ops->write_page == NULL)
+    return;
+
+  list_for_each(&vnode->address_space->page_cache_list, pos) {
+    struct page_cache_entry_t *entry =
+        container_of(pos, struct page_cache_entry_t, sibling_page_cache_entry);
+    if (entry->dirty) {
+      as_ops->write_page(vnode, entry->offset, entry->physical_page);
+      entry->dirty = false;
     }
   }
 }

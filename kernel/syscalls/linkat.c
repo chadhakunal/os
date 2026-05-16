@@ -50,7 +50,8 @@ DEFINE_SYSCALL5(linkat,
   split_path(old_path, old_parent_path, old_name);
 
   struct dentry_t *old_parent_dentry;
-  if (vfs_resolve_path_at(old_parent_path, old_start, &old_parent_dentry) < 0) {
+  if (vfs_resolve_path_at(old_parent_path, old_start, &old_parent_dentry,
+                          VFS_RESOLVE_FOLLOW_ALL) < 0) {
     debugk("linkat: old parent '%s' not found\n", old_parent_path);
     return -ENOENT;
   }
@@ -62,7 +63,8 @@ DEFINE_SYSCALL5(linkat,
   split_path(new_path, new_parent_path, new_name);
 
   struct dentry_t *new_parent_dentry;
-  if (vfs_resolve_path_at(new_parent_path, new_start, &new_parent_dentry) < 0) {
+  if (vfs_resolve_path_at(new_parent_path, new_start, &new_parent_dentry,
+                          VFS_RESOLVE_FOLLOW_ALL) < 0) {
     debugk("linkat: new parent '%s' not found\n", new_parent_path);
     return -ENOENT;
   }

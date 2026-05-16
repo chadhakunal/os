@@ -92,12 +92,14 @@ int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t off
   if ((dir) == NULL || !IS_DIR((dir)->permission_mode)) return -ENOTDIR; \
   if (!((dir)->permission_mode & PERM_WUSR)) return -EACCES;
 
-int64_t vfs_create(const char *name, struct vnode_t *parent_dir, struct dentry_t **out) {
-  debugk("[vfs_create] name=%s parent_mode=0x%x\n", name, parent_dir ? parent_dir->permission_mode : 0);
+int64_t vfs_create(const char *name, struct vnode_t *parent_dir,
+                   struct dentry_t **out, uint32_t mode) {
+  debugk("[vfs_create] name=%s parent_mode=0x%x mode=0%o\n",
+         name, parent_dir ? parent_dir->permission_mode : 0, mode);
   DIR_W_CHECK(parent_dir);
   if (parent_dir->vnode_ops == NULL || parent_dir->vnode_ops->create == NULL)
     return -1;
-  return parent_dir->vnode_ops->create(name, parent_dir, out);
+  return parent_dir->vnode_ops->create(name, parent_dir, out, mode);
 }
 
 int64_t vfs_mkdir(const char *name, struct vnode_t *parent_dir, struct dentry_t **out) {
@@ -210,6 +212,24 @@ int64_t vfs_chmod(struct vnode_t *vnode, uint32_t mode) {
     return 0;
   }
   return vnode->vnode_ops->chmod(vnode, mode);
+}
+
+int64_t vfs_truncate(struct vnode_t *vnode, uint64_t new_size) {
+  if (vnode == NULL)
+    return -EINVAL;
+  if (IS_DIR(vnode->permission_mode))
+    return -EISDIR;
+  if (!(vnode->permission_mode & PERM_WUSR))
+    return -EACCES;
+  if (vnode->vnode_ops == NULL || vnode->vnode_ops->truncate == NULL)
+    return -EINVAL;
+  /* Push cached writes to disk before shrinking the file or dropping cache. */
+  vfs_flush_dirty_pages(vnode);
+  int64_t ret = vnode->vnode_ops->truncate(vnode, new_size);
+  if (ret < 0)
+    return ret;
+  vfs_invalidate_page_cache(vnode);
+  return 0;
 }
 
 int64_t vfs_statfs(struct vnode_t *vnode, struct vfs_statfs *buf) {

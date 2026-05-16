@@ -33,6 +33,7 @@ void kmain(void *dtb_ptr) {
   print_memory_info();
   init_page_allocator();
   print_pages_metadata();
+  printk("boot: init_kernel_page_mapping\n");
   init_kernel_page_mapping();
 
   // Jump to higher-half execution
@@ -45,6 +46,7 @@ void kmain(void *dtb_ptr) {
                : [off] "r"(offset)
                : "t0", "memory");
 
+  printk("boot: remove_identity_mapping\n");
   remove_identity_mapping();
 
   printk("Initialized Paging, Virtual Memory and Moved Kernel to Upper Region\n");

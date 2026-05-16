@@ -28,6 +28,10 @@
 #define VFS_PAGE_NOREF  0x0000
 #define VFS_PAGE_REF    0x0001
 
+/* vfs_resolve_path_at flags (AT_SYMLINK_NOFOLLOW == 0x100 on Linux) */
+#define VFS_RESOLVE_FOLLOW_ALL        0
+#define VFS_RESOLVE_NOFOLLOW_FINAL    0x100
+
 /* superblock_t flags */
 #define SB_NODENTRY_CACHE  0x0001  /* don't cache vnode_ops->lookup results in children_dentries */
 
@@ -58,7 +62,8 @@ struct file_ops_t {
 struct vnode_ops_t {
   int64_t (*lookup)   (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
   int64_t (*readdir)  (struct vnode_t *dir, uint32_t index, struct dentry_t **out);
-  int64_t (*create)   (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
+  int64_t (*create)   (const char *name, struct vnode_t *parent_dir,
+                       struct dentry_t **out, uint32_t mode);
   int64_t (*mkdir)    (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
   int64_t (*unlink)   (const char *name, struct vnode_t *parent_dir);
   int64_t (*rmdir)    (const char *name, struct vnode_t *parent_dir);
@@ -211,12 +216,14 @@ int64_t vfs_dentry_get_path(struct dentry_t *dentry, char *buf, size_t size);
 
 /* Path resolution */
 int32_t vfs_resolve_path(const char *path, struct dentry_t **out);
-int32_t vfs_resolve_path_at(const char *path, struct dentry_t *start, struct dentry_t **out);
+int32_t vfs_resolve_path_at(const char *path, struct dentry_t *start,
+                            struct dentry_t **out, uint32_t resolve_flags);
 int32_t vfs_lookup(const char *name, struct dentry_t *parent_dentry, struct dentry_t **out);
 
 /* Directory operations */
 int64_t vfs_readdir(struct vnode_t *dir, uint32_t index, struct dentry_t **out);
-int64_t vfs_create(const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
+int64_t vfs_create(const char *name, struct vnode_t *parent_dir,
+                   struct dentry_t **out, uint32_t mode);
 int64_t vfs_mkdir(const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
 int64_t vfs_unlink(const char *name, struct vnode_t *parent_dir);
 int64_t vfs_rmdir(const char *name, struct vnode_t *parent_dir);
@@ -227,8 +234,9 @@ int64_t vfs_link    (const char *old_name, struct vnode_t *old_parent,
 int64_t vfs_symlink (const char *target, const char *name,
                      struct vnode_t *parent_dir, struct dentry_t **out);
 int64_t vfs_readlink(struct vnode_t *vnode, char *buf, size_t size);
-int64_t vfs_stat    (struct vnode_t *vnode, struct vfs_stat *buf);
-int64_t vfs_chmod   (struct vnode_t *vnode, uint32_t mode);
+int64_t vfs_stat     (struct vnode_t *vnode, struct vfs_stat *buf);
+int64_t vfs_chmod    (struct vnode_t *vnode, uint32_t mode);
+int64_t vfs_truncate (struct vnode_t *vnode, uint64_t new_size);
 void    vfs_dentry_evict(struct vnode_t *parent_vnode, const char *name);
 
 /* Filesystem statistics */
@@ -250,6 +258,7 @@ int32_t vfs_vnode_read(struct vnode_t *vnode, void *buf, size_t size, size_t off
 int32_t vfs_vnode_write(struct vnode_t *vnode, const void *buf, size_t size, size_t offset);
 void    vfs_address_space_inc_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space);
 void    vfs_address_space_drop_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space);
+void    vfs_flush_dirty_pages(struct vnode_t *vnode);
 void    vfs_invalidate_page_cache(struct vnode_t *vnode);
 
 #endif

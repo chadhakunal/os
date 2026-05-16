@@ -474,7 +474,7 @@ int64_t sbfs_readdir(struct vnode_t *dir, uint32_t index, struct dentry_t **out)
   return -ENOENT;
 }
 
-int64_t sbfs_create(const char *name, struct vnode_t *parent_dir, struct dentry_t **out) {
+int64_t sbfs_create(const char *name, struct vnode_t *parent_dir, struct dentry_t **out, uint32_t mode) {
   struct sbfs_superblock_t *sb = (struct sbfs_superblock_t *)parent_dir->superblock->private_data;
   struct sbfs_vnode_t      *sv = (struct sbfs_vnode_t *)parent_dir->fs_private_vnode;
   sbfs_inode_t *parent_inode = sbfs_get_inode(sb, sv->inode_num);
@@ -487,7 +487,7 @@ int64_t sbfs_create(const char *name, struct vnode_t *parent_dir, struct dentry_
 
   sbfs_inode_t *inode = sbfs_get_inode(sb, (uint32_t)ino);
   memset(inode, 0, sb->inode_size);
-  inode->mode   = SBFS_MODE_FILE;
+  inode->mode   = S_IFREG | (mode & 0777);
   inode->nlinks = 1;
   inode->mtime  = (uint32_t)rtc_read_time_sec();
   sbfs_flush_inode(sb, (uint32_t)ino);

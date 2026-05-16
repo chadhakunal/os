@@ -238,7 +238,17 @@ void map_identity() {
 }
 
 void unmap_identity() {
-  unmap_pages(root_page_table, memory_info.kernel_start, memory_info.kernel_end);
+  /*
+   * Drop the temporary identity map: clear root VPN[2] slot(s) for
+   * [kernel_start, kernel_end). Do not use unmap_page()/free_page() here —
+   * that walks every 4 KiB and zeros freed page-table frames (very slow).
+   */
+  page_table_t *root = (page_table_t *)PHYS_TO_VIRT(root_page_table);
+  uint64_t pt1_start = PT1_OFFSET(memory_info.kernel_start);
+  uint64_t pt1_end = PT1_OFFSET(memory_info.kernel_end - 1);
+
+  for (uint64_t i = pt1_start; i <= pt1_end; i++)
+    root->page_table_entries[i] = 0;
 }
 
 void remove_identity_mapping() {
@@ -287,12 +297,18 @@ static void map_devices(void) {
 }
 
 void init_kernel_page_mapping() {
+  printk("boot: allocate root page table\n");
   allocate_root_page_table();
+  printk("boot: map identity + kernel\n");
   map_identity();
   map_kernel();
+  printk("boot: map all physical RAM (~%llu MiB, slow)\n",
+         memory_info.total_memory_size / (1024 * 1024));
   map_phys();  /* Map all physical RAM for accessing page tables and other phys mem */
+  printk("boot: map devices\n");
   map_devices();  /* Map MMIO devices */
 
+  printk("boot: enable virtual memory\n");
   enable_virtual_memory((uint64_t)root_page_table);
   uint64_t offset = KERNEL_VIRT_OFFSET;
 
@@ -316,6 +332,7 @@ void init_kernel_page_mapping() {
   asm volatile("mv %0, sp" : "=r"(new_sp));
   // Keep root_page_table as physical address - it's used for satp
   update_page_structs_to_vm();
+  printk("boot: page tables ready\n");
 }
 
 page_table_t *init_new_page_table() {

@@ -5,6 +5,8 @@
 // Syscall numbers (from kernel)
 #define SYS_getcwd          17
 #define SYS_chdir           49
+#define SYS_truncate        45
+#define SYS_ftruncate       46
 #define SYS_lseek           62
 #define SYS_read            63
 #define SYS_write           64
@@ -36,6 +38,7 @@
 #define SYS_symlinkat       266
 #define SYS_readlinkat      267
 #define SYS_pipe            59
+#define SYS_fstat           80
 #define SYS_fstatat         79
 #define SYS_chmod           52
 #define SYS_reboot          88
@@ -191,7 +194,11 @@ struct stat {
   uint64_t st_mtime;
 };
 
+int fstat(int fd, struct stat *buf);
 int fstatat(int dirfd, const char *path, struct stat *buf, int flags);
 int stat(const char *path, struct stat *buf);
+int lstat(const char *path, struct stat *buf);
 int chmod(const char *path, unsigned int mode);
+int truncate(const char *path, off_t length);
+int ftruncate(int fd, off_t length);
 int reboot(int cmd);

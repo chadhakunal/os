@@ -10,6 +10,8 @@
 // ref: linux/include/uapi/asm-generic/unistd.h
 #define SYS_getcwd          17
 #define SYS_chdir           49
+#define SYS_truncate        45
+#define SYS_ftruncate       46
 #define SYS_lseek           62
 #define SYS_read            63
 #define SYS_write           64
@@ -43,6 +45,7 @@
 #define SYS_symlinkat       266
 #define SYS_readlinkat      267
 #define SYS_pipe            59
+#define SYS_fstat           80
 #define SYS_fstatat         79
 #define SYS_chmod           52
 #define SYS_reboot          88
@@ -56,6 +59,8 @@ int64_t sys_openat(struct trap_frame *tf);
 int64_t sys_read(struct trap_frame *tf);
 int64_t sys_write(struct trap_frame *tf);
 int64_t sys_close(struct trap_frame *tf);
+int64_t sys_truncate(struct trap_frame *tf);
+int64_t sys_ftruncate(struct trap_frame *tf);
 int64_t sys_lseek(struct trap_frame *tf);
 int64_t sys_fork(struct trap_frame *tf);
 int64_t sys_sched_yield(struct trap_frame *tf);
@@ -84,6 +89,7 @@ int64_t sys_linkat(struct trap_frame *tf);
 int64_t sys_symlinkat(struct trap_frame *tf);
 int64_t sys_readlinkat(struct trap_frame *tf);
 int64_t sys_pipe(struct trap_frame *tf);
+int64_t sys_fstat(struct trap_frame *tf);
 int64_t sys_fstatat(struct trap_frame *tf);
 int64_t sys_chmod(struct trap_frame *tf);
 int64_t sys_reboot(struct trap_frame *tf);

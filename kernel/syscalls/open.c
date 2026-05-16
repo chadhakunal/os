@@ -32,7 +32,6 @@ static void split_path(const char *path, char *parent, char *name) {
 
 DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, uint64_t, mode)
 {
-  (void)mode;
   char path[MAX_PATH_COPY];
   copy_string_from_user(path, user_path, MAX_PATH_COPY);
 
@@ -45,7 +44,8 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
     split_path(path, parent_path, name);
 
     struct dentry_t *parent_dentry;
-    if (vfs_resolve_path_at(parent_path, start, &parent_dentry) < 0) {
+    if (vfs_resolve_path_at(parent_path, start, &parent_dentry,
+                            VFS_RESOLVE_FOLLOW_ALL) < 0) {
       debugk("open: O_CREAT: parent path '%s' not found\n", parent_path);
       return -1;
     }
@@ -54,8 +54,12 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
                                    ? parent_dentry->vnode->mounted_vnode
                                    : parent_dentry->vnode;
 
+    uint32_t create_mode = (uint32_t)mode & 0777;
+    if (create_mode == 0)
+      create_mode = 0666;
+
     struct dentry_t *new_dentry;
-    int ret = vfs_create(name, parent_vnode, &new_dentry);
+    int ret = vfs_create(name, parent_vnode, &new_dentry, create_mode);
     if (ret == -EEXIST && !(flags & O_EXCL)) {
       /* File already exists and O_EXCL not set — open the existing file. */
       goto open_existing;
@@ -87,11 +91,7 @@ open_existing:;
 
   // Handle O_TRUNC: truncate file to 0 length
   if (flags & O_TRUNC) {
-    struct vnode_t *vnode = file->vnode;
-    if (vnode->vnode_ops && vnode->vnode_ops->truncate) {
-      vnode->vnode_ops->truncate(vnode, 0);
-      vfs_invalidate_page_cache(vnode);
-    }
+    vfs_truncate(file->vnode, 0);
     file->offset = 0;
   }
 
