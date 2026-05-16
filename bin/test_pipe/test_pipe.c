@@ -2,6 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdlib.h>
 
 static int passed = 0;
 static int failed = 0;
@@ -28,8 +29,8 @@ static void test_basic_read_write(void) {
     close(fds[0]);
     if (n == 5 && buf[0] == 'h' && buf[1] == 'e' &&
         buf[2] == 'l' && buf[3] == 'l' && buf[4] == 'o')
-      _exit(0);
-    _exit(1);
+      exit(0);
+    exit(1);
   }
   /* parent: write to pipe */
   close(fds[0]);
@@ -57,7 +58,7 @@ static void test_eof_on_writer_close(void) {
     int n = read(fds[0], buf, sizeof(buf));
     close(fds[0]);
     /* EOF = 0 bytes */
-    _exit(n == 0 ? 0 : 1);
+    exit(n == 0 ? 0 : 1);
   }
   /* parent: close write end without writing anything */
   close(fds[0]);
@@ -81,7 +82,7 @@ static void test_fork_inheritance(void) {
     close(fds[0]);
     write(fds[1], "world", 5);
     close(fds[1]);
-    _exit(0);
+    exit(0);
   }
   close(fds[1]);
   char buf[32];
@@ -109,7 +110,7 @@ static void test_dup2_stdin_stdout(void) {
     close(fds[0]);
     char buf[32];
     int n = read(0, buf, sizeof(buf) - 1);
-    _exit(n == 4 && buf[0] == 't' && buf[1] == 'e' &&
+    exit(n == 4 && buf[0] == 't' && buf[1] == 'e' &&
           buf[2] == 's' && buf[3] == 't' ? 0 : 1);
   }
   /* parent: save stdout, dup write end over it, write, then restore */
@@ -145,7 +146,7 @@ static void test_multiple_writes(void) {
     while (total < 15 && (n = read(fds[0], buf + total, sizeof(buf) - total)) > 0)
       total += n;
     close(fds[0]);
-    _exit(total == 15 &&
+    exit(total == 15 &&
           buf[0]  == 'o' && buf[4]  == 'e' &&
           buf[5]  == 't' && buf[9]  == 'o' &&
           buf[10] == 't' && buf[14] == 'e' ? 0 : 1);
@@ -176,7 +177,7 @@ static void test_epipe(void) {
     /* give parent a moment to also close its read end */
     int r = write(fds[1], "x", 1);
     close(fds[1]);
-    _exit(r < 0 ? 0 : 1);
+    exit(r < 0 ? 0 : 1);
   }
   /* parent: close both ends so no readers exist */
   close(fds[0]);
