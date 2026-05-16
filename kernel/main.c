@@ -56,9 +56,6 @@ void kmain(void *dtb_ptr) {
   init_trap_handler();
   printk("Initialized Trap Handler\n");
 
-  enable_interrupts();
-  printk("Enabled Interrupts\n");
-
   rtc_init();
   printk("Initialized RTC: Current time: %llu seconds since epoch\n", rtc_read_time_sec());
 
@@ -116,6 +113,9 @@ void kmain(void *dtb_ptr) {
 
   uart_enable_interrupts();
   printk("Enabled uart interrupts\n");
+
+  enable_interrupts();
+  printk("Enabled Interrupts\n");
 
   extern void start_init_task(struct trap_frame *tf, uint64_t kernel_sp);
   start_init_task(&current_task->tf, current_task->kernel_context.sp);
