@@ -37,11 +37,12 @@ OSTEST_TESTS ?= "string/strcmp"
 OSTEST_BASE := $(ROOT)/thirdparty/os-tests-sortix/ostest
 OSTEST_INSTALL_DIR := $(ROOT)/build/rootfs/bin/os-tests-sortix
 
-# Dropped after vendor (sbunix has no pthread, network, math, or user DB yet).
+# Dropped after vendor (sbunix has no pthread, network, math, user DB, or async I/O yet).
 OSTEST_PRUNE_DIRS := pthread threads spawn semaphore sys_sem \
 	arpa_inet netinet_in net_if netdb sys_socket \
 	math complex fenv \
-	grp pwd utmpx
+	grp pwd utmpx \
+	aio
 
 # Clone upstream (if needed) and vendor basic/ + misc/ (gitignored under os-tests-sortix/).
 os-tests-sortix-clone:
@@ -51,7 +52,7 @@ os-tests-sortix-clone:
 	rm -rf "$(OSTEST_DIR)/basic" "$(OSTEST_DIR)/misc"
 	cp -a "$(OSTEST_TMP)/basic" "$(OSTEST_TMP)/misc" "$(OSTEST_DIR)/"
 	@for d in $(OSTEST_PRUNE_DIRS); do rm -rf "$(OSTEST_DIR)/basic/$$d"; done
-	@echo "os-tests-sortix-clone: pruned (no pthread/network/math/user): $(OSTEST_PRUNE_DIRS)"
+	@echo "os-tests-sortix-clone: pruned (no pthread/network/math/user/aio): $(OSTEST_PRUNE_DIRS)"
 
 # Cross-compile: OSTEST_TESTS empty = all basic/; else subdir or path, e.g. OSTEST_TESTS="string"
 os-tests-build: os-tests-sortix-clone $(LIBC) $(CRT)
