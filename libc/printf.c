@@ -20,51 +20,6 @@ static void buf_puts(char *buf, int *pos, const char *s) {
   }
 }
 
-// Helper to print a signed number into buffer
-static void buf_print_num(char *buf, int *pos, long long num) {
-  if (num < 0) {
-    buf_putchar(buf, pos, '-');
-    num = -num;
-  }
-
-  if (num == 0) {
-    buf_putchar(buf, pos, '0');
-    return;
-  }
-
-  char tmp[32];
-  int i = 0;
-  while (num > 0) {
-    tmp[i++] = '0' + (num % 10);
-    num /= 10;
-  }
-
-  // Add to buffer in reverse
-  while (i > 0) {
-    buf_putchar(buf, pos, tmp[--i]);
-  }
-}
-
-// Helper to print an unsigned number into buffer
-static void buf_print_unsigned(char *buf, int *pos, unsigned long long num) {
-  if (num == 0) {
-    buf_putchar(buf, pos, '0');
-    return;
-  }
-
-  char tmp[32];
-  int i = 0;
-  while (num > 0) {
-    tmp[i++] = '0' + (num % 10);
-    num /= 10;
-  }
-
-  // Add to buffer in reverse
-  while (i > 0) {
-    buf_putchar(buf, pos, tmp[--i]);
-  }
-}
-
 // Helper to print hex into buffer
 static void buf_print_hex(char *buf, int *pos, unsigned long long num) {
   const char *hex = "0123456789abcdef";
@@ -87,105 +42,145 @@ static void buf_print_hex(char *buf, int *pos, unsigned long long num) {
   }
 }
 
+/*
+ * Format a single conversion into `buffer` starting at `*pos`.
+ * Supports: flags (-, 0), width, length (l, ll), and conversions
+ * s, d, i, u, x, X, p, c, %.
+ */
+static void buf_format_one(char *buffer, int *pos, const char **fmt_p,
+                            va_list *args) {
+  const char *p = *fmt_p; /* points just past the '%' */
+
+  /* Flags */
+  int left_align = 0, zero_pad = 0;
+  while (*p == '-' || *p == '0') {
+    if (*p == '-') left_align = 1;
+    if (*p == '0') zero_pad  = 1;
+    p++;
+  }
+
+  /* Width */
+  int width = 0;
+  while (*p >= '0' && *p <= '9')
+    width = width * 10 + (*p++ - '0');
+
+  /* Precision (skip — not implemented) */
+  if (*p == '.') {
+    p++;
+    while (*p >= '0' && *p <= '9') p++;
+  }
+
+  /* Length modifier */
+  int is_long_long = 0;
+  if (*p == 'l' && *(p + 1) == 'l') { is_long_long = 1; p += 2; }
+  else if (*p == 'l')               { is_long_long = 1; p++;    }
+
+  char tmp[64];
+  const char *val_str = tmp;
+  tmp[0] = '\0';
+
+  switch (*p) {
+    case 's': {
+      const char *s = va_arg(*args, const char *);
+      val_str = s ? s : "(null)";
+      break;
+    }
+    case 'd': case 'i': {
+      long long v = is_long_long ? va_arg(*args, long long)
+                                 : (long long)va_arg(*args, int);
+      /* render into tmp */
+      int i = 0;
+      if (v < 0) { tmp[i++] = '-'; v = -v; }
+      if (v == 0) { tmp[i++] = '0'; }
+      else {
+        char rev[32]; int r = 0;
+        while (v > 0) { rev[r++] = '0' + (v % 10); v /= 10; }
+        while (r > 0) tmp[i++] = rev[--r];
+      }
+      tmp[i] = '\0';
+      break;
+    }
+    case 'u': {
+      unsigned long long v = is_long_long ? va_arg(*args, unsigned long long)
+                                          : (unsigned long long)va_arg(*args, unsigned int);
+      int i = 0;
+      if (v == 0) { tmp[i++] = '0'; }
+      else { char rev[32]; int r = 0;
+             while (v > 0) { rev[r++] = '0' + (v % 10); v /= 10; }
+             while (r > 0) tmp[i++] = rev[--r]; }
+      tmp[i] = '\0';
+      break;
+    }
+    case 'x': case 'X': {
+      unsigned long long v = is_long_long ? va_arg(*args, unsigned long long)
+                                          : (unsigned long long)va_arg(*args, unsigned int);
+      const char *hex = (*p == 'x') ? "0123456789abcdef" : "0123456789ABCDEF";
+      int i = 0;
+      if (v == 0) { tmp[i++] = '0'; }
+      else { char rev[32]; int r = 0;
+             while (v > 0) { rev[r++] = hex[v % 16]; v /= 16; }
+             while (r > 0) tmp[i++] = rev[--r]; }
+      tmp[i] = '\0';
+      break;
+    }
+    case 'p': {
+      unsigned long long v = (unsigned long long)va_arg(*args, void *);
+      buf_puts(buffer, pos, "0x");
+      buf_print_hex(buffer, pos, v);
+      *fmt_p = p;
+      return;
+    }
+    case 'c': {
+      tmp[0] = (char)va_arg(*args, int);
+      tmp[1] = '\0';
+      break;
+    }
+    case '%':
+      buf_putchar(buffer, pos, '%');
+      *fmt_p = p;
+      return;
+    default:
+      buf_putchar(buffer, pos, '%');
+      buf_putchar(buffer, pos, *p);
+      *fmt_p = p;
+      return;
+  }
+
+  /* Pad and emit. */
+  int len = 0;
+  for (const char *c = val_str; *c; c++) len++;
+
+  char pad = (zero_pad && !left_align) ? '0' : ' ';
+  if (!left_align)
+    for (int i = len; i < width; i++) buf_putchar(buffer, pos, pad);
+  buf_puts(buffer, pos, val_str);
+  if (left_align)
+    for (int i = len; i < width; i++) buf_putchar(buffer, pos, ' ');
+
+  *fmt_p = p;
+}
+
 int printf(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
 
   char buffer[PRINTF_BUF_SIZE];
   int pos = 0;
-  int written = 0;
 
   for (const char *p = fmt; *p; p++) {
     if (*p == '%' && *(p + 1)) {
       p++;
-
-      // Check for 'll' modifier
-      int is_long_long = 0;
-      if (*p == 'l' && *(p + 1) == 'l') {
-        is_long_long = 1;
-        p += 2;
-      } else if (*p == 'l') {
-        // Also treat single 'l' as long long for simplicity (both are 64-bit on RISC-V)
-        is_long_long = 1;
-        p++;
-      }
-
-      switch (*p) {
-        case 's': {
-          const char *s = va_arg(args, const char *);
-          if (s) {
-            buf_puts(buffer, &pos, s);
-          } else {
-            buf_puts(buffer, &pos, "(null)");
-          }
-          break;
-        }
-        case 'd':
-        case 'i': {
-          if (is_long_long) {
-            long long val = va_arg(args, long long);
-            buf_print_num(buffer, &pos, val);
-          } else {
-            int val = va_arg(args, int);
-            buf_print_num(buffer, &pos, val);
-          }
-          break;
-        }
-        case 'u': {
-          if (is_long_long) {
-            unsigned long long val = va_arg(args, unsigned long long);
-            buf_print_unsigned(buffer, &pos, val);
-          } else {
-            unsigned int val = va_arg(args, unsigned int);
-            buf_print_unsigned(buffer, &pos, val);
-          }
-          break;
-        }
-        case 'x': {
-          if (is_long_long) {
-            unsigned long long val = va_arg(args, unsigned long long);
-            buf_print_hex(buffer, &pos, val);
-          } else {
-            unsigned int val = va_arg(args, unsigned int);
-            buf_print_hex(buffer, &pos, val);
-          }
-          break;
-        }
-        case 'p': {
-          void *ptr = va_arg(args, void *);
-          buf_puts(buffer, &pos, "0x");
-          buf_print_hex(buffer, &pos, (unsigned long long)ptr);
-          break;
-        }
-        case 'c': {
-          char c = (char)va_arg(args, int);
-          buf_putchar(buffer, &pos, c);
-          break;
-        }
-        case '%':
-          buf_putchar(buffer, &pos, '%');
-          break;
-        default:
-          buf_putchar(buffer, &pos, '%');
-          if (is_long_long) {
-            buf_putchar(buffer, &pos, 'l');
-            buf_putchar(buffer, &pos, 'l');
-          }
-          buf_putchar(buffer, &pos, *p);
-          break;
-      }
+      buf_format_one(buffer, &pos, &p, &args);
     } else {
       buf_putchar(buffer, &pos, *p);
     }
   }
 
-  // Flush any remaining data in buffer
-  if (pos > 0) {
+  if (pos > 0)
     write(1, buffer, pos);
-  }
 
   va_end(args);
-  return written;
+  return pos;
 }
 
 // Helper to add char to a sized buffer

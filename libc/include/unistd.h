@@ -30,6 +30,8 @@
 #define SYS_dup2            24
 #define SYS_fsync           82
 #define SYS_nanosleep       101
+#define SYS_statfs          43
+#define SYS_renameat        38
 
 // RISC-V syscall ABI macros
 // Syscall number in a7, args in a0-a5, return value in a0
@@ -140,3 +142,22 @@ int dup2(int oldfd, int newfd);
 int fsync(int fd);
 unsigned int sleep(unsigned int seconds);
 int usleep(unsigned long usec);
+int rename(const char *oldpath, const char *newpath);
+
+/* Filesystem statistics — matches the kernel's vfs_statfs layout. */
+struct statfs {
+  long f_type;
+  long f_bsize;
+  long f_blocks;
+  long f_bfree;
+  long f_bavail;
+  long f_files;
+  long f_ffree;
+  long f_fsid[2];
+  long f_namelen;
+  long f_frsize;
+  long f_flags;
+  long f_spare[4];
+};
+
+int statfs(const char *path, struct statfs *buf);

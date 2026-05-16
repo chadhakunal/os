@@ -125,3 +125,11 @@ int usleep(unsigned long usec) {
 int nanosleep(const struct timespec *req, struct timespec *rem) {
   return syscall2(SYS_nanosleep, req, rem);
 }
+
+int rename(const char *oldpath, const char *newpath) {
+  return syscall4(SYS_renameat, AT_FDCWD, oldpath, AT_FDCWD, newpath);
+}
+
+int statfs(const char *path, struct statfs *buf) {
+  return syscall2(SYS_statfs, path, buf);
+}

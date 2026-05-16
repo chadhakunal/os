@@ -294,6 +294,8 @@ struct superblock_t *sbfs_mount(void) {
   superblock->vnode_ops.unlink                 = sbfs_unlink;
   superblock->vnode_ops.rmdir                  = sbfs_rmdir;
   superblock->vnode_ops.truncate               = sbfs_truncate;
+  superblock->vnode_ops.rename                 = sbfs_rename;
+  superblock->superblock_ops.statfs            = sbfs_statfs;
   superblock->address_space_ops.fill_page      = sbfs_fill_page;
   superblock->address_space_ops.write_page     = sbfs_write_page;
   superblock->file_ops.read                    = NULL;
@@ -598,6 +600,81 @@ int64_t sbfs_rmdir(const char *name, struct vnode_t *parent_dir) {
   sbfs_free_inode(sb, ino);
 
   return sbfs_dir_remove(sb, parent_inode, name);
+}
+
+int64_t sbfs_statfs(struct superblock_t *superblock, struct vfs_statfs *buf) {
+  struct sbfs_superblock_t *sb = (struct sbfs_superblock_t *)superblock->private_data;
+
+  int64_t free_blocks = 0;
+  for (uint32_t b = sb->data_start; b < sb->total_blocks; b++) {
+    uint8_t *byte = sbfs_block_bitmap_byte(sb, b);
+    if (!(*byte & (1 << (b % 8))))
+      free_blocks++;
+  }
+
+  int64_t free_inodes = 0;
+  for (uint32_t i = 0; i < sb->inode_count; i++) {
+    uint8_t *byte = sbfs_inode_bitmap_byte(sb, i);
+    if (!(*byte & (1 << (i % 8))))
+      free_inodes++;
+  }
+
+  buf->f_type    = SBFS_MAGIC;
+  buf->f_bsize   = sb->block_size;
+  buf->f_blocks  = sb->total_blocks - sb->data_start;
+  buf->f_bfree   = free_blocks;
+  buf->f_bavail  = free_blocks;
+  buf->f_files   = sb->inode_count;
+  buf->f_ffree   = free_inodes;
+  buf->f_fsid[0] = 0;
+  buf->f_fsid[1] = 0;
+  buf->f_namelen = SBFS_DIRENT_NAME_LEN - 1;
+  buf->f_frsize  = sb->block_size;
+  buf->f_flags   = 0;
+  buf->f_spare[0] = buf->f_spare[1] = buf->f_spare[2] = buf->f_spare[3] = 0;
+  return 0;
+}
+
+int64_t sbfs_rename(const char *old_name, struct vnode_t *old_parent,
+                    const char *new_name, struct vnode_t *new_parent) {
+  struct sbfs_superblock_t *sb   = (struct sbfs_superblock_t *)old_parent->superblock->private_data;
+  struct sbfs_vnode_t      *sv_old = (struct sbfs_vnode_t *)old_parent->fs_private_vnode;
+  struct sbfs_vnode_t      *sv_new = (struct sbfs_vnode_t *)new_parent->fs_private_vnode;
+
+  sbfs_inode_t *old_parent_inode = sbfs_get_inode(sb, sv_old->inode_num);
+  sbfs_inode_t *new_parent_inode = sbfs_get_inode(sb, sv_new->inode_num);
+
+  uint32_t ino = sbfs_dir_find(sb, old_parent_inode, old_name);
+  if (ino == 0)
+    return -ENOENT;
+
+  /* If new_name already exists in new_parent, unlink it (file) or reject (dir). */
+  uint32_t existing_ino = sbfs_dir_find(sb, new_parent_inode, new_name);
+  if (existing_ino != 0) {
+    sbfs_inode_t *existing = sbfs_get_inode(sb, existing_ino);
+    if (existing->type == SBFS_INODE_DIR)
+      return -ENOTEMPTY;
+    /* Unlink the existing file. */
+    existing->nlinks--;
+    if (existing->nlinks == 0) {
+      for (int i = 0; i < SBFS_DIRECT_BLOCKS; i++) {
+        if (existing->direct_blocks[i] != 0)
+          sbfs_free_block(sb, existing->direct_blocks[i]);
+      }
+      sbfs_free_inode(sb, existing_ino);
+    } else {
+      sbfs_flush_inode(sb, existing_ino);
+    }
+    sbfs_dir_remove(sb, new_parent_inode, new_name);
+  }
+
+  /* Add new dirent in new_parent, remove old dirent from old_parent. */
+  int ret = sbfs_dir_add(sb, new_parent_inode, sv_new->inode_num, ino, new_name);
+  if (ret < 0)
+    return ret;
+
+  sbfs_dir_remove(sb, old_parent_inode, old_name);
+  return 0;
 }
 
 int64_t sbfs_truncate(struct vnode_t *vnode, uint64_t new_size) {

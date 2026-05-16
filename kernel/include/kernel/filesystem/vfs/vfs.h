@@ -62,6 +62,8 @@ struct vnode_ops_t {
   int64_t (*unlink)   (const char *name, struct vnode_t *parent_dir);
   int64_t (*rmdir)    (const char *name, struct vnode_t *parent_dir);
   int64_t (*truncate) (struct vnode_t *vnode, uint64_t new_size);
+  int64_t (*rename)   (const char *old_name, struct vnode_t *old_parent,
+                       const char *new_name, struct vnode_t *new_parent);
 };
 
 struct address_space_ops_t {
@@ -69,8 +71,25 @@ struct address_space_ops_t {
   int64_t (*write_page)(struct vnode_t *vnode, size_t offset, void *phys_page);
 };
 
+/* Filesystem-wide statistics returned by statfs(2). */
+struct vfs_statfs {
+  int64_t  f_type;    /* filesystem magic */
+  int64_t  f_bsize;   /* optimal block size */
+  int64_t  f_blocks;  /* total data blocks */
+  int64_t  f_bfree;   /* free blocks */
+  int64_t  f_bavail;  /* free blocks available to non-root */
+  int64_t  f_files;   /* total inodes */
+  int64_t  f_ffree;   /* free inodes */
+  int64_t  f_fsid[2]; /* filesystem id */
+  int64_t  f_namelen; /* maximum filename length */
+  int64_t  f_frsize;  /* fragment size */
+  int64_t  f_flags;   /* mount flags */
+  int64_t  f_spare[4];
+};
+
 struct superblock_ops_t {
   struct vnode_t *(*alloc_vnode)(struct superblock_t superblock);
+  int64_t         (*statfs)     (struct superblock_t *sb, struct vfs_statfs *buf);
 };
 
 /* -------------------------------------------------------------------------
@@ -179,6 +198,12 @@ int64_t vfs_create(const char *name, struct vnode_t *parent_dir, struct dentry_t
 int64_t vfs_mkdir(const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
 int64_t vfs_unlink(const char *name, struct vnode_t *parent_dir);
 int64_t vfs_rmdir(const char *name, struct vnode_t *parent_dir);
+int64_t vfs_rename(const char *old_name, struct vnode_t *old_parent,
+                   const char *new_name, struct vnode_t *new_parent);
+void    vfs_dentry_evict(struct vnode_t *parent_vnode, const char *name);
+
+/* Filesystem statistics */
+int64_t vfs_statfs(struct vnode_t *vnode, struct vfs_statfs *buf);
 
 /* File operations */
 int64_t         vfs_open(const char *path, int flags, struct file_t **file);

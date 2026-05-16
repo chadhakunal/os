@@ -174,6 +174,17 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_nanosleep(tf);
       break;
 
+    case SYS_statfs:
+      debugk("syscall: statfs(path=%llx, buf=%llx)\n", tf->a0, tf->a1);
+      ret = sys_statfs(tf);
+      break;
+
+    case SYS_renameat:
+      debugk("syscall: renameat(olddirfd=%lld, old=%llx, newdirfd=%lld, new=%llx)\n",
+             (int64_t)tf->a0, tf->a1, (int64_t)tf->a2, tf->a3);
+      ret = sys_renameat(tf);
+      break;
+
     default:
       debugk("syscall: unknown syscall %llu\n", syscall_num);
       tf->a0 = -1; // ENOSYS
