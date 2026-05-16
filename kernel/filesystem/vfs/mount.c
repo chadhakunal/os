@@ -62,7 +62,7 @@ void vfs_init() {
   mount_list.prev = &mount_list;
 
   /* Always build the tarfs tree — it holds /bin and /etc content. */
-  struct superblock_t *tarfs_sb = tarfs_mount((void *)_tarfs_start, (uint64_t)_tarfs_size);
+  struct superblock_t *tarfs_sb = tarfs_mount((void *)_tarfs_start, (uint64_t)(_tarfs_end - _tarfs_start));
 
   base_mount = mount_t_alloc();
   base_mount->root_path[0] = '/';
