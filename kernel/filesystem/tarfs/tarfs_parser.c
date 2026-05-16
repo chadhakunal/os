@@ -83,6 +83,13 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
   sb->root_dentry = root_dentry;
   sb->root_vnode = root_vnode;
 
+  printk("tarfs: parsing %llu bytes at %p\n", tar_size, data);
+  printk("tarfs: first bytes: %02x %02x %02x %02x '%c%c%c%c'\n",
+         ((uint8_t*)data)[0], ((uint8_t*)data)[1],
+         ((uint8_t*)data)[2], ((uint8_t*)data)[3],
+         ((uint8_t*)data)[0], ((uint8_t*)data)[1],
+         ((uint8_t*)data)[2], ((uint8_t*)data)[3]);
+
   while (tar_ptr < tar_end) {
     struct tar_header *header = (struct tar_header *)tar_ptr;
 
@@ -91,6 +98,7 @@ struct vnode_t *parse_tar(void *data, uint64_t tar_size, struct superblock_t *sb
     uint64_t file_size = parse_octal(header->size, 12);
     void *file_data = (void *)(tar_ptr + 512);
 
+    printk("tarfs: entry '%s' size=%llu\n", header->name, file_size);
     walk_and_create_path(header->name, file_data, root_vnode, root_dentry, header);
 
     uint64_t data_blocks = (file_size + 511) / 512;
