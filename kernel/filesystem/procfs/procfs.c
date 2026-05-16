@@ -10,6 +10,17 @@
 #include "errno.h"
 
 /* -------------------------------------------------------------------------
+ * /proc/kmsg — kernel log ring buffer
+ * ---------------------------------------------------------------------- */
+static int64_t proc_kmsg_read(struct file_t *file, uint64_t offset,
+                               void *buf, uint64_t size) {
+  (void)file;
+  return (int64_t)klog_read((char *)buf, (size_t)size, (size_t)offset);
+}
+
+static struct file_ops_t proc_kmsg_fops;
+
+/* -------------------------------------------------------------------------
  * Buffer formatting helpers
  * ---------------------------------------------------------------------- */
 
@@ -267,6 +278,7 @@ static void proc_add_file(struct superblock_t *sb, struct vnode_t *parent,
  * ---------------------------------------------------------------------- */
 struct superblock_t *procfs_mount(void) {
   /* Assign all function pointers at runtime to get virtual addresses. */
+  proc_kmsg_fops.read         = proc_kmsg_read;
   proc_uptime_fops.read       = proc_uptime_read;
   proc_pid_status_fops.read   = proc_pid_status_read;
   proc_pid_dir_ops.readdir    = procfs_pid_readdir;
@@ -283,6 +295,7 @@ struct superblock_t *procfs_mount(void) {
   root->permission_mode = S_IFDIR | READ_EXECUTE_PERM;
   sb->root_vnode = root;
 
+  proc_add_file(sb, root, &id, "kmsg",   &proc_kmsg_fops);
   proc_add_file(sb, root, &id, "uptime", &proc_uptime_fops);
 
   struct dentry_t *root_dentry = dentry_t_alloc();

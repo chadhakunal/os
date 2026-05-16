@@ -148,6 +148,36 @@ int64_t vfs_rename(const char *old_name, struct vnode_t *old_parent,
   return ret;
 }
 
+int64_t vfs_symlink(const char *target, const char *name,
+                    struct vnode_t *parent_dir, struct dentry_t **out) {
+  if (parent_dir == NULL || !IS_DIR(parent_dir->permission_mode))
+    return -ENOTDIR;
+  if (parent_dir->vnode_ops == NULL || parent_dir->vnode_ops->symlink == NULL)
+    return -1;
+  return parent_dir->vnode_ops->symlink(target, name, parent_dir, out);
+}
+
+int64_t vfs_readlink(struct vnode_t *vnode, char *buf, size_t size) {
+  if (vnode == NULL || !IS_LNK(vnode->permission_mode))
+    return -EINVAL;
+  if (vnode->vnode_ops == NULL || vnode->vnode_ops->readlink == NULL)
+    return -1;
+  return vnode->vnode_ops->readlink(vnode, buf, size);
+}
+
+int64_t vfs_link(const char *old_name, struct vnode_t *old_parent,
+                 const char *new_name, struct vnode_t *new_parent) {
+  if (old_parent == NULL || !IS_DIR(old_parent->permission_mode))
+    return -ENOTDIR;
+  if (new_parent == NULL || !IS_DIR(new_parent->permission_mode))
+    return -ENOTDIR;
+  if (old_parent->superblock != new_parent->superblock)
+    return -EXDEV;
+  if (old_parent->vnode_ops == NULL || old_parent->vnode_ops->link == NULL)
+    return -1;
+  return old_parent->vnode_ops->link(old_name, old_parent, new_name, new_parent);
+}
+
 int64_t vfs_statfs(struct vnode_t *vnode, struct vfs_statfs *buf) {
   if (vnode == NULL || buf == NULL)
     return -1;

@@ -7,9 +7,9 @@
 #include "lib/printk/printk.h"
 #include "types.h"
 #include "errno.h"
+#include "kernel/task/task.h"
 
 #define MAX_PATH_COPY 256
-#define AT_FDCWD -100
 
 static void split_path(const char *path, char *parent, char *name) {
   int len = str_len(path, MAX_PATH_COPY);
@@ -35,17 +35,16 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
   char path[MAX_PATH_COPY];
   copy_string_from_user(path, user_path, MAX_PATH_COPY);
 
-  if (path[0] != '/' && dirfd != AT_FDCWD) {
-    printk("open: relative path '%s' without AT_FDCWD not supported\n", path);
-    return -1;
-  }
+  struct dentry_t *start = task_dirfd_to_dentry((int)dirfd);
+  if (start == (struct dentry_t *)-1)
+    return -EBADF;
 
   if (flags & O_CREAT) {
     char parent_path[MAX_PATH_COPY], name[MAX_PATH_COPY];
     split_path(path, parent_path, name);
 
     struct dentry_t *parent_dentry;
-    if (vfs_resolve_path(parent_path, &parent_dentry) < 0) {
+    if (vfs_resolve_path_at(parent_path, start, &parent_dentry) < 0) {
       printk("open: O_CREAT: parent path '%s' not found\n", parent_path);
       return -1;
     }
@@ -70,7 +69,9 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
       list_append(&parent_vnode->children_dentries, &new_dentry->sibling_dentry);
     }
 
-    int fd = alloc_fd(&current_task->file_table, vfs_init_file(new_dentry->vnode, flags));
+    struct file_t *new_file = vfs_init_file(new_dentry->vnode, flags);
+    new_file->dentry = new_dentry;
+    int fd = alloc_fd(&current_task->file_table, new_file);
     return fd;
   }
 

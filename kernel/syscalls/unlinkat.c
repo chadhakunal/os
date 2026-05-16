@@ -5,8 +5,8 @@
 #include "kernel/user_data_access.h"
 #include "lib/string.h"
 #include "types.h"
+#include "errno.h"
 
-#define AT_FDCWD        -100
 #define AT_REMOVEDIR    0x200
 
 static void split_path(const char *path, char *parent, char *name) {
@@ -32,16 +32,18 @@ static void split_path(const char *path, char *parent, char *name) {
    flags=0           -> unlink (remove file)
    flags=AT_REMOVEDIR -> rmdir (remove directory) */
 DEFINE_SYSCALL3(unlinkat, int, dirfd, const char *, user_path, int, flags) {
-  (void)dirfd;
-
   char path[256];
   copy_string_from_user(path, user_path, 256);
+
+  struct dentry_t *start = task_dirfd_to_dentry(dirfd);
+  if (start == (struct dentry_t *)-1)
+    return -EBADF;
 
   char parent_path[256], name[256];
   split_path(path, parent_path, name);
 
   struct dentry_t *parent_dentry;
-  if (vfs_resolve_path(parent_path, &parent_dentry) < 0)
+  if (vfs_resolve_path_at(parent_path, start, &parent_dentry) < 0)
     return -1;
 
   struct vnode_t *parent_vnode = parent_dentry->vnode->mounted_vnode

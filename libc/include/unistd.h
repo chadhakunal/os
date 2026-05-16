@@ -32,6 +32,9 @@
 #define SYS_nanosleep       101
 #define SYS_statfs          43
 #define SYS_renameat        38
+#define SYS_linkat          37
+#define SYS_symlinkat       266
+#define SYS_readlinkat      267
 
 // RISC-V syscall ABI macros
 // Syscall number in a7, args in a0-a5, return value in a0
@@ -142,7 +145,16 @@ int dup2(int oldfd, int newfd);
 int fsync(int fd);
 unsigned int sleep(unsigned int seconds);
 int usleep(unsigned long usec);
+int mkdirat(int dirfd, const char *path, unsigned int mode);
+int unlinkat(int dirfd, const char *path, int flags);
+int linkat(int old_dirfd, const char *oldpath, int new_dirfd, const char *newpath, int flags);
+int renameat(int old_dirfd, const char *oldpath, int new_dirfd, const char *newpath);
 int rename(const char *oldpath, const char *newpath);
+int link(const char *oldpath, const char *newpath);
+int symlink(const char *target, const char *linkpath);
+int symlinkat(const char *target, int dirfd, const char *linkpath);
+ssize_t readlink(const char *path, char *buf, size_t bufsiz);
+ssize_t readlinkat(int dirfd, const char *path, char *buf, size_t bufsiz);
 
 /* Filesystem statistics — matches the kernel's vfs_statfs layout. */
 struct statfs {

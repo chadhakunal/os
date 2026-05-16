@@ -9,9 +9,10 @@
 #define SBFS_DIRECT_BLOCKS 12
 #define SBFS_DIRENT_NAME_LEN 28
 
-#define SBFS_INODE_FREE 0
-#define SBFS_INODE_FILE 1
-#define SBFS_INODE_DIR  2
+#define SBFS_INODE_FREE    0
+#define SBFS_INODE_FILE    1
+#define SBFS_INODE_DIR     2
+#define SBFS_INODE_SYMLINK 3
 
 /* On-disk superblock — exactly as written by mkfs, lives at block 0. */
 typedef struct sbfs_disk_superblock {
@@ -94,6 +95,11 @@ int64_t sbfs_unlink (const char *name, struct vnode_t *parent_dir);
 int64_t sbfs_rmdir  (const char *name, struct vnode_t *parent_dir);
 int64_t sbfs_rename (const char *old_name, struct vnode_t *old_parent,
                      const char *new_name, struct vnode_t *new_parent);
+int64_t sbfs_link   (const char *old_name, struct vnode_t *old_parent,
+                     const char *new_name, struct vnode_t *new_parent);
+int64_t sbfs_symlink(const char *target, const char *name, struct vnode_t *parent_dir,
+                     struct dentry_t **out);
+int64_t sbfs_readlink(struct vnode_t *vnode, char *buf, size_t size);
 
 /* superblock_ops */
 int64_t sbfs_statfs (struct superblock_t *sb, struct vfs_statfs *buf);

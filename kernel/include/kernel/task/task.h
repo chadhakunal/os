@@ -133,6 +133,14 @@ void switch_to_page_table(struct task_t *task);
 
 struct vma_t *find_vma(struct mm_struct_t *mm_struct, size_t vaddr);
 
+/*
+ * Resolve an at-syscall dirfd to a starting dentry for vfs_resolve_path_at.
+ * Returns NULL if dirfd == AT_FDCWD (caller should pass NULL → use cwd).
+ * Returns (struct dentry_t *)-1 if dirfd is invalid (caller returns -EBADF).
+ */
+#define AT_FDCWD (-100)
+struct dentry_t *task_dirfd_to_dentry(int dirfd);
+
 int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
                                 struct vnode_t *vnode, size_t offset,
                                 size_t size, uint64_t vm_flags, bool eager);
