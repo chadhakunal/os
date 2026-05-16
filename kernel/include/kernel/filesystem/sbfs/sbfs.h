@@ -93,7 +93,8 @@ struct superblock_t *sbfs_mount(void);
 /* vnode_ops */
 int64_t sbfs_lookup (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
 int64_t sbfs_readdir(struct vnode_t *dir, uint32_t index, struct dentry_t **out);
-int64_t sbfs_create (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
+int64_t sbfs_create (const char *name, struct vnode_t *parent_dir,
+                     struct dentry_t **out, uint32_t mode);
 int64_t sbfs_mkdir  (const char *name, struct vnode_t *parent_dir, struct dentry_t **out);
 int64_t sbfs_unlink (const char *name, struct vnode_t *parent_dir);
 int64_t sbfs_rmdir  (const char *name, struct vnode_t *parent_dir);

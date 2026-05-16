@@ -1,0 +1,43 @@
+# os-test (Sortix) — basic suite
+
+Vendored from https://gitlab.com/sortix/os-test (`basic/` + `misc/`).
+
+`basic/` and `misc/` are gitignored. Populate:
+
+```bash
+make -C thirdparty os-tests-sortix-clone
+```
+
+**Pruned on vendor** (sbunix has no pthread or network yet): `pthread`, `threads`,
+`spawn`, `semaphore`, `sys_sem`, `arpa_inet`, `netinet_in`, `net_if`, `netdb`,
+`sys_socket`. Re-run `os-tests-sortix-clone` after changing the prune list in
+`thirdparty/Makefile` (`OSTEST_PRUNE_DIRS`).
+
+### Build (host cross-compile → `thirdparty/os-tests-sortix/ostest/`)
+
+```bash
+# one test
+make -C thirdparty os-tests-build OSTEST_TESTS="string/strlen"
+
+# subdirectory
+make -C thirdparty os-tests-build OSTEST_TESTS="string"
+
+# all of basic/ (pthread/network dirs already pruned)
+make -C thirdparty os-tests-build
+```
+
+Artifacts: `ostest/basic/` (ELFs), `ostest/report/` (`.out` / `.err`), `ostest/summary.txt`, `ostest/sources.list`.
+
+Lists anything that did not link; details in `ostest/report/<test>.err`.
+
+### Install (into initramfs staging)
+
+```bash
+make -C thirdparty os-tests-install
+rm -f build/tarfs.o && make build/kernel.elf
+make qemu
+```
+
+Copies **ok** ELFs to `build/rootfs/bin/os-tests-sortix/` → `/bin/os-tests-sortix/...` in the image.
+
+Example: `/bin/os-tests-sortix/string/strlen`

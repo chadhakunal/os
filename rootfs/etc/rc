@@ -8,24 +8,44 @@ echo "Script: $1"
 echo "Arguments: $2 $3 $4"
 echo ""
 
-echo "Running kernel syscall tests..."
-test_syscalls
+if [ -x /bin/test_syscalls ]; then
+echo "Running test_syscalls..."
+/bin/test_syscalls
+else
+echo "Skipping test_syscalls (/bin/test_syscalls not installed)"
+fi
 
 echo ""
-echo "Running shell features tests..."
-test_shell
+if [ -x /bin/test_shell ]; then
+echo "Running test_shell..."
+/bin/test_shell
+else
+echo "Skipping test_shell (/bin/test_shell not installed)"
+fi
 
 echo ""
-echo "Running signal system tests..."
-test_signals
+if [ -x /bin/test_signals ]; then
+echo "Running test_signals..."
+/bin/test_signals
+else
+echo "Skipping test_signals (/bin/test_signals not installed)"
+fi
 
 echo ""
-echo "Running stack growth test..."
-stacktest
+if [ -x /bin/stacktest ]; then
+echo "Running stacktest..."
+/bin/stacktest
+else
+echo "Skipping stacktest (/bin/stacktest not installed)"
+fi
 
 echo ""
-echo "Running stack overflow test..."
-stacktest2
+if [ -x /bin/stacktest2 ]; then
+echo "Running stacktest2..."
+/bin/stacktest2
+else
+echo "Skipping stacktest2 (/bin/stacktest2 not installed)"
+fi
 
 echo ""
 echo "========================================="

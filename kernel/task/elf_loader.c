@@ -1,8 +1,11 @@
 #include "kernel/task/elf_loader.h"
+#include "kernel/user_data_access.h"
 #include "lib/printk/printk.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/panic.h"
 #include "lib/string.h"
+#include "kernel/memory/page_tables.h"
+#include "arch/riscv64/virtual_memory_init.h"
 
 int validate_elf(const char *path) {
   struct dentry_t *dentry;
@@ -31,15 +34,14 @@ int load_elf(struct task_t *task, const char *path) {
   struct dentry_t *dentry;
   int32_t ret = vfs_resolve_path(path, &dentry);
   if (ret != 0) {
-    debugk("load_elf: vfs_resolve_path returned with error\n");
+    printk("load_elf: vfs_resolve_path('%s') failed: %d\n", path, (int)ret);
     return -1;
   }
-
   // Read ELF header
   struct Elf64_Ehdr header;
   ret = vfs_vnode_read(dentry->vnode, &header, sizeof(header), 0);
   if (ret < 0) {
-    debugk("load_elf: Could not load elf\n");
+    printk("load_elf: vfs_vnode_read header failed: %d\n", ret);
     return -1;
   }
   task->mm_struct.entry_addr = (void *)header.e_entry;
@@ -103,9 +105,21 @@ int load_elf(struct task_t *task, const char *path) {
         // This segment has BSS - use anonymous mapping
         anon_memory_map(&task->mm_struct, program_header.p_vaddr, program_header.p_memsz, vm_flags, true);
 
-        // Copy file data into the anonymous mapping
+        // Copy file data into the anonymous mapping via a kernel bounce buffer.
         if (program_header.p_filesz > 0) {
-          vfs_vnode_read(dentry->vnode, (void *)program_header.p_vaddr, program_header.p_filesz, program_header.p_offset);
+          size_t remaining = program_header.p_filesz;
+          size_t file_off  = program_header.p_offset;
+          uint8_t *user_dst = (uint8_t *)program_header.p_vaddr;
+          uint8_t kbuf[512];
+          while (remaining > 0) {
+            size_t chunk = remaining < sizeof(kbuf) ? remaining : sizeof(kbuf);
+            int32_t got = vfs_vnode_read(dentry->vnode, kbuf, chunk, file_off);
+            if (got <= 0) break;
+            copy_to_user(user_dst, kbuf, got);
+            user_dst  += got;
+            file_off  += got;
+            remaining -= got;
+          }
         }
       } else {
         // No BSS - use lazy file-backed mapping (pages loaded on demand via page fault)

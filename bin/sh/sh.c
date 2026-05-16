@@ -8,6 +8,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <dirent.h>
+#include <sys/stat.h>
 
 /* -------------------------------------------------------------------------
  * Constants
@@ -15,6 +16,8 @@
 #define COMMAND_BUF_SIZE  256
 #define MAX_HISTORY       128
 #define HISTORY_FILE      "/.history"
+#define SCRIPT_BUF_SIZE   8192
+#define MAX_SCRIPT_LINES  256
 
 /* -------------------------------------------------------------------------
  * History subsystem
@@ -161,7 +164,202 @@ static int readline_with_history(const char *prompt, char *out_buf,
 static char **script_argv = NULL;
 static int script_argc = 0;
 
-void parse_and_exec(const char *buf);
+int parse_and_exec(char *buf);
+
+static void expand_args(const char *input, char *output, size_t output_size);
+static void expand_glob(const char *input, char *output, size_t output_size);
+
+static int trim_line(char *s) {
+  char *start = s;
+  while (*start == ' ' || *start == '\t' || *start == '\r')
+    start++;
+  if (start != s)
+    memmove(s, start, strlen(start) + 1);
+  size_t len = strlen(s);
+  while (len > 0 && (s[len - 1] == ' ' || s[len - 1] == '\t' || s[len - 1] == '\r'))
+    s[--len] = '\0';
+  return (int)len;
+}
+
+static int builtin_test(int argc, char *argv[]) {
+  int i = 1;
+  int negate = 0;
+
+  if (argc > 1 && strcmp(argv[1], "!") == 0) {
+    negate = 1;
+    i++;
+  }
+  if (i >= argc)
+    return negate ? 0 : 1;
+
+  if (strcmp(argv[i], "-x") == 0 && i + 1 < argc) {
+    struct stat st;
+    if (stat(argv[i + 1], &st) != 0)
+      return negate ? 0 : 1;
+    int ok = (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
+    return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
+  }
+
+  if (strcmp(argv[i], "-f") == 0 && i + 1 < argc) {
+    struct stat st;
+    int ok = stat(argv[i + 1], &st) == 0 && S_ISREG(st.st_mode);
+    return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
+  }
+
+  if (strcmp(argv[i], "-d") == 0 && i + 1 < argc) {
+    struct stat st;
+    int ok = stat(argv[i + 1], &st) == 0 && S_ISDIR(st.st_mode);
+    return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
+  }
+
+  if (strcmp(argv[i], "-e") == 0 && i + 1 < argc) {
+    struct stat st;
+    int ok = stat(argv[i + 1], &st) == 0;
+    return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
+  }
+
+  return 1;
+}
+
+static int run_command_line(char *line) {
+  char expanded[1024];
+  char glob_expanded[1024];
+  int last = 0;
+
+  trim_line(line);
+  if (line[0] == '\0' || line[0] == '#')
+    return 0;
+
+  expand_args(line, expanded, sizeof(expanded));
+  expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
+
+  char *p = glob_expanded;
+  while (*p) {
+    while (*p == ' ' || *p == '\t')
+      p++;
+    if (*p == '\0')
+      break;
+    char *start = p;
+    while (*p && *p != ';')
+      p++;
+    char saved = *p;
+    if (saved)
+      *p++ = '\0';
+    trim_line(start);
+    if (start[0] != '\0')
+      last = parse_and_exec(start);
+  }
+  return last;
+}
+
+static void parse_if_condition(const char *line, char *cond, size_t condsz) {
+  const char *p = line + 3;
+  while (*p == ' ')
+    p++;
+  const char *then = strstr(p, "; then");
+  if (!then)
+    then = strstr(p, " then");
+  size_t len = then ? (size_t)(then - p) : strlen(p);
+  while (len > 0 && (p[len - 1] == ' ' || p[len - 1] == '\t'))
+    len--;
+  if (len >= condsz)
+    len = condsz - 1;
+  memcpy(cond, p, len);
+  cond[len] = '\0';
+}
+
+static int line_has_inline_then(const char *line) {
+  return strstr(line, "; then") != NULL || strstr(line, " then") != NULL;
+}
+
+static int execute_if_block(char *lines[], int nlines, int start) {
+  char cond[512];
+  parse_if_condition(lines[start], cond, sizeof(cond));
+  int cond_ok = run_command_line(cond) == 0;
+
+  int i = start + 1;
+  if (!line_has_inline_then(lines[start]) && i < nlines && strcmp(lines[i], "then") == 0)
+    i++;
+
+  int then_start = i;
+  int then_end = nlines;
+  int else_start = -1;
+
+  while (i < nlines && strcmp(lines[i], "fi") != 0) {
+    if (strcmp(lines[i], "else") == 0) {
+      then_end = i;
+      else_start = i + 1;
+    }
+    i++;
+  }
+  int else_end = i;
+  if (else_start < 0)
+    then_end = else_end;
+
+  if (cond_ok) {
+    for (int j = then_start; j < then_end; j++) {
+      if (strcmp(lines[j], "then") != 0)
+        run_command_line(lines[j]);
+    }
+  } else if (else_start >= 0) {
+    for (int j = else_start; j < else_end; j++)
+      run_command_line(lines[j]);
+  }
+
+  return (i < nlines) ? i + 1 : nlines;
+}
+
+static int load_script_lines(int fd, char *buf, char *lines[]) {
+  size_t total = 0;
+  ssize_t n;
+
+  while (total < SCRIPT_BUF_SIZE - 1 &&
+         (n = read(fd, buf + total, SCRIPT_BUF_SIZE - 1 - total)) > 0)
+    total += (size_t)n;
+  buf[total] = '\0';
+
+  int count = 0;
+  char *p = buf;
+  while (*p && count < MAX_SCRIPT_LINES) {
+    while (*p == ' ' || *p == '\t' || *p == '\r')
+      p++;
+    if (*p == '\0')
+      break;
+    if (*p == '#') {
+      while (*p && *p != '\n')
+        p++;
+      if (*p == '\n')
+        p++;
+      continue;
+    }
+    lines[count++] = p;
+    while (*p && *p != '\n')
+      p++;
+    if (*p == '\n') {
+      *p = '\0';
+      p++;
+    }
+    trim_line(lines[count - 1]);
+    if (lines[count - 1][0] == '\0')
+      count--;
+  }
+  return count;
+}
+
+static void execute_script_lines(char *lines[], int nlines) {
+  for (int i = 0; i < nlines;) {
+    if (strncmp(lines[i], "if ", 3) == 0) {
+      i = execute_if_block(lines, nlines, i);
+    } else if (strcmp(lines[i], "then") == 0 || strcmp(lines[i], "else") == 0 ||
+               strcmp(lines[i], "fi") == 0) {
+      printf("sh: syntax error near '%s'\n", lines[i]);
+      i++;
+    } else {
+      run_command_line(lines[i]);
+      i++;
+    }
+  }
+}
 
 /* Check if a file exists and is accessible */
 static int file_exists(const char *path) {
@@ -293,7 +491,7 @@ static int builtin_history(void) {
  * Command parser / executor
  * ---------------------------------------------------------------------- */
 
-void parse_and_exec(const char *buf) {
+int parse_and_exec(char *buf) {
   char command_buf[COMMAND_BUF_SIZE];
   char *argv[16];
   int argc = 0;
@@ -305,7 +503,8 @@ void parse_and_exec(const char *buf) {
     command_buf[cmd_len++] = buf[i++];
   command_buf[cmd_len] = '\0';
 
-  if (cmd_len == 0) return;
+  if (cmd_len == 0)
+    return 0;
 
   char full_path[256];
   argv[argc++] = full_path;
@@ -366,19 +565,29 @@ void parse_and_exec(const char *buf) {
       int flags = O_WRONLY | O_CREAT;
       flags |= append_mode ? O_APPEND : O_TRUNC;
       out_fd = open(redirect_out, flags);
-      if (out_fd < 0) { printf("sh: cannot open '%s'\n", redirect_out); return; }
+      if (out_fd < 0) {
+        printf("sh: cannot open '%s'\n", redirect_out);
+        return 1;
+      }
     }
     builtin_echo(argc, argv, out_fd);
-    if (redirect_out != NULL) close(out_fd);
-    return;
+    if (redirect_out != NULL)
+      close(out_fd);
+    return 0;
   }
 
+  if (strcmp("[", command_buf) == 0 || strcmp("test", command_buf) == 0)
+    return builtin_test(argc, argv);
+
   if (strcmp("exec", command_buf) == 0) {
-    if (argc < 2) { printf("exec: usage: exec command [args...]\n"); return; }
+    if (argc < 2) {
+      printf("exec: usage: exec command [args...]\n");
+      return 1;
+    }
 
     if (!resolve_command(argv[1], full_path, sizeof(full_path))) {
       printf("sh: exec: %s: command not found\n", argv[1]);
-      return;
+      return 127;
     }
 
     char *new_argv[16];
@@ -402,21 +611,25 @@ void parse_and_exec(const char *buf) {
     char *envp[] = { NULL };
     execve(full_path, new_argv, envp);
     printf("sh: exec: %s failed\n", argv[1]);
-    return;
+    return 1;
   }
 
-  if (strcmp("cd",      command_buf) == 0) { builtin_cd(argc, argv);  return; }
-  if (strcmp("pwd",     command_buf) == 0) { builtin_pwd();            return; }
-  if (strcmp("history", command_buf) == 0) { builtin_history();        return; }
-  if (strcmp("exit",    command_buf) == 0) { exit(0); }
+  if (strcmp("cd", command_buf) == 0)
+    return builtin_cd(argc, argv);
+  if (strcmp("pwd", command_buf) == 0)
+    return builtin_pwd();
+  if (strcmp("history", command_buf) == 0)
+    return builtin_history();
+  if (strcmp("exit", command_buf) == 0)
+    exit(0);
 
   /* External command — switch to canonical so the child gets a normal TTY. */
-  ioctl(0, TCSCANON, (void*)0);
+  ioctl(0, TCSCANON, (void *)0);
 
   if (!resolve_command(command_buf, full_path, sizeof(full_path))) {
     printf("sh: command not found: %s\n", command_buf);
-    ioctl(0, TCSRAW, (void*)0);
-    return;
+    ioctl(0, TCSRAW, (void *)0);
+    return 127;
   }
 
   pid_t pid = fork();
@@ -456,15 +669,16 @@ void parse_and_exec(const char *buf) {
   } else if (pid > 0) {
     setpgid(pid, pid);
     tcsetpgrp(0, pid);
-    int status;
+    int status = 0;
     wait(&status);
     tcsetpgrp(0, getpid());
-  } else {
-    printf("sh: fork failed\n");
+    ioctl(0, TCSRAW, (void *)0);
+    return WEXITSTATUS(status);
   }
 
-  /* Restore raw mode for our own readline. */
-  ioctl(0, TCSRAW, (void*)0);
+  printf("sh: fork failed\n");
+  ioctl(0, TCSRAW, (void *)0);
+  return 1;
 }
 
 /* -------------------------------------------------------------------------
@@ -477,12 +691,10 @@ int main(int argc, char **argv, char **envp) {
     script_argv = argv;
     script_argc = argc;
 
-    char expanded[1024];
-    char glob_expanded[1024];
-    expand_args(argv[2], expanded, sizeof(expanded));
-    expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
-    parse_and_exec(glob_expanded);
-    return 0;
+    char line[1024];
+    strncpy(line, argv[2], sizeof(line) - 1);
+    line[sizeof(line) - 1] = '\0';
+    return run_command_line(line);
   }
 
   // If a script file is provided as argv[1], execute it and exit
@@ -507,49 +719,11 @@ int main(int argc, char **argv, char **envp) {
       return 1;
     }
 
-    char buf[1024];
-    char expanded[1024];
-    char glob_expanded[1024];
-    ssize_t n;
-    size_t line_start = 0;
-    size_t total_read = 0;
-
-    while ((n = read(fd, buf + total_read, sizeof(buf) - total_read - 1)) > 0) {
-      total_read += n;
-      buf[total_read] = '\0';
-
-      for (size_t j = line_start; j < total_read; j++) {
-        if (buf[j] == '\n') {
-          buf[j] = '\0';
-          if (line_start < j && buf[line_start] != '#') {
-            expand_args(&buf[line_start], expanded, sizeof(expanded));
-            expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
-            parse_and_exec(glob_expanded);
-          }
-          line_start = j + 1;
-        }
-      }
-
-      if (line_start < total_read) {
-        size_t remaining = total_read - line_start;
-        for (size_t j = 0; j < remaining; j++)
-          buf[j] = buf[line_start + j];
-        total_read = remaining;
-        line_start = 0;
-      } else {
-        total_read = 0;
-        line_start = 0;
-      }
-    }
-
-    if (total_read > 0 && buf[0] != '#') {
-      buf[total_read] = '\0';
-      expand_args(buf, expanded, sizeof(expanded));
-      expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
-      parse_and_exec(glob_expanded);
-    }
-
+    static char script_buf[SCRIPT_BUF_SIZE];
+    static char *script_lines[MAX_SCRIPT_LINES];
+    int nlines = load_script_lines(fd, script_buf, script_lines);
     close(fd);
+    execute_script_lines(script_lines, nlines);
     return 0;
   }
 
@@ -577,7 +751,7 @@ int main(int argc, char **argv, char **envp) {
     int n = readline_with_history(prompt, buf, sizeof(buf));
     if (n > 0) {
       history_push(buf);
-      parse_and_exec(buf);
+      run_command_line(buf);
     }
   }
 

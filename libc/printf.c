@@ -1,289 +1,311 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
 
-#define PRINTF_BUF_SIZE 256
+FILE __stdin_file  = { .fd = 0 };
+FILE __stdout_file = { .fd = 1 };
+FILE __stderr_file = { .fd = 2 };
 
-// Helper to add char to buffer, flushing if full
-static void buf_putchar(char *buf, int *pos, char c) {
-  buf[(*pos)++] = c;
-  if (*pos >= PRINTF_BUF_SIZE) {
-    write(1, buf, PRINTF_BUF_SIZE);
-    *pos = 0;
-  }
-}
+/* -------------------------------------------------------------------------
+ * Output sink abstraction
+ * fd-based sinks buffer through a stack buffer and flush on full/done.
+ * string-based sinks write directly into the caller's buffer, clamped to
+ * size-1, but always count the true length (like C99 snprintf requires).
+ * ------------------------------------------------------------------------- */
 
-// Helper to add string to buffer
-static void buf_puts(char *buf, int *pos, const char *s) {
-  while (*s) {
-    buf_putchar(buf, pos, *s++);
-  }
-}
+#define FLUSH_BUF 256
 
-// Helper to print hex into buffer
-static void buf_print_hex(char *buf, int *pos, unsigned long long num) {
-  const char *hex = "0123456789abcdef";
-  char tmp[32];
-  int i = 0;
+typedef struct fmt_out {
+  enum { OUT_FD, OUT_STR } kind;
+  union {
+    struct { int fd; char buf[FLUSH_BUF]; int pos; } fd;
+    struct { char *buf; size_t size; int pos; } str;
+  } u;
+  int total;
+} fmt_out;
 
-  if (num == 0) {
-    buf_putchar(buf, pos, '0');
-    return;
-  }
-
-  while (num > 0) {
-    tmp[i++] = hex[num % 16];
-    num /= 16;
-  }
-
-  // Add to buffer in reverse
-  while (i > 0) {
-    buf_putchar(buf, pos, tmp[--i]);
-  }
-}
-
-/*
- * Format a single conversion into `buffer` starting at `*pos`.
- * Supports: flags (-, 0), width, length (l, ll), and conversions
- * s, d, i, u, x, X, p, c, %.
- */
-static void buf_format_one(char *buffer, int *pos, const char **fmt_p,
-                            va_list *args) {
-  const char *p = *fmt_p; /* points just past the '%' */
-
-  /* Flags */
-  int left_align = 0, zero_pad = 0;
-  while (*p == '-' || *p == '0') {
-    if (*p == '-') left_align = 1;
-    if (*p == '0') zero_pad  = 1;
-    p++;
-  }
-
-  /* Width */
-  int width = 0;
-  while (*p >= '0' && *p <= '9')
-    width = width * 10 + (*p++ - '0');
-
-  /* Precision (skip — not implemented) */
-  if (*p == '.') {
-    p++;
-    while (*p >= '0' && *p <= '9') p++;
-  }
-
-  /* Length modifier */
-  int is_long_long = 0;
-  if (*p == 'l' && *(p + 1) == 'l') { is_long_long = 1; p += 2; }
-  else if (*p == 'l')               { is_long_long = 1; p++;    }
-
-  char tmp[64];
-  const char *val_str = tmp;
-  tmp[0] = '\0';
-
-  switch (*p) {
-    case 's': {
-      const char *s = va_arg(*args, const char *);
-      val_str = s ? s : "(null)";
-      break;
+static void out_putchar(fmt_out *o, char c) {
+  o->total++;
+  if (o->kind == OUT_FD) {
+    o->u.fd.buf[o->u.fd.pos++] = c;
+    if (o->u.fd.pos == FLUSH_BUF) {
+      write(o->u.fd.fd, o->u.fd.buf, FLUSH_BUF);
+      o->u.fd.pos = 0;
     }
+  } else {
+    if (o->u.str.pos < (int)o->u.str.size - 1)
+      o->u.str.buf[o->u.str.pos] = c;
+    o->u.str.pos++;
+  }
+}
+
+static void out_puts(fmt_out *o, const char *s) {
+  while (*s)
+    out_putchar(o, *s++);
+}
+
+static void out_flush(fmt_out *o) {
+  if (o->kind == OUT_FD && o->u.fd.pos > 0 && o->u.fd.fd >= 0) {
+    write(o->u.fd.fd, o->u.fd.buf, (size_t)o->u.fd.pos);
+    o->u.fd.pos = 0;
+  } else if (o->kind == OUT_STR) {
+    int end = o->u.str.pos < (int)o->u.str.size
+                ? o->u.str.pos : (int)o->u.str.size - 1;
+    if (o->u.str.size > 0)
+      o->u.str.buf[end] = '\0';
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * Core formatter — one place that understands % directives
+ * ------------------------------------------------------------------------- */
+
+static void fmt_uint(fmt_out *o, unsigned long long v, int base, const char *digits,
+                     int width, int left_align, int zero_pad) {
+  char tmp[64];
+  int i = 0;
+  if (v == 0) {
+    tmp[i++] = '0';
+  } else {
+    while (v > 0) {
+      tmp[i++] = digits[v % (unsigned)base];
+      v /= (unsigned)base;
+    }
+  }
+  char pad = (zero_pad && !left_align) ? '0' : ' ';
+  if (!left_align)
+    for (int j = i; j < width; j++)
+      out_putchar(o, pad);
+  while (i > 0)
+    out_putchar(o, tmp[--i]);
+  if (left_align)
+    for (int j = i; j < width; j++)
+      out_putchar(o, ' ');
+}
+
+static void fmt_str(fmt_out *o, const char *s, int width, int left_align) {
+  if (!s) s = "(null)";
+  int len = 0;
+  for (const char *p = s; *p; p++) len++;
+  if (!left_align)
+    for (int i = len; i < width; i++) out_putchar(o, ' ');
+  out_puts(o, s);
+  if (left_align)
+    for (int i = len; i < width; i++) out_putchar(o, ' ');
+}
+
+static int core_vprintf(fmt_out *o, const char *fmt, va_list args) {
+  for (const char *p = fmt; *p; p++) {
+    if (*p != '%') { out_putchar(o, *p); continue; }
+    p++;
+    if (!*p) break;
+
+    int left_align = 0, zero_pad = 0;
+    while (*p == '-' || *p == '0') {
+      if (*p == '-') left_align = 1;
+      if (*p == '0') zero_pad  = 1;
+      p++;
+    }
+
+    int width = 0;
+    while (*p >= '0' && *p <= '9')
+      width = width * 10 + (*p++ - '0');
+
+    if (*p == '.') { p++; while (*p >= '0' && *p <= '9') p++; }
+
+    int lng = 0;
+    if (*p == 'l' && *(p+1) == 'l') { lng = 2; p += 2; }
+    else if (*p == 'l')              { lng = 1; p++;    }
+    else if (*p == 'z')              { lng = 1; p++;    }
+
+    switch (*p) {
     case 'd': case 'i': {
-      long long v = is_long_long ? va_arg(*args, long long)
-                                 : (long long)va_arg(*args, int);
-      /* render into tmp */
-      int i = 0;
-      if (v < 0) { tmp[i++] = '-'; v = -v; }
-      if (v == 0) { tmp[i++] = '0'; }
-      else {
-        char rev[32]; int r = 0;
-        while (v > 0) { rev[r++] = '0' + (v % 10); v /= 10; }
-        while (r > 0) tmp[i++] = rev[--r];
-      }
+      long long v = (lng >= 2) ? va_arg(args, long long)
+                  : (lng == 1) ? (long long)va_arg(args, long)
+                               : (long long)va_arg(args, int);
+      char tmp[24]; int i = 0;
+      unsigned long long uv;
+      if (v < 0) { tmp[i++] = '-'; uv = (unsigned long long)-v; }
+      else       {                  uv = (unsigned long long) v; }
+      char rev[22]; int r = 0;
+      if (uv == 0) { rev[r++] = '0'; }
+      else { while (uv) { rev[r++] = '0' + (uv % 10); uv /= 10; } }
+      while (r > 0) tmp[i++] = rev[--r];
       tmp[i] = '\0';
+      char pad = (zero_pad && !left_align) ? '0' : ' ';
+      int len = i;
+      if (!left_align) for (int j = len; j < width; j++) out_putchar(o, pad);
+      out_puts(o, tmp);
+      if ( left_align) for (int j = len; j < width; j++) out_putchar(o, ' ');
       break;
     }
     case 'u': {
-      unsigned long long v = is_long_long ? va_arg(*args, unsigned long long)
-                                          : (unsigned long long)va_arg(*args, unsigned int);
-      int i = 0;
-      if (v == 0) { tmp[i++] = '0'; }
-      else { char rev[32]; int r = 0;
-             while (v > 0) { rev[r++] = '0' + (v % 10); v /= 10; }
-             while (r > 0) tmp[i++] = rev[--r]; }
-      tmp[i] = '\0';
+      unsigned long long v = (lng >= 2) ? va_arg(args, unsigned long long)
+                           : (lng == 1) ? (unsigned long long)va_arg(args, unsigned long)
+                                        : (unsigned long long)va_arg(args, unsigned int);
+      fmt_uint(o, v, 10, "0123456789", width, left_align, zero_pad);
       break;
     }
-    case 'x': case 'X': {
-      unsigned long long v = is_long_long ? va_arg(*args, unsigned long long)
-                                          : (unsigned long long)va_arg(*args, unsigned int);
-      const char *hex = (*p == 'x') ? "0123456789abcdef" : "0123456789ABCDEF";
-      int i = 0;
-      if (v == 0) { tmp[i++] = '0'; }
-      else { char rev[32]; int r = 0;
-             while (v > 0) { rev[r++] = hex[v % 16]; v /= 16; }
-             while (r > 0) tmp[i++] = rev[--r]; }
-      tmp[i] = '\0';
+    case 'x': {
+      unsigned long long v = (lng >= 2) ? va_arg(args, unsigned long long)
+                           : (lng == 1) ? (unsigned long long)va_arg(args, unsigned long)
+                                        : (unsigned long long)va_arg(args, unsigned int);
+      fmt_uint(o, v, 16, "0123456789abcdef", width, left_align, zero_pad);
+      break;
+    }
+    case 'X': {
+      unsigned long long v = (lng >= 2) ? va_arg(args, unsigned long long)
+                           : (lng == 1) ? (unsigned long long)va_arg(args, unsigned long)
+                                        : (unsigned long long)va_arg(args, unsigned int);
+      fmt_uint(o, v, 16, "0123456789ABCDEF", width, left_align, zero_pad);
       break;
     }
     case 'p': {
-      unsigned long long v = (unsigned long long)va_arg(*args, void *);
-      buf_puts(buffer, pos, "0x");
-      buf_print_hex(buffer, pos, v);
-      *fmt_p = p;
-      return;
-    }
-    case 'c': {
-      tmp[0] = (char)va_arg(*args, int);
-      tmp[1] = '\0';
+      unsigned long long v = (unsigned long long)va_arg(args, void *);
+      out_puts(o, "0x");
+      fmt_uint(o, v, 16, "0123456789abcdef", 0, 0, 0);
       break;
     }
+    case 's': {
+      const char *s = va_arg(args, const char *);
+      fmt_str(o, s, width, left_align);
+      break;
+    }
+    case 'c':
+      out_putchar(o, (char)va_arg(args, int));
+      break;
     case '%':
-      buf_putchar(buffer, pos, '%');
-      *fmt_p = p;
-      return;
+      out_putchar(o, '%');
+      break;
     default:
-      buf_putchar(buffer, pos, '%');
-      buf_putchar(buffer, pos, *p);
-      *fmt_p = p;
-      return;
+      out_putchar(o, '%');
+      out_putchar(o, *p);
+      break;
+    }
   }
 
-  /* Pad and emit. */
-  int len = 0;
-  for (const char *c = val_str; *c; c++) len++;
+  out_flush(o);
+  return o->total;
+}
 
-  char pad = (zero_pad && !left_align) ? '0' : ' ';
-  if (!left_align)
-    for (int i = len; i < width; i++) buf_putchar(buffer, pos, pad);
-  buf_puts(buffer, pos, val_str);
-  if (left_align)
-    for (int i = len; i < width; i++) buf_putchar(buffer, pos, ' ');
+/* -------------------------------------------------------------------------
+ * Public API — all thin wrappers over core_vprintf
+ * ------------------------------------------------------------------------- */
 
-  *fmt_p = p;
+int vfprintf(FILE *stream, const char *fmt, va_list ap) {
+  if (!stream || !fmt) return -1;
+  if (stream->memonly) {
+    fmt_out o = {
+      .kind  = OUT_STR,
+      .u.str = { .buf  = stream->membuf + stream->mempos,
+                 .size = stream->memsize - stream->mempos,
+                 .pos  = 0 },
+      .total = 0,
+    };
+    int n = core_vprintf(&o, fmt, ap);
+    stream->mempos += (size_t)o.u.str.pos < stream->memsize - stream->mempos
+                      ? (size_t)o.u.str.pos : stream->memsize - stream->mempos;
+    return n;
+  }
+  fmt_out o = { .kind = OUT_FD, .u.fd = { .fd = stream->fd, .pos = 0 }, .total = 0 };
+  return core_vprintf(&o, fmt, ap);
+}
+
+int vdprintf(int fd, const char *fmt, va_list ap) {
+  fmt_out o = { .kind = OUT_FD, .u.fd = { .fd = fd, .pos = 0 }, .total = 0 };
+  return core_vprintf(&o, fmt, ap);
+}
+
+int vsnprintf(char *str, size_t size, const char *fmt, va_list ap) {
+  char dummy[1];
+  fmt_out o = {
+    .kind  = OUT_STR,
+    .u.str = { .buf = (str && size) ? str : dummy,
+               .size = (str && size) ? size : 1,
+               .pos  = 0 },
+    .total = 0,
+  };
+  return core_vprintf(&o, fmt, ap);
+}
+
+int fprintf(FILE *stream, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  int n = vfprintf(stream, fmt, ap);
+  va_end(ap); return n;
 }
 
 int printf(const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-
-  char buffer[PRINTF_BUF_SIZE];
-  int pos = 0;
-
-  for (const char *p = fmt; *p; p++) {
-    if (*p == '%' && *(p + 1)) {
-      p++;
-      buf_format_one(buffer, &pos, &p, &args);
-    } else {
-      buf_putchar(buffer, &pos, *p);
-    }
-  }
-
-  if (pos > 0)
-    write(1, buffer, pos);
-
-  va_end(args);
-  return pos;
+  va_list ap; va_start(ap, fmt);
+  int n = vfprintf(stdout, fmt, ap);
+  va_end(ap); return n;
 }
 
-// Helper to add char to a sized buffer
-static void str_putchar(char *buf, size_t size, int *pos, char c) {
-  if (*pos < (int)size - 1) {
-    buf[(*pos)++] = c;
-  }
+int vprintf(const char *fmt, va_list ap) {
+  return vfprintf(stdout, fmt, ap);
 }
 
-// Helper to add string to a sized buffer
-static void str_puts_str(char *buf, size_t size, int *pos, const char *s) {
-  while (*s && *pos < (int)size - 1) {
-    buf[(*pos)++] = *s++;
-  }
-}
-
-// Helper to print a signed number into sized buffer
-static void str_print_num(char *buf, size_t size, int *pos, long long num) {
-  if (num < 0) {
-    str_putchar(buf, size, pos, '-');
-    num = -num;
-  }
-
-  if (num == 0) {
-    str_putchar(buf, size, pos, '0');
-    return;
-  }
-
-  char tmp[32];
-  int i = 0;
-  while (num > 0) {
-    tmp[i++] = '0' + (num % 10);
-    num /= 10;
-  }
-
-  while (i > 0) {
-    str_putchar(buf, size, pos, tmp[--i]);
-  }
+int dprintf(int fd, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  int n = vdprintf(fd, fmt, ap);
+  va_end(ap); return n;
 }
 
 int snprintf(char *str, size_t size, const char *fmt, ...) {
-  if (size == 0) return 0;
+  va_list ap; va_start(ap, fmt);
+  int n = vsnprintf(str, size, fmt, ap);
+  va_end(ap); return n;
+}
 
-  va_list args;
-  va_start(args, fmt);
+int vsprintf(char *str, const char *fmt, va_list ap) {
+  return vsnprintf(str, (size_t)-1, fmt, ap);
+}
 
-  int pos = 0;
+int sprintf(char *str, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  int n = vsprintf(str, fmt, ap);
+  va_end(ap); return n;
+}
 
-  for (const char *p = fmt; *p; p++) {
-    if (*p == '%' && *(p + 1)) {
-      p++;
+int vasprintf(char **strp, const char *fmt, va_list ap) {
+  va_list ap2;
+  va_copy(ap2, ap);
+  int len = vsnprintf(NULL, 0, fmt, ap2);
+  va_end(ap2);
+  if (len < 0) return -1;
+  *strp = malloc((size_t)len + 1);
+  if (!*strp) return -1;
+  return vsnprintf(*strp, (size_t)len + 1, fmt, ap);
+}
 
-      // Check for 'll' modifier
-      int is_long_long = 0;
-      if (*p == 'l' && *(p + 1) == 'l') {
-        is_long_long = 1;
-        p += 2;
-      } else if (*p == 'l') {
-        is_long_long = 1;
-        p++;
-      }
+int asprintf(char **strp, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  int n = vasprintf(strp, fmt, ap);
+  va_end(ap); return n;
+}
 
-      switch (*p) {
-        case 's': {
-          const char *s = va_arg(args, const char *);
-          if (s) {
-            str_puts_str(str, size, &pos, s);
-          } else {
-            str_puts_str(str, size, &pos, "(null)");
-          }
-          break;
-        }
-        case 'd':
-        case 'i': {
-          if (is_long_long) {
-            long long val = va_arg(args, long long);
-            str_print_num(str, size, &pos, val);
-          } else {
-            int val = va_arg(args, int);
-            str_print_num(str, size, &pos, val);
-          }
-          break;
-        }
-        case '%':
-          str_putchar(str, size, &pos, '%');
-          break;
-        default:
-          str_putchar(str, size, &pos, '%');
-          if (is_long_long) {
-            str_putchar(str, size, &pos, 'l');
-            str_putchar(str, size, &pos, 'l');
-          }
-          str_putchar(str, size, &pos, *p);
-          break;
-      }
-    } else {
-      str_putchar(str, size, &pos, *p);
-    }
-  }
 
-  // Null terminate
-  str[pos] = '\0';
-
-  va_end(args);
-  return pos;
+/* scanf family — stubs, no scanner implemented yet */
+int vfscanf(FILE *stream, const char *fmt, va_list ap) {
+  (void)stream; (void)fmt; (void)ap; return EOF;
+}
+int fscanf(FILE *stream, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  int n = vfscanf(stream, fmt, ap);
+  va_end(ap); return n;
+}
+int vscanf(const char *fmt, va_list ap)       { return vfscanf(stdin, fmt, ap); }
+int scanf(const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  int n = vscanf(fmt, ap);
+  va_end(ap); return n;
+}
+int vsscanf(const char *str, const char *fmt, va_list ap) {
+  (void)str; (void)fmt; (void)ap; return EOF;
+}
+int sscanf(const char *str, const char *fmt, ...) {
+  va_list ap; va_start(ap, fmt);
+  int n = vsscanf(str, fmt, ap);
+  va_end(ap); return n;
 }

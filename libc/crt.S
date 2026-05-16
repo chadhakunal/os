@@ -1,3 +1,8 @@
+.section .bss
+.global environ
+environ:
+  .skip 8
+
 .section .text
 .global _start
 _start:
@@ -9,6 +14,10 @@ _start:
 
   # Clear frame pointer
   mv fp, zero
+
+  # Save envp (a2) into environ global
+  la t0, environ
+  sd a2, 0(t0)
 
   # Call main(argc, argv, envp)
   # Arguments are already in a0, a1, a2 from execve

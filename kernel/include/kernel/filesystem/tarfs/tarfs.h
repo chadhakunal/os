@@ -7,7 +7,6 @@
 
 extern char _tarfs_start[];
 extern char _tarfs_end[];
-extern char _tarfs_size[];
 
 struct tarfs_vnode_t {
   void *data;

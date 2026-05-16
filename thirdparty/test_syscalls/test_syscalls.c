@@ -323,6 +323,168 @@ void test_chmod_stat() {
   unlink(path);
 }
 
+void test_fstat() {
+  const char *path = "/fstat_test.txt";
+  const char *msg  = "fstat-payload";
+
+  unlink(path);
+
+  int fd = open(path, O_WRONLY | O_CREAT | O_EXCL, 0644);
+  test_result("fstat: create file", fd >= 0);
+  if (fd < 0) return;
+  write(fd, msg, strlen(msg));
+  close(fd);
+
+  struct stat st_path;
+  test_result("fstat: stat path succeeds", stat(path, &st_path) == 0);
+
+  fd = open(path, O_RDONLY, 0);
+  test_result("fstat: open for read", fd >= 0);
+  if (fd < 0) return;
+
+  struct stat st_fd;
+  test_result("fstat: fstat succeeds", fstat(fd, &st_fd) == 0);
+  test_result("fstat: st_ino matches stat", st_fd.st_ino == st_path.st_ino);
+  test_result("fstat: st_size matches written data",
+              st_fd.st_size == (uint64_t)strlen(msg));
+  test_result("fstat: st_mode matches stat", st_fd.st_mode == st_path.st_mode);
+  close(fd);
+
+  unlink(path);
+}
+
+void test_lstat() {
+  const char *orig = "/lstat_orig.txt";
+  const char *sl   = "/lstat_sl.txt";
+  const char *msg  = "xy";
+  const char *target = "/lstat_orig.txt";
+
+  unlink(sl);
+  unlink(orig);
+
+  int fd = open(orig, O_WRONLY | O_CREAT | O_EXCL, 0);
+  test_result("lstat: create target file", fd >= 0);
+  if (fd < 0) return;
+  write(fd, msg, strlen(msg));
+  close(fd);
+
+  test_result("lstat: symlink succeeds", symlink(target, sl) == 0);
+
+  struct stat st_follow;
+  test_result("lstat: stat follows symlink", stat(sl, &st_follow) == 0);
+  test_result("lstat: stat sees regular file", (st_follow.st_mode & 0170000) == 0100000);
+  test_result("lstat: stat sees target file size",
+              st_follow.st_size == (uint64_t)strlen(msg));
+
+  struct stat st_link;
+  test_result("lstat: lstat succeeds", lstat(sl, &st_link) == 0);
+  test_result("lstat: lstat sees symlink", (st_link.st_mode & 0170000) == 0120000);
+  test_result("lstat: lstat size is target path length",
+              st_link.st_size == (uint64_t)strlen(target));
+  test_result("lstat: lstat ino differs from followed stat",
+              st_link.st_ino != st_follow.st_ino);
+
+  unlink(sl);
+  unlink(orig);
+}
+
+void test_open_creat_mode() {
+  const char *path644 = "/creat_mode_644.txt";
+  const char *path600 = "/creat_mode_600.txt";
+
+  unlink(path644);
+  unlink(path600);
+
+  int fd = open(path644, O_WRONLY | O_CREAT | O_EXCL, 0644);
+  test_result("open O_CREAT: create with mode 0644", fd >= 0);
+  if (fd >= 0)
+    close(fd);
+
+  struct stat st;
+  test_result("open O_CREAT: stat after 0644 create", stat(path644, &st) == 0);
+  test_result("open O_CREAT: type is regular file", (st.st_mode & 0170000) == 0100000);
+  test_result("open O_CREAT: permission bits are 0644", (st.st_mode & 0777) == 0644);
+
+  fd = open(path600, O_WRONLY | O_CREAT | O_EXCL, 0600);
+  test_result("open O_CREAT: create with mode 0600", fd >= 0);
+  if (fd >= 0)
+    close(fd);
+
+  test_result("open O_CREAT: stat after 0600 create", stat(path600, &st) == 0);
+  test_result("open O_CREAT: permission bits are 0600", (st.st_mode & 0777) == 0600);
+
+  /* O_CREAT without O_EXCL on existing file must not change mode. */
+  fd = open(path644, O_WRONLY | O_CREAT, 0000);
+  test_result("open O_CREAT: open existing succeeds", fd >= 0);
+  if (fd >= 0)
+    close(fd);
+  test_result("open O_CREAT: mode unchanged on re-open", stat(path644, &st) == 0 &&
+              (st.st_mode & 0777) == 0644);
+
+  unlink(path644);
+  unlink(path600);
+}
+
+void test_truncate() {
+  const char *path = "/truncate_test.txt";
+  const char *msg  = "hello truncate world";
+
+  unlink(path);
+
+  int fd = open(path, O_WRONLY | O_CREAT, 0);
+  test_result("truncate: create file", fd >= 0);
+  if (fd < 0) return;
+  write(fd, msg, strlen(msg));
+  close(fd);
+
+  struct stat st;
+  test_result("truncate: initial stat succeeds", stat(path, &st) == 0);
+  test_result("truncate: initial size matches", st.st_size == (uint64_t)strlen(msg));
+
+  test_result("truncate(path, 5) succeeds", truncate(path, 5) == 0);
+  test_result("truncate: stat after shrink succeeds", stat(path, &st) == 0);
+  test_result("truncate: size is 5", st.st_size == 5);
+
+  fd = open(path, O_RDONLY, 0);
+  test_result("truncate: open after shrink", fd >= 0);
+  if (fd >= 0) {
+    char buf[32];
+    int rd = read(fd, buf, sizeof(buf) - 1);
+    buf[rd > 0 ? rd : 0] = '\0';
+    close(fd);
+    test_result("truncate: content is first 5 bytes", strcmp(buf, "hello") == 0);
+  }
+
+  test_result("truncate(path, 0) succeeds", truncate(path, 0) == 0);
+  test_result("truncate: stat after zero succeeds", stat(path, &st) == 0);
+  test_result("truncate: size is 0", st.st_size == 0);
+
+  fd = open(path, O_RDWR | O_CREAT, 0);
+  test_result("truncate: open for ftruncate", fd >= 0);
+  if (fd >= 0) {
+    const char *data = "abcdef";
+    write(fd, data, strlen(data));
+    test_result("ftruncate(fd, 2) succeeds", ftruncate(fd, 2) == 0);
+    test_result("truncate: stat after ftruncate succeeds", stat(path, &st) == 0);
+    test_result("truncate: size after ftruncate is 2", st.st_size == 2);
+    lseek(fd, 0, SEEK_SET);
+    char buf[8];
+    int rd = read(fd, buf, sizeof(buf) - 1);
+    buf[rd > 0 ? rd : 0] = '\0';
+    test_result("truncate: ftruncate content is first 2 bytes", strcmp(buf, "ab") == 0);
+    close(fd);
+  }
+
+  test_result("truncate: missing path fails", truncate("/no_such_truncate_xyz", 0) < 0);
+  test_result("truncate: directory path fails", truncate("/etc", 0) < 0);
+
+  chmod(path, 0444);
+  test_result("truncate: read-only file fails", truncate(path, 0) < 0);
+  chmod(path, 0666);
+
+  unlink(path);
+}
+
 void test_chdir_getcwd() {
   char cwd1[256], cwd2[256];
 
@@ -383,6 +545,10 @@ int main(int argc, char **argv) {
   test_hardlinks();
   test_symlinks();
   test_chmod_stat();
+  test_open_creat_mode();
+  test_fstat();
+  test_lstat();
+  test_truncate();
 
   printf("\n=== Test Summary ===\n");
   printf("Passed: %d\n", test_passed);
