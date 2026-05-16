@@ -9,23 +9,23 @@ echo "Arguments: $2 $3 $4"
 echo ""
 
 echo "Running kernel syscall tests..."
-#test_syscalls
+test_syscalls
 
 echo ""
 echo "Running shell features tests..."
-#test_shell
+test_shell
 
 echo ""
 echo "Running signal system tests..."
-#test_signals
+test_signals
 
 echo ""
 echo "Running stack growth test..."
-#stacktest
+stacktest
 
 echo ""
 echo "Running stack overflow test..."
-#stacktest2
+stacktest2
 
 echo ""
 echo "========================================="
