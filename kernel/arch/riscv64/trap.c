@@ -30,11 +30,8 @@ void trap_handler(struct trap_frame *tf) {
       case 5:
         trap_timer_handler(tf);
         if (tf->sstatus & SSTATUS_SPP) {
-          printk("[trap] timer from kernel, returning to kernel sepc=0x%llx\n", tf->sepc);
           return;
         }
-        printk("[trap] timer -> trap_return sepc=0x%llx sp=0x%llx pid=%llu\n",
-               current_task->tf.sepc, current_task->tf.sp, current_task->pid);
         if (current_task->tf.sepc == 0 || current_task->tf.sp == 0) {
           panic("trap_handler: Timer interrupt - corrupted trap frame! sepc=%llx sp=%llx pid=%llu",
                 current_task->tf.sepc, current_task->tf.sp, current_task->pid);
