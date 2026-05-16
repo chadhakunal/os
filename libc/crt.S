@@ -1,7 +1,7 @@
-.section .data
+.section .bss
 .global environ
 environ:
-  .quad 0
+  .skip 8
 
 .section .text
 .global _start
