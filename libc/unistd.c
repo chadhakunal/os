@@ -86,7 +86,7 @@ int execve(const char *pathname, char *const argv[], char *const envp[]) {
 }
 
 int execv(const char *pathname, char *const argv[]) {
-  extern char **environ;
+
   return execve(pathname, argv, environ);
 }
 
@@ -108,7 +108,7 @@ static char **build_argv(const char *arg, va_list ap) {
 }
 
 int execl(const char *pathname, const char *arg, ...) {
-  extern char **environ;
+
   va_list ap;
   va_start(ap, arg);
   char **argv = build_argv(arg, ap);
@@ -154,7 +154,7 @@ int execlp(const char *file, const char *arg, ...) {
 }
 
 char *getenv(const char *name) {
-  extern char **environ;
+
   if (!environ)
     return NULL;
   size_t nlen = strlen(name);
@@ -187,7 +187,7 @@ int mkstemp(char *tmpl) {
 }
 
 int execvp(const char *file, char *const argv[]) {
-  extern char **environ;
+
   if (strchr(file, '/'))
     return execve(file, argv, environ);
 
