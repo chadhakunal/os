@@ -7,9 +7,14 @@ void   *memmove(void *dst, const void *src, size_t n);
 void   *memset(void *s, int c, size_t n);
 int     memcmp(const void *s1, const void *s2, size_t n);
 void   *memchr(const void *s, int c, size_t n);
+void   *memccpy(void *restrict dst, const void *restrict src, int c, size_t n);
+void   *memmem(const void *haystack, size_t haystacklen,
+               const void *needle, size_t needlelen);
 
 char   *strcpy(char *restrict dst, const char *restrict src);
+char   *stpcpy(char *restrict dst, const char *restrict src);
 char   *strncpy(char *restrict dst, const char *restrict src, size_t n);
+char   *stpncpy(char *restrict dst, const char *restrict src, size_t n);
 char   *strcat(char *restrict dst, const char *restrict src);
 char   *strncat(char *restrict dst, const char *restrict src, size_t n);
 size_t  strlcpy(char *restrict dst, const char *restrict src, size_t size);
@@ -32,3 +37,4 @@ int     strcoll(const char *s1, const char *s2);
 size_t  strxfrm(char *restrict dst, const char *restrict src, size_t n);
 char   *strerror(int errnum);
 int     strerror_r(int errnum, char *buf, size_t buflen);
+const char *strsignal(int sig);

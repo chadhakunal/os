@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,6 +62,39 @@ void *memchr(const void *s, int c, size_t n) {
   return NULL;
 }
 
+void *memccpy(void *restrict dst, const void *restrict src, int c, size_t n) {
+  unsigned char *d = dst;
+  const unsigned char *s = src;
+  unsigned char ch = (unsigned char)c;
+
+  for (size_t i = 0; i < n; i++) {
+    d[i] = s[i];
+    if (s[i] == ch) {
+      return d + i + 1;
+    }
+  }
+  return NULL;
+}
+
+void *memmem(const void *haystack, size_t haystacklen, const void *needle,
+             size_t needlelen) {
+  const unsigned char *h = haystack;
+  const unsigned char *n = needle;
+
+  if (needlelen == 0) {
+    return (void *)haystack;
+  }
+  if (needlelen > haystacklen) {
+    return NULL;
+  }
+  for (size_t i = 0; i <= haystacklen - needlelen; i++) {
+    if (memcmp(h + i, n, needlelen) == 0) {
+      return (void *)(h + i);
+    }
+  }
+  return NULL;
+}
+
 int strcmp(const char *s1, const char *s2) {
   while (*s1 && (*s1 == *s2)) {
     s1++;
@@ -108,6 +142,13 @@ char *strcpy(char *restrict dst, const char *restrict src) {
   return ret;
 }
 
+char *stpcpy(char *restrict dst, const char *restrict src) {
+  while ((*dst++ = *src++)) {
+    ;
+  }
+  return dst;
+}
+
 char *strncpy(char *restrict dst, const char *restrict src, size_t n) {
   size_t i;
   for (i = 0; i < n && src[i] != '\0'; i++) {
@@ -117,6 +158,25 @@ char *strncpy(char *restrict dst, const char *restrict src, size_t n) {
     dst[i] = '\0';
   }
   return dst;
+}
+
+char *stpncpy(char *restrict dst, const char *restrict src, size_t n) {
+  char *d = dst;
+
+  while (n > 0 && *src) {
+    *d++ = *src++;
+    n--;
+  }
+  if (n > 0) {
+    *d++ = '\0';
+    n--;
+    while (n > 0) {
+      *d++ = '\0';
+      n--;
+    }
+    return d - 1;
+  }
+  return d;
 }
 
 char *strcat(char *restrict dst, const char *restrict src) {
@@ -390,4 +450,26 @@ int strerror_r(int errnum, char *buf, size_t buflen) {
     return ERANGE;
   }
   return 0;
+}
+
+const char *strsignal(int sig) {
+  switch (sig) {
+  case SIGHUP: return "Hangup";
+  case SIGINT: return "Interrupt";
+  case SIGQUIT: return "Quit";
+  case SIGILL: return "Illegal instruction";
+  case SIGTRAP: return "Trace/breakpoint trap";
+  case SIGABRT: return "Aborted";
+  case SIGBUS: return "Bus error";
+  case SIGFPE: return "Arithmetic exception";
+  case SIGKILL: return "Killed";
+  case SIGUSR1: return "User signal 1";
+  case SIGSEGV: return "Segmentation fault";
+  case SIGUSR2: return "User signal 2";
+  case SIGPIPE: return "Broken pipe";
+  case SIGALRM: return "Alarm clock";
+  case SIGTERM: return "Terminated";
+  case SIGCHLD: return "Child exited";
+  default: return "Unknown signal";
+  }
 }
