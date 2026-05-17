@@ -604,7 +604,11 @@ void perror(const char *s) {
   fputs("error\n", stderr);
 }
 
-int remove(const char *path) { return unlink(path); }
+int remove(const char *path) {
+  if (unlink(path) == 0) return 0;
+  if (errno == EISDIR) return rmdir(path);
+  return -1;
+}
 
 static char tmpnam_buf[L_tmpnam];
 char *tmpnam(char *s) {
