@@ -12,6 +12,11 @@
 #include "errno.h"
 #include "types.h"
 
+struct timespec {
+  long tv_sec;
+  long tv_nsec;
+};
+
 #define MAX_POLL_FDS 32
 
 /*
@@ -151,9 +156,12 @@ DEFINE_SYSCALL3(poll, struct pollfd *, user_fds, nfds_t, nfds, int, timeout_ms) 
 /* sys_ppoll(struct pollfd *fds, nfds_t nfds,
  *           const struct timespec *timeout, const sigset_t *sigmask) */
 DEFINE_SYSCALL4(ppoll, struct pollfd *, user_fds, nfds_t, nfds,
-                const struct timespec *, user_timeout, const sigset_t *, user_sigmask) {
+                void *, user_timeout_raw, void *, user_sigmask_raw) {
   if (nfds > MAX_POLL_FDS)
     return -EINVAL;
+
+  const struct timespec *user_timeout = (const struct timespec *)user_timeout_raw;
+  const sigset_t        *user_sigmask = (const sigset_t *)user_sigmask_raw;
 
   struct pollfd kpfds[MAX_POLL_FDS];
   if (copy_from_user(kpfds, user_fds, nfds * sizeof(struct pollfd)) != 0)
