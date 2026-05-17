@@ -464,29 +464,30 @@ struct task_t *find_task_by_pid(uint64_t pid) {
 }
 
 // Check if task has alive children (not zombies)
-bool has_alive_children(struct task_t *parent, int64_t specific_pid) {
+bool has_alive_children(struct task_t *parent, int64_t specific_pid, uint64_t pgid) {
   list_for_each(&task_list, pos) {
     struct task_t *task = container_of(pos, struct task_t, task_list);
-
-    if (task->ppid == parent->pid && task->state != TASK_ZOMBIE) {
-      if (specific_pid == -1 || task->pid == (uint64_t)specific_pid) {
-        return true;
-      }
-    }
+    if (task->ppid != parent->pid || task->state == TASK_ZOMBIE)
+      continue;
+    if (specific_pid != -1 && task->pid != (uint64_t)specific_pid)
+      continue;
+    if (pgid != 0 && task->pgid != pgid)
+      continue;
+    return true;
   }
   return false;
 }
 
-// Find zombie child matching criteria
-struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid) {
+struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid, uint64_t pgid) {
   list_for_each(&task_list, pos) {
     struct task_t *task = container_of(pos, struct task_t, task_list);
-
-    if (task->ppid == parent->pid && task->state == TASK_ZOMBIE) {
-      if (specific_pid == -1 || task->pid == (uint64_t)specific_pid) {
-        return task;
-      }
-    }
+    if (task->ppid != parent->pid || task->state != TASK_ZOMBIE)
+      continue;
+    if (specific_pid != -1 && task->pid != (uint64_t)specific_pid)
+      continue;
+    if (pgid != 0 && task->pgid != pgid)
+      continue;
+    return task;
   }
   return NULL;
 }

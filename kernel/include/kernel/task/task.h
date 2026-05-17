@@ -129,8 +129,8 @@ uint64_t fork_off();
 
 /* Helper functions for wait/exit */
 struct task_t *find_task_by_pid(uint64_t pid);
-bool has_alive_children(struct task_t *parent, int64_t specific_pid);
-struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid);
+bool has_alive_children(struct task_t *parent, int64_t specific_pid, uint64_t pgid);
+struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid, uint64_t pgid);
 void reap_zombie(struct task_t *zombie);
 void task_cleanup(int exit_status);
 
