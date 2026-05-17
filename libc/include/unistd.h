@@ -47,6 +47,7 @@ int tcsetpgrp(int fd, pid_t pgid);
 pid_t getpid(void);
 pid_t getppid(void);
 int setpgid(pid_t pid, pid_t pgid);
+pid_t getpgid(pid_t pid);
 int execve(const char *pathname, char *const argv[], char *const envp[]);
 int execv(const char *pathname, char *const argv[]);
 int execl(const char *pathname, const char *arg, ...);

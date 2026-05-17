@@ -10,5 +10,7 @@
 #define WIFEXITED(s)   (WTERMSIG(s) == 0)
 #define WIFSIGNALED(s) (WTERMSIG(s) > 0 && WTERMSIG(s) <= 31)
 
+typedef enum { P_ALL = 0, P_PID = 1, P_PGID = 2 } idtype_t;
+
 pid_t wait(int *wstatus);
 pid_t waitpid(pid_t pid, int *wstatus, int options);
