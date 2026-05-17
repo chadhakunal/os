@@ -16,8 +16,8 @@
 #define COMMAND_BUF_SIZE  256
 #define MAX_HISTORY       128
 #define HISTORY_FILE      "/.history"
-#define SCRIPT_BUF_SIZE   8192
-#define MAX_SCRIPT_LINES  256
+#define SCRIPT_BUF_SIZE   65536
+#define MAX_SCRIPT_LINES  2048
 
 /* -------------------------------------------------------------------------
  * History subsystem
