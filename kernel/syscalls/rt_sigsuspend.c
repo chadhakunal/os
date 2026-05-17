@@ -24,11 +24,14 @@ DEFINE_SYSCALL2(rt_sigsuspend, const sigset_t *, user_mask, size_t, sigsetsize)
   sigset_t saved_blocked = current_task->signal_state.blocked;
   current_task->signal_state.blocked = mask;
 
-  current_task->wait_reason = WAIT_SIGNAL;
-  current_task->state = TASK_BLOCKED;
-  schedule();
+  /* Only block if no signal is already pending and unblocked under the new mask */
+  if (!(current_task->signal_state.pending & ~mask)) {
+    current_task->wait_reason = WAIT_SIGNAL;
+    current_task->state = TASK_BLOCKED;
+    schedule();
+    asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
+  }
 
-  asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
   current_task->signal_state.blocked = saved_blocked;
 
   return -EINTR;
