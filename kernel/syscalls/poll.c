@@ -112,11 +112,24 @@ static int64_t do_poll(struct pollfd *kpfds, nfds_t nfds, int timeout_ms,
       return -EINTR;
     }
 
-    /* Add ourselves to every relevant pipe wait_queue */
-    poll_add_waiters(kpfds, nfds, waiters);
-
+    /* Mark blocked before adding to queues so any concurrent wake sees it. */
     current_task->wait_reason = WAIT_IO;
     current_task->state       = TASK_BLOCKED;
+
+    /* Add ourselves to every relevant pipe poll_queue */
+    poll_add_waiters(kpfds, nfds, waiters);
+
+    /* Re-scan now that we're on the queues — a wake may have fired between
+     * the first scan and us joining the queues. */
+    int already_ready = poll_scan(kpfds, nfds);
+    if (already_ready > 0) {
+      poll_remove_waiters(waiters, nfds);
+      current_task->state = TASK_RUNNING;
+      if (saved_mask)
+        current_task->signal_state.blocked = current_task->sigsuspend_saved_mask;
+      return already_ready;
+    }
+
     schedule();
 
     /* Re-enable SUM after returning from scheduler */
