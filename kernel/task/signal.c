@@ -113,9 +113,15 @@ void check_and_deliver_signals(struct trap_frame *tf) {
     debugk("signal: ERROR - new_sp %llx is below stack start 0x%llx!\n", new_sp, DEFAULT_STACK_START);
   }
 
+  /* When returning from sigsuspend, restore the pre-sigsuspend mask via the frame */
+  sigset_t frame_old_mask = current_task->sigsuspend_active
+                            ? current_task->sigsuspend_saved_mask
+                            : current_task->signal_state.blocked;
+  current_task->sigsuspend_active = 0;
+
   copy_to_user((void *)new_sp, tf, sizeof(struct trap_frame));
   copy_to_user((void *)(new_sp + sizeof(struct trap_frame)), &sig, sizeof(uint64_t));
-  copy_to_user((void *)(new_sp + sizeof(struct trap_frame) + 8), &current_task->signal_state.blocked, sizeof(uint64_t));
+  copy_to_user((void *)(new_sp + sizeof(struct trap_frame) + 8), &frame_old_mask, sizeof(uint64_t));
 
   sigset_t new_blocked = current_task->signal_state.blocked | action->sa_mask;
   if (!(action->sa_flags & SA_NODEFER)) {

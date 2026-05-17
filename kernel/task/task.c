@@ -53,6 +53,8 @@ void init_signal_state(struct task_t *task) {
   task->signal_state.pending = 0;
   task->signal_state.blocked = 0;
   task->signal_handler_depth = 0;
+  task->sigsuspend_active = 0;
+  task->sigsuspend_saved_mask = 0;
 }
 
 void init_files(struct files_table_t *files_table) {
@@ -637,6 +639,8 @@ uint64_t fork_off() {
   new_task->runtime = 0;
   new_task->max_runtime = MAX_RUNTIME;
   new_task->signal_handler_depth = 0;
+  new_task->sigsuspend_active = 0;
+  new_task->sigsuspend_saved_mask = 0;
 
   list_append(&task_list, &new_task->task_list);
   list_append(scheduler.active_list, &new_task->scheduler_list);

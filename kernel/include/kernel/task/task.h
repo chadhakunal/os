@@ -105,6 +105,8 @@ struct task_t {
 
   struct signal_state_t signal_state;
   uint32_t signal_handler_depth;  // Nesting depth of signal handlers (0 = not in handler)
+  int sigsuspend_active;
+  sigset_t sigsuspend_saved_mask;
 
   struct kernel_fault_recovery_t fault_recovery;
 
