@@ -184,45 +184,6 @@ int execlp(const char *file, const char *arg, ...) {
   return ret;
 }
 
-char *getenv(const char *name) {
-
-  if (!environ)
-    return NULL;
-  size_t nlen = strlen(name);
-  for (char **ep = environ; *ep; ep++) {
-    if (strncmp(*ep, name, nlen) == 0 && (*ep)[nlen] == '=')
-      return *ep + nlen + 1;
-  }
-  return NULL;
-}
-
-int mkstemp(char *tmpl) {
-  size_t len = strlen(tmpl);
-  if (len < 6 || strcmp(tmpl + len - 6, "XXXXXX") != 0) {
-    errno = EINVAL;
-    return -1;
-  }
-  static unsigned seed = 0x12345678;
-  int last_errno = EINVAL;
-  for (int tries = 0; tries < 100; tries++) {
-    seed = seed * 1664525u + 1013904223u;
-    unsigned r = seed;
-    for (int i = 0; i < 6; i++) {
-      unsigned idx = r % 62;
-      r /= 62;
-      const char *chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      tmpl[len - 6 + i] = chars[idx];
-    }
-    int fd = open(tmpl, O_RDWR | O_CREAT | O_EXCL, 0600);
-    if (fd >= 0)
-      return fd;
-    if (errno)
-      last_errno = errno;
-  }
-  errno = last_errno;
-  return -1;
-}
-
 int execvp(const char *file, char *const argv[]) {
 
   if (strchr(file, '/'))
@@ -430,3 +391,8 @@ int ftruncate(int fd, off_t length) {
 int reboot(int cmd) {
   return (int)syscall1(SYS_reboot, (uint64_t)(int64_t)cmd);
 }
+
+uid_t getuid(void) { return 0; }
+uid_t geteuid(void) { return 0; }
+gid_t getgid(void) { return 0; }
+gid_t getegid(void) { return 0; }

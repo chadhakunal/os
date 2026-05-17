@@ -620,8 +620,12 @@ int parse_and_exec(char *buf) {
     return builtin_pwd();
   if (strcmp("history", command_buf) == 0)
     return builtin_history();
-  if (strcmp("exit", command_buf) == 0)
-    exit(0);
+  if (strcmp("exit", command_buf) == 0) {
+    int code = 0;
+    if (argc > 1)
+      code = atoi(argv[1]);
+    exit(code);
+  }
 
   /* External command — switch to canonical so the child gets a normal TTY. */
   ioctl(0, TCSCANON, (void *)0);

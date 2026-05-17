@@ -96,3 +96,8 @@ int ftruncate(int fd, off_t length);
 int reboot(int cmd);
 int statfs(const char *path, struct statfs *buf);
 long fpathconf(int fd, int name);
+
+uid_t getuid(void);
+uid_t geteuid(void);
+gid_t getgid(void);
+gid_t getegid(void);
