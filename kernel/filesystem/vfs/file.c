@@ -128,6 +128,7 @@ int64_t vfs_dup2(struct files_table_t *file_table, int oldfd, int newfd) {
     if (target == NULL)
       return -ENOMEM;
     target->used_file_bitmap = 0;
+    target->close_on_exec_bitmap = 0;
     list_append(&file_table->files_list, &target->files_list);
     /* base_fd already points to the start of this new node. */
   }
@@ -135,9 +136,60 @@ int64_t vfs_dup2(struct files_table_t *file_table, int oldfd, int newfd) {
   int local_fd = newfd - base_fd;
   target->files[local_fd] = src;
   target->used_file_bitmap |= (1 << local_fd);
+  target->close_on_exec_bitmap &= ~(1U << local_fd);
   src->refcount++;
 
   return newfd;
+}
+
+int vfs_file_get_fd_flags(struct files_table_t *file_table, int fd) {
+  struct files_list_t *fl;
+  int local_fd;
+
+  if (find_file_by_fd(file_table, fd, &fl, &local_fd) == NULL)
+    return -EBADF;
+
+  if (fl->close_on_exec_bitmap & (1U << local_fd))
+    return FD_CLOEXEC;
+  return 0;
+}
+
+int64_t vfs_file_set_fd_flags(struct files_table_t *file_table, int fd, int flags) {
+  struct files_list_t *fl;
+  int local_fd;
+
+  if (find_file_by_fd(file_table, fd, &fl, &local_fd) == NULL)
+    return -EBADF;
+
+  if (flags & FD_CLOEXEC)
+    fl->close_on_exec_bitmap |= (1U << local_fd);
+  else
+    fl->close_on_exec_bitmap &= ~(1U << local_fd);
+
+  return 0;
+}
+
+void vfs_file_set_close_on_exec(struct files_table_t *file_table, int fd) {
+  struct files_list_t *fl;
+  int local_fd;
+
+  if (find_file_by_fd(file_table, fd, &fl, &local_fd) != NULL)
+    fl->close_on_exec_bitmap |= (1U << local_fd);
+}
+
+void vfs_files_table_close_on_exec(struct files_table_t *file_table) {
+  int base_fd = 0;
+
+  list_for_each(&file_table->files_list, pos) {
+    struct files_list_t *fl = container_of(pos, struct files_list_t, files_list);
+    uint32_t cloexec = fl->close_on_exec_bitmap & fl->used_file_bitmap;
+
+    for (int local_fd = 0; local_fd < 32; local_fd++) {
+      if (cloexec & (1U << local_fd))
+        vfs_file_close(file_table, base_fd + local_fd);
+    }
+    base_fd += 32;
+  }
 }
 
 static void vnode_drop_ref(struct vnode_t *vnode) {
@@ -211,7 +263,8 @@ int64_t vfs_file_close(struct files_table_t *file_table, int fd) {
     file_t_free(file);
   }
 
-  files_list->used_file_bitmap &= ~(1 << local_fd);
+  files_list->used_file_bitmap &= ~(1U << local_fd);
+  files_list->close_on_exec_bitmap &= ~(1U << local_fd);
   files_list->files[local_fd] = NULL;
 
   return 0;

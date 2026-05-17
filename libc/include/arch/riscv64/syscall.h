@@ -24,6 +24,7 @@
 #define SYS_fork            220
 #define SYS_sched_yield     124
 #define SYS_ioctl           29
+#define SYS_fcntl           25
 #define SYS_setpgid         154
 #define SYS_getdents        61
 #define SYS_mkdirat         34

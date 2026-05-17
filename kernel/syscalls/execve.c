@@ -10,6 +10,7 @@
 #include "kernel/task/task.h"
 #include "kernel/user_data_access.h"
 #include "kernel/filesystem/mode.h"
+#include "kernel/filesystem/vfs/vfs.h"
 #include "lib/pool_allocator.h"
 #include "lib/printk/printk.h"
 #include "lib/string.h"
@@ -111,6 +112,9 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
     execve_args_t_free(args);
     return -ENOEXEC;
   }
+
+  vfs_files_table_close_on_exec(&current_task->file_table);
+  debugk("execve: closed FD_CLOEXEC descriptors\n");
 
   clear_vmas(current_task);
   debugk("execve: cleared vmas\n");

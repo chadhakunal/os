@@ -62,6 +62,7 @@ struct files_table_t {
 struct files_list_t {
   struct file_t *files[32];
   uint32_t used_file_bitmap;
+  uint32_t close_on_exec_bitmap;
   struct list_node files_list;
 };
 

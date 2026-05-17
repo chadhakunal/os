@@ -57,6 +57,26 @@ static void add_mount_stub(struct superblock_t *alloc_sb,
   list_append(&parent_vnode->children_dentries, &de->sibling_dentry);
 }
 
+/* Writable /tmp on the sbfs root (tarfs bin/etc are read-only grafts). */
+static void vfs_ensure_tmp_dir(struct vnode_t *root, struct dentry_t *root_de) {
+  struct dentry_t *tmp_de = NULL;
+
+  if (vfs_lookup("tmp", root_de, &tmp_de) == 0 && tmp_de != NULL) {
+    struct vnode_t *v = tmp_de->vnode->mounted_vnode ? tmp_de->vnode->mounted_vnode
+                                                     : tmp_de->vnode;
+    v->permission_mode = S_IFDIR | 01777;
+    return;
+  }
+
+  if (vfs_mkdir("tmp", root, &tmp_de) == 0 && tmp_de != NULL) {
+    struct vnode_t *v = tmp_de->vnode->mounted_vnode ? tmp_de->vnode->mounted_vnode
+                                                     : tmp_de->vnode;
+    v->permission_mode = S_IFDIR | 01777;
+    tmp_de->parent = root_de;
+    list_append(&root->children_dentries, &tmp_de->sibling_dentry);
+  }
+}
+
 void vfs_init() {
   mount_list.next = &mount_list;
   mount_list.prev = &mount_list;
@@ -112,6 +132,8 @@ void vfs_init() {
 
   add_mount_stub(tarfs_sb, root, root_de, "dev",  devfs_mount()->root_vnode);
   add_mount_stub(tarfs_sb, root, root_de, "proc", procfs_mount()->root_vnode);
+
+  vfs_ensure_tmp_dir(root, root_de);
 
   printk("vfs: sbfs at /, bin/etc from tarfs, dev/proc virtual\n");
 }

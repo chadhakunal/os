@@ -34,7 +34,7 @@ $(RC_TESTS:%=$(BINDIR)/%):
 OSTEST_TMP ?= /tmp/os-test
 OSTEST_URL ?= https://gitlab.com/sortix/os-test.git
 OSTEST_DIR := os-tests-sortix
-OSTEST_TESTS ?= ""
+OSTEST_TESTS ?= "dirent"
 OSTEST_BASE := $(ROOT)/thirdparty/os-tests-sortix/ostest
 OSTEST_INSTALL_DIR := $(ROOT)/build/rootfs/bin/os-tests-sortix
 
@@ -91,15 +91,7 @@ os-tests-install: os-tests-build
 		OSTEST_BASE="$(abspath $(OSTEST_BASE))" \
 		OSTEST_INSTALL_DIR="$(abspath $(OSTEST_INSTALL_DIR))" \
 		sh "$(OSTEST_DIR)/install-basic.sh"
-	@echo "#!/bin/sh" > "$(ROOT)/rootfs/etc/run_tests"
-	@echo 'echo "========================================="' >> "$(ROOT)/rootfs/etc/run_tests"
-	@echo 'echo "  os-tests-sortix"' >> "$(ROOT)/rootfs/etc/run_tests"
-	@echo 'echo "========================================="' >> "$(ROOT)/rootfs/etc/run_tests"
-	@while read rel; do \
-		[ -f "$(OSTEST_INSTALL_DIR)/$$rel" ] || continue; \
-		echo "/bin/os-tests-sortix/$$rel" >> "$(ROOT)/rootfs/etc/run_tests"; \
-	done < "$(OSTEST_BASE)/sources.list"
-	@echo 'echo "========================================="' >> "$(ROOT)/rootfs/etc/run_tests"
-	@echo 'echo "  Done"' >> "$(ROOT)/rootfs/etc/run_tests"
-	@chmod +x "$(ROOT)/rootfs/etc/run_tests"
-	@echo "os-tests-install: generated rootfs/etc/run_tests"
+	chmod +x gen-run-tests.sh
+	ROOT="$(abspath $(ROOT))" OSTEST_BASE="$(abspath $(OSTEST_BASE))" \
+		OSTEST_INSTALL_DIR="$(abspath $(OSTEST_INSTALL_DIR))" \
+		sh gen-run-tests.sh

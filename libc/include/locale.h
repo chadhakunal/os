@@ -15,6 +15,9 @@ typedef __locale_t locale_t;
 #define LC_NUMERIC_MASK  16
 #define LC_TIME_MASK     32
 
+#define LC_GLOBAL_LOCALE ((locale_t)-1)
+
+locale_t duplocale(locale_t loc);
 locale_t newlocale(int category_mask, const char *locale, locale_t base);
 void freelocale(locale_t loc);
 

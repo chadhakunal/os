@@ -25,10 +25,27 @@ void _exit(int status);
 #define TCSRAW   0x5411
 #define TCSCANON 0x5412
 
+#define _PC_NAME_MAX 4
+
 extern char *optarg;
 extern int optind;
 extern int opterr;
 extern int optopt;
+
+struct statfs {
+  long f_type;
+  long f_bsize;
+  long f_blocks;
+  long f_bfree;
+  long f_bavail;
+  long f_files;
+  long f_ffree;
+  long f_fsid[2];
+  long f_namelen;
+  long f_frsize;
+  long f_flags;
+  long f_spare[4];
+};
 
 int getopt(int argc, char *const argv[], const char *optstring);
 
@@ -77,20 +94,5 @@ int pipe(int pipefd[2]);
 int truncate(const char *path, off_t length);
 int ftruncate(int fd, off_t length);
 int reboot(int cmd);
-
-struct statfs {
-  long f_type;
-  long f_bsize;
-  long f_blocks;
-  long f_bfree;
-  long f_bavail;
-  long f_files;
-  long f_ffree;
-  long f_fsid[2];
-  long f_namelen;
-  long f_frsize;
-  long f_flags;
-  long f_spare[4];
-};
-
 int statfs(const char *path, struct statfs *buf);
+long fpathconf(int fd, int name);

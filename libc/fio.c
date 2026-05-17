@@ -71,11 +71,16 @@ FILE *fdopen(int fd, const char *mode) {
 }
 
 FILE *tmpfile(void) {
-  /* no tmp filesystem — open /dev/null as a placeholder */
-  int fd = open("/dev/null", O_RDWR);
-  if (fd < 0) return NULL;
+  char path[] = "/tmp/os-tmpfile-XXXXXX";
+  int fd = mkstemp(path);
+  if (fd < 0)
+    return NULL;
+  unlink(path);
   FILE *f = alloc_file(fd);
-  if (!f) { close(fd); return NULL; }
+  if (!f) {
+    close(fd);
+    return NULL;
+  }
   return f;
 }
 

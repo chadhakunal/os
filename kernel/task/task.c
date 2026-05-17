@@ -63,6 +63,7 @@ void init_files(struct files_table_t *files_table) {
 
   struct files_list_t *files_list = files_list_t_alloc();
   files_list->used_file_bitmap = 1 | 1 << 1 | 1 << 2;  // Mark FDs 0, 1, 2 as used
+  files_list->close_on_exec_bitmap = 0;
 
   struct file_t *stdin = NULL, *stdout = NULL, *stderr = NULL;
   if (vfs_open("/dev/tty", O_RDONLY, &stdin)  < 0) debugk("init_files: failed to open stdin\n");
@@ -420,6 +421,7 @@ void copy_file_table(struct files_table_t *old_table, struct files_table_t *new_
     struct files_list_t *new_files_list = files_list_t_alloc();
 
     new_files_list->used_file_bitmap = old_files_list->used_file_bitmap;
+    new_files_list->close_on_exec_bitmap = old_files_list->close_on_exec_bitmap;
 
     for (int i = 0; i < 32; i++) {
       new_files_list->files[i] = old_files_list->files[i];
@@ -693,6 +695,7 @@ int alloc_fd(struct files_table_t *file_table, struct file_t *file) {
       return -ENFILE;
     }
     files_list->used_file_bitmap = 0;
+    files_list->close_on_exec_bitmap = 0;
     list_append(&file_table->files_list, &files_list->files_list);
     fd = 0;
   }
