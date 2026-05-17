@@ -54,7 +54,8 @@ OSTEST_PRUNE_DIRS := \
 	sys_resource sys_statvfs sys_times sys_utsname sys_uio \
 	syslog termios \
 	uchar wchar wctype wordexp \
-	devctl endian
+	devctl endian \
+	strings/strcasecmp_l strings/strncasecmp_l
 
 # Clone upstream (if needed) and vendor basic/ + misc/ (gitignored under os-tests-sortix/).
 os-tests-sortix-clone:

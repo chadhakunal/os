@@ -73,6 +73,9 @@ struct sigaction {
 
 // Function declarations
 int kill(pid_t pid, int sig);
+int killpg(pid_t pgid, int sig);
+int raise(int sig);
+void (*signal(int signum, void (*handler)(int)))(int);
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
 int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
 int sigemptyset(sigset_t *set);
