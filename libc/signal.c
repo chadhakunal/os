@@ -68,7 +68,9 @@ int sigpending(sigset_t *set) {
 }
 
 int sigsuspend(const sigset_t *mask) {
-  return syscall2(SYS_rt_sigsuspend, mask, sizeof(sigset_t));
+  syscall2(SYS_rt_sigsuspend, mask, sizeof(sigset_t));
+  errno = EINTR;
+  return -1;
 }
 
 int sigwait(const sigset_t *set, int *sig) {
