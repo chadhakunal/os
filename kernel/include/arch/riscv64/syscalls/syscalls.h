@@ -19,6 +19,7 @@
 #define SYS_openat          1024
 #define SYS_mmap            222
 #define SYS_munmap          215
+#define SYS_mprotect        226
 #define SYS_brk             214
 #define SYS_rt_sigaction    134
 #define SYS_rt_sigreturn    139
@@ -45,7 +46,10 @@
 #define SYS_linkat          37
 #define SYS_symlinkat       266
 #define SYS_readlinkat      267
-#define SYS_pipe            59
+#define SYS_pipe2           59
+#define SYS_pipe            SYS_pipe2
+#define SYS_fchdir          50
+#define SYS_execveat        281
 #define SYS_fstat           80
 #define SYS_fstatat         79
 #define SYS_chmod           52
@@ -95,13 +99,16 @@ int64_t sys_fsync(struct trap_frame *tf);
 int64_t sys_nanosleep(struct trap_frame *tf);
 int64_t sys_mmap(struct trap_frame *tf);
 int64_t sys_munmap(struct trap_frame *tf);
+int64_t sys_mprotect(struct trap_frame *tf);
 int64_t sys_brk(struct trap_frame *tf);
 int64_t sys_statfs(struct trap_frame *tf);
 int64_t sys_renameat(struct trap_frame *tf);
 int64_t sys_linkat(struct trap_frame *tf);
 int64_t sys_symlinkat(struct trap_frame *tf);
 int64_t sys_readlinkat(struct trap_frame *tf);
-int64_t sys_pipe(struct trap_frame *tf);
+int64_t sys_pipe2(struct trap_frame *tf);
+int64_t sys_fchdir(struct trap_frame *tf);
+int64_t sys_execveat(struct trap_frame *tf);
 int64_t sys_fstat(struct trap_frame *tf);
 int64_t sys_fstatat(struct trap_frame *tf);
 int64_t sys_chmod(struct trap_frame *tf);

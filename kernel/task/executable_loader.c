@@ -34,28 +34,31 @@ int detect_file_type(struct dentry_t *dentry) {
     return FILE_TYPE_INVALID;
 }
 
-int load_executable(struct task_t *task, struct execve_args_t *args) {
+int load_executable_dentry(struct task_t *task, struct execve_args_t *args,
+                           struct dentry_t *initial_dentry) {
     debugk("load_executable: path=%s\n", args->pathname);
 
-    // Loop to handle chain of scripts (e.g., script -> interpreter -> another script -> final ELF)
-    #define MAX_SCRIPT_DEPTH 4
     int depth = 0;
 
     while (depth < MAX_SCRIPT_DEPTH) {
-        // Resolve path
         struct dentry_t *dentry;
-        int32_t ret = vfs_resolve_path(args->pathname, &dentry);
-        if (ret != 0) {
-            debugk("load_executable: failed to resolve path %s\n", args->pathname);
-            return -1;
+        int32_t ret;
+
+        if (initial_dentry != NULL && depth == 0) {
+            dentry = initial_dentry;
+        } else {
+            ret = vfs_resolve_path(args->pathname, &dentry);
+            if (ret != 0) {
+                debugk("load_executable: failed to resolve path %s\n", args->pathname);
+                return -1;
+            }
         }
 
-        // Detect file type
         int file_type = detect_file_type(dentry);
 
         if (file_type == FILE_TYPE_ELF) {
             debugk("load_executable: Loading ELF %s\n", args->pathname);
-            return load_elf(task, args->pathname);
+            return load_elf_dentry(task, dentry);
         } else if (file_type == FILE_TYPE_SCRIPT) {
             debugk("load_executable: Processing script %s (depth=%d)\n", args->pathname, depth);
             ret = load_script(task, dentry, args);
@@ -73,6 +76,10 @@ int load_executable(struct task_t *task, struct execve_args_t *args) {
 
     debugk("load_executable: Max script depth exceeded\n");
     return -1;
+}
+
+int load_executable(struct task_t *task, struct execve_args_t *args) {
+    return load_executable_dentry(task, args, NULL);
 }
 
 

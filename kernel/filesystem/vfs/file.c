@@ -88,6 +88,59 @@ int64_t vfs_file_lseek(struct files_table_t *file_table, int fd, int64_t offset,
   return new_offset;
 }
 
+static int find_free_fd_ge(struct files_table_t *file_table, int min_fd) {
+  int base_fd = 0;
+
+  if (min_fd < 0)
+    return -EINVAL;
+
+  list_for_each(&file_table->files_list, pos) {
+    struct files_list_t *files_list =
+        container_of(pos, struct files_list_t, files_list);
+
+    for (int local_fd = 0; local_fd < 32; local_fd++) {
+      int fd = base_fd + local_fd;
+
+      if (fd < min_fd)
+        continue;
+
+      if (!(files_list->used_file_bitmap & (1U << local_fd)))
+        return fd;
+    }
+    base_fd += 32;
+  }
+
+  if (current_task != NULL) {
+    int rlimit_ret = rlimit_check_nofile(current_task, 1);
+    if (rlimit_ret < 0)
+      return rlimit_ret;
+  }
+
+  struct files_list_t *files_list = files_list_t_alloc();
+  if (files_list == NULL)
+    return -EMFILE;
+
+  files_list->used_file_bitmap = 0;
+  files_list->close_on_exec_bitmap = 0;
+  list_append(&file_table->files_list, &files_list->files_list);
+
+  if (min_fd >= base_fd + 32)
+    return -EMFILE;
+
+  return min_fd > base_fd ? min_fd : base_fd;
+}
+
+int64_t vfs_fcntl_dup(struct files_table_t *file_table, int fd, int min_fd) {
+  if (find_file_by_fd(file_table, fd, NULL, NULL) == NULL)
+    return -EBADF;
+
+  int newfd = find_free_fd_ge(file_table, min_fd);
+  if (newfd < 0)
+    return newfd;
+
+  return vfs_dup2(file_table, fd, newfd);
+}
+
 int64_t vfs_dup2(struct files_table_t *file_table, int oldfd, int newfd) {
   if (oldfd == newfd)
     return newfd;

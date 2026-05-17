@@ -13,6 +13,7 @@
 #define SYS_openat          1024
 #define SYS_mmap            222
 #define SYS_munmap          215
+#define SYS_mprotect        226
 #define SYS_brk             214
 #define SYS_rt_sigaction    134
 #define SYS_exit            93
@@ -37,7 +38,10 @@
 #define SYS_linkat          37
 #define SYS_symlinkat       266
 #define SYS_readlinkat      267
-#define SYS_pipe            59
+#define SYS_pipe2           59
+#define SYS_pipe            SYS_pipe2
+#define SYS_fchdir          50
+#define SYS_execveat        281
 #define SYS_fstat           80
 #define SYS_fstatat         79
 #define SYS_chmod           52

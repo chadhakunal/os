@@ -32,6 +32,8 @@ struct execve_args_t {
 
 /* Main entry point for loading any executable (ELF or script) with args struct */
 int load_executable(struct task_t *task, struct execve_args_t *args);
+int load_executable_dentry(struct task_t *task, struct execve_args_t *args,
+                           struct dentry_t *initial_dentry);
 
 /* Detect file type by reading magic bytes from dentry */
 int detect_file_type(struct dentry_t *dentry);

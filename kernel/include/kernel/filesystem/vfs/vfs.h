@@ -26,6 +26,7 @@
 #define O_DIRECTORY   0x10000
 
 /* fcntl(fd, cmd, ...) — descriptor flags (F_*), not open flags */
+#define F_DUPFD       0
 #define FD_CLOEXEC    1
 #define F_GETFD       1
 #define F_SETFD       2
@@ -264,6 +265,7 @@ void            vfs_files_table_close_on_exec(struct files_table_t *file_table);
 void            vfs_file_set_close_on_exec(struct files_table_t *file_table, int fd);
 int64_t         vfs_fsync(struct files_table_t *file_table, int fd);
 int64_t         vfs_dup2(struct files_table_t *file_table, int oldfd, int newfd);
+int64_t         vfs_fcntl_dup(struct files_table_t *file_table, int fd, int min_fd);
 int64_t         vfs_file_lseek(struct files_table_t *file_table, int fd, int64_t offset, int whence);
 
 /* Page cache — internal VFS use only, not for syscalls */

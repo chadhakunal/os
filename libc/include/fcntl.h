@@ -17,7 +17,9 @@
 #define AT_FDCWD            -100
 #define AT_REMOVEDIR        0x200
 #define AT_SYMLINK_NOFOLLOW 0x100
+#define AT_EMPTY_PATH       0x1000
 
+#define F_DUPFD    0
 #define FD_CLOEXEC 1
 #define F_GETFD    1
 #define F_SETFD    2

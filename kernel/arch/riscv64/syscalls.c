@@ -35,6 +35,11 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_chdir(tf);
       break;
 
+    case SYS_fchdir:
+      debugk("syscall: fchdir(fd=%lld)\n", (int64_t)tf->a0);
+      ret = sys_fchdir(tf);
+      break;
+
     case SYS_read:
       debugk("syscall: read(fd=%llu, buf=%llx, count=%llu)\n", tf->a0, tf->a1, tf->a2);
       ret = sys_read(tf);
@@ -80,6 +85,11 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_munmap(tf);
       break;
 
+    case SYS_mprotect:
+      debugk("syscall: mprotect(addr=%llx, len=%llu, prot=%llu)\n", tf->a0, tf->a1, tf->a2);
+      ret = sys_mprotect(tf);
+      break;
+
     case SYS_brk:
       debugk("syscall: brk(addr=%llx)\n", tf->a0);
       ret = sys_brk(tf);
@@ -104,6 +114,12 @@ void handle_syscall(struct trap_frame *tf) {
     case SYS_execve:
       debugk("syscall: execve(pathname=%llx, argv=%llx, envp=%llx)\n", tf->a0, tf->a1, tf->a2);
       sys_execve(tf);
+      break;
+
+    case SYS_execveat:
+      debugk("syscall: execveat(dirfd=%lld, pathname=%llx, argv=%llx, envp=%llx, flags=%lld)\n",
+             (int64_t)tf->a0, tf->a1, tf->a2, tf->a3, (int64_t)tf->a4);
+      sys_execveat(tf);
       break;
 
     case SYS_waitpid:
@@ -218,9 +234,9 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_readlinkat(tf);
       break;
 
-    case SYS_pipe:
-      debugk("syscall: pipe(pipefd=%llx)\n", tf->a0);
-      ret = sys_pipe(tf);
+    case SYS_pipe2:
+      debugk("syscall: pipe2(pipefd=%llx, flags=%llu)\n", tf->a0, tf->a1);
+      ret = sys_pipe2(tf);
       break;
       
     case SYS_fstat:
