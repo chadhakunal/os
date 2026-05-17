@@ -11,7 +11,6 @@
 #include "lib/list.h"
 #include "errno.h"
 #include "types.h"
-#include "lib/printk/printk.h"
 
 struct timespec {
   long tv_sec;
@@ -81,24 +80,13 @@ static void poll_remove_waiters(struct poll_waiter *waiters, nfds_t nfds) {
 /* Core poll logic shared by sys_poll and sys_ppoll. */
 static int64_t do_poll(struct pollfd *kpfds, nfds_t nfds, int timeout_ms,
                        sigset_t *saved_mask) {
-  printk("do_poll: enter, saved_mask=%p, pending=%llx, blocked=%llx\n",
-         saved_mask,
-         (unsigned long long)current_task->signal_state.pending,
-         (unsigned long long)current_task->signal_state.blocked);
-
-  if (saved_mask) {
+  if (saved_mask)
     current_task->signal_state.blocked = *saved_mask;
-    printk("do_poll: new blocked=%llx\n", (unsigned long long)*saved_mask);
-  }
 
   struct poll_waiter waiters[MAX_POLL_FDS];
 
   while (1) {
     int ready = poll_scan(kpfds, nfds);
-    printk("do_poll: poll_scan ready=%d, pending=%llx, blocked=%llx\n",
-           ready,
-           (unsigned long long)current_task->signal_state.pending,
-           (unsigned long long)current_task->signal_state.blocked);
 
     if (ready > 0) {
       if (saved_mask)
@@ -118,7 +106,7 @@ static int64_t do_poll(struct pollfd *kpfds, nfds_t nfds, int timeout_ms,
                        & ~current_task->signal_state.blocked;
     if (pending) {
       if (saved_mask)
-        current_task->signal_state.blocked = current_task->sigsuspend_saved_mask;
+        current_task->sigsuspend_active = 1;
       return -EINTR;
     }
 
@@ -145,20 +133,18 @@ static int64_t do_poll(struct pollfd *kpfds, nfds_t nfds, int timeout_ms,
     /* Re-enable SUM after returning from scheduler */
     asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
 
-    printk("do_poll: woke from schedule, pending=%llx, blocked=%llx\n",
-           (unsigned long long)current_task->signal_state.pending,
-           (unsigned long long)current_task->signal_state.blocked);
-
     /* Remove ourselves from all wait queues before re-scanning */
     poll_remove_waiters(waiters, nfds);
 
     /* Check if a signal woke us */
     pending = current_task->signal_state.pending
               & ~current_task->signal_state.blocked;
-    printk("do_poll: pending after mask=%llx\n", (unsigned long long)pending);
     if (pending) {
+      /* Leave new (unblocked) mask in place so signal is delivered on
+       * return to userspace. Set sigsuspend_active so check_and_deliver_signals
+       * restores the original mask after the handler runs. */
       if (saved_mask)
-        current_task->signal_state.blocked = current_task->sigsuspend_saved_mask;
+        current_task->sigsuspend_active = 1;
       return -EINTR;
     }
   }
@@ -214,8 +200,10 @@ DEFINE_SYSCALL4(ppoll, struct pollfd *, user_fds, nfds_t, nfds,
 
   int64_t ret = do_poll(kpfds, nfds, timeout_ms, &new_mask);
 
-  /* Restore original signal mask */
-  current_task->signal_state.blocked = saved_mask;
+  /* On EINTR, sigsuspend_active is set so check_and_deliver_signals will
+   * restore the mask after the handler. On all other returns, restore now. */
+  if (ret != -EINTR)
+    current_task->signal_state.blocked = saved_mask;
 
   if (ret > 0)
     copy_to_user(user_fds, kpfds, nfds * sizeof(struct pollfd));
