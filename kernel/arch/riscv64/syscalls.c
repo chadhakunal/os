@@ -239,6 +239,22 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_chmod(tf);
       break;
 
+    case SYS_fchmod:
+      debugk("syscall: fchmod(fd=%llu, mode=%lld)\n", tf->a0, (int64_t)tf->a1);
+      ret = sys_fchmod(tf);
+      break;
+
+    case SYS_fchmodat:
+      debugk("syscall: fchmodat(dirfd=%lld, path=%llx, mode=%lld, flags=%lld)\n",
+             (int64_t)tf->a0, tf->a1, (int64_t)tf->a2, (int64_t)tf->a3);
+      ret = sys_fchmodat(tf);
+      break;
+
+    case SYS_umask:
+      debugk("syscall: umask(mask=%lld)\n", (int64_t)tf->a0);
+      ret = sys_umask(tf);
+      break;
+
     case SYS_reboot:
       debugk("syscall: reboot(cmd=%lld)\n", (int64_t)tf->a0);
       ret = sys_reboot(tf);

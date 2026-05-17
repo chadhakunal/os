@@ -49,6 +49,9 @@
 #define SYS_fstat           80
 #define SYS_fstatat         79
 #define SYS_chmod           52
+#define SYS_fchmodat        53
+#define SYS_fchmod          91
+#define SYS_umask           166
 #define SYS_reboot          88
 #define SYS_getrlimit       163
 #define SYS_setrlimit       164
@@ -96,6 +99,9 @@ int64_t sys_pipe(struct trap_frame *tf);
 int64_t sys_fstat(struct trap_frame *tf);
 int64_t sys_fstatat(struct trap_frame *tf);
 int64_t sys_chmod(struct trap_frame *tf);
+int64_t sys_fchmod(struct trap_frame *tf);
+int64_t sys_fchmodat(struct trap_frame *tf);
+int64_t sys_umask(struct trap_frame *tf);
 int64_t sys_reboot(struct trap_frame *tf);
 int64_t sys_getrlimit(struct trap_frame *tf);
 int64_t sys_setrlimit(struct trap_frame *tf);

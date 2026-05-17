@@ -8,6 +8,10 @@ OSTEST_BASE="${OSTEST_BASE:-$OSTEST_SRC/ostest}"
 OUT="${OSTEST_OUT:-$OSTEST_BASE/basic}"
 REPORT="${OSTEST_REPORT:-$OSTEST_BASE/report}"
 INSTALL_DIR=${OSTEST_INSTALL_DIR:?OSTEST_INSTALL_DIR not set}
+# Some tests (e.g. fstatat) open ".." and stat "basic/<suite>/<name>" — Sortix
+# source layout under the parent of cwd. Mirror ELFs there when cwd is
+# /bin/os-tests-sortix (.. == /bin).
+BASIC_MIRROR_DIR="$(dirname "$INSTALL_DIR")/basic"
 SOURCES="$OSTEST_BASE/sources.list"
 
 if [ ! -f "$SOURCES" ]; then
@@ -15,7 +19,7 @@ if [ ! -f "$SOURCES" ]; then
   exit 1
 fi
 
-rm -rf "$INSTALL_DIR"
+rm -rf "$INSTALL_DIR" "$BASIC_MIRROR_DIR"
 installed=0
 skipped=0
 
@@ -29,10 +33,12 @@ while read -r rel; do
     skipped=$((skipped + 1))
     continue
   fi
-  mkdir -p "$(dirname "$INSTALL_DIR/$rel")"
+  mkdir -p "$(dirname "$INSTALL_DIR/$rel")" "$(dirname "$BASIC_MIRROR_DIR/$rel")"
   cp "$OUT/$rel" "$INSTALL_DIR/$rel"
   chmod +x "$INSTALL_DIR/$rel"
+  cp "$OUT/$rel" "$BASIC_MIRROR_DIR/$rel"
+  chmod +x "$BASIC_MIRROR_DIR/$rel"
   installed=$((installed + 1))
 done <"$SOURCES"
 
-echo "install-basic: $installed ELF(s) -> $INSTALL_DIR ($skipped not ok / missing)"
+echo "install-basic: $installed ELF(s) -> $INSTALL_DIR and $BASIC_MIRROR_DIR ($skipped not ok / missing)"
