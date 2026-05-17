@@ -80,3 +80,36 @@ void *calloc(size_t nmemb, size_t size) {
   memset(ptr, 0, total);
   return ptr;
 }
+
+void *realloc(void *ptr, size_t size) {
+  size_t old_size;
+  void *n;
+
+  if (!ptr)
+    return malloc(size);
+  if (size == 0) {
+    free(ptr);
+    return NULL;
+  }
+
+  old_size = *((size_t *)ptr - 1);
+  if (bucket_index(size) >= 0 && bucket_index(old_size) >= 0 &&
+      bucket_index(size) == bucket_index(old_size) && size <= old_size)
+    return ptr;
+
+  n = malloc(size);
+  if (!n)
+    return NULL;
+
+  {
+    size_t copy = size;
+    size_t avail = old_size;
+    if (bucket_index(old_size) < 0)
+      avail = old_size - HDR_SIZE;
+    if (copy > avail)
+      copy = avail;
+    memcpy(n, ptr, copy);
+  }
+  free(ptr);
+  return n;
+}
