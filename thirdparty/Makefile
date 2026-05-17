@@ -56,7 +56,15 @@ OSTEST_PRUNE_DIRS := \
 	uchar wchar wctype wordexp \
 	devctl endian \
 	strings/strcasecmp_l strings/strncasecmp_l \
-	signal/sigaltstack
+	signal/sigaltstack \
+	signal/psiginfo \
+	signal/pthread_kill \
+	signal/pthread_sigmask \
+	signal/sig2str \
+	signal/sigqueue \
+	signal/sigtimedwait \
+	signal/sigwaitinfo \
+	signal/str2sig
 
 # Clone upstream (if needed) and vendor basic/ + misc/ (gitignored under os-tests-sortix/).
 os-tests-sortix-clone:
