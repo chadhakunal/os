@@ -54,7 +54,9 @@ int sched_yield(void) {
 }
 
 pid_t waitpid(pid_t pid, int *wstatus, int options) {
-  return syscall3(SYS_waitpid, pid, wstatus, options);
+  long ret = syscall3(SYS_waitpid, pid, wstatus, options);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return (pid_t)ret;
 }
 
 int waitid(idtype_t idtype, pid_t id, siginfo_t *info, int options) {
