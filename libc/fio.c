@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <errno.h>
 
 /* -------------------------------------------------------------------------
  * Static buffers for stdin/stdout/stderr
@@ -542,8 +543,8 @@ FILE *open_memstream(char **ptr, size_t *sizeloc) {
  * pipe streams — not supported
  * ------------------------------------------------------------------------- */
 
-FILE *popen(const char *cmd, const char *type) { (void)cmd; (void)type; return NULL; }
-int   pclose(FILE *f)                          { (void)f; return -1; }
+FILE *popen(const char *cmd, const char *type) { (void)cmd; (void)type; errno = ENOSYS; return NULL; }
+int   pclose(FILE *f)                          { (void)f; errno = ENOSYS; return -1; }
 
 /* -------------------------------------------------------------------------
  * error / file ops
