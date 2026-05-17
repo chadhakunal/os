@@ -22,3 +22,8 @@ void _Exit(int status) {
   syscall1(SYS_exit, status);
   while (1);
 }
+
+void _exit(int status) {
+  syscall1(SYS_exit, status);
+  while (1);
+}

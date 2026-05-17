@@ -131,6 +131,11 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_ioctl(tf);
       break;
 
+    case SYS_fcntl:
+      debugk("syscall: fcntl(fd=%lld, cmd=%lld, arg=%llu)\n", (int64_t)tf->a0, (int64_t)tf->a1, tf->a2);
+      ret = sys_fcntl(tf);
+      break;
+
     case SYS_getdents:
       debugk("syscall: getdents(fd=%lld, buf=%llx, count=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2);
       ret = sys_getdents(tf);
@@ -234,6 +239,22 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_chmod(tf);
       break;
 
+    case SYS_fchmod:
+      debugk("syscall: fchmod(fd=%llu, mode=%lld)\n", tf->a0, (int64_t)tf->a1);
+      ret = sys_fchmod(tf);
+      break;
+
+    case SYS_fchmodat:
+      debugk("syscall: fchmodat(dirfd=%lld, path=%llx, mode=%lld, flags=%lld)\n",
+             (int64_t)tf->a0, tf->a1, (int64_t)tf->a2, (int64_t)tf->a3);
+      ret = sys_fchmodat(tf);
+      break;
+
+    case SYS_umask:
+      debugk("syscall: umask(mask=%lld)\n", (int64_t)tf->a0);
+      ret = sys_umask(tf);
+      break;
+
     case SYS_reboot:
       debugk("syscall: reboot(cmd=%lld)\n", (int64_t)tf->a0);
       ret = sys_reboot(tf);
@@ -245,6 +266,30 @@ void handle_syscall(struct trap_frame *tf) {
 
     case SYS_setrlimit:
       ret = sys_setrlimit(tf);
+      break;
+
+    case SYS_getpgid:
+      ret = sys_getpgid(tf);
+      break;
+
+    case SYS_waitid:
+      ret = sys_waitid(tf);
+      break;
+
+    case SYS_rt_sigprocmask:
+      ret = sys_rt_sigprocmask(tf);
+      break;
+
+    case SYS_rt_sigpending:
+      ret = sys_rt_sigpending(tf);
+      break;
+
+    case SYS_rt_sigsuspend:
+      ret = sys_rt_sigsuspend(tf);
+      break;
+
+    case SYS_rt_sigtimedwait:
+      ret = sys_rt_sigtimedwait(tf);
       break;
 
     default:

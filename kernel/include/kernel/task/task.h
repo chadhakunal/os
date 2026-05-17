@@ -36,6 +36,7 @@ enum wait_reason {
   WAIT_CHILD,
   WAIT_IO,
   WAIT_SLEEP,
+  WAIT_SIGNAL,
 };
 
 struct vma_t {
@@ -61,6 +62,7 @@ struct files_table_t {
 struct files_list_t {
   struct file_t *files[32];
   uint32_t used_file_bitmap;
+  uint32_t close_on_exec_bitmap;
   struct list_node files_list;
 };
 
@@ -104,11 +106,21 @@ struct task_t {
 
   struct signal_state_t signal_state;
   uint32_t signal_handler_depth;  // Nesting depth of signal handlers (0 = not in handler)
+  int sigsuspend_active;
+  sigset_t sigsuspend_saved_mask;
 
   struct kernel_fault_recovery_t fault_recovery;
 
   struct task_rlimits_t rlimits;
+
+  uint32_t umask; /* permission mask applied on file/dir creation */
 };
+
+/* Apply current task umask to permission bits (mode & 0777). */
+static inline uint32_t task_apply_umask(const struct task_t *task, uint32_t mode)
+{
+  return (mode & 0777u) & ~task->umask;
+}
 
 DEFINE_POOL(task_t, struct task_t)
 DEFINE_POOL(vma_t, struct vma_t)
@@ -126,8 +138,8 @@ uint64_t fork_off();
 
 /* Helper functions for wait/exit */
 struct task_t *find_task_by_pid(uint64_t pid);
-bool has_alive_children(struct task_t *parent, int64_t specific_pid);
-struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid);
+bool has_alive_children(struct task_t *parent, int64_t specific_pid, uint64_t pgid);
+struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid, uint64_t pgid);
 void reap_zombie(struct task_t *zombie);
 void task_cleanup(int exit_status);
 

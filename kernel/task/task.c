@@ -53,6 +53,8 @@ void init_signal_state(struct task_t *task) {
   task->signal_state.pending = 0;
   task->signal_state.blocked = 0;
   task->signal_handler_depth = 0;
+  task->sigsuspend_active = 0;
+  task->sigsuspend_saved_mask = 0;
 }
 
 void init_files(struct files_table_t *files_table) {
@@ -61,6 +63,7 @@ void init_files(struct files_table_t *files_table) {
 
   struct files_list_t *files_list = files_list_t_alloc();
   files_list->used_file_bitmap = 1 | 1 << 1 | 1 << 2;  // Mark FDs 0, 1, 2 as used
+  files_list->close_on_exec_bitmap = 0;
 
   struct file_t *stdin = NULL, *stdout = NULL, *stderr = NULL;
   if (vfs_open("/dev/tty", O_RDONLY, &stdin)  < 0) debugk("init_files: failed to open stdin\n");
@@ -139,6 +142,7 @@ struct task_t *task_init() {
   init_signal_state(task);
 
   rlimit_init_defaults(&task->rlimits);
+  task->umask = 0022;
 
   return task;
 }
@@ -418,6 +422,7 @@ void copy_file_table(struct files_table_t *old_table, struct files_table_t *new_
     struct files_list_t *new_files_list = files_list_t_alloc();
 
     new_files_list->used_file_bitmap = old_files_list->used_file_bitmap;
+    new_files_list->close_on_exec_bitmap = old_files_list->close_on_exec_bitmap;
 
     for (int i = 0; i < 32; i++) {
       new_files_list->files[i] = old_files_list->files[i];
@@ -462,29 +467,30 @@ struct task_t *find_task_by_pid(uint64_t pid) {
 }
 
 // Check if task has alive children (not zombies)
-bool has_alive_children(struct task_t *parent, int64_t specific_pid) {
+bool has_alive_children(struct task_t *parent, int64_t specific_pid, uint64_t pgid) {
   list_for_each(&task_list, pos) {
     struct task_t *task = container_of(pos, struct task_t, task_list);
-
-    if (task->ppid == parent->pid && task->state != TASK_ZOMBIE) {
-      if (specific_pid == -1 || task->pid == (uint64_t)specific_pid) {
-        return true;
-      }
-    }
+    if (task->ppid != parent->pid || task->state == TASK_ZOMBIE)
+      continue;
+    if (specific_pid != -1 && task->pid != (uint64_t)specific_pid)
+      continue;
+    if (pgid != 0 && task->pgid != pgid)
+      continue;
+    return true;
   }
   return false;
 }
 
-// Find zombie child matching criteria
-struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid) {
+struct task_t *find_zombie_child(struct task_t *parent, int64_t specific_pid, uint64_t pgid) {
   list_for_each(&task_list, pos) {
     struct task_t *task = container_of(pos, struct task_t, task_list);
-
-    if (task->ppid == parent->pid && task->state == TASK_ZOMBIE) {
-      if (specific_pid == -1 || task->pid == (uint64_t)specific_pid) {
-        return task;
-      }
-    }
+    if (task->ppid != parent->pid || task->state != TASK_ZOMBIE)
+      continue;
+    if (specific_pid != -1 && task->pid != (uint64_t)specific_pid)
+      continue;
+    if (pgid != 0 && task->pgid != pgid)
+      continue;
+    return task;
   }
   return NULL;
 }
@@ -616,6 +622,7 @@ uint64_t fork_off() {
 
   copy_file_table(&current_task->file_table, &new_task->file_table);
   rlimit_copy(&new_task->rlimits, &current_task->rlimits);
+  new_task->umask = current_task->umask;
   copy_mm(current_task, new_task);
 
   void *sjp = get_signal_jump_point_page();
@@ -637,6 +644,8 @@ uint64_t fork_off() {
   new_task->runtime = 0;
   new_task->max_runtime = MAX_RUNTIME;
   new_task->signal_handler_depth = 0;
+  new_task->sigsuspend_active = 0;
+  new_task->sigsuspend_saved_mask = 0;
 
   list_append(&task_list, &new_task->task_list);
   list_append(scheduler.active_list, &new_task->scheduler_list);
@@ -688,6 +697,7 @@ int alloc_fd(struct files_table_t *file_table, struct file_t *file) {
       return -ENFILE;
     }
     files_list->used_file_bitmap = 0;
+    files_list->close_on_exec_bitmap = 0;
     list_append(&file_table->files_list, &files_list->files_list);
     fd = 0;
   }

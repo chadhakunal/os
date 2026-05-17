@@ -3,6 +3,11 @@
 
 static struct __locale default_locale;
 
+locale_t duplocale(locale_t loc) {
+  (void)loc;
+  return &default_locale;
+}
+
 locale_t newlocale(int category_mask, const char *locale, locale_t base) {
   (void)category_mask;
   (void)locale;

@@ -2,6 +2,8 @@
 
 extern char **environ;
 
+void _exit(int status);
+
 #include <stddef.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -23,10 +25,27 @@ extern char **environ;
 #define TCSRAW   0x5411
 #define TCSCANON 0x5412
 
+#define _PC_NAME_MAX 4
+
 extern char *optarg;
 extern int optind;
 extern int opterr;
 extern int optopt;
+
+struct statfs {
+  long f_type;
+  long f_bsize;
+  long f_blocks;
+  long f_bfree;
+  long f_bavail;
+  long f_files;
+  long f_ffree;
+  long f_fsid[2];
+  long f_namelen;
+  long f_frsize;
+  long f_flags;
+  long f_spare[4];
+};
 
 int getopt(int argc, char *const argv[], const char *optstring);
 
@@ -45,6 +64,7 @@ int tcsetpgrp(int fd, pid_t pgid);
 pid_t getpid(void);
 pid_t getppid(void);
 int setpgid(pid_t pid, pid_t pgid);
+pid_t getpgid(pid_t pid);
 int execve(const char *pathname, char *const argv[], char *const envp[]);
 int execv(const char *pathname, char *const argv[]);
 int execl(const char *pathname, const char *arg, ...);
@@ -74,20 +94,5 @@ int pipe(int pipefd[2]);
 int truncate(const char *path, off_t length);
 int ftruncate(int fd, off_t length);
 int reboot(int cmd);
-
-struct statfs {
-  long f_type;
-  long f_bsize;
-  long f_blocks;
-  long f_bfree;
-  long f_bavail;
-  long f_files;
-  long f_ffree;
-  long f_fsid[2];
-  long f_namelen;
-  long f_frsize;
-  long f_flags;
-  long f_spare[4];
-};
-
 int statfs(const char *path, struct statfs *buf);
+long fpathconf(int fd, int name);

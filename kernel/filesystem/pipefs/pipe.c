@@ -1,7 +1,9 @@
 #include "kernel/filesystem/pipefs/pipe.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
+#include "kernel/task/signal.h"
 #include "kernel/user_data_access.h"
+#include "arch/riscv64/trap.h"
 #include "errno.h"
 
 struct pipe_t *pipe_create(void) {
@@ -28,6 +30,11 @@ int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size) {
       current_task->wait_reason = WAIT_IO;
       current_task->state       = TASK_BLOCKED;
       schedule();
+      asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
+      sigset_t _pending = current_task->signal_state.pending
+                          & ~current_task->signal_state.blocked;
+      if (_pending)
+        return copied > 0 ? (int64_t)copied : -EINTR;
     }
 
     uint8_t byte = pipe->buf[pipe->read_pos];
@@ -60,6 +67,11 @@ int64_t pipe_write(struct pipe_t *pipe, const void *kernel_buf, uint64_t size) {
       current_task->wait_reason = WAIT_IO;
       current_task->state       = TASK_BLOCKED;
       schedule();
+      asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
+      sigset_t _pending = current_task->signal_state.pending
+                          & ~current_task->signal_state.blocked;
+      if (_pending)
+        return written > 0 ? (int64_t)written : -EINTR;
     }
 
     pipe->buf[pipe->write_pos] = src[written];

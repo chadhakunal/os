@@ -32,6 +32,7 @@
 #define SYS_fork            220
 #define SYS_sched_yield     124
 #define SYS_ioctl           29
+#define SYS_fcntl           25
 #define SYS_setpgid         154
 #define SYS_getdents        61
 #define SYS_mkdirat         34
@@ -48,9 +49,18 @@
 #define SYS_fstat           80
 #define SYS_fstatat         79
 #define SYS_chmod           52
+#define SYS_fchmodat        53
+#define SYS_fchmod          91
+#define SYS_umask           166
 #define SYS_reboot          88
 #define SYS_getrlimit       163
 #define SYS_setrlimit       164
+#define SYS_getpgid          155
+#define SYS_waitid           95
+#define SYS_rt_sigprocmask   135
+#define SYS_rt_sigpending    136
+#define SYS_rt_sigsuspend    133
+#define SYS_rt_sigtimedwait  137
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -73,6 +83,7 @@ int64_t sys_rt_sigaction(struct trap_frame *tf);
 int64_t sys_rt_sigreturn(struct trap_frame *tf);
 int64_t sys_kill(struct trap_frame *tf);
 int64_t sys_ioctl(struct trap_frame *tf);
+int64_t sys_fcntl(struct trap_frame *tf);
 int64_t sys_getpid(struct trap_frame *tf);
 int64_t sys_getppid(struct trap_frame *tf);
 int64_t sys_setpgid(struct trap_frame *tf);
@@ -94,8 +105,17 @@ int64_t sys_pipe(struct trap_frame *tf);
 int64_t sys_fstat(struct trap_frame *tf);
 int64_t sys_fstatat(struct trap_frame *tf);
 int64_t sys_chmod(struct trap_frame *tf);
+int64_t sys_fchmod(struct trap_frame *tf);
+int64_t sys_fchmodat(struct trap_frame *tf);
+int64_t sys_umask(struct trap_frame *tf);
 int64_t sys_reboot(struct trap_frame *tf);
 int64_t sys_getrlimit(struct trap_frame *tf);
 int64_t sys_setrlimit(struct trap_frame *tf);
+int64_t sys_getpgid(struct trap_frame *tf);
+int64_t sys_waitid(struct trap_frame *tf);
+int64_t sys_rt_sigprocmask(struct trap_frame *tf);
+int64_t sys_rt_sigpending(struct trap_frame *tf);
+int64_t sys_rt_sigsuspend(struct trap_frame *tf);
+int64_t sys_rt_sigtimedwait(struct trap_frame *tf);
 
 #endif

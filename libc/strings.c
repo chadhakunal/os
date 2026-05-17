@@ -1,6 +1,27 @@
 #include <strings.h>
 #include <string.h>
 
+int ffs(int i) {
+  if (i == 0) return 0;
+  int n = 1;
+  while (!(i & 1)) { i >>= 1; n++; }
+  return n;
+}
+
+int ffsl(long i) {
+  if (i == 0) return 0;
+  int n = 1;
+  while (!(i & 1)) { i >>= 1; n++; }
+  return n;
+}
+
+int ffsll(long long i) {
+  if (i == 0) return 0;
+  int n = 1;
+  while (!(i & 1)) { i >>= 1; n++; }
+  return n;
+}
+
 int bcmp(const void *s1, const void *s2, size_t n) {
   return memcmp(s1, s2, n);
 }

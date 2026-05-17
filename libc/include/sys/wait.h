@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sys/types.h>
+#include <signal.h>
 
 #define WNOHANG    1
 #define WUNTRACED  2
@@ -10,5 +11,8 @@
 #define WIFEXITED(s)   (WTERMSIG(s) == 0)
 #define WIFSIGNALED(s) (WTERMSIG(s) > 0 && WTERMSIG(s) <= 31)
 
+typedef enum { P_ALL = 0, P_PID = 1, P_PGID = 2 } idtype_t;
+
 pid_t wait(int *wstatus);
 pid_t waitpid(pid_t pid, int *wstatus, int options);
+int waitid(idtype_t idtype, pid_t id, siginfo_t *info, int options);

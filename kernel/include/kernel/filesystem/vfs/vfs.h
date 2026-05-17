@@ -22,7 +22,13 @@
 #define O_EXCL      0x0080
 #define O_TRUNC     0x0200
 #define O_APPEND    0x0400
-#define O_CLOEXEC   0x0800
+#define O_CLOEXEC     0x0800
+#define O_DIRECTORY   0x10000
+
+/* fcntl(fd, cmd, ...) — descriptor flags (F_*), not open flags */
+#define FD_CLOEXEC    1
+#define F_GETFD       1
+#define F_SETFD       2
 
 /* vfs_get_page flags */
 #define VFS_PAGE_NOREF  0x0000
@@ -244,10 +250,16 @@ int64_t vfs_statfs(struct vnode_t *vnode, struct vfs_statfs *buf);
 
 /* File operations */
 int64_t         vfs_open(const char *path, int flags, struct file_t **file);
+int64_t         vfs_open_at(const char *path, struct dentry_t *start, int flags,
+                            struct file_t **file);
 struct file_t  *vfs_init_file(struct vnode_t *vnode, int flags);
 int64_t         vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 int64_t         vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 int64_t         vfs_file_close(struct files_table_t *file_table, int fd);
+int             vfs_file_get_fd_flags(struct files_table_t *file_table, int fd);
+int64_t         vfs_file_set_fd_flags(struct files_table_t *file_table, int fd, int flags);
+void            vfs_files_table_close_on_exec(struct files_table_t *file_table);
+void            vfs_file_set_close_on_exec(struct files_table_t *file_table, int fd);
 int64_t         vfs_fsync(struct files_table_t *file_table, int fd);
 int64_t         vfs_dup2(struct files_table_t *file_table, int oldfd, int newfd);
 int64_t         vfs_file_lseek(struct files_table_t *file_table, int fd, int64_t offset, int whence);
