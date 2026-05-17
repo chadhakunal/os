@@ -3,6 +3,7 @@
 #include "types.h"
 #include "kernel/task/task.h"
 #include "kernel/filesystem/vfs/vfs.h"
+#include "errno.h"
 
 DEFINE_SYSCALL3(read, int, fd, const void *, buf, size_t, count) {
   if (fd < 0 || fd >= 32) {
@@ -14,6 +15,9 @@ DEFINE_SYSCALL3(read, int, fd, const void *, buf, size_t, count) {
   if (file == NULL) {
     return -1;
   }
+
+  if ((file->flags & O_ACCMODE) == O_WRONLY)
+    return -EBADF;
 
   int64_t bytes_read = vfs_read(file, file->offset, (void *)buf, count);
 

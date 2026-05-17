@@ -33,7 +33,7 @@ CFLAGS="$CFLAGS -ffunction-sections -fdata-sections"
 CFLAGS="$CFLAGS -Werror=implicit-function-declaration"
 CPPFLAGS="-I$ROOT/libc/include -I$OSTEST_SRC -I$BASIC"
 DEFS="-D_GNU_SOURCE -D_BSD_SOURCE -D_ALL_SOURCE -D_DEFAULT_SOURCE"
-LDFLAGS="$CRT $LIBC -Wl,--gc-sections"
+LDFLAGS="$CRT $LIBC -lgcc -Wl,--gc-sections"
 
 JOBS=${JOBS:-$(sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 4)}
 mkdir -p "$OUT" "$REPORT"

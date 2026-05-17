@@ -11,9 +11,13 @@
 
 DEFINE_SYSCALL1(exit, int, status)
 {
-  debugk("exit: PID %llu exiting with status %d\n", current_task->pid, status);
+  /* Linux wait(2) status: exit code in bits 8..15, low byte 0 for normal exit. */
+  int wait_status = (status & 0xff) << 8;
 
-  task_cleanup(status);
+  debugk("exit: PID %llu exiting with status %d (wait %d)\n",
+         current_task->pid, status, wait_status);
+
+  task_cleanup(wait_status);
   schedule();
 
   panic("exit: returned from schedule()!");

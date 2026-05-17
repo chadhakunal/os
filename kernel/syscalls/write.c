@@ -40,6 +40,11 @@ DEFINE_SYSCALL3(write, int, fd, const void *, buf, size_t, count) {
     return -1;
   }
 
+  if ((file->flags & O_ACCMODE) == O_RDONLY) {
+    debugk("write syscall: file opened read-only\n");
+    return -EBADF;
+  }
+
   debugk("write syscall: allocating page\n");
   // Allocate kernel buffer for safe user data access
   void *phys_page = get_page(false);

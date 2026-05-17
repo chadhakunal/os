@@ -27,6 +27,8 @@ void _exit(int status);
 
 #define _PC_NAME_MAX 4
 
+#define _SC_PAGESIZE 30
+
 extern char *optarg;
 extern int optind;
 extern int opterr;
@@ -51,11 +53,13 @@ int getopt(int argc, char *const argv[], const char *optstring);
 
 char *getcwd(char *buf, size_t size);
 int chdir(const char *path);
+int fchdir(int fd);
 ssize_t read(int fd, void *buf, size_t n);
 ssize_t write(int fd, const void *buf, size_t n);
 int close(int fd);
 off_t lseek(int fd, off_t offset, int whence);
 pid_t fork(void);
+pid_t _Fork(void);
 int sched_yield(void);
 int kill(pid_t pid, int sig);
 int ioctl(int fd, unsigned long request, void *arg);
@@ -66,6 +70,9 @@ pid_t getppid(void);
 int setpgid(pid_t pid, pid_t pgid);
 pid_t getpgid(pid_t pid);
 int execve(const char *pathname, char *const argv[], char *const envp[]);
+int execveat(int dirfd, const char *pathname, char *const argv[],
+             char *const envp[], int flags);
+int fexecve(int fd, char *const argv[], char *const envp[]);
 int execv(const char *pathname, char *const argv[]);
 int execl(const char *pathname, const char *arg, ...);
 int execle(const char *pathname, const char *arg, ...);
@@ -74,7 +81,9 @@ int execvp(const char *file, char *const argv[]);
 int mkdir(const char *path, mode_t mode);
 int unlink(const char *path);
 int rmdir(const char *path);
+int dup(int oldfd);
 int dup2(int oldfd, int newfd);
+int dup3(int oldfd, int newfd, int flags);
 int fsync(int fd);
 unsigned int sleep(unsigned int seconds);
 int usleep(unsigned long usec);
@@ -91,8 +100,15 @@ int symlinkat(const char *target, int dirfd, const char *linkpath);
 ssize_t readlink(const char *path, char *buf, size_t bufsiz);
 ssize_t readlinkat(int dirfd, const char *path, char *buf, size_t bufsiz);
 int pipe(int pipefd[2]);
+int pipe2(int pipefd[2], int flags);
 int truncate(const char *path, off_t length);
 int ftruncate(int fd, off_t length);
 int reboot(int cmd);
 int statfs(const char *path, struct statfs *buf);
 long fpathconf(int fd, int name);
+long sysconf(int name);
+
+uid_t getuid(void);
+uid_t geteuid(void);
+gid_t getgid(void);
+gid_t getegid(void);

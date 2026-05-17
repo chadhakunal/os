@@ -1,6 +1,20 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int (*qsort_r_compar)(const void *, const void *, void *);
+static void *qsort_r_arg;
+
+static int qsort_r_thunk(const void *a, const void *b) {
+  return qsort_r_compar(a, b, qsort_r_arg);
+}
+
+void qsort_r(void *base, size_t nmemb, size_t size,
+             int (*compar)(const void *, const void *, void *), void *arg) {
+  qsort_r_compar = compar;
+  qsort_r_arg = arg;
+  qsort(base, nmemb, size, qsort_r_thunk);
+}
+
 void qsort(void *base, size_t nmemb, size_t size,
            int (*compar)(const void *, const void *)) {
   if (!base || nmemb <= 1 || size == 0)

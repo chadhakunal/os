@@ -109,6 +109,8 @@ struct Elf64_Shdr {
 };
 
 int validate_elf(const char *path);
+int validate_elf_dentry(struct dentry_t *dentry);
 int load_elf(struct task_t *task, const char *path);
+int load_elf_dentry(struct task_t *task, struct dentry_t *dentry);
 
 #endif

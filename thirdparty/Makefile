@@ -34,7 +34,7 @@ $(RC_TESTS:%=$(BINDIR)/%):
 OSTEST_TMP ?= /tmp/os-test
 OSTEST_URL ?= https://gitlab.com/sortix/os-test.git
 OSTEST_DIR := os-tests-sortix
-OSTEST_TESTS ?= time
+OSTEST_TESTS ?= stdio sys_wait signal strings dirent fcntl sys_stat sys_mman unistd
 #sys_wait signal strings dirent fcntl sys_stat
 OSTEST_BASE := $(ROOT)/thirdparty/os-tests-sortix/ostest
 OSTEST_INSTALL_DIR := $(ROOT)/build/rootfs/bin/os-tests-sortix
@@ -70,7 +70,11 @@ OSTEST_PRUNE_DIRS := \
 	time/timer_delete \
 	time/timer_getoverrun \
 	time/timer_gettime \
-	time/timer_settime
+	time/timer_settime \
+	stdio/ctermid \
+	stdio/setvbuf \
+	stdio/tmpnam \
+	stdio/fflush
 
 # Clone upstream (if needed) and vendor basic/ + misc/ (gitignored under os-tests-sortix/).
 os-tests-sortix-clone:

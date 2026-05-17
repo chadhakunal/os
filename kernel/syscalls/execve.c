@@ -17,46 +17,31 @@
 #include "types.h"
 #include "errno.h"
 
+#define AT_EMPTY_PATH 0x1000
+
 DEFINE_POOL(execve_args_t, struct execve_args_t)
 
-DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
-  debugk("execve: pathname=%p, argv=%p, envp=%p\n", pathname, argv, envp);
+static struct execve_args_t *execve_copy_user_args(const char *pathname,
+                                                   char **argv, char **envp) {
+  if (!pathname || !argv)
+    return NULL;
 
-  // Validate pointers
-  if (!pathname || !argv) {
-    return -1;
-  }
-  debugk("creating arg struct\n");
-  // Allocate structure from pool
   struct execve_args_t *args = execve_args_t_alloc();
-  debugk("args = %p\n", args);
-  if (!args) {
-    debugk("execve: failed to allocate args struct\n");
-    return -1;
-  }
+  if (!args)
+    return NULL;
 
-  // Copy pathname
-  debugk("execve: copying pathname from %p\n", pathname);
   copy_string_from_user(args->pathname, pathname, MAX_PATH_LEN);
-  debugk("execve: pathname=%s\n", args->pathname);
 
-  // Copy argv
-  debugk("execve: copying argv from %p\n", argv);
   args->argc = 0;
   char *user_arg_ptr;
   while (args->argc < MAX_ARG_COUNT) {
-    debugk("execve: reading argv[%d] pointer\n", args->argc);
     copy_from_user(&user_arg_ptr, &argv[args->argc], sizeof(char *));
-    debugk("execve: argv[%d] pointer = %p\n", args->argc, user_arg_ptr);
     if (user_arg_ptr == NULL)
       break;
-
     copy_string_from_user(args->argv[args->argc], user_arg_ptr, MAX_ARG_LEN);
-    debugk("execve: argv[%d]=%s\n", args->argc, args->argv[args->argc]);
     args->argc++;
   }
 
-  // Copy envp
   args->envc = 0;
   char *user_env_ptr;
   if (envp != NULL) {
@@ -64,62 +49,43 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
       copy_from_user(&user_env_ptr, &envp[args->envc], sizeof(char *));
       if (user_env_ptr == NULL)
         break;
-
       copy_string_from_user(args->envp[args->envc], user_env_ptr, MAX_ARG_LEN);
-      debugk("execve: envp[%d]=%s\n", args->envc, args->envp[args->envc]);
       args->envc++;
     }
   }
 
-  debugk("execve: argc=%d, envc=%d\n", args->argc, args->envc);
+  return args;
+}
 
-  // Validate file exists and detect type before destroying current address
-  // space
-  struct dentry_t *dentry;
-  if (vfs_resolve_path(args->pathname, &dentry) != 0) {
-    debugk("execve: failed to resolve path %s\n", args->pathname);
-    execve_args_t_free(args);
-    return -ENOENT;
-  }
-
+static int64_t execve_run(struct dentry_t *dentry, struct execve_args_t *args) {
   struct vnode_t *exec_vnode = dentry->vnode->mounted_vnode
                                ? dentry->vnode->mounted_vnode
                                : dentry->vnode;
 
   if (IS_DIR(exec_vnode->permission_mode)) {
-    debugk("execve: %s is a directory\n", args->pathname);
     execve_args_t_free(args);
     return -EISDIR;
   }
 
   if (!(exec_vnode->permission_mode & PERM_XUSR)) {
-    debugk("execve: permission denied for %s\n", args->pathname);
     execve_args_t_free(args);
     return -EACCES;
   }
 
   int file_type = detect_file_type(dentry);
   if (file_type == FILE_TYPE_INVALID) {
-    debugk("execve: invalid file type for %s\n", args->pathname);
     execve_args_t_free(args);
     return -ENOEXEC;
   }
 
-  // For ELF files, validate before destroying address space
-  // For scripts, validation happens during script processing
-  if (file_type == FILE_TYPE_ELF && validate_elf(args->pathname) != 0) {
-    debugk("execve: ELF validation failed for %s\n", args->pathname);
+  if (file_type == FILE_TYPE_ELF && validate_elf_dentry(dentry) != 0) {
     execve_args_t_free(args);
     return -ENOEXEC;
   }
 
   vfs_files_table_close_on_exec(&current_task->file_table);
-  debugk("execve: closed FD_CLOEXEC descriptors\n");
-
   clear_vmas(current_task);
-  debugk("execve: cleared vmas\n");
 
-  // Pending Signals cleared and blocked signals stay
   for (size_t i = 0; i < NUM_SIGS; i++) {
     struct sigaction_t *old_action = current_task->signal_state.actions[i];
     if (old_action != NULL &&
@@ -132,55 +98,37 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
   }
   current_task->signal_state.pending = 0;
   current_task->signal_handler_depth = 0;
-  debugk("execve: reset signal handlers\n");
 
-  // Load executable (handles both ELF and scripts)
-  if (load_executable(current_task, args) != 0) {
-    debugk("execve: load_executable failed\n");
+  if (load_executable_dentry(current_task, args, dentry) != 0) {
     execve_args_t_free(args);
-    return -1;
+    return -ENOEXEC;
   }
-  debugk("execve: loaded executable, entry=%llx\n",
-         current_task->mm_struct.entry_addr);
 
-  // Re-map signal jump point — clear_vmas() removed it along with the old ELF
-  // mappings.
   void *sjp = get_signal_jump_point_page();
   if (sjp) {
     map_page(current_task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
              (uint64_t)sjp, PTE_VALID | PTE_U | PTE_R | PTE_X);
   }
 
-  // Set up user stack with argc, argv, envp
-  // Stack layout (growing downward from 0x80000000):
-  // [high] env strings, arg strings, NULL, envp[], NULL, argv[], argc [low]
-
   uint64_t sp = DEFAULT_STACK_TOP;
+  size_t total_size = sizeof(uint64_t);
+  total_size += (args->argc + 1) * sizeof(uint64_t);
+  total_size += (args->envc + 1) * sizeof(uint64_t);
 
-  // First, calculate how much space we need
-  size_t total_size = sizeof(uint64_t);              // argc
-  total_size += (args->argc + 1) * sizeof(uint64_t); // argv[] + NULL
-  total_size += (args->envc + 1) * sizeof(uint64_t); // envp[] + NULL
-
-  for (int i = 0; i < args->argc; i++) {
+  for (int i = 0; i < args->argc; i++)
     total_size += str_len(args->argv[i], MAX_ARG_LEN) + 1;
-  }
-  for (int i = 0; i < args->envc; i++) {
+  for (int i = 0; i < args->envc; i++)
     total_size += str_len(args->envp[i], MAX_ARG_LEN) + 1;
-  }
 
-  // Align to 16 bytes
   total_size = (total_size + 15) & ~15;
   sp -= total_size;
 
   uint64_t *user_ptr = (uint64_t *)sp;
   uint64_t current_va = sp;
 
-  // Write argc
   copy_to_user(user_ptr++, &args->argc, sizeof(uint64_t));
   current_va += sizeof(uint64_t);
 
-  // Reserve space for argv[] and envp[] pointers
   uint64_t *argv_base = user_ptr;
   user_ptr += (args->argc + 1);
   current_va += (args->argc + 1) * sizeof(uint64_t);
@@ -192,7 +140,6 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
   char *str_ptr = (char *)user_ptr;
   uint64_t str_va = current_va;
 
-  // Write argv strings and pointers
   for (int i = 0; i < args->argc; i++) {
     copy_to_user(&argv_base[i], &str_va, sizeof(uint64_t));
     size_t len = str_len(args->argv[i], MAX_ARG_LEN) + 1;
@@ -203,7 +150,6 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
   uint64_t null_ptr = 0;
   copy_to_user(&argv_base[args->argc], &null_ptr, sizeof(uint64_t));
 
-  // Write envp strings and pointers
   for (int i = 0; i < args->envc; i++) {
     copy_to_user(&envp_base[i], &str_va, sizeof(uint64_t));
     size_t len = str_len(args->envp[i], MAX_ARG_LEN) + 1;
@@ -213,24 +159,15 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
   }
   copy_to_user(&envp_base[args->envc], &null_ptr, sizeof(uint64_t));
 
-  // Save argc before freeing args
   int argc = args->argc;
-
-  // Free the pool-allocated args structure
   execve_args_t_free(args);
 
-  // Update trap frame for new program
   current_task->tf.sp = sp;
   current_task->tf.sepc = (uint64_t)current_task->mm_struct.entry_addr;
   current_task->tf.a0 = argc;
-  current_task->tf.a1 = sp + sizeof(uint64_t); // Pointer to argv[]
-  current_task->tf.a2 = sp + sizeof(uint64_t) +
-                        (argc + 1) * sizeof(uint64_t); // Pointer to envp[]
-
-  debugk("execve: sp=%llx, sepc=%llx\n", current_task->tf.sp,
-         current_task->tf.sepc);
-  debugk("execve: a0(argc)=%llu, a1(argv)=%llx, a2(envp)=%llx\n",
-         current_task->tf.a0, current_task->tf.a1, current_task->tf.a2);
+  current_task->tf.a1 = sp + sizeof(uint64_t);
+  current_task->tf.a2 =
+      sp + sizeof(uint64_t) + (argc + 1) * sizeof(uint64_t);
 
   current_task->tf.s0 = 0;
   current_task->tf.s1 = 0;
@@ -245,12 +182,65 @@ DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
   current_task->tf.s10 = 0;
   current_task->tf.s11 = 0;
 
-  debugk("execve: done, sp=%llx, sepc=%llx, argc=%llu\n", current_task->tf.sp,
-         current_task->tf.sepc, current_task->tf.a0);
-
-  extern void trap_return(struct trap_frame * tf);
+  extern void trap_return(struct trap_frame *tf);
   trap_return(&current_task->tf);
 
   panic("execve: returned from trap_return!");
   return 0;
+}
+
+DEFINE_SYSCALL3(execve, const char *, pathname, char **, argv, char **, envp) {
+  struct execve_args_t *args = execve_copy_user_args(pathname, argv, envp);
+  if (!args)
+    return -ENOMEM;
+
+  struct dentry_t *dentry;
+  if (vfs_resolve_path(args->pathname, &dentry) != 0) {
+    execve_args_t_free(args);
+    return -ENOENT;
+  }
+
+  return execve_run(dentry, args);
+}
+
+DEFINE_SYSCALL5(execveat, int, dirfd, const char *, pathname, char **, argv,
+                char **, envp, int, flags) {
+  if (flags & ~AT_EMPTY_PATH)
+    return -EINVAL;
+
+  struct execve_args_t *args = execve_copy_user_args(pathname, argv, envp);
+  if (!args)
+    return -ENOMEM;
+
+  struct dentry_t *dentry;
+
+  if ((flags & AT_EMPTY_PATH) && pathname && pathname[0] == '\0') {
+    struct file_t *file = find_file(&current_task->file_table, dirfd);
+    if (file == NULL) {
+      execve_args_t_free(args);
+      return -EBADF;
+    }
+    if (file->dentry == NULL) {
+      execve_args_t_free(args);
+      return -EBADF;
+    }
+    dentry = file->dentry;
+    return execve_run(dentry, args);
+  }
+
+  char path[MAX_PATH_LEN];
+  copy_string_from_user(path, pathname, MAX_PATH_LEN);
+
+  struct dentry_t *start = task_dirfd_to_dentry(dirfd);
+  if (start == (struct dentry_t *)-1) {
+    execve_args_t_free(args);
+    return -EBADF;
+  }
+
+  if (vfs_resolve_path_at(path, start, &dentry, VFS_RESOLVE_FOLLOW_ALL) != 0) {
+    execve_args_t_free(args);
+    return -ENOENT;
+  }
+
+  return execve_run(dentry, args);
 }

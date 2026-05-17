@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/wait.h>
 
 int test_passed = 0;
 int test_failed = 0;
@@ -34,7 +35,8 @@ void test_fork_exit_status() {
     int status;
     pid_t waited = wait(&status);
     test_result("wait returns child pid", waited == pid);
-    test_result("child exit status is 42", status == 42);
+    test_result("child exit status is 42",
+                WIFEXITED(status) && WEXITSTATUS(status) == 42);
   } else {
     test_result("fork", 0);
   }

@@ -25,6 +25,15 @@ int chdir(const char *path) {
   return syscall1(SYS_chdir, path);
 }
 
+int fchdir(int fd) {
+  long ret = syscall1(SYS_fchdir, fd);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return 0;
+}
+
 ssize_t read(int fd, void *buf, size_t n) {
   return syscall3(SYS_read, fd, buf, n);
 }
@@ -58,6 +67,10 @@ off_t lseek(int fd, off_t offset, int whence) {
 
 pid_t fork(void) {
   return syscall0(SYS_fork);
+}
+
+pid_t _Fork(void) {
+  return fork();
 }
 
 int sched_yield(void) {
@@ -114,6 +127,15 @@ int setpgid(pid_t pid, pid_t pgid) {
 
 int execve(const char *pathname, char *const argv[], char *const envp[]) {
   return syscall3(SYS_execve, pathname, argv, envp);
+}
+
+int execveat(int dirfd, const char *pathname, char *const argv[],
+             char *const envp[], int flags) {
+  return syscall5(SYS_execveat, dirfd, pathname, argv, envp, flags);
+}
+
+int fexecve(int fd, char *const argv[], char *const envp[]) {
+  return execveat(fd, "", argv, envp, AT_EMPTY_PATH);
 }
 
 int execv(const char *pathname, char *const argv[]) {
@@ -184,45 +206,6 @@ int execlp(const char *file, const char *arg, ...) {
   return ret;
 }
 
-char *getenv(const char *name) {
-
-  if (!environ)
-    return NULL;
-  size_t nlen = strlen(name);
-  for (char **ep = environ; *ep; ep++) {
-    if (strncmp(*ep, name, nlen) == 0 && (*ep)[nlen] == '=')
-      return *ep + nlen + 1;
-  }
-  return NULL;
-}
-
-int mkstemp(char *tmpl) {
-  size_t len = strlen(tmpl);
-  if (len < 6 || strcmp(tmpl + len - 6, "XXXXXX") != 0) {
-    errno = EINVAL;
-    return -1;
-  }
-  static unsigned seed = 0x12345678;
-  int last_errno = EINVAL;
-  for (int tries = 0; tries < 100; tries++) {
-    seed = seed * 1664525u + 1013904223u;
-    unsigned r = seed;
-    for (int i = 0; i < 6; i++) {
-      unsigned idx = r % 62;
-      r /= 62;
-      const char *chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-      tmpl[len - 6 + i] = chars[idx];
-    }
-    int fd = open(tmpl, O_RDWR | O_CREAT | O_EXCL, 0600);
-    if (fd >= 0)
-      return fd;
-    if (errno)
-      last_errno = errno;
-  }
-  errno = last_errno;
-  return -1;
-}
-
 int execvp(const char *file, char *const argv[]) {
 
   if (strchr(file, '/'))
@@ -277,15 +260,46 @@ int mkdir(const char *path, unsigned int mode) {
 }
 
 int unlink(const char *path) {
-  return syscall3(SYS_unlinkat, AT_FDCWD, path, 0);
+  long ret = syscall3(SYS_unlinkat, AT_FDCWD, path, 0);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
 }
 
 int rmdir(const char *path) {
-  return syscall3(SYS_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
+  long ret = syscall3(SYS_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
+}
+
+int dup(int oldfd) {
+  long ret = syscall3(SYS_fcntl, oldfd, F_DUPFD, 0);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return (int)ret;
 }
 
 int dup2(int oldfd, int newfd) {
-  return syscall2(SYS_dup2, oldfd, newfd);
+  long ret = syscall2(SYS_dup2, oldfd, newfd);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return (int)ret;
+}
+
+int dup3(int oldfd, int newfd, int flags) {
+  long ret = syscall2(SYS_dup2, oldfd, newfd);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  if (flags & O_CLOEXEC) {
+    if (fcntl(newfd, F_SETFD, FD_CLOEXEC) < 0)
+      return -1;
+  }
+  return (int)ret;
 }
 
 int fsync(int fd) {
@@ -357,7 +371,21 @@ int statfs(const char *path, struct statfs *buf) {
 }
 
 int pipe(int pipefd[2]) {
-  return syscall1(SYS_pipe, pipefd);
+  long ret = syscall2(SYS_pipe2, pipefd, 0);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return 0;
+}
+
+int pipe2(int pipefd[2], int flags) {
+  long ret = syscall2(SYS_pipe2, pipefd, flags);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return 0;
 }
 
 int fstat(int fd, struct stat *buf) {
@@ -430,3 +458,18 @@ int ftruncate(int fd, off_t length) {
 int reboot(int cmd) {
   return (int)syscall1(SYS_reboot, (uint64_t)(int64_t)cmd);
 }
+
+long sysconf(int name) {
+  switch (name) {
+  case _SC_PAGESIZE:
+    return 4096;
+  default:
+    errno = EINVAL;
+    return -1;
+  }
+}
+
+uid_t getuid(void) { return 0; }
+uid_t geteuid(void) { return 0; }
+gid_t getgid(void) { return 0; }
+gid_t getegid(void) { return 0; }

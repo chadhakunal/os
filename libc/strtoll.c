@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 static int digit_val(int c) {
   if (c >= '0' && c <= '9')
@@ -152,4 +153,28 @@ unsigned long long strtoull(const char *restrict nptr, char **restrict endptr, i
 
   errno = 0;
   return acc;
+}
+
+long strtol(const char *restrict nptr, char **restrict endptr, int base)
+{
+  long long v = strtoll(nptr, endptr, base);
+  if (errno == ERANGE)
+    return v < 0 ? LONG_MIN : LONG_MAX;
+  if (v < (long long)LONG_MIN || v > (long long)LONG_MAX) {
+    errno = ERANGE;
+    return v < 0 ? LONG_MIN : LONG_MAX;
+  }
+  return (long)v;
+}
+
+unsigned long strtoul(const char *restrict nptr, char **restrict endptr, int base)
+{
+  unsigned long long v = strtoull(nptr, endptr, base);
+  if (errno == ERANGE)
+    return ULONG_MAX;
+  if (v > (unsigned long long)ULONG_MAX) {
+    errno = ERANGE;
+    return ULONG_MAX;
+  }
+  return (unsigned long)v;
 }

@@ -17,10 +17,14 @@
 #define AT_FDCWD            -100
 #define AT_REMOVEDIR        0x200
 #define AT_SYMLINK_NOFOLLOW 0x100
+#define AT_EMPTY_PATH       0x1000
 
+#define F_DUPFD    0
 #define FD_CLOEXEC 1
 #define F_GETFD    1
 #define F_SETFD    2
+#define F_GETFL    3
+#define F_SETFL    4
 
 #define POSIX_FADV_NORMAL     0
 #define POSIX_FADV_SEQUENTIAL 2

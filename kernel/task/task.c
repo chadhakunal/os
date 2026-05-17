@@ -654,19 +654,26 @@ uint64_t fork_off() {
 }
 
 struct file_t *find_file(struct files_table_t *file_table, int fd) {
-  struct file_t *file = NULL;
-  list_for_each(&file_table->files_list, pos) {
-    struct files_list_t *files_list = container_of(pos, struct files_list_t, files_list);
+  if (fd < 0)
+    return NULL;
 
-    // Check if this fd is marked as used in the bitmap
-    if (files_list->used_file_bitmap & (1 << fd)) {
-      file = files_list->files[fd];
-      break;
+  int base_fd = 0;
+  list_for_each(&file_table->files_list, pos) {
+    struct files_list_t *files_list =
+        container_of(pos, struct files_list_t, files_list);
+
+    if (fd >= base_fd && fd < base_fd + 32) {
+      int local_fd = fd - base_fd;
+      if (!(files_list->used_file_bitmap & (1U << local_fd)))
+        return NULL;
+      struct file_t *file = files_list->files[local_fd];
+      debugk("[find_file] fd=%d -> file=%p vnode=%p\n",
+             fd, file, file ? file->vnode : (void *)0);
+      return file;
     }
+    base_fd += 32;
   }
-  debugk("[find_file] fd=%d -> file=%p vnode=%p\n",
-         fd, file, file ? file->vnode : (void*)0);
-  return file;
+  return NULL;
 }
 
 int alloc_fd(struct files_table_t *file_table, struct file_t *file) {
@@ -766,33 +773,23 @@ void clear_vmas(struct task_t *task) {
 }
 
 void close_all_files(struct task_t *task) {
-  debugk("task pointer: %p\n", task);
-  debugk("current_task pointer: %p\n", current_task);
-  debugk("file_table offset in task_t: %d\n", (int)((char*)&task->file_table - (char*)task));
-  debugk("file_table sentinel address: %p\n", &task->file_table.files_list);
+  int base_fd = 0;
   struct list_node *pos = task->file_table.files_list.next;
-  debugk("Initial pos=%p, pos->next=%p\n", pos, pos->next);
+
   while (pos != &task->file_table.files_list) {
-    debugk("Loop: pos=%p, pos->next=%p, sentinel=%p\n", pos, pos->next, &task->file_table.files_list);
-    struct files_list_t *files_list = container_of(pos, struct files_list_t, files_list);
-    debugk("files_list=%p\n", files_list);
+    struct files_list_t *files_list =
+        container_of(pos, struct files_list_t, files_list);
     struct list_node *next = pos->next;
 
     for (int i = 0; i < 32; i++) {
-      if (files_list->files[i] != NULL) {
-        files_list->files[i]->refcount--;
-        if (files_list->files[i]->refcount == 0) {
-          if (files_list->files[i]->pipe != NULL)
-            pipe_close(files_list->files[i]->pipe, files_list->files[i]->pipe_write_end);
-          file_t_free(files_list->files[i]);
-        }
-        files_list->files[i] = NULL;
-      }
+      if (files_list->used_file_bitmap & (1U << i))
+        vfs_file_close(&task->file_table, base_fd + i);
     }
 
     list_remove(&files_list->files_list);
     files_list_t_free(files_list);
 
+    base_fd += 32;
     pos = next;
   }
 }

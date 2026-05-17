@@ -4,9 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-FILE __stdin_file  = { .fd = 0 };
-FILE __stdout_file = { .fd = 1 };
-FILE __stderr_file = { .fd = 2 };
 
 /* -------------------------------------------------------------------------
  * Output sink abstraction
@@ -197,6 +194,21 @@ static int core_vprintf(fmt_out *o, const char *fmt, va_list args) {
 int vfprintf(FILE *stream, const char *fmt, va_list ap) {
   if (!stream || !fmt) return -1;
   if (stream->memonly) {
+    if (stream->ms_ptr) {
+      /* open_memstream: format to temp buffer, then fwrite (which grows). */
+      va_list ap2;
+      va_copy(ap2, ap);
+      int need = vsnprintf(NULL, 0, fmt, ap2);
+      va_end(ap2);
+      if (need < 0) return -1;
+      char tmp[512];
+      char *tbuf = (size_t)need < sizeof(tmp) ? tmp : malloc((size_t)need + 1);
+      if (!tbuf) return -1;
+      vsnprintf(tbuf, (size_t)need + 1, fmt, ap);
+      fwrite(tbuf, 1, (size_t)need, stream);
+      if (tbuf != tmp) free(tbuf);
+      return need;
+    }
     fmt_out o = {
       .kind  = OUT_STR,
       .u.str = { .buf  = stream->membuf + stream->mempos,
@@ -214,8 +226,15 @@ int vfprintf(FILE *stream, const char *fmt, va_list ap) {
 }
 
 int vdprintf(int fd, const char *fmt, va_list ap) {
-  fmt_out o = { .kind = OUT_FD, .u.fd = { .fd = fd, .pos = 0 }, .total = 0 };
-  return core_vprintf(&o, fmt, ap);
+  char buf[512];
+  va_list ap2;
+  va_copy(ap2, ap);
+  int n = vsnprintf(buf, sizeof(buf), fmt, ap2);
+  va_end(ap2);
+  if (n <= 0) return n;
+  size_t len = (size_t)n < sizeof(buf) ? (size_t)n : sizeof(buf) - 1;
+  write(fd, buf, len);
+  return n;
 }
 
 int vsnprintf(char *str, size_t size, const char *fmt, va_list ap) {
@@ -259,7 +278,7 @@ int snprintf(char *str, size_t size, const char *fmt, ...) {
 }
 
 int vsprintf(char *str, const char *fmt, va_list ap) {
-  return vsnprintf(str, (size_t)-1, fmt, ap);
+  return vsnprintf(str, 0x7fffffff, fmt, ap);
 }
 
 int sprintf(char *str, const char *fmt, ...) {
@@ -286,23 +305,125 @@ int asprintf(char **strp, const char *fmt, ...) {
 }
 
 
-/* scanf family — stubs, no scanner implemented yet */
-int vfscanf(FILE *stream, const char *fmt, va_list ap) {
-  (void)stream; (void)fmt; (void)ap; return EOF;
+/* scanf family */
+static int is_space(int c) {
+  return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
 }
+
+int vsscanf(const char *str, const char *fmt, va_list ap) {
+  const char *s = str;
+  int matched = 0;
+
+  for (; *fmt; fmt++) {
+    if (is_space((unsigned char)*fmt)) {
+      while (is_space((unsigned char)*s)) s++;
+      continue;
+    }
+    if (*fmt != '%') {
+      if (*s != *fmt) return matched ? matched : EOF;
+      s++; continue;
+    }
+    fmt++;
+
+    /* suppress assignment */
+    int suppress = 0;
+    if (*fmt == '*') { suppress = 1; fmt++; }
+
+    /* width */
+    int width = 0;
+    while (*fmt >= '0' && *fmt <= '9')
+      width = width * 10 + (*fmt++ - '0');
+
+    if (*fmt == 'l' || *fmt == 'h') fmt++; /* ignore length modifier */
+
+    char spec = *fmt;
+
+    /* skip leading whitespace for most specifiers */
+    if (spec != 'c' && spec != '[' && spec != 'n')
+      while (is_space((unsigned char)*s)) s++;
+
+    if (spec == 'd' || spec == 'i' || spec == 'u' || spec == 'x' || spec == 'o') {
+      if (!*s) return matched ? matched : EOF;
+      long val = 0;
+      int neg = 0, digits = 0;
+      int base = (spec == 'x') ? 16 : (spec == 'o') ? 8 : 10;
+      if (spec == 'i') {
+        if (s[0]=='0' && (s[1]=='x'||s[1]=='X')) { base=16; s+=2; }
+        else if (s[0]=='0') { base=8; }
+      }
+      if (*s == '-' && spec != 'u') { neg = 1; s++; }
+      else if (*s == '+') s++;
+      int lim = width ? width : 0x7fffffff;
+      while (lim-- && *s) {
+        int d;
+        if (*s>='0' && *s<='9') d = *s-'0';
+        else if (base==16 && *s>='a' && *s<='f') d = *s-'a'+10;
+        else if (base==16 && *s>='A' && *s<='F') d = *s-'A'+10;
+        else break;
+        if (d >= base) break;
+        val = val * base + d; s++; digits++;
+      }
+      if (!digits) return matched ? matched : EOF;
+      if (neg) val = -val;
+      if (!suppress) {
+        if (spec == 'u' || spec == 'x' || spec == 'o')
+          *va_arg(ap, unsigned int *) = (unsigned int)val;
+        else
+          *va_arg(ap, int *) = (int)val;
+        matched++;
+      }
+    } else if (spec == 's') {
+      if (!*s) return matched ? matched : EOF;
+      char *dst = suppress ? NULL : va_arg(ap, char *);
+      int lim = width ? width : 0x7fffffff;
+      int n = 0;
+      while (lim-- && *s && !is_space((unsigned char)*s)) {
+        if (!suppress) dst[n] = *s;
+        n++; s++;
+      }
+      if (!n) return matched ? matched : EOF;
+      if (!suppress) { dst[n] = '\0'; matched++; }
+    } else if (spec == 'c') {
+      int lim = width ? width : 1;
+      char *dst = suppress ? NULL : va_arg(ap, char *);
+      int n = 0;
+      while (lim-- && *s) {
+        if (!suppress) dst[n] = *s;
+        n++; s++;
+      }
+      if (!n) return matched ? matched : EOF;
+      if (!suppress) matched++;
+    } else if (spec == 'n') {
+      if (!suppress) *va_arg(ap, int *) = (int)(s - str);
+    } else if (spec == '%') {
+      if (*s != '%') return matched ? matched : EOF;
+      s++;
+    }
+  }
+  return matched;
+}
+
+int vfscanf(FILE *stream, const char *fmt, va_list ap) {
+  /* read stream into buffer, then sscanf */
+  char buf[512];
+  int n = 0;
+  int c;
+  while (n < (int)sizeof(buf) - 1 && (c = fgetc(stream)) != EOF)
+    buf[n++] = (char)c;
+  buf[n] = '\0';
+  return vsscanf(buf, fmt, ap);
+}
+
 int fscanf(FILE *stream, const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   int n = vfscanf(stream, fmt, ap);
   va_end(ap); return n;
 }
-int vscanf(const char *fmt, va_list ap)       { return vfscanf(stdin, fmt, ap); }
+int vscanf(const char *fmt, va_list ap)  { return vfscanf(stdin, fmt, ap); }
 int scanf(const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
   int n = vscanf(fmt, ap);
   va_end(ap); return n;
-}
-int vsscanf(const char *str, const char *fmt, va_list ap) {
-  (void)str; (void)fmt; (void)ap; return EOF;
 }
 int sscanf(const char *str, const char *fmt, ...) {
   va_list ap; va_start(ap, fmt);
