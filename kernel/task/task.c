@@ -560,7 +560,11 @@ void task_cleanup(int exit_status) {
     debugk("task_cleanup: found parent PID %llu (state=%d, wait_reason=%d, wait_pid=%lld)\n",
            parent->pid, parent->state, parent->wait_reason, parent->wait_pid);
     /* Always send SIGCHLD so parent can handle it (e.g. ppoll with sigmask). */
+    printk("task_cleanup: sending SIGCHLD to parent PID %llu (state=%d, blocked=%llx)\n",
+           parent->pid, parent->state, (unsigned long long)parent->signal_state.blocked);
     send_signal(parent, SIGCHLD);
+    printk("task_cleanup: after send_signal, parent state=%d, pending=%llx\n",
+           parent->state, (unsigned long long)parent->signal_state.pending);
     if (parent->state == TASK_BLOCKED && parent->wait_reason == WAIT_CHILD) {
       if (parent->wait_pid == -1 || parent->wait_pid == (int64_t)current_task->pid) {
         debugk("task_cleanup: waking parent PID %llu\n", parent->pid);

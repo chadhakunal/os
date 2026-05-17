@@ -80,15 +80,24 @@ static void poll_remove_waiters(struct poll_waiter *waiters, nfds_t nfds) {
 /* Core poll logic shared by sys_poll and sys_ppoll. */
 static int64_t do_poll(struct pollfd *kpfds, nfds_t nfds, int timeout_ms,
                        sigset_t *saved_mask) {
-  /* If there's a saved_mask (ppoll), swap it in now so signals that were
-   * pending-but-blocked can fire while we're sleeping. */
-  if (saved_mask)
+  printk("do_poll: enter, saved_mask=%p, pending=%llx, blocked=%llx\n",
+         saved_mask,
+         (unsigned long long)current_task->signal_state.pending,
+         (unsigned long long)current_task->signal_state.blocked);
+
+  if (saved_mask) {
     current_task->signal_state.blocked = *saved_mask;
+    printk("do_poll: new blocked=%llx\n", (unsigned long long)*saved_mask);
+  }
 
   struct poll_waiter waiters[MAX_POLL_FDS];
 
   while (1) {
     int ready = poll_scan(kpfds, nfds);
+    printk("do_poll: poll_scan ready=%d, pending=%llx, blocked=%llx\n",
+           ready,
+           (unsigned long long)current_task->signal_state.pending,
+           (unsigned long long)current_task->signal_state.blocked);
 
     if (ready > 0) {
       if (saved_mask)
@@ -135,12 +144,17 @@ static int64_t do_poll(struct pollfd *kpfds, nfds_t nfds, int timeout_ms,
     /* Re-enable SUM after returning from scheduler */
     asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
 
+    printk("do_poll: woke from schedule, pending=%llx, blocked=%llx\n",
+           (unsigned long long)current_task->signal_state.pending,
+           (unsigned long long)current_task->signal_state.blocked);
+
     /* Remove ourselves from all wait queues before re-scanning */
     poll_remove_waiters(waiters, nfds);
 
     /* Check if a signal woke us */
     pending = current_task->signal_state.pending
               & ~current_task->signal_state.blocked;
+    printk("do_poll: pending after mask=%llx\n", (unsigned long long)pending);
     if (pending) {
       if (saved_mask)
         current_task->signal_state.blocked = current_task->sigsuspend_saved_mask;
