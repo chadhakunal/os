@@ -11,6 +11,7 @@
 #include "lib/list.h"
 #include "errno.h"
 #include "types.h"
+#include "lib/printk/printk.h"
 
 struct timespec {
   long tv_sec;
