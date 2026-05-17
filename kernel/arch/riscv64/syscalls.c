@@ -251,6 +251,10 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_getpgid(tf);
       break;
 
+    case SYS_waitid:
+      ret = sys_waitid(tf);
+      break;
+
     case SYS_rt_sigprocmask:
       ret = sys_rt_sigprocmask(tf);
       break;

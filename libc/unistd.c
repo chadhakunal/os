@@ -1,5 +1,7 @@
 #include <arch/riscv64/syscall.h>
 #include <unistd.h>
+#include <sys/wait.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <dirent.h>
@@ -53,6 +55,12 @@ int sched_yield(void) {
 
 pid_t waitpid(pid_t pid, int *wstatus, int options) {
   return syscall3(SYS_waitpid, pid, wstatus, options);
+}
+
+int waitid(idtype_t idtype, pid_t id, siginfo_t *info, int options) {
+  long ret = syscall4(SYS_waitid, idtype, id, info, options);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
 }
 
 pid_t wait(int *wstatus) {

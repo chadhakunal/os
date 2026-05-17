@@ -44,6 +44,7 @@
 #define SYS_getrlimit       163
 #define SYS_setrlimit       164
 #define SYS_getpgid          155
+#define SYS_waitid           95
 #define SYS_rt_sigprocmask   135
 #define SYS_rt_sigpending    136
 #define SYS_rt_sigsuspend    133
