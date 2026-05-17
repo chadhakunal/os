@@ -273,3 +273,111 @@ int fflush(FILE *stream) { (void)stream; return 0; }
 void flockfile(FILE *stream)    { (void)stream; }
 void funlockfile(FILE *stream)  { (void)stream; }
 int  ftrylockfile(FILE *stream) { (void)stream; return 0; }
+
+/* -------------------------------------------------------------------------
+ * character I/O convenience wrappers
+ * ------------------------------------------------------------------------- */
+
+int getchar(void)           { return fgetc(stdin); }
+int putchar(int c)          { return fputc(c, stdout); }
+int puts(const char *s)     { if (fputs(s, stdout) < 0) return EOF; return fputc('\n', stdout); }
+int getc(FILE *f)           { return fgetc(f); }
+int putc(int c, FILE *f)    { return fputc(c, f); }
+int getc_unlocked(FILE *f)           { return fgetc(f); }
+int putc_unlocked(int c, FILE *f)    { return fputc(c, f); }
+int getchar_unlocked(void)           { return fgetc(stdin); }
+int putchar_unlocked(int c)          { return fputc(c, stdout); }
+
+/* -------------------------------------------------------------------------
+ * off_t positioning
+ * ------------------------------------------------------------------------- */
+
+int   fseeko(FILE *f, off_t offset, int whence) { return fseek(f, (long)offset, whence); }
+off_t ftello(FILE *f)                           { return (off_t)ftell(f); }
+
+/* -------------------------------------------------------------------------
+ * buffering — single-threaded, no real buffering, stubs only
+ * ------------------------------------------------------------------------- */
+
+#define _IONBF 2
+void setbuf(FILE *f, char *buf)                        { (void)f; (void)buf; }
+int  setvbuf(FILE *f, char *buf, int mode, size_t sz)  { (void)f; (void)buf; (void)mode; (void)sz; return 0; }
+
+/* -------------------------------------------------------------------------
+ * line reading
+ * ------------------------------------------------------------------------- */
+
+ssize_t getdelim(char **lineptr, size_t *n, int delim, FILE *f) {
+  if (!lineptr || !n || !f) { return -1; }
+  if (!*lineptr || *n == 0) {
+    *n = 128;
+    *lineptr = malloc(*n);
+    if (!*lineptr) return -1;
+  }
+  size_t len = 0;
+  int c;
+  while ((c = fgetc(f)) != EOF) {
+    if (len + 1 >= *n) {
+      size_t newn = *n * 2;
+      char *newp = realloc(*lineptr, newn);
+      if (!newp) return -1;
+      *lineptr = newp;
+      *n = newn;
+    }
+    (*lineptr)[len++] = (char)c;
+    if (c == delim) break;
+  }
+  if (len == 0) return -1;
+  (*lineptr)[len] = '\0';
+  return (ssize_t)len;
+}
+
+ssize_t getline(char **lineptr, size_t *n, FILE *f) {
+  return getdelim(lineptr, n, '\n', f);
+}
+
+/* -------------------------------------------------------------------------
+ * memory stream (write-only)
+ * ------------------------------------------------------------------------- */
+
+FILE *open_memstream(char **ptr, size_t *sizeloc) {
+  FILE *f = fmemopen(NULL, 128, "w");
+  if (!f) return NULL;
+  /* store pointers so caller can retrieve buffer — best-effort stub */
+  (void)ptr; (void)sizeloc;
+  return f;
+}
+
+/* -------------------------------------------------------------------------
+ * pipe streams — not supported, return NULL/error
+ * ------------------------------------------------------------------------- */
+
+FILE *popen(const char *cmd, const char *type) { (void)cmd; (void)type; return NULL; }
+int   pclose(FILE *f)                          { (void)f; return -1; }
+
+/* -------------------------------------------------------------------------
+ * error / file ops
+ * ------------------------------------------------------------------------- */
+
+void perror(const char *s) {
+  if (s && *s) { fputs(s, stderr); fputs(": ", stderr); }
+  fputs("error\n", stderr);
+}
+
+int remove(const char *path) {
+  return unlink(path);
+}
+
+static char tmpnam_buf[32];
+char *tmpnam(char *s) {
+  const char *name = "/tmp/tmpXXXXXX";
+  if (s) { int i = 0; while ((*s++ = name[i++])); return s - (i); }
+  int i = 0; while ((tmpnam_buf[i++] = *name++));
+  return tmpnam_buf;
+}
+
+char *ctermid(char *s) {
+  const char *name = "/dev/tty";
+  if (s) { int i = 0; while ((*s++ = name[i++])); return s - i; }
+  return (char *)name;
+}

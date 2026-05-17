@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 typedef long           off_t;
+typedef long           ssize_t;
 typedef long           pid_t;
 typedef unsigned int   mode_t;
 typedef unsigned int   uid_t;

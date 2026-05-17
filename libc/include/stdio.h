@@ -46,6 +46,15 @@ int     fputc(int c, FILE *stream);
 char   *fgets(char *s, int n, FILE *stream);
 int     fputs(const char *s, FILE *stream);
 int     ungetc(int c, FILE *stream);
+int     getchar(void);
+int     putchar(int c);
+int     puts(const char *s);
+int     getc(FILE *stream);
+int     putc(int c, FILE *stream);
+int     getc_unlocked(FILE *stream);
+int     putc_unlocked(int c, FILE *stream);
+int     getchar_unlocked(void);
+int     putchar_unlocked(int c);
 
 /* block I/O */
 size_t  fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
@@ -54,6 +63,8 @@ size_t  fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
 /* positioning */
 int     fseek(FILE *stream, long offset, int whence);
 long    ftell(FILE *stream);
+int     fseeko(FILE *stream, off_t offset, int whence);
+off_t   ftello(FILE *stream);
 void    rewind(FILE *stream);
 int     fgetpos(FILE *stream, fpos_t *pos);
 int     fsetpos(FILE *stream, const fpos_t *pos);
@@ -69,6 +80,29 @@ int     fflush(FILE *stream);
 void    flockfile(FILE *stream);
 void    funlockfile(FILE *stream);
 int     ftrylockfile(FILE *stream);
+
+/* buffering */
+void    setbuf(FILE *stream, char *buf);
+int     setvbuf(FILE *stream, char *buf, int mode, size_t size);
+
+/* line reading */
+ssize_t getdelim(char **lineptr, size_t *n, int delim, FILE *stream);
+ssize_t getline(char **lineptr, size_t *n, FILE *stream);
+
+/* memory stream */
+FILE   *open_memstream(char **ptr, size_t *sizeloc);
+
+/* pipe streams */
+FILE   *popen(const char *command, const char *type);
+int     pclose(FILE *stream);
+
+/* error */
+void    perror(const char *s);
+
+/* file ops */
+int     remove(const char *path);
+char   *tmpnam(char *s);
+char   *ctermid(char *s);
 
 /* formatted I/O */
 int     printf(const char *fmt, ...);
