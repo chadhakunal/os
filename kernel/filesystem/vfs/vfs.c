@@ -224,20 +224,15 @@ int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
   return result;
 }
 
-int64_t vfs_open(const char *path, int flags, struct file_t **file) {
-  if (path == NULL || *path == 0) {
-    panic("vfs_open: invalid path\n");
-  }
-  struct dentry_t *dentry;
-  int ret = vfs_resolve_path(path, &dentry);
-  if (ret < 0) {
-    return ret;
-  }
-
+static int64_t vfs_open_dentry(struct dentry_t *dentry, int flags, struct file_t **file) {
   if (dentry->vnode == NULL)
     return -ENOENT;
 
-  struct vnode_t *vnode = dentry->vnode->mounted_vnode ? dentry->vnode->mounted_vnode : dentry->vnode;
+  struct vnode_t *vnode = dentry->vnode->mounted_vnode ? dentry->vnode->mounted_vnode
+                                                       : dentry->vnode;
+
+  if ((flags & O_DIRECTORY) && !IS_DIR(vnode->permission_mode))
+    return -ENOTDIR;
 
   /* Permission check — only applies to regular files and symlinks (not dirs). */
   if (!IS_DIR(vnode->permission_mode)) {
@@ -251,6 +246,23 @@ int64_t vfs_open(const char *path, int flags, struct file_t **file) {
   *file = vfs_init_file(vnode, flags);
   (*file)->dentry = dentry;
   return 0;
+}
+
+int64_t vfs_open_at(const char *path, struct dentry_t *start, int flags,
+                    struct file_t **file) {
+  if (path == NULL || *path == 0)
+    panic("vfs_open_at: invalid path\n");
+
+  struct dentry_t *dentry;
+  int ret = vfs_resolve_path_at(path, start, &dentry, VFS_RESOLVE_FOLLOW_ALL);
+  if (ret < 0)
+    return ret;
+
+  return vfs_open_dentry(dentry, flags, file);
+}
+
+int64_t vfs_open(const char *path, int flags, struct file_t **file) {
+  return vfs_open_at(path, NULL, flags, file);
 }
 
 void vfs_address_space_inc_ref(uint64_t vaddr_start, uint64_t vaddr_end, uint64_t offset, struct address_space_t *address_space) {

@@ -32,6 +32,7 @@
 #define SYS_fork            220
 #define SYS_sched_yield     124
 #define SYS_ioctl           29
+#define SYS_fcntl           25
 #define SYS_setpgid         154
 #define SYS_getdents        61
 #define SYS_mkdirat         34
@@ -73,6 +74,7 @@ int64_t sys_rt_sigaction(struct trap_frame *tf);
 int64_t sys_rt_sigreturn(struct trap_frame *tf);
 int64_t sys_kill(struct trap_frame *tf);
 int64_t sys_ioctl(struct trap_frame *tf);
+int64_t sys_fcntl(struct trap_frame *tf);
 int64_t sys_getpid(struct trap_frame *tf);
 int64_t sys_getppid(struct trap_frame *tf);
 int64_t sys_setpgid(struct trap_frame *tf);

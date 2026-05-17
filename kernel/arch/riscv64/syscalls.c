@@ -131,6 +131,11 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_ioctl(tf);
       break;
 
+    case SYS_fcntl:
+      debugk("syscall: fcntl(fd=%lld, cmd=%lld, arg=%llu)\n", (int64_t)tf->a0, (int64_t)tf->a1, tf->a2);
+      ret = sys_fcntl(tf);
+      break;
+
     case SYS_getdents:
       debugk("syscall: getdents(fd=%lld, buf=%llx, count=%llu)\n", (int64_t)tf->a0, tf->a1, tf->a2);
       ret = sys_getdents(tf);

@@ -2,6 +2,7 @@
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "kernel/task/task.h"
 #include "kernel/filesystem/vfs/vfs.h"
+#include "kernel/filesystem/mode.h"
 #include "kernel/user_data_access.h"
 #include "lib/string.h"
 #define DEBUG 0
@@ -44,10 +45,11 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
     split_path(path, parent_path, name);
 
     struct dentry_t *parent_dentry;
-    if (vfs_resolve_path_at(parent_path, start, &parent_dentry,
-                            VFS_RESOLVE_FOLLOW_ALL) < 0) {
+    int parent_ret = vfs_resolve_path_at(parent_path, start, &parent_dentry,
+                                         VFS_RESOLVE_FOLLOW_ALL);
+    if (parent_ret < 0) {
       debugk("open: O_CREAT: parent path '%s' not found\n", parent_path);
-      return -1;
+      return parent_ret;
     }
 
     struct vnode_t *parent_vnode = parent_dentry->vnode->mounted_vnode
@@ -74,15 +76,23 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
       list_append(&parent_vnode->children_dentries, &new_dentry->sibling_dentry);
     }
 
+    struct vnode_t *child_vnode = new_dentry->vnode->mounted_vnode
+                                  ? new_dentry->vnode->mounted_vnode
+                                  : new_dentry->vnode;
+    if ((flags & O_DIRECTORY) && !IS_DIR(child_vnode->permission_mode))
+      return -ENOTDIR;
+
     struct file_t *new_file = vfs_init_file(new_dentry->vnode, flags);
     new_file->dentry = new_dentry;
     int fd = alloc_fd(&current_task->file_table, new_file);
+    if (fd >= 0 && (flags & O_CLOEXEC))
+      vfs_file_set_close_on_exec(&current_task->file_table, fd);
     return fd;
   }
 
 open_existing:;
   struct file_t *file;
-  int ret = vfs_open(path, flags, &file);
+  int ret = vfs_open_at(path, start, flags, &file);
   if (ret != 0) {
     if (ret != -ENOENT)
       debugk("open: vfs_open('%s') failed: %d\n", path, ret);
@@ -95,5 +105,8 @@ open_existing:;
     file->offset = 0;
   }
 
-  return alloc_fd(&current_task->file_table, file);
+  int fd = alloc_fd(&current_task->file_table, file);
+  if (fd >= 0 && (flags & O_CLOEXEC))
+    vfs_file_set_close_on_exec(&current_task->file_table, fd);
+  return fd;
 }

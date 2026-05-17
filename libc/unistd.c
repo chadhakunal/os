@@ -8,6 +8,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 
 char *getcwd(char *buf, size_t size) {
   if (buf == NULL) {
@@ -36,11 +37,21 @@ ssize_t write(int fd, const void *buf, size_t n) {
 }
 
 int close(int fd) {
-  return syscall1(SYS_close, fd);
+  long ret = syscall1(SYS_close, fd);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return 0;
 }
 
 off_t lseek(int fd, off_t offset, int whence) {
-  return syscall3(SYS_lseek, fd, offset, whence);
+  long ret = syscall3(SYS_lseek, fd, offset, whence);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return (off_t)-1;
+  }
+  return (off_t)ret;
 }
 
 pid_t fork(void) {
@@ -173,9 +184,12 @@ char *getenv(const char *name) {
 
 int mkstemp(char *tmpl) {
   size_t len = strlen(tmpl);
-  if (len < 6 || strcmp(tmpl + len - 6, "XXXXXX") != 0)
+  if (len < 6 || strcmp(tmpl + len - 6, "XXXXXX") != 0) {
+    errno = EINVAL;
     return -1;
+  }
   static unsigned seed = 0x12345678;
+  int last_errno = EINVAL;
   for (int tries = 0; tries < 100; tries++) {
     seed = seed * 1664525u + 1013904223u;
     unsigned r = seed;
@@ -188,7 +202,10 @@ int mkstemp(char *tmpl) {
     int fd = open(tmpl, O_RDWR | O_CREAT | O_EXCL, 0600);
     if (fd >= 0)
       return fd;
+    if (errno)
+      last_errno = errno;
   }
+  errno = last_errno;
   return -1;
 }
 
@@ -222,7 +239,23 @@ int execvp(const char *file, char *const argv[]) {
 }
 
 int getdents(int fd, struct dirent *buf, unsigned int count) {
-  return syscall3(SYS_getdents, fd, buf, count);
+  long ret = syscall3(SYS_getdents, fd, buf, count);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return (int)ret;
+}
+
+long fpathconf(int fd, int name) {
+  (void)fd;
+  switch (name) {
+    case _PC_NAME_MAX:
+      return NAME_MAX;
+    default:
+      errno = EINVAL;
+      return -1;
+  }
 }
 
 int mkdir(const char *path, unsigned int mode) {
@@ -314,12 +347,22 @@ int pipe(int pipefd[2]) {
 }
 
 int fstat(int fd, struct stat *buf) {
-  return syscall2(SYS_fstat, (uint64_t)(int64_t)fd, (uint64_t)buf);
+  long ret = syscall2(SYS_fstat, (uint64_t)(int64_t)fd, (uint64_t)buf);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return 0;
 }
 
 int fstatat(int dirfd, const char *path, struct stat *buf, int flags) {
-  return syscall4(SYS_fstatat, (uint64_t)(int64_t)dirfd,
-                  (uint64_t)path, (uint64_t)buf, (uint64_t)flags);
+  long ret = syscall4(SYS_fstatat, (uint64_t)(int64_t)dirfd,
+                      (uint64_t)path, (uint64_t)buf, (uint64_t)flags);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return 0;
 }
 
 int stat(const char *path, struct stat *buf) {
@@ -339,7 +382,12 @@ int truncate(const char *path, off_t length) {
 }
 
 int ftruncate(int fd, off_t length) {
-  return syscall2(SYS_ftruncate, (uint64_t)(int64_t)fd, (uint64_t)length);
+  long ret = syscall2(SYS_ftruncate, (uint64_t)(int64_t)fd, (uint64_t)length);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return 0;
 }
 
 int reboot(int cmd) {
