@@ -278,7 +278,7 @@ int snprintf(char *str, size_t size, const char *fmt, ...) {
 }
 
 int vsprintf(char *str, const char *fmt, va_list ap) {
-  return vsnprintf(str, (size_t)-1, fmt, ap);
+  return vsnprintf(str, 0x7fffffff, fmt, ap);
 }
 
 int sprintf(char *str, const char *fmt, ...) {
