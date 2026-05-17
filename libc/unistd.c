@@ -277,11 +277,15 @@ int mkdir(const char *path, unsigned int mode) {
 }
 
 int unlink(const char *path) {
-  return syscall3(SYS_unlinkat, AT_FDCWD, path, 0);
+  long ret = syscall3(SYS_unlinkat, AT_FDCWD, path, 0);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
 }
 
 int rmdir(const char *path) {
-  return syscall3(SYS_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
+  long ret = syscall3(SYS_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
 }
 
 int dup2(int oldfd, int newfd) {
