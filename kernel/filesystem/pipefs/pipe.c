@@ -21,22 +21,24 @@ int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size) {
   uint8_t *dst = (uint8_t *)user_buf;
   uint64_t copied = 0;
 
-  while (copied < size) {
-    while (pipe->len == 0) {
-      if (pipe->writer_count == 0)
-        return (int64_t)copied; /* EOF */
+  /* Block only if no data is available yet. */
+  while (pipe->len == 0) {
+    if (pipe->writer_count == 0)
+      return 0; /* EOF */
 
-      list_append(&pipe->wait_queue, &current_task->wait_list);
-      current_task->wait_reason = WAIT_IO;
-      current_task->state       = TASK_BLOCKED;
-      schedule();
-      asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
-      sigset_t _pending = current_task->signal_state.pending
-                          & ~current_task->signal_state.blocked;
-      if (_pending)
-        return copied > 0 ? (int64_t)copied : -EINTR;
-    }
+    list_append(&pipe->wait_queue, &current_task->wait_list);
+    current_task->wait_reason = WAIT_IO;
+    current_task->state       = TASK_BLOCKED;
+    schedule();
+    asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
+    sigset_t _pending = current_task->signal_state.pending
+                        & ~current_task->signal_state.blocked;
+    if (_pending)
+      return -EINTR;
+  }
 
+  /* Copy whatever is available, up to size. */
+  while (copied < size && pipe->len > 0) {
     uint8_t byte = pipe->buf[pipe->read_pos];
     pipe->read_pos = (pipe->read_pos + 1) % PIPE_BUF_SIZE;
     pipe->len--;
