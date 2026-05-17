@@ -59,6 +59,19 @@ union sigval {
   void *sival_ptr;
 };
 
+// sigevent notification types
+#define SIGEV_NONE   0
+#define SIGEV_SIGNAL 1
+#define SIGEV_THREAD 2
+
+struct sigevent {
+  int          sigev_notify;
+  int          sigev_signo;
+  union sigval sigev_value;
+  void       (*sigev_notify_function)(union sigval);
+  void        *sigev_notify_attributes;
+};
+
 // Signal info structure (SA_SIGINFO handlers, sigwaitinfo, etc.)
 typedef struct {
   int          si_signo;
