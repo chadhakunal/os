@@ -41,6 +41,8 @@ typedef struct FILE {
   size_t     *ms_sizeloc;
   /* popen child pid (-1 if not a popen stream) */
   int         popen_pid;
+  /* single-character ungetc push-back (-1 = empty) */
+  int         ungetc_buf;
 } FILE;
 
 extern FILE __stdin_file;

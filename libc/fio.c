@@ -14,11 +14,13 @@
 static char stdout_buf[BUFSIZ];
 static char stderr_buf[BUFSIZ];
 
-FILE __stdin_file  = { .fd = 0, .bufmode = _IONBF };
+FILE __stdin_file  = { .fd = 0, .bufmode = _IONBF, .popen_pid = -1, .ungetc_buf = -1 };
 FILE __stdout_file = { .fd = 1, .bufmode = _IOLBF,
-                       .wbuf = stdout_buf, .wbuf_cap = BUFSIZ, .wbuf_owned = 0 };
+                       .wbuf = stdout_buf, .wbuf_cap = BUFSIZ, .wbuf_owned = 0,
+                       .popen_pid = -1, .ungetc_buf = -1 };
 FILE __stderr_file = { .fd = 2, .bufmode = _IONBF,
-                       .wbuf = stderr_buf, .wbuf_cap = BUFSIZ, .wbuf_owned = 0 };
+                       .wbuf = stderr_buf, .wbuf_cap = BUFSIZ, .wbuf_owned = 0,
+                       .popen_pid = -1, .ungetc_buf = -1 };
 
 /* -------------------------------------------------------------------------
  * Internal: flush write buffer to fd
@@ -122,6 +124,7 @@ static FILE *alloc_file(int fd) {
   f->ms_ptr     = NULL;
   f->ms_sizeloc = NULL;
   f->popen_pid  = -1;
+  f->ungetc_buf = -1;
   return f;
 }
 
@@ -241,6 +244,11 @@ int fclose(FILE *stream) {
 
 int fgetc(FILE *stream) {
   if (!stream || stream->eof) return EOF;
+  if (stream->ungetc_buf != -1) {
+    int c = stream->ungetc_buf;
+    stream->ungetc_buf = -1;
+    return c;
+  }
   if (stream->memonly) {
     if (stream->mempos >= stream->memsize) { stream->eof = 1; return EOF; }
     return (unsigned char)stream->membuf[stream->mempos++];
@@ -301,14 +309,10 @@ int fputs(const char *s, FILE *stream) {
 
 int ungetc(int c, FILE *stream) {
   if (!stream || c == EOF) return EOF;
-  if (stream->memonly) {
-    if (stream->mempos == 0) return EOF;
-    stream->mempos--;
-    stream->membuf[stream->mempos] = (char)c;
-    stream->eof = 0;
-    return c;
-  }
-  return EOF;
+  if (stream->ungetc_buf != -1) return EOF; /* only one push-back guaranteed */
+  stream->ungetc_buf = (unsigned char)c;
+  stream->eof = 0;
+  return c;
 }
 
 /* -------------------------------------------------------------------------
