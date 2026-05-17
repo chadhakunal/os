@@ -34,7 +34,7 @@ $(RC_TESTS:%=$(BINDIR)/%):
 OSTEST_TMP ?= /tmp/os-test
 OSTEST_URL ?= https://gitlab.com/sortix/os-test.git
 OSTEST_DIR := os-tests-sortix
-OSTEST_TESTS ?= stdio sys_wait signal strings dirent fcntl sys_stat sys_mman unistd
+OSTEST_TESTS ?= stdio sys_wait signal strings dirent fcntl sys_stat sys_mman unistd stdlib time
 #sys_wait signal strings dirent fcntl sys_stat
 OSTEST_BASE := $(ROOT)/thirdparty/os-tests-sortix/ostest
 OSTEST_INSTALL_DIR := $(ROOT)/build/rootfs/bin/os-tests-sortix
@@ -49,7 +49,7 @@ OSTEST_PRUNE_DIRS := \
 	fmtmsg fnmatch ftw glob iconv \
 	langinfo locale monetary nl_types \
 	mqueue ndbm \
-	poll sys_select sys_time \
+	poll sys_select \
 	sched search \
 	sys_ipc sys_msg sys_shm \
 	sys_resource sys_statvfs sys_times sys_utsname sys_uio \
