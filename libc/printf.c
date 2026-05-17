@@ -4,9 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-FILE __stdin_file  = { .fd = 0 };
-FILE __stdout_file = { .fd = 1 };
-FILE __stderr_file = { .fd = 2 };
 
 /* -------------------------------------------------------------------------
  * Output sink abstraction

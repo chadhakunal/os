@@ -30,6 +30,12 @@ typedef struct FILE {
   size_t      memsize;
   size_t      mempos;
   int         memonly;
+  /* write buffer */
+  char       *wbuf;
+  size_t      wbuf_cap;
+  size_t      wbuf_len;
+  int         bufmode;   /* _IONBF, _IOLBF, _IOFBF */
+  int         wbuf_owned; /* 1 if we malloc'd wbuf */
 } FILE;
 
 extern FILE __stdin_file;
