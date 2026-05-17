@@ -8,13 +8,26 @@ DEFINE_SYSCALL2(kill, int, pid, int, sig)
 {
   debugk("syscall: kill(pid=%d, sig=%d) from PID %llu\n", pid, sig, current_task->pid);
 
-  // Validate signal number
   if (sig < 0 || sig >= NUM_SIGS) {
     debugk("kill: invalid signal %d\n", sig);
     return -1;
   }
 
-  // Find target process
+  if (pid < 0) {
+    /* Negative pid: send to process group -pid */
+    uint64_t pgid = (uint64_t)(-pid);
+    send_signal_to_pgid(pgid, sig);
+    debugk("kill: sent signal %d to pgid %llu\n", sig, pgid);
+    return 0;
+  }
+
+  if (pid == 0) {
+    /* pid == 0: send to own process group */
+    send_signal_to_pgid(current_task->pgid, sig);
+    debugk("kill: sent signal %d to own pgid %llu\n", sig, current_task->pgid);
+    return 0;
+  }
+
   struct task_t *target = find_task_by_pid((uint64_t)pid);
   if (!target) {
     debugk("kill: process %d not found\n", pid);
