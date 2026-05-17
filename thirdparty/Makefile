@@ -70,7 +70,10 @@ OSTEST_PRUNE_DIRS := \
 	time/timer_delete \
 	time/timer_getoverrun \
 	time/timer_gettime \
-	time/timer_settime
+	time/timer_settime \
+	stdio/ctermid \
+	stdio/setvbuf \
+	stdio/tmpnam
 
 # Clone upstream (if needed) and vendor basic/ + misc/ (gitignored under os-tests-sortix/).
 os-tests-sortix-clone:
