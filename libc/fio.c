@@ -254,7 +254,8 @@ int fgetc(FILE *stream) {
     return (unsigned char)stream->membuf[stream->mempos++];
   }
   unsigned char c;
-  ssize_t n = read(stream->fd, &c, 1);
+  ssize_t n;
+  do { n = read(stream->fd, &c, 1); } while (n == -EINTR);
   if (n <= 0) { if (n == 0) stream->eof = 1; else stream->err = 1; return EOF; }
   return (unsigned char)c;
 }
@@ -330,7 +331,8 @@ size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     if (r < total) stream->eof = 1;
     return r / size;
   }
-  ssize_t n = read(stream->fd, ptr, total);
+  ssize_t n;
+  do { n = read(stream->fd, ptr, total); } while (n == -EINTR);
   if (n <= 0) { if (n == 0) stream->eof = 1; else stream->err = 1; return 0; }
   return (size_t)n / size;
 }
@@ -569,9 +571,7 @@ FILE *popen(const char *cmd, const char *type) {
     }
     close(fds[0]); close(fds[1]);
     char *argv[] = { "/bin/sh", "-c", (char *)cmd, NULL };
-    int exec_ret = execve("/bin/sh", argv, NULL);
-    write(2, "[popen] execve failed\n", 22);
-    (void)exec_ret;
+    execve("/bin/sh", argv, NULL);
     _exit(127);
   }
   /* parent */
