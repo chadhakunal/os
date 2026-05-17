@@ -65,7 +65,8 @@ OSTEST_PRUNE_DIRS := \
 	signal/sigqueue \
 	signal/sigtimedwait \
 	signal/sigwaitinfo \
-	signal/str2sig
+	signal/str2sig \
+	time/timer_getoverrun
 
 # Clone upstream (if needed) and vendor basic/ + misc/ (gitignored under os-tests-sortix/).
 os-tests-sortix-clone:
