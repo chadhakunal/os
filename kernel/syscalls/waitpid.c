@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "kernel/task/task.h"
@@ -60,11 +60,7 @@ DEFINE_SYSCALL3(waitpid, int64_t, pid, int *, wstatus, int, options)
     current_task->signal_state.pending &= ~(1ULL << (SIGCHLD - 1));
     sigset_t pending_unblocked = current_task->signal_state.pending
                                  & ~current_task->signal_state.blocked;
-    debugk("waitpid: PID %llu woke from schedule, pending_unblocked=0x%llx\n",
-           current_task->pid, pending_unblocked);
-    if (pending_unblocked) {
-      debugk("waitpid: PID %llu returning EINTR\n", current_task->pid);
+    if (pending_unblocked)
       return -EINTR;
-    }
   }
 }
