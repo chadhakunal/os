@@ -194,6 +194,21 @@ static int core_vprintf(fmt_out *o, const char *fmt, va_list args) {
 int vfprintf(FILE *stream, const char *fmt, va_list ap) {
   if (!stream || !fmt) return -1;
   if (stream->memonly) {
+    if (stream->ms_ptr) {
+      /* open_memstream: format to temp buffer, then fwrite (which grows). */
+      va_list ap2;
+      va_copy(ap2, ap);
+      int need = vsnprintf(NULL, 0, fmt, ap2);
+      va_end(ap2);
+      if (need < 0) return -1;
+      char tmp[512];
+      char *tbuf = (size_t)need < sizeof(tmp) ? tmp : malloc((size_t)need + 1);
+      if (!tbuf) return -1;
+      vsnprintf(tbuf, (size_t)need + 1, fmt, ap);
+      fwrite(tbuf, 1, (size_t)need, stream);
+      if (tbuf != tmp) free(tbuf);
+      return need;
+    }
     fmt_out o = {
       .kind  = OUT_STR,
       .u.str = { .buf  = stream->membuf + stream->mempos,

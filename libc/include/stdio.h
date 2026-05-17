@@ -36,6 +36,9 @@ typedef struct FILE {
   size_t      wbuf_len;
   int         bufmode;   /* _IONBF, _IOLBF, _IOFBF */
   int         wbuf_owned; /* 1 if we malloc'd wbuf */
+  /* open_memstream state (NULL for non-memstream) */
+  char      **ms_ptr;
+  size_t     *ms_sizeloc;
 } FILE;
 
 extern FILE __stdin_file;

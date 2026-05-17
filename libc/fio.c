@@ -117,7 +117,27 @@ static FILE *alloc_file(int fd) {
   f->wbuf_len  = 0;
   f->wbuf_owned = 1;
   f->bufmode   = _IOFBF;
+  f->ms_ptr     = NULL;
+  f->ms_sizeloc = NULL;
   return f;
+}
+
+/* Sync open_memstream buffer to caller's *ptr / *sizeloc. */
+static void _memstream_sync(FILE *f) {
+  if (!f->ms_ptr || !f->ms_sizeloc) return;
+  /* mempos is the number of bytes written so far */
+  size_t len = f->mempos;
+  /* grow if needed (+1 for NUL) */
+  if (f->membuf == NULL || f->memsize < len + 1) {
+    size_t newcap = len + 1 < 64 ? 64 : len + 2;
+    char *nb = realloc(f->membuf, newcap);
+    if (!nb) { f->err = 1; return; }
+    f->membuf  = nb;
+    f->memsize = newcap;
+  }
+  f->membuf[len] = '\0';
+  *f->ms_ptr     = f->membuf;
+  *f->ms_sizeloc = len;
 }
 
 /* -------------------------------------------------------------------------
@@ -198,11 +218,14 @@ FILE *fmemopen(void *buf, size_t size, const char *mode) {
 
 int fclose(FILE *stream) {
   if (!stream) return EOF;
+  _memstream_sync(stream);
   _flush(stream);
   int rc = 0;
   if (!stream->memonly && stream->fd >= 0)
     rc = close(stream->fd);
   if (stream != stdin && stream != stdout && stream != stderr) {
+    /* For open_memstream, membuf is handed off to the caller — don't free it. */
+    if (stream->memonly && stream->ms_ptr) stream->membuf = NULL;
     if (stream->wbuf_owned && stream->wbuf) free(stream->wbuf);
     free(stream);
   }
@@ -229,7 +252,16 @@ int fputc(int c, FILE *stream) {
   if (!stream) return EOF;
   unsigned char ch = (unsigned char)c;
   if (stream->memonly) {
-    if (stream->mempos >= stream->memsize) return EOF;
+    /* open_memstream: grow buffer on demand (+1 reserved for NUL) */
+    if (stream->ms_ptr && stream->mempos + 1 >= stream->memsize) {
+      size_t newcap = stream->memsize * 2;
+      char *nb = realloc(stream->membuf, newcap);
+      if (!nb) { stream->err = 1; return EOF; }
+      stream->membuf  = nb;
+      stream->memsize = newcap;
+    } else if (stream->mempos >= stream->memsize) {
+      return EOF;
+    }
     stream->membuf[stream->mempos++] = (char)ch;
     return ch;
   }
@@ -300,6 +332,18 @@ size_t fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) {
   if (!stream || size == 0 || nmemb == 0) return 0;
   size_t total = size * nmemb;
   if (stream->memonly) {
+    /* open_memstream: grow to fit (+1 for NUL) */
+    if (stream->ms_ptr) {
+      size_t needed = stream->mempos + total + 1;
+      if (needed > stream->memsize) {
+        size_t newcap = stream->memsize * 2;
+        while (newcap < needed) newcap *= 2;
+        char *nb = realloc(stream->membuf, newcap);
+        if (!nb) { stream->err = 1; return 0; }
+        stream->membuf  = nb;
+        stream->memsize = newcap;
+      }
+    }
     size_t avail = stream->memsize - stream->mempos;
     size_t w = total < avail ? total : avail;
     memcpy(stream->membuf + stream->mempos, ptr, w);
@@ -377,6 +421,7 @@ int fflush(FILE *stream) {
     if (_flush(stderr) == EOF) r = EOF;
     return r;
   }
+  _memstream_sync(stream);
   return _flush(stream);
 }
 
@@ -475,8 +520,22 @@ ssize_t getline(char **lineptr, size_t *n, FILE *f) {
  * ------------------------------------------------------------------------- */
 
 FILE *open_memstream(char **ptr, size_t *sizeloc) {
-  (void)ptr; (void)sizeloc;
-  return fmemopen(NULL, 128, "w");
+  if (!ptr || !sizeloc) return NULL;
+  FILE *f = alloc_file(-1);
+  if (!f) return NULL;
+  /* Start with a small buffer; it grows on demand in fputc/fwrite. */
+  f->membuf  = malloc(64);
+  if (!f->membuf) { free(f); return NULL; }
+  f->memsize = 64;
+  f->mempos  = 0;
+  f->memonly = 1;
+  f->ms_ptr     = ptr;
+  f->ms_sizeloc = sizeloc;
+  /* Initialise caller's pointers immediately (POSIX requirement). */
+  f->membuf[0] = '\0';
+  *ptr     = f->membuf;
+  *sizeloc = 0;
+  return f;
 }
 
 /* -------------------------------------------------------------------------
