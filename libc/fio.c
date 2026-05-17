@@ -299,7 +299,6 @@ off_t ftello(FILE *f)                           { return (off_t)ftell(f); }
  * buffering — single-threaded, no real buffering, stubs only
  * ------------------------------------------------------------------------- */
 
-#define _IONBF 2
 void setbuf(FILE *f, char *buf)                        { (void)f; (void)buf; }
 int  setvbuf(FILE *f, char *buf, int mode, size_t sz)  { (void)f; (void)buf; (void)mode; (void)sz; return 0; }
 
@@ -368,16 +367,20 @@ int remove(const char *path) {
   return unlink(path);
 }
 
-static char tmpnam_buf[32];
+static char tmpnam_buf[L_tmpnam];
 char *tmpnam(char *s) {
-  const char *name = "/tmp/tmpXXXXXX";
-  if (s) { int i = 0; while ((*s++ = name[i++])); return s - (i); }
-  int i = 0; while ((tmpnam_buf[i++] = *name++));
-  return tmpnam_buf;
+  const char *name = "/tmp/tmp000000";
+  char *dst = s ? s : tmpnam_buf;
+  int i = 0;
+  while ((dst[i] = name[i])) i++;
+  return dst;
 }
 
+static char ctermid_buf[L_ctermid];
 char *ctermid(char *s) {
   const char *name = "/dev/tty";
-  if (s) { int i = 0; while ((*s++ = name[i++])); return s - i; }
-  return (char *)name;
+  char *dst = s ? s : ctermid_buf;
+  int i = 0;
+  while ((dst[i] = name[i])) i++;
+  return dst;
 }

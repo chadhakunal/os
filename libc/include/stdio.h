@@ -11,6 +11,14 @@
 #define SEEK_CUR 1
 #define SEEK_END 2
 
+#define BUFSIZ    1024
+#define L_tmpnam  20
+#define L_ctermid 20
+
+#define _IONBF 0
+#define _IOLBF 1
+#define _IOFBF 2
+
 typedef long fpos_t;
 
 typedef struct FILE {
