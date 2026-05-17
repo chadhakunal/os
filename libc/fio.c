@@ -130,7 +130,9 @@ int fputc(int c, FILE *stream) {
     stream->membuf[stream->mempos++] = (char)ch;
     return ch;
   }
-  return write(stream->fd, &ch, 1) == 1 ? ch : EOF;
+  if (write(stream->fd, &ch, 1) == 1) return ch;
+  stream->err = 1;
+  return EOF;
 }
 
 char *fgets(char *s, int n, FILE *stream) {
