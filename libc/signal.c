@@ -74,9 +74,11 @@ int sigsuspend(const sigset_t *mask) {
 }
 
 int sigwait(const sigset_t *set, int *sig) {
-  (void)set; (void)sig;
-  errno = ENOSYS;
-  return -1;
+  long ret = syscall4(SYS_rt_sigtimedwait, set, NULL, NULL, sizeof(sigset_t));
+  if (ret < 0)
+    return (int)(-ret);
+  *sig = (int)ret;
+  return 0;
 }
 
 int sigwaitinfo(const sigset_t *set, siginfo_t *info) {
