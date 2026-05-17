@@ -2,6 +2,8 @@
 
 extern char **environ;
 
+void _exit(int status);
+
 #include <stddef.h>
 #include <sys/types.h>
 #include <sys/stat.h>
