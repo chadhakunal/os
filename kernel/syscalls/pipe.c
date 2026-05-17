@@ -20,7 +20,7 @@ DEFINE_SYSCALL1(pipe, int *, user_pipefd)
   read_file->file_ops       = NULL;
   read_file->offset         = 0;
   read_file->refcount       = 1;
-  read_file->flags          = 0;
+  read_file->flags          = O_RDONLY;
   read_file->pipe           = pipe;
   read_file->pipe_write_end = 0;
 
@@ -29,7 +29,7 @@ DEFINE_SYSCALL1(pipe, int *, user_pipefd)
   write_file->file_ops       = NULL;
   write_file->offset         = 0;
   write_file->refcount       = 1;
-  write_file->flags          = 0;
+  write_file->flags          = O_WRONLY;
   write_file->pipe           = pipe;
   write_file->pipe_write_end = 1;
 
