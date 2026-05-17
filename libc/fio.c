@@ -337,6 +337,7 @@ int fseek(FILE *stream, long offset, int whence) {
 long ftell(FILE *stream) {
   if (!stream) return -1;
   if (stream->memonly) return (long)stream->mempos;
+  _flush(stream);
   return (long)lseek(stream->fd, 0, SEEK_CUR);
 }
 
