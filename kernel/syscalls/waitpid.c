@@ -3,6 +3,7 @@
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
+#include "kernel/task/signal.h"
 #include "kernel/user_data_access.h"
 #include "lib/printk/printk.h"
 #include "types.h"
