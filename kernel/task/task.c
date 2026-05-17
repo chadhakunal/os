@@ -12,6 +12,7 @@
 #include "kernel/task/elf_loader.h"
 #include "kernel/task/schedule.h"
 #include "kernel/signal_jump_point.h"
+#include "kernel/task/signal.h"
 #include "kernel/drivers/virtio-blk.h"
 #include "kernel/filesystem/pipefs/pipe.h"
 #include "kernel/resource.h"
@@ -558,6 +559,8 @@ void task_cleanup(int exit_status) {
   if (parent) {
     debugk("task_cleanup: found parent PID %llu (state=%d, wait_reason=%d, wait_pid=%lld)\n",
            parent->pid, parent->state, parent->wait_reason, parent->wait_pid);
+    /* Always send SIGCHLD so parent can handle it (e.g. ppoll with sigmask). */
+    send_signal(parent, SIGCHLD);
     if (parent->state == TASK_BLOCKED && parent->wait_reason == WAIT_CHILD) {
       if (parent->wait_pid == -1 || parent->wait_pid == (int64_t)current_task->pid) {
         debugk("task_cleanup: waking parent PID %llu\n", parent->pid);
