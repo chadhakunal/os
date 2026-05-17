@@ -142,6 +142,7 @@ struct task_t *task_init() {
   init_signal_state(task);
 
   rlimit_init_defaults(&task->rlimits);
+  task->umask = 0022;
 
   return task;
 }
@@ -621,6 +622,7 @@ uint64_t fork_off() {
 
   copy_file_table(&current_task->file_table, &new_task->file_table);
   rlimit_copy(&new_task->rlimits, &current_task->rlimits);
+  new_task->umask = current_task->umask;
   copy_mm(current_task, new_task);
 
   void *sjp = get_signal_jump_point_page();

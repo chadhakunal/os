@@ -112,7 +112,15 @@ struct task_t {
   struct kernel_fault_recovery_t fault_recovery;
 
   struct task_rlimits_t rlimits;
+
+  uint32_t umask; /* permission mask applied on file/dir creation */
 };
+
+/* Apply current task umask to permission bits (mode & 0777). */
+static inline uint32_t task_apply_umask(const struct task_t *task, uint32_t mode)
+{
+  return (mode & 0777u) & ~task->umask;
+}
 
 DEFINE_POOL(task_t, struct task_t)
 DEFINE_POOL(vma_t, struct vma_t)

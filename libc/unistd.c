@@ -391,6 +391,29 @@ int chmod(const char *path, unsigned int mode) {
   return syscall2(SYS_chmod, (uint64_t)path, (uint64_t)mode);
 }
 
+int fchmod(int fd, mode_t mode) {
+  long ret = syscall2(SYS_fchmod, (uint64_t)(int64_t)fd, (uint64_t)mode);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return 0;
+}
+
+int fchmodat(int dirfd, const char *path, mode_t mode, int flags) {
+  long ret = syscall4(SYS_fchmodat, (uint64_t)(int64_t)dirfd,
+                      (uint64_t)path, (uint64_t)mode, (uint64_t)flags);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return 0;
+}
+
+mode_t umask(mode_t mask) {
+  return (mode_t)syscall1(SYS_umask, (uint64_t)mask);
+}
+
 int truncate(const char *path, off_t length) {
   return syscall2(SYS_truncate, (uint64_t)path, (uint64_t)length);
 }

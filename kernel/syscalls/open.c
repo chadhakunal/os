@@ -56,9 +56,10 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
                                    ? parent_dentry->vnode->mounted_vnode
                                    : parent_dentry->vnode;
 
-    uint32_t create_mode = (uint32_t)mode & 0777;
+    uint32_t create_mode = (uint32_t)mode & 0777u;
     if (create_mode == 0)
-      create_mode = 0666;
+      create_mode = 0666u;
+    create_mode = task_apply_umask(current_task, create_mode);
 
     struct dentry_t *new_dentry;
     int ret = vfs_create(name, parent_vnode, &new_dentry, create_mode);
