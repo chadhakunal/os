@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <poll.h>
 
 char *getcwd(char *buf, size_t size) {
   if (buf == NULL) {
@@ -473,3 +474,16 @@ uid_t getuid(void) { return 0; }
 uid_t geteuid(void) { return 0; }
 gid_t getgid(void) { return 0; }
 gid_t getegid(void) { return 0; }
+
+int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
+  long ret = syscall3(SYS_poll, fds, (long)nfds, (long)timeout);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return (int)ret;
+}
+
+int ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *timeout,
+          const sigset_t *sigmask) {
+  long ret = syscall4(SYS_ppoll, fds, (long)nfds, timeout, sigmask);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return (int)ret;
+}

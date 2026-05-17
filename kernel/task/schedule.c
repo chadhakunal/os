@@ -1,6 +1,7 @@
 #define DEBUG 0
 #include "kernel/task/schedule.h"
 #include "kernel/task/task.h"
+#include "kernel/filesystem/poll.h"
 #include "kernel/panic.h"
 #include "lib/list.h"
 #include "arch/riscv64/virtual_memory_init.h"
@@ -80,6 +81,23 @@ void wake_up(struct list_node *wait_queue) {
     list_remove(&task->wait_list);
     unblock_task(task);
 
+    current = next;
+  }
+}
+
+/* Wake all poll_waiter entries on a queue without touching task->wait_list. */
+void wake_up_poll(struct list_node *wait_queue) {
+  if (list_is_empty(wait_queue))
+    return;
+
+  struct list_node *current = wait_queue->next;
+  while (current != wait_queue) {
+    struct poll_waiter *w = container_of(current, struct poll_waiter, node);
+    struct list_node *next = current->next;
+    list_remove(&w->node);
+    w->queue = NULL;
+    if (w->task && w->task->state == TASK_BLOCKED)
+      unblock_task(w->task);
     current = next;
   }
 }

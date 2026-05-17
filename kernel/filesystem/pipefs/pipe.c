@@ -1,4 +1,5 @@
 #include "kernel/filesystem/pipefs/pipe.h"
+#include "kernel/filesystem/poll.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
 #include "kernel/task/signal.h"
@@ -14,6 +15,7 @@ struct pipe_t *pipe_create(void) {
   p->reader_count = 1;
   p->writer_count = 1;
   list_init(&p->wait_queue);
+  list_init(&p->poll_queue);
   return p;
 }
 
@@ -47,8 +49,9 @@ int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size) {
     copied++;
   }
 
-  /* Wake any writer blocked on a full buffer. */
+  /* Wake any writer blocked on a full buffer, and any poll waiters. */
   wake_up(&pipe->wait_queue);
+  wake_up_poll(&pipe->poll_queue);
 
   return (int64_t)copied;
 }
@@ -82,23 +85,44 @@ int64_t pipe_write(struct pipe_t *pipe, const void *kernel_buf, uint64_t size) {
     written++;
   }
 
-  /* Wake any reader blocked waiting for data. */
+  /* Wake any reader blocked waiting for data, and any poll waiters. */
   wake_up(&pipe->wait_queue);
+  wake_up_poll(&pipe->poll_queue);
 
   return (int64_t)written;
+}
+
+short pipe_poll(struct pipe_t *pipe, int is_write_end, short events) {
+  short revents = 0;
+  if (!is_write_end) {
+    if ((events & POLLIN) && pipe->len > 0)
+      revents |= POLLIN;
+    if (pipe->writer_count == 0)
+      revents |= POLLHUP;
+  } else {
+    if ((events & POLLOUT) && pipe->len < PIPE_BUF_SIZE && pipe->reader_count > 0)
+      revents |= POLLOUT;
+    if (pipe->reader_count == 0)
+      revents |= POLLERR;
+  }
+  return revents;
 }
 
 void pipe_close(struct pipe_t *pipe, int is_write_end) {
   if (is_write_end) {
     if (pipe->writer_count > 0)
       pipe->writer_count--;
-    if (pipe->writer_count == 0)
-      wake_up(&pipe->wait_queue); /* wake readers so they see EOF */
+    if (pipe->writer_count == 0) {
+      wake_up(&pipe->wait_queue);
+      wake_up_poll(&pipe->poll_queue);
+    }
   } else {
     if (pipe->reader_count > 0)
       pipe->reader_count--;
-    if (pipe->reader_count == 0)
-      wake_up(&pipe->wait_queue); /* wake writers so they see EPIPE */
+    if (pipe->reader_count == 0) {
+      wake_up(&pipe->wait_queue);
+      wake_up_poll(&pipe->poll_queue);
+    }
   }
 
   if (pipe->reader_count == 0 && pipe->writer_count == 0)

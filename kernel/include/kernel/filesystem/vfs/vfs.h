@@ -258,6 +258,7 @@ int64_t         vfs_open_at(const char *path, struct dentry_t *start, int flags,
 struct file_t  *vfs_init_file(struct vnode_t *vnode, int flags);
 int64_t         vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
 int64_t         vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size);
+short           vfs_poll(struct file_t *file, short events);
 int64_t         vfs_file_close(struct files_table_t *file_table, int fd);
 int             vfs_file_get_fd_flags(struct files_table_t *file_table, int fd);
 int64_t         vfs_file_set_fd_flags(struct files_table_t *file_table, int fd, int flags);

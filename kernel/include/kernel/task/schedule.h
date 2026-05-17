@@ -24,6 +24,7 @@ void init_scheduler();
 void unblock_task(struct task_t *task);
 
 void wake_up(struct list_node *wait_queue);
+void wake_up_poll(struct list_node *wait_queue);
 
 void fresh_task_jump(void);
 

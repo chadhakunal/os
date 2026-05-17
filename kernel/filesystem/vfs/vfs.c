@@ -1,6 +1,7 @@
 #define DEBUG 0
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/filesystem/pipefs/pipe.h"
+#include "kernel/filesystem/poll.h"
 #include "lib/string.h"
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
@@ -199,6 +200,15 @@ int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
   debugk("  vfs_vnode_read returned %ld\n", ret);
 
   return ret;
+}
+
+short vfs_poll(struct file_t *file, short events) {
+  if (!file)
+    return POLLNVAL;
+  if (file->pipe)
+    return pipe_poll(file->pipe, file->pipe_write_end, events);
+  /* Regular files are always ready. */
+  return events & (POLLIN | POLLOUT);
 }
 
 int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
