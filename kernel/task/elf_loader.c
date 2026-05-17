@@ -7,18 +7,11 @@
 #include "kernel/memory/page_tables.h"
 #include "arch/riscv64/virtual_memory_init.h"
 
-int validate_elf(const char *path) {
-  struct dentry_t *dentry;
-  int32_t ret = vfs_resolve_path(path, &dentry);
-  if (ret != 0) {
-    return -1;
-  }
-
+int validate_elf_dentry(struct dentry_t *dentry) {
   struct Elf64_Ehdr header;
-  ret = vfs_vnode_read(dentry->vnode, &header, sizeof(header), 0);
-  if (ret < 0) {
+  int32_t ret = vfs_vnode_read(dentry->vnode, &header, sizeof(header), 0);
+  if (ret < 0)
     return -1;
-  }
 
   if (header.e_ident[EI_MAG0] != ELFMAG0 ||
       header.e_ident[EI_MAG1] != ELFMAG1 ||
@@ -30,13 +23,15 @@ int validate_elf(const char *path) {
   return 0;
 }
 
-int load_elf(struct task_t *task, const char *path) {
+int validate_elf(const char *path) {
   struct dentry_t *dentry;
-  int32_t ret = vfs_resolve_path(path, &dentry);
-  if (ret != 0) {
-    printk("load_elf: vfs_resolve_path('%s') failed: %d\n", path, (int)ret);
+  if (vfs_resolve_path(path, &dentry) != 0)
     return -1;
-  }
+  return validate_elf_dentry(dentry);
+}
+
+int load_elf_dentry(struct task_t *task, struct dentry_t *dentry) {
+  int32_t ret;
   // Read ELF header
   struct Elf64_Ehdr header;
   ret = vfs_vnode_read(dentry->vnode, &header, sizeof(header), 0);
@@ -143,4 +138,13 @@ int load_elf(struct task_t *task, const char *path) {
   task->tf.sstatus = SSTATUS_SPIE | SSTATUS_UXL_64;
 
   return 0;
+}
+
+int load_elf(struct task_t *task, const char *path) {
+  struct dentry_t *dentry;
+  if (vfs_resolve_path(path, &dentry) != 0) {
+    printk("load_elf: vfs_resolve_path('%s') failed\n", path);
+    return -1;
+  }
+  return load_elf_dentry(task, dentry);
 }

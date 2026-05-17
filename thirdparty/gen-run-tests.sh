@@ -36,7 +36,7 @@ EOF
   while read -r rel; do
     [ -n "$rel" ] || continue
     [ -f "$INSTALL_DIR/$rel" ] || continue
-    echo "echo $rel"
+    echo "echo \"$rel\""
     echo "./$rel"
   done <"$SOURCES"
 

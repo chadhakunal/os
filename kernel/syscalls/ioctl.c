@@ -6,15 +6,10 @@
 #include "errno.h"
 
 DEFINE_SYSCALL3(ioctl, int, fd, unsigned long, request, void *, arg) {
-  if (fd < 0 || fd >= 32) {
-    return -EBADF;
-  }
-
   struct file_t *file = find_file(&current_task->file_table, fd);
 
-  if (file == NULL) {
+  if (file == NULL)
     return -EBADF;
-  }
 
   if (file->file_ops == NULL || file->file_ops->ioctl == NULL) {
     return -ENOTTY;
