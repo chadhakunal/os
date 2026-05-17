@@ -55,6 +55,8 @@ DEFINE_SYSCALL3(waitpid, int64_t, pid, int *, wstatus, int, options)
 
     asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
 
+    /* SIGCHLD wakes waitpid but doesn't interrupt it — clear it and loop. */
+    current_task->signal_state.pending &= ~(1ULL << (SIGCHLD - 1));
     sigset_t pending_unblocked = current_task->signal_state.pending
                                  & ~current_task->signal_state.blocked;
     if (pending_unblocked)

@@ -72,6 +72,8 @@ DEFINE_SYSCALL4(waitid, int, idtype, uint64_t, id, struct kern_siginfo *, user_i
 
     asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
 
+    /* SIGCHLD wakes waitid but doesn't interrupt it — clear it and loop. */
+    current_task->signal_state.pending &= ~(1ULL << (SIGCHLD - 1));
     sigset_t pending_unblocked = current_task->signal_state.pending
                                  & ~current_task->signal_state.blocked;
     if (pending_unblocked)
