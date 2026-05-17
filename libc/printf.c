@@ -211,8 +211,15 @@ int vfprintf(FILE *stream, const char *fmt, va_list ap) {
 }
 
 int vdprintf(int fd, const char *fmt, va_list ap) {
-  fmt_out o = { .kind = OUT_FD, .u.fd = { .fd = fd, .pos = 0 }, .total = 0 };
-  return core_vprintf(&o, fmt, ap);
+  char buf[512];
+  va_list ap2;
+  va_copy(ap2, ap);
+  int n = vsnprintf(buf, sizeof(buf), fmt, ap2);
+  va_end(ap2);
+  if (n <= 0) return n;
+  size_t len = (size_t)n < sizeof(buf) ? (size_t)n : sizeof(buf) - 1;
+  write(fd, buf, len);
+  return n;
 }
 
 int vsnprintf(char *str, size_t size, const char *fmt, va_list ap) {
