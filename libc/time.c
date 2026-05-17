@@ -245,8 +245,32 @@ size_t strftime(char *restrict s, size_t max, const char *restrict fmt,
 #undef PUTS2
 }
 
+static int parse_int(const char **s, int width) {
+  int val = 0, n = 0;
+  while (n < width && **s >= '0' && **s <= '9') {
+    val = val * 10 + (**s - '0');
+    (*s)++; n++;
+  }
+  return (n > 0) ? val : -1;
+}
+
 char *strptime(const char *s, const char *fmt, struct tm *tm) {
-  /* minimal stub — tests just need it to link */
-  (void)fmt; (void)tm;
+  for (; *fmt; fmt++) {
+    if (*fmt != '%') {
+      if (*s == *fmt) { s++; continue; }
+      return NULL;
+    }
+    fmt++;
+    int val;
+    switch (*fmt) {
+    case 'Y': val = parse_int(&s, 4); if (val < 0) return NULL; tm->tm_year = val - 1900; break;
+    case 'm': val = parse_int(&s, 2); if (val < 0) return NULL; tm->tm_mon  = val - 1;    break;
+    case 'd': val = parse_int(&s, 2); if (val < 0) return NULL; tm->tm_mday = val;         break;
+    case 'H': val = parse_int(&s, 2); if (val < 0) return NULL; tm->tm_hour = val;         break;
+    case 'M': val = parse_int(&s, 2); if (val < 0) return NULL; tm->tm_min  = val;         break;
+    case 'S': val = parse_int(&s, 2); if (val < 0) return NULL; tm->tm_sec  = val;         break;
+    default:  return NULL;
+    }
+  }
   return (char *)s;
 }
