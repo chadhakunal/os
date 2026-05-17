@@ -1,9 +1,11 @@
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "kernel/task/task.h"
+#include "kernel/resource.h"
 #include "kernel/memory/page_tables.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "lib/printk/printk.h"
+#include "errno.h"
 
 #define PROT_READ  1
 #define PROT_WRITE 2
@@ -14,9 +16,16 @@
 DEFINE_SYSCALL6(mmap,
     size_t, addr, size_t, len, int, prot, int, flags, int, fd, size_t, offset)
 {
-  if (len == 0) return -1;
+  if (len == 0)
+    return -EINVAL;
 
   len = (len + DEFAULT_PAGE_SIZE - 1) & ~(DEFAULT_PAGE_SIZE - 1);
+
+  {
+    int as_ret = rlimit_check_as(current_task, len);
+    if (as_ret < 0)
+      return as_ret;
+  }
 
   uint64_t vm_flags = 0;
   if (prot & PROT_READ)  vm_flags |= VM_READ;

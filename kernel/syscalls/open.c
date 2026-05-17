@@ -95,10 +95,5 @@ open_existing:;
     file->offset = 0;
   }
 
-  int fd = alloc_fd(&current_task->file_table, file);
-  if (fd < 0) {
-    return -1;
-  }
-
-  return fd;
+  return alloc_fd(&current_task->file_table, file);
 }

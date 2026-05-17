@@ -5,7 +5,9 @@
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/memory/page_allocator.h"
 #include "kernel/task/task.h"
+#include "kernel/resource.h"
 #include "kernel/user_data_access.h"
+#include "errno.h"
 #include "lib/list.h"
 #include "lib/printk/printk.h"
 #include "types.h"
@@ -70,6 +72,17 @@ DEFINE_SYSCALL3(write, int, fd, const void *, buf, size_t, count) {
       debugk(
           "write syscall: O_APPEND mode, writing at offset %llu (file size)\n",
           write_offset);
+    }
+  }
+
+  if (file->vnode) {
+    uint64_t new_size = write_offset + count;
+    if (file->vnode->size > new_size)
+      new_size = file->vnode->size;
+    int fsize_ret = rlimit_check_fsize(current_task, new_size);
+    if (fsize_ret < 0) {
+      free_page(phys_page);
+      return fsize_ret;
     }
   }
 

@@ -7,6 +7,7 @@
 #include "lib/list.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/task/signal.h"
+#include "kernel/resource.h"
 
 // Global task tracking (defined in task.c)
 extern struct task_t *current_task;  // Currently running task
@@ -105,6 +106,8 @@ struct task_t {
   uint32_t signal_handler_depth;  // Nesting depth of signal handlers (0 = not in handler)
 
   struct kernel_fault_recovery_t fault_recovery;
+
+  struct task_rlimits_t rlimits;
 };
 
 DEFINE_POOL(task_t, struct task_t)
