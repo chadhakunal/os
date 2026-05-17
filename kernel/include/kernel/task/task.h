@@ -36,6 +36,7 @@ enum wait_reason {
   WAIT_CHILD,
   WAIT_IO,
   WAIT_SLEEP,
+  WAIT_SIGNAL,
 };
 
 struct vma_t {

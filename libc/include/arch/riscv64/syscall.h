@@ -43,6 +43,9 @@
 #define SYS_reboot          88
 #define SYS_getrlimit       163
 #define SYS_setrlimit       164
+#define SYS_rt_sigprocmask  135
+#define SYS_rt_sigpending   136
+#define SYS_rt_sigsuspend   133
 
 #define syscall0(n) ({ \
   register long _a0 asm("a0"); \

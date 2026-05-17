@@ -42,6 +42,29 @@ FILE *fopen(const char *path, const char *mode) {
   return f;
 }
 
+FILE *freopen(const char *path, const char *mode, FILE *stream) {
+  if (!stream) return NULL;
+  if (!stream->memonly && stream->fd >= 0)
+    close(stream->fd);
+  stream->fd     = -1;
+  stream->eof    = 0;
+  stream->err    = 0;
+  stream->memonly = 0;
+
+  int flags;
+  if (mode[0] == 'r')
+    flags = (mode[1] == '+') ? O_RDWR : O_RDONLY;
+  else if (mode[0] == 'w')
+    flags = O_WRONLY | O_CREAT | O_TRUNC  | (mode[1] == '+' ? O_RDWR : 0);
+  else
+    flags = O_WRONLY | O_CREAT | O_APPEND | (mode[1] == '+' ? O_RDWR : 0);
+
+  int fd = open(path, flags, 0666);
+  if (fd < 0) return NULL;
+  stream->fd = fd;
+  return stream;
+}
+
 FILE *fdopen(int fd, const char *mode) {
   (void)mode;
   return alloc_file(fd);

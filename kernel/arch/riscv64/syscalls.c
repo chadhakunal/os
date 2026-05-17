@@ -247,6 +247,18 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_setrlimit(tf);
       break;
 
+    case SYS_rt_sigprocmask:
+      ret = sys_rt_sigprocmask(tf);
+      break;
+
+    case SYS_rt_sigpending:
+      ret = sys_rt_sigpending(tf);
+      break;
+
+    case SYS_rt_sigsuspend:
+      ret = sys_rt_sigsuspend(tf);
+      break;
+
     default:
       debugk("syscall: unknown syscall %llu\n", syscall_num);
       tf->a0 = -1; // ENOSYS

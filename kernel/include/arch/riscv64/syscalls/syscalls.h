@@ -51,6 +51,9 @@
 #define SYS_reboot          88
 #define SYS_getrlimit       163
 #define SYS_setrlimit       164
+#define SYS_rt_sigprocmask  135
+#define SYS_rt_sigpending   136
+#define SYS_rt_sigsuspend   133
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -97,5 +100,8 @@ int64_t sys_chmod(struct trap_frame *tf);
 int64_t sys_reboot(struct trap_frame *tf);
 int64_t sys_getrlimit(struct trap_frame *tf);
 int64_t sys_setrlimit(struct trap_frame *tf);
+int64_t sys_rt_sigprocmask(struct trap_frame *tf);
+int64_t sys_rt_sigpending(struct trap_frame *tf);
+int64_t sys_rt_sigsuspend(struct trap_frame *tf);
 
 #endif

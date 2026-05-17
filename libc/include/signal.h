@@ -7,6 +7,7 @@ extern "C" {
 
 #include <stddef.h>
 #include <types.h>
+#include <time.h>
 
 // Signal numbers (POSIX standard)
 #define SIGHUP    1
@@ -49,6 +50,46 @@ extern "C" {
 // Signal set type
 typedef unsigned long sigset_t;
 
+// Atomic integer type for use in signal handlers
+typedef int sig_atomic_t;
+
+// Signal value union (used by siginfo and sigqueue)
+union sigval {
+  int   sival_int;
+  void *sival_ptr;
+};
+
+// Signal info structure (SA_SIGINFO handlers, sigwaitinfo, etc.)
+typedef struct {
+  int          si_signo;
+  int          si_errno;
+  int          si_code;
+  pid_t        si_pid;
+  int          si_uid;
+  int          si_status;
+  void        *si_addr;
+  union sigval si_value;
+} siginfo_t;
+
+// si_code values
+#define SI_USER    0
+#define SI_KERNEL  128
+#define SI_QUEUE  -1
+#define SI_TIMER  -2
+#define SI_ASYNCIO -4
+
+// Alternate signal stack
+#define SIGSTKSZ  8192
+#define MINSIGSTKSZ 2048
+#define SS_ONSTACK  1
+#define SS_DISABLE  2
+
+typedef struct {
+  void  *ss_sp;
+  size_t ss_size;
+  int    ss_flags;
+} stack_t;
+
 // Signal action flags
 #define SA_NOCLDSTOP  1
 #define SA_NOCLDWAIT  2
@@ -60,7 +101,10 @@ typedef unsigned long sigset_t;
 
 // Signal action structure
 struct sigaction {
-  void (*sa_handler)(int);
+  union {
+    void (*sa_handler)(int);
+    void (*sa_sigaction)(int, siginfo_t *, void *);
+  };
   sigset_t sa_mask;
   int sa_flags;
   void (*sa_restorer)(void);
@@ -78,6 +122,15 @@ int raise(int sig);
 void (*signal(int signum, void (*handler)(int)))(int);
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oldact);
 int sigprocmask(int how, const sigset_t *set, sigset_t *oldset);
+int sigpending(sigset_t *set);
+int sigsuspend(const sigset_t *mask);
+int sigwait(const sigset_t *set, int *sig);
+int sigwaitinfo(const sigset_t *set, siginfo_t *info);
+int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout);
+int sigqueue(pid_t pid, int sig, union sigval value);
+int sigaltstack(const stack_t *ss, stack_t *old_ss);
+void psignal(int sig, const char *msg);
+void psiginfo(const siginfo_t *info, const char *msg);
 int sigemptyset(sigset_t *set);
 int sigfillset(sigset_t *set);
 int sigaddset(sigset_t *set, int signum);
