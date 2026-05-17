@@ -39,6 +39,8 @@ typedef struct FILE {
   /* open_memstream state (NULL for non-memstream) */
   char      **ms_ptr;
   size_t     *ms_sizeloc;
+  /* popen child pid (-1 if not a popen stream) */
+  int         popen_pid;
 } FILE;
 
 extern FILE __stdin_file;

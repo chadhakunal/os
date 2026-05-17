@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <errno.h>
 
 /* -------------------------------------------------------------------------
@@ -120,6 +121,7 @@ static FILE *alloc_file(int fd) {
   f->bufmode   = _IOFBF;
   f->ms_ptr     = NULL;
   f->ms_sizeloc = NULL;
+  f->popen_pid  = -1;
   return f;
 }
 
@@ -543,8 +545,55 @@ FILE *open_memstream(char **ptr, size_t *sizeloc) {
  * pipe streams — not supported
  * ------------------------------------------------------------------------- */
 
-FILE *popen(const char *cmd, const char *type) { (void)cmd; (void)type; errno = ENOSYS; return NULL; }
-int   pclose(FILE *f)                          { (void)f; errno = ENOSYS; return -1; }
+FILE *popen(const char *cmd, const char *type) {
+  if (!cmd || !type) { errno = EINVAL; return NULL; }
+  int reading = (type[0] == 'r');
+  int fds[2];
+  if (pipe(fds) < 0) return NULL;
+
+  pid_t pid = fork();
+  if (pid < 0) {
+    close(fds[0]); close(fds[1]);
+    return NULL;
+  }
+  if (pid == 0) {
+    /* child */
+    if (reading) {
+      dup2(fds[1], 1); /* stdout -> write end */
+    } else {
+      dup2(fds[0], 0); /* stdin  -> read end  */
+    }
+    close(fds[0]); close(fds[1]);
+    char *argv[] = { "/bin/sh", "-c", (char *)cmd, NULL };
+    execve("/bin/sh", argv, NULL);
+    _exit(127);
+  }
+  /* parent */
+  FILE *f;
+  if (reading) {
+    close(fds[1]);
+    f = fdopen(fds[0], "r");
+  } else {
+    close(fds[0]);
+    f = fdopen(fds[1], "w");
+  }
+  if (!f) {
+    close(reading ? fds[0] : fds[1]);
+    return NULL;
+  }
+  f->popen_pid = (int)pid;
+  return f;
+}
+
+int pclose(FILE *f) {
+  if (!f || f->popen_pid < 0) { errno = EBADF; return -1; }
+  pid_t pid = (pid_t)f->popen_pid;
+  f->popen_pid = -1;
+  fclose(f);
+  int status = 0;
+  if (waitpid(pid, &status, 0) < 0) return -1;
+  return status;
+}
 
 /* -------------------------------------------------------------------------
  * error / file ops
