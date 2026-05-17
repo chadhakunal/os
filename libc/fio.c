@@ -243,17 +243,13 @@ int fclose(FILE *stream) {
  * ------------------------------------------------------------------------- */
 
 int fgetc(FILE *stream) {
-  if (!stream || stream->eof) {
-    fprintf(stderr, "[fgetc] returning EOF: stream=%p eof=%d\n", (void*)stream, stream ? stream->eof : -1);
-    return EOF;
-  }
+  if (!stream || stream->eof) return EOF;
   if (stream->ungetc_buf != -1) {
     int c = stream->ungetc_buf;
     stream->ungetc_buf = -1;
     return c;
   }
   if (stream->memonly) {
-    fprintf(stderr, "[fgetc] memonly: mempos=%zu memsize=%zu\n", stream->mempos, stream->memsize);
     if (stream->mempos >= stream->memsize) { stream->eof = 1; return EOF; }
     return (unsigned char)stream->membuf[stream->mempos++];
   }
@@ -573,7 +569,9 @@ FILE *popen(const char *cmd, const char *type) {
     }
     close(fds[0]); close(fds[1]);
     char *argv[] = { "/bin/sh", "-c", (char *)cmd, NULL };
-    execve("/bin/sh", argv, NULL);
+    int exec_ret = execve("/bin/sh", argv, NULL);
+    write(2, "[popen] execve failed\n", 22);
+    (void)exec_ret;
     _exit(127);
   }
   /* parent */
