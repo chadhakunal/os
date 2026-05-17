@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 
 /* -------------------------------------------------------------------------
  * Constants
@@ -674,7 +675,8 @@ int parse_and_exec(char *buf) {
     setpgid(pid, pid);
     tcsetpgrp(0, pid);
     int status = 0;
-    wait(&status);
+    pid_t waited;
+    do { waited = waitpid(pid, &status, 0); } while (waited < 0 && errno == EINTR);
     tcsetpgrp(0, getpid());
     ioctl(0, TCSRAW, (void *)0);
     return WEXITSTATUS(status);
