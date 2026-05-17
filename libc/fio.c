@@ -243,13 +243,17 @@ int fclose(FILE *stream) {
  * ------------------------------------------------------------------------- */
 
 int fgetc(FILE *stream) {
-  if (!stream || stream->eof) return EOF;
+  if (!stream || stream->eof) {
+    fprintf(stderr, "[fgetc] returning EOF: stream=%p eof=%d\n", (void*)stream, stream ? stream->eof : -1);
+    return EOF;
+  }
   if (stream->ungetc_buf != -1) {
     int c = stream->ungetc_buf;
     stream->ungetc_buf = -1;
     return c;
   }
   if (stream->memonly) {
+    fprintf(stderr, "[fgetc] memonly: mempos=%zu memsize=%zu\n", stream->mempos, stream->memsize);
     if (stream->mempos >= stream->memsize) { stream->eof = 1; return EOF; }
     return (unsigned char)stream->membuf[stream->mempos++];
   }
