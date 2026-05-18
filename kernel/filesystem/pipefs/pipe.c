@@ -57,16 +57,20 @@ int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size) {
 }
 
 int64_t pipe_write(struct pipe_t *pipe, const void *kernel_buf, uint64_t size) {
-  if (pipe->reader_count == 0)
+  if (pipe->reader_count == 0) {
+    send_signal(current_task, SIGPIPE);
     return -EPIPE;
+  }
 
   const uint8_t *src = (const uint8_t *)kernel_buf;
   uint64_t written = 0;
 
   while (written < size) {
     while (pipe->len == PIPE_BUF_SIZE) {
-      if (pipe->reader_count == 0)
+      if (pipe->reader_count == 0) {
+        send_signal(current_task, SIGPIPE);
         return written > 0 ? (int64_t)written : -EPIPE;
+      }
 
       list_append(&pipe->wait_queue, &current_task->wait_list);
       current_task->wait_reason = WAIT_IO;

@@ -39,8 +39,7 @@ int fchdir(int fd) {
 }
 
 ssize_t read(int fd, void *buf, size_t n) {
-  long ret;
-  do { ret = syscall3(SYS_read, fd, buf, n); } while (ret == -EINTR);
+  long ret = syscall3(SYS_read, fd, buf, n);
   if (ret < 0) { errno = (int)(-ret); return -1; }
   return (ssize_t)ret;
 }
@@ -443,7 +442,9 @@ int usleep(unsigned long usec) {
 }
 
 int nanosleep(const struct timespec *req, struct timespec *rem) {
-  return syscall2(SYS_nanosleep, req, rem);
+  long ret = syscall2(SYS_nanosleep, req, rem);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
 }
 
 int mkdirat(int dirfd, const char *path, unsigned int mode) {
