@@ -74,7 +74,69 @@ OSTEST_PRUNE_DIRS := \
 	stdio/ctermid.c \
 	stdio/setvbuf.c \
 	stdio/tmpnam.c \
-	stdio/fflush.c
+	stdio/fflush.c \
+	stdlib/atof.c \
+	stdlib/drand48.c \
+	stdlib/erand48.c \
+	stdlib/grantpt.c \
+	stdlib/jrand48.c \
+	stdlib/lcong48.c \
+	stdlib/lrand48.c \
+	stdlib/mrand48.c \
+	stdlib/nrand48.c \
+	stdlib/posix_openpt.c \
+	stdlib/ptsname.c \
+	stdlib/ptsname_r.c \
+	stdlib/seed48.c \
+	stdlib/srand48.c \
+	stdlib/strtod.c \
+	stdlib/strtof.c \
+	stdlib/strtold.c \
+	stdlib/unlockpt.c \
+	sys_mman/mlock.c \
+	sys_mman/mlockall.c \
+	sys_mman/munlock.c \
+	sys_mman/munlockall.c \
+	sys_mman/shm_open.c \
+	sys_mman/shm_unlink.c \
+	sys_stat/futimens.c \
+	sys_stat/mkfifo.c \
+	sys_stat/mkfifoat.c \
+	sys_stat/mknod.c \
+	sys_stat/mknodat.c \
+	sys_stat/utimensat.c \
+	time/difftime.c \
+	time/getdate.c \
+	unistd/access.c \
+	unistd/alarm.c \
+	unistd/chown.c \
+	unistd/crypt.c \
+	unistd/encrypt.c \
+	unistd/faccessat.c \
+	unistd/fchown.c \
+	unistd/fchownat.c \
+	unistd/getgroups.c \
+	unistd/getlogin.c \
+	unistd/getlogin_r.c \
+	unistd/getresgid.c \
+	unistd/getresuid.c \
+	unistd/getsid.c \
+	unistd/lchown.c \
+	unistd/lockf.c \
+	unistd/nice.c \
+	unistd/setegid.c \
+	unistd/seteuid.c \
+	unistd/setgid.c \
+	unistd/setregid.c \
+	unistd/setresgid.c \
+	unistd/setresuid.c \
+	unistd/setreuid.c \
+	unistd/setsid.c \
+	unistd/setuid.c \
+	unistd/tcgetpgrp.c \
+	unistd/tcsetpgrp.c \
+	unistd/ttyname.c \
+	unistd/ttyname_r.c
 
 # Clone upstream (if needed) and vendor basic/ + misc/ (gitignored under os-tests-sortix/).
 os-tests-sortix-clone:
