@@ -70,12 +70,10 @@ int tty_ioctl(struct file_t *file, unsigned long request, void *arg) {
     }
     case TCSRAW:
       tty_driver.raw_mode = true;
-      tty_reset_buffer();
       debugk("[TTY] Switched to raw mode\n");
       return 0;
     case TCSCANON:
       tty_driver.raw_mode = false;
-      tty_reset_buffer();
       debugk("[TTY] Switched to canonical mode\n");
       return 0;
     default:
@@ -103,11 +101,6 @@ void tty_reset_buffer(void) {
 void tty_receive(char *buffer, uint64_t size) {
   debugk("[TTY] tty_receive called with size=%llu, buffer_ready=%d\n",
          size, tty_driver.buffer_ready);
-
-  if (tty_driver.buffer_ready) {
-    debugk("[TTY] Buffer already ready, ignoring input\n");
-    return;
-  }
 
   for (uint64_t i = 0; i < size; i++) {
     char c = buffer[i];
