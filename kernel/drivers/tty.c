@@ -117,6 +117,15 @@ void tty_receive(char *buffer, uint64_t size) {
       continue;
     }
 
+    /* Ctrl-Z sends SIGTSTP to the foreground process group. */
+    if (c == 0x1a) {
+      if (!tty_driver.raw_mode)
+        printk("^Z\n");
+      send_signal_to_pgid(tty_driver.foreground_pgid, SIGTSTP);
+      tty_reset_buffer();
+      continue;
+    }
+
     if (tty_driver.raw_mode) {
       /* Raw mode: no echo, no processing — buffer the byte and wake the reader. */
       if (tty_driver.tty_line_buffer_size < 1024)

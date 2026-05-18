@@ -136,7 +136,8 @@ OSTEST_PRUNE_DIRS := \
 	unistd/tcgetpgrp.c \
 	unistd/tcsetpgrp.c \
 	unistd/ttyname.c \
-	unistd/ttyname_r.c
+	unistd/ttyname_r.c \
+	sys_time/utimes.c
 
 # Clone upstream (if needed) and vendor basic/ + misc/ (gitignored under os-tests-sortix/).
 os-tests-sortix-clone:
