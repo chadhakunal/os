@@ -56,25 +56,25 @@ OSTEST_PRUNE_DIRS := \
 	syslog termios \
 	uchar wchar wctype wordexp \
 	devctl endian \
-	strings/strcasecmp_l strings/strncasecmp_l \
-	signal/sigaltstack \
-	signal/psiginfo \
-	signal/pthread_kill \
-	signal/pthread_sigmask \
-	signal/sig2str \
-	signal/sigqueue \
-	signal/sigtimedwait \
-	signal/sigwaitinfo \
-	signal/str2sig \
-	time/timer_create \
-	time/timer_delete \
-	time/timer_getoverrun \
-	time/timer_gettime \
-	time/timer_settime \
-	stdio/ctermid \
-	stdio/setvbuf \
-	stdio/tmpnam \
-	stdio/fflush
+	strings/strcasecmp_l.c strings/strncasecmp_l.c \
+	signal/sigaltstack.c \
+	signal/psiginfo.c \
+	signal/pthread_kill.c \
+	signal/pthread_sigmask.c \
+	signal/sig2str.c \
+	signal/sigqueue.c \
+	signal/sigtimedwait.c \
+	signal/sigwaitinfo.c \
+	signal/str2sig.c \
+	time/timer_create.c \
+	time/timer_delete.c \
+	time/timer_getoverrun.c \
+	time/timer_gettime.c \
+	time/timer_settime.c \
+	stdio/ctermid.c \
+	stdio/setvbuf.c \
+	stdio/tmpnam.c \
+	stdio/fflush.c
 
 # Clone upstream (if needed) and vendor basic/ + misc/ (gitignored under os-tests-sortix/).
 os-tests-sortix-clone:
