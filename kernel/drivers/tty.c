@@ -71,6 +71,7 @@ int tty_ioctl(struct file_t *file, unsigned long request, void *arg) {
     }
     case TCSRAW:
       tty_driver.raw_mode = true;
+      tty_reset_buffer();
       debugk("[TTY] Switched to raw mode\n");
       return 0;
     case TCSCANON:
