@@ -10,8 +10,10 @@
 #include "errno.h"
 #include "types.h"
 
-#define FD_SETSIZE 1024
-#define ULONG_BITS (8 * sizeof(unsigned long))
+/* Match the userspace FD_SETSIZE but cap kernel stack usage at MAX_POLL_FDS. */
+#define FD_SETSIZE   1024
+#define MAX_SELECT_FDS 32
+#define ULONG_BITS   (8 * sizeof(unsigned long))
 #define FD_SET_LONGS (FD_SETSIZE / ULONG_BITS)
 
 struct kern_fd_set {
@@ -48,7 +50,7 @@ static int64_t do_select(int nfds,
     return -EINVAL;
 
   /* Build pollfd array from the three fd_sets. */
-  struct pollfd pfds[FD_SETSIZE];
+  struct pollfd pfds[MAX_SELECT_FDS];
   nfds_t npfds = 0;
 
   for (int fd = 0; fd < nfds; fd++) {
@@ -56,6 +58,7 @@ static int64_t do_select(int nfds,
     int w = kw && fdset_isset(kw, fd);
     int e = ke && fdset_isset(ke, fd);
     if (!r && !w && !e) continue;
+    if (npfds >= MAX_SELECT_FDS) return -EINVAL;
     pfds[npfds].fd     = fd;
     pfds[npfds].events = 0;
     if (r) pfds[npfds].events |= POLLIN;
