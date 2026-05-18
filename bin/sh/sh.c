@@ -747,6 +747,7 @@ int main(int argc, char **argv, char **envp) {
 
   // Interactive mode
   (void)envp;
+  setpgid(0, 0);               /* become our own process group leader */
   pid_t shell_pgid = getpid();
   tcsetpgrp(0, shell_pgid);
 
