@@ -39,7 +39,10 @@ int fchdir(int fd) {
 }
 
 ssize_t read(int fd, void *buf, size_t n) {
-  return syscall3(SYS_read, fd, buf, n);
+  long ret;
+  do { ret = syscall3(SYS_read, fd, buf, n); } while (ret == -EINTR);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return (ssize_t)ret;
 }
 
 ssize_t write(int fd, const void *buf, size_t n) {
