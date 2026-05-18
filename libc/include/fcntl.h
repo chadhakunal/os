@@ -11,12 +11,14 @@
 #define O_EXCL      0x0080
 #define O_TRUNC     0x0200
 #define O_APPEND    0x0400
-#define O_CLOEXEC   0x0800
+#define O_NONBLOCK  0x0800
+#define O_CLOEXEC   0x80000
 #define O_DIRECTORY 0x10000
 
 #define AT_FDCWD            -100
 #define AT_REMOVEDIR        0x200
 #define AT_SYMLINK_NOFOLLOW 0x100
+#define AT_SYMLINK_FOLLOW   0x400
 #define AT_EMPTY_PATH       0x1000
 
 #define F_DUPFD    0

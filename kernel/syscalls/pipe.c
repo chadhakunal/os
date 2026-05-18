@@ -6,8 +6,6 @@
 #include "kernel/user_data_access.h"
 #include "errno.h"
 
-#define O_CLOEXEC 0x0800
-
 static int64_t do_pipe2(int *user_pipefd, int flags) {
   if (flags & ~O_CLOEXEC)
     return -EINVAL;

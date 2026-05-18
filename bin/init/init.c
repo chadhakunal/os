@@ -46,7 +46,7 @@ int main(void) {
     if (dead < 0)
       continue;
 
-    printf("Init: child %d exited with status %d\n", dead, wstatus);
+    // printf("Init: child %d exited with status %d\n", dead, wstatus);
 
     if (dead == shell_pid) {
       printf("Init: shell exited, respawning...\n");

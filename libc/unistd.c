@@ -1,6 +1,8 @@
 #include <arch/riscv64/syscall.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/time.h>
+#include <sys/mman.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -247,12 +249,22 @@ int getdents(int fd, struct dirent *buf, unsigned int count) {
 long fpathconf(int fd, int name) {
   (void)fd;
   switch (name) {
-    case _PC_NAME_MAX:
-      return NAME_MAX;
+    case _PC_NAME_MAX:     return NAME_MAX;
+    case _PC_FILESIZEBITS: return 64;
     default:
       errno = EINVAL;
       return -1;
   }
+}
+
+long pathconf(const char *path, int name) {
+  int fd = open(path, O_RDONLY, 0);
+  if (fd < 0) return -1;
+  long ret = fpathconf(fd, name);
+  int saved = errno;
+  close(fd);
+  errno = saved;
+  return ret;
 }
 
 int mkdir(const char *path, unsigned int mode) {
@@ -269,15 +281,6 @@ int rmdir(const char *path) {
   long ret = syscall3(SYS_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
   if (ret < 0) { errno = (int)(-ret); return -1; }
   return 0;
-}
-
-int dup(int oldfd) {
-  long ret = syscall3(SYS_fcntl, oldfd, F_DUPFD, 0);
-  if (ret < 0) {
-    errno = (int)(-ret);
-    return -1;
-  }
-  return (int)ret;
 }
 
 int dup(int oldfd) {
@@ -313,6 +316,109 @@ int dup3(int oldfd, int newfd, int flags) {
 
 int fsync(int fd) {
   return syscall1(SYS_fsync, fd);
+}
+
+int fdatasync(int fd) {
+  return fsync(fd);
+}
+
+int msync(void *addr, size_t len, int flags) {
+  long ret = syscall3(SYS_msync, addr, len, flags);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
+}
+
+
+void sync(void) {
+  syscall0(SYS_sync);
+}
+
+struct _utsname {
+  char sysname[65];
+  char nodename[65];
+  char release[65];
+  char version[65];
+  char machine[65];
+};
+
+int gethostname(char *name, size_t len) {
+  struct _utsname u;
+  long ret = syscall1(SYS_uname, &u);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  size_t n = strlen(u.nodename);
+  if (n >= len) { errno = ENAMETOOLONG; return -1; }
+  memcpy(name, u.nodename, n + 1);
+  return 0;
+}
+
+int sethostname(const char *name, size_t len) {
+  long ret = syscall2(SYS_sethostname, name, len);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
+}
+
+int gettimeofday(struct timeval *tv, struct timezone *tz) {
+  (void)tz;
+  if (!tv) return 0;
+  struct timespec ts;
+  if (clock_gettime(CLOCK_REALTIME, &ts) < 0) return -1;
+  tv->tv_sec  = ts.tv_sec;
+  tv->tv_usec = ts.tv_nsec / 1000;
+  return 0;
+}
+
+int getentropy(void *buf, size_t len) {
+  if (len > GETENTROPY_MAX) { errno = EIO; return -1; }
+  long ret = syscall3(SYS_getrandom, buf, len, 0);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
+}
+
+ssize_t pread(int fd, void *buf, size_t count, off_t offset) {
+  long ret = syscall4(SYS_pread64, fd, buf, count, offset);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return (ssize_t)ret;
+}
+
+ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset) {
+  long ret = syscall4(SYS_pwrite64, fd, buf, count, offset);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return (ssize_t)ret;
+}
+
+int isatty(int fd) {
+  pid_t pgid;
+  if (ioctl(fd, 0x540F /* TIOCGPGRP */, &pgid) == 0) return 1;
+  errno = ENOTTY;
+  return 0;
+}
+
+int pause(void) {
+  sigset_t mask;
+  sigprocmask(SIG_SETMASK, NULL, &mask);
+  return sigsuspend(&mask);
+}
+
+int posix_close(int fd, int flags) {
+  int ret;
+  do { ret = close(fd); } while (ret < 0 && errno == EINTR &&
+                                 flags == POSIX_CLOSE_RESTART);
+  return ret;
+}
+
+size_t confstr(int name, char *buf, size_t len) {
+  const char *val = NULL;
+  switch (name) {
+    case _CS_PATH: val = "/bin"; break;
+    default: errno = EINVAL; return 0;
+  }
+  size_t needed = strlen(val) + 1;
+  if (buf && len > 0) {
+    size_t copy = needed < len ? needed : len;
+    memcpy(buf, val, copy);
+    buf[copy - 1] = '\0';
+  }
+  return needed;
 }
 
 unsigned int sleep(unsigned int seconds) {
@@ -482,3 +588,14 @@ uid_t getuid(void) { return 0; }
 uid_t geteuid(void) { return 0; }
 gid_t getgid(void) { return 0; }
 gid_t getegid(void) { return 0; }
+pid_t getpgrp(void) { return getpgid(0); }
+long gethostid(void) { return 0; }
+
+void swab(const void *from, void *to, ssize_t n) {
+  const unsigned char *s = (const unsigned char *)from;
+  unsigned char *d = (unsigned char *)to;
+  for (ssize_t i = 0; i + 1 < n; i += 2) {
+    d[i]     = s[i + 1];
+    d[i + 1] = s[i];
+  }
+}

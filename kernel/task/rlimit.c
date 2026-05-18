@@ -11,6 +11,7 @@ bool rlimit_is_supported(int resource) {
     case RLIMIT_AS:
     case RLIMIT_FSIZE:
     case RLIMIT_CORE:
+    case RLIMIT_STACK:
       return true;
     default:
       return false;
@@ -27,6 +28,8 @@ void rlimit_init_defaults(struct task_rlimits_t *rl) {
   rl->limits[RLIMIT_FSIZE].rlim_max = DEFAULT_RLIMIT_FSIZE_HARD;
   rl->limits[RLIMIT_CORE].rlim_cur = RLIM_INFINITY;
   rl->limits[RLIMIT_CORE].rlim_max = RLIM_INFINITY;
+  rl->limits[RLIMIT_STACK].rlim_cur = 8ULL * 1024 * 1024;  /* 8 MB soft */
+  rl->limits[RLIMIT_STACK].rlim_max = RLIM_INFINITY;
 }
 
 void rlimit_copy(struct task_rlimits_t *dst, const struct task_rlimits_t *src) {

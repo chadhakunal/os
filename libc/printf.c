@@ -159,6 +159,13 @@ static int core_vprintf(fmt_out *o, const char *fmt, va_list args) {
       fmt_uint(o, v, 16, "0123456789ABCDEF", width, left_align, zero_pad);
       break;
     }
+    case 'o': {
+      unsigned long long v = (lng >= 2) ? va_arg(args, unsigned long long)
+                           : (lng == 1) ? (unsigned long long)va_arg(args, unsigned long)
+                                        : (unsigned long long)va_arg(args, unsigned int);
+      fmt_uint(o, v, 8, "01234567", width, left_align, zero_pad);
+      break;
+    }
     case 'p': {
       unsigned long long v = (unsigned long long)va_arg(args, void *);
       out_puts(o, "0x");

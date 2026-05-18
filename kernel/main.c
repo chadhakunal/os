@@ -24,6 +24,7 @@
 #define DEBUG 0
 #include "lib/printk/printk.h"
 #include "kernel/signal_jump_point.h"
+#include "arch/riscv64/syscalls/syscalls.h"
 
 
 void kmain(void *dtb_ptr) {
@@ -58,6 +59,7 @@ void kmain(void *dtb_ptr) {
 
   rtc_init();
   printk("Initialized RTC: Current time: %llu seconds since epoch\n", rtc_read_time_sec());
+  getrandom_init();
 
   tty_init();
   printk("Initialized TTY driver\n");

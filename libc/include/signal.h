@@ -150,6 +150,10 @@ int sigaddset(sigset_t *set, int signum);
 int sigdelset(sigset_t *set, int signum);
 int sigismember(const sigset_t *set, int signum);
 
+#define SIG2STR_MAX 17
+int sig2str(int signum, char *str);
+int str2sig(const char *str, int *signum);
+
 #ifdef __cplusplus
 }
 #endif
