@@ -70,8 +70,8 @@ static bool handle_default_signal_action(int sig) {
             unblock_task(parent);
         }
       }
-      /* schedule() sees TASK_STOPPED, moves us to blocked_list, picks next task. */
-      schedule();
+      /* Don't call schedule() here — trap frame isn't saved yet.
+       * maybe_schedule_stopped() in trap_return handles the actual yield. */
       return true;
 
     case SIGCONT:
@@ -147,6 +147,14 @@ void send_signal_to_pgid(uint64_t pgid, int sig) {
     if (task->pgid == pgid) {
       send_signal(task, sig);
     }
+  }
+}
+
+void maybe_schedule_stopped(void) {
+  while (current_task->state == TASK_STOPPED) {
+    debugk("signal: PID %llu yielding in TASK_STOPPED\n", current_task->pid);
+    schedule();
+    debugk("signal: PID %llu resumed from TASK_STOPPED\n", current_task->pid);
   }
 }
 

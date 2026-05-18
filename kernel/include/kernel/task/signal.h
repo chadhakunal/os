@@ -81,6 +81,7 @@ struct signal_state_t {
 struct trap_frame;
 struct task_t;
 
+void maybe_schedule_stopped(void);
 void check_and_deliver_signals(struct trap_frame *tf);
 void send_signal_to_pgid(uint64_t pgid, int sig);
 void send_signal(struct task_t *task, int sig);

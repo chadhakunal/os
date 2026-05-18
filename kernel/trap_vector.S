@@ -212,9 +212,11 @@ trap_return:
   # Use t6 as temporary - it will be restored from the trap frame anyway
   mv t6, a0
 
-  # Before returning to user space, check for pending signals
-  # The trap_frame pointer is already in a0, which is the first argument
+  # Check for pending signals before returning to user space
   call check_and_deliver_signals
+
+  # If the task is now TASK_STOPPED, yield here while tf is safely saved.
+  call maybe_schedule_stopped
 
   # Restore trap_frame pointer from t6
   mv sp, t6
