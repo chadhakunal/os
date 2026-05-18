@@ -103,14 +103,22 @@ static int readline_with_history(const char *prompt, char *out_buf,
 
   while (1) {
     char c;
-    if (read(0, &c, 1) <= 0) {
-      if (errno == EINTR) {
-        /* Ctrl-C: erase current input, print ^C on a new line, reshow prompt. */
-        term_erase(line_len);
-        write(1, "^C\n", 3);
-        write(1, prompt, strlen(prompt));
-        line_len = 0;
-      }
+    if (read(0, &c, 1) <= 0)
+      continue;
+
+    /* Ctrl-C: cancel current line, reshow prompt. */
+    if (c == 0x03) {
+      term_erase(line_len);
+      write(1, "^C\n", 3);
+      write(1, prompt, strlen(prompt));
+      line_len = 0;
+      continue;
+    }
+
+    /* Ctrl-Z: ignored at prompt (shell has SIG_IGN for SIGTSTP). */
+    if (c == 0x1a) {
+      write(1, "^Z\n", 3);
+      write(1, prompt, strlen(prompt));
       continue;
     }
 
@@ -750,6 +758,9 @@ int main(int argc, char **argv, char **envp) {
   setpgid(0, 0);               /* become our own process group leader */
   pid_t shell_pgid = getpid();
   tcsetpgrp(0, shell_pgid);
+
+  signal(SIGINT,  SIG_IGN);   /* shell ignores Ctrl-C at prompt */
+  signal(SIGTSTP, SIG_IGN);   /* shell ignores Ctrl-Z at prompt */
 
   history_load();
   ioctl(0, TCSRAW, (void*)0);

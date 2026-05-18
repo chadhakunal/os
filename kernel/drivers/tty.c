@@ -107,22 +107,33 @@ void tty_receive(char *buffer, uint64_t size) {
     char c = buffer[i];
     debugk("[TTY] Received char: 0x%x ('%c')\n", c, c >= 32 && c < 127 ? c : '?');
 
-    /* Ctrl-C always sends SIGINT regardless of mode. */
+    /* Ctrl-C: send SIGINT to foreground PGID.
+     * In canonical mode consume the byte; in raw mode also buffer it
+     * so the foreground process (e.g. the shell) can read and handle it. */
     if (c == 0x03) {
       debugk("[TTY] Ctrl-C detected, sending SIGINT to PGID %llu\n", tty_driver.foreground_pgid);
-      if (!tty_driver.raw_mode)
-        printk("^C\n");
       send_signal_to_pgid(tty_driver.foreground_pgid, SIGINT);
       tty_reset_buffer();
+      if (tty_driver.raw_mode) {
+        tty_driver.tty_line_buffer[tty_driver.tty_line_buffer_size++] = c;
+        tty_driver.buffer_ready = true;
+      } else {
+        printk("^C\n");
+      }
       continue;
     }
 
-    /* Ctrl-Z sends SIGTSTP to the foreground process group. */
+    /* Ctrl-Z: send SIGTSTP to foreground PGID.
+     * Same raw/canonical split as Ctrl-C. */
     if (c == 0x1a) {
-      if (!tty_driver.raw_mode)
-        printk("^Z\n");
       send_signal_to_pgid(tty_driver.foreground_pgid, SIGTSTP);
       tty_reset_buffer();
+      if (tty_driver.raw_mode) {
+        tty_driver.tty_line_buffer[tty_driver.tty_line_buffer_size++] = c;
+        tty_driver.buffer_ready = true;
+      } else {
+        printk("^Z\n");
+      }
       continue;
     }
 
