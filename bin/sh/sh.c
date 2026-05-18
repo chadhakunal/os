@@ -693,12 +693,14 @@ int parse_and_exec(char *buf) {
     tcsetpgrp(0, pid);
     int status = 0;
     pid_t waited;
-    do { waited = waitpid(pid, &status, 0); } while (waited < 0 && errno == EINTR);
-    /* Clean up any leftover members of the job's process group (e.g.
-     * children that called setpgid into a sub-group of the job). */
-    kill(-pid, SIGHUP);
+    do { waited = waitpid(pid, &status, WUNTRACED); } while (waited < 0 && errno == EINTR);
     tcsetpgrp(0, getpid());
     ioctl(0, TCSRAW, (void *)0);
+    if (WIFSTOPPED(status)) {
+      printf("\n[1]+ Stopped\t\t%s\n", command_buf);
+      return 0;
+    }
+    kill(-pid, SIGHUP);
     return WEXITSTATUS(status);
   }
 
