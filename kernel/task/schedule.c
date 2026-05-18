@@ -173,11 +173,12 @@ void schedule() {
     trap_return(&current_task->tf);
   }
 
-  if (current_task->state == TASK_BLOCKED || current_task->state == TASK_ZOMBIE) {
-    debugk("[schedule] current_task PID=%llu is %s, moving to appropriate list\n",
-           current_task->pid, current_task->state == TASK_BLOCKED ? "BLOCKED" : "ZOMBIE");
+  if (current_task->state == TASK_BLOCKED ||
+      current_task->state == TASK_STOPPED ||
+      current_task->state == TASK_ZOMBIE) {
     list_remove(&current_task->scheduler_list);
-    if (current_task->state == TASK_BLOCKED) {
+    if (current_task->state == TASK_BLOCKED ||
+        current_task->state == TASK_STOPPED) {
       list_append(scheduler.blocked_list, &current_task->scheduler_list);
     }
   } else if (has_expired()) {

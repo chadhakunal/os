@@ -54,6 +54,31 @@ static bool handle_default_signal_action(int sig) {
       debugk("signal: ERROR - schedule() returned for zombie PID %llu!\n", current_task->pid);
       return true;
 
+    case SIGSTOP:
+    case SIGTSTP:
+    case SIGTTIN:
+    case SIGTTOU:
+      debugk("signal: stopping process %llu due to signal %d\n", current_task->pid, sig);
+      current_task->stopped_sig = sig;
+      current_task->state = TASK_STOPPED;
+      /* Notify parent so waitpid(WUNTRACED) can return. */
+      {
+        struct task_t *parent = find_task_by_pid(current_task->ppid);
+        if (parent) {
+          send_signal(parent, SIGCHLD);
+          if (parent->state == TASK_BLOCKED && parent->wait_reason == WAIT_CHILD)
+            unblock_task(parent);
+        }
+      }
+      /* schedule() sees TASK_STOPPED, moves us to blocked_list, picks next task. */
+      schedule();
+      return true;
+
+    case SIGCONT:
+      /* Resume is handled in send_signal before the signal is ever queued.
+       * If we somehow end up here the process is already running — discard. */
+      return true;
+
     default:
       debugk("signal: ignoring signal %d (no handler implemented)\n", sig);
       return true;
@@ -61,15 +86,46 @@ static bool handle_default_signal_action(int sig) {
 }
 
 void send_signal(struct task_t *task, int sig) {
-  if (task->state != TASK_ZOMBIE) {
-    debugk("signal: sending signal %d to PID %llu\n", sig, task->pid);
-    add_signal_to_set(&task->signal_state.pending, sig);
-    if (task->state == TASK_BLOCKED) {
-      /* Wake for normal signal delivery (unblocked signals) or sigwait (WAIT_SIGNAL accepts blocked signals too) */
-      if (!sig_in_set(&task->signal_state.blocked, sig) ||
-          task->wait_reason == WAIT_SIGNAL) {
-        unblock_task(task);
-      }
+  if (task->state == TASK_ZOMBIE)
+    return;
+
+  debugk("signal: sending signal %d to PID %llu\n", sig, task->pid);
+
+  if (sig == SIGCONT) {
+    /* Discard any pending stop signals. */
+    delete_signal_from_set(&task->signal_state.pending, SIGSTOP);
+    delete_signal_from_set(&task->signal_state.pending, SIGTSTP);
+    delete_signal_from_set(&task->signal_state.pending, SIGTTIN);
+    delete_signal_from_set(&task->signal_state.pending, SIGTTOU);
+    if (task->state == TASK_STOPPED) {
+      /* Move directly back to the run queue — no signal delivery needed. */
+      task->stopped_sig = 0;
+      task->state = TASK_READY;
+      task->wait_reason = WAIT_NONE;
+      task->runtime = 0;
+      list_remove(&task->scheduler_list);
+      list_append(scheduler.expired_list, &task->scheduler_list);
+    }
+    /* Only queue SIGCONT for delivery if the task has a custom handler. */
+    if (task->signal_state.actions[SIGCONT] &&
+        task->signal_state.actions[SIGCONT] != (struct sigaction_t *)SIG_DEFAULT_HANDLER &&
+        task->signal_state.actions[SIGCONT] != (struct sigaction_t *)SIG_IGNORE) {
+      add_signal_to_set(&task->signal_state.pending, SIGCONT);
+    }
+    return;
+  }
+
+  /* Sending a stop signal to an already-stopped task is a no-op. */
+  if (task->state == TASK_STOPPED &&
+      (sig == SIGSTOP || sig == SIGTSTP || sig == SIGTTIN || sig == SIGTTOU))
+    return;
+
+  add_signal_to_set(&task->signal_state.pending, sig);
+
+  if (task->state == TASK_BLOCKED) {
+    if (!sig_in_set(&task->signal_state.blocked, sig) ||
+        task->wait_reason == WAIT_SIGNAL) {
+      unblock_task(task);
     }
   }
 }

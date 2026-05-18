@@ -27,6 +27,7 @@ enum task_state {
   TASK_RUNNING,
   TASK_READY,
   TASK_BLOCKED,
+  TASK_STOPPED,   /* suspended by job-control signal, only SIGCONT wakes it */
   TASK_ZOMBIE,
   TASK_TERMINATED
 };
@@ -103,6 +104,7 @@ struct task_t {
   struct dentry_t *cwd;
 
   uint64_t sleep_until; // os_ticks deadline for WAIT_SLEEP
+  int stopped_sig;      /* signal that caused TASK_STOPPED (0 otherwise) */
 
   struct signal_state_t signal_state;
   uint32_t signal_handler_depth;  // Nesting depth of signal handlers (0 = not in handler)
