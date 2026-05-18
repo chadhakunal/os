@@ -37,12 +37,10 @@ static void test_sigstop_sigcont(void) {
   pid_t child = fork();
   if (child == 0) {
     for (volatile int i = 0; i < 5000000; i++);
-    printf("test_sigstop_sigcont: child finished spin, exiting\n");
-    return;
+    _exit(0);
   }
 
   for (int i = 0; i < 5; i++) sched_yield();
-
   printf("test_sigstop_sigcont: sending SIGSTOP to child %d\n", child);
   kill(child, SIGSTOP);
 
@@ -101,9 +99,8 @@ static void test_stress_stop_cont(void) {
   for (int i = 0; i < N_STRESS; i++) {
     kids[i] = fork();
     if (kids[i] == 0) {
-      /* Spin so we stay schedulable for a while. */
       for (volatile long j = 0; j < 20000000L; j++);
-      return;
+      _exit(0);
     }
   }
 
