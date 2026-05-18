@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "kernel/task/signal.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
@@ -97,6 +97,8 @@ void send_signal(struct task_t *task, int sig) {
     delete_signal_from_set(&task->signal_state.pending, SIGTSTP);
     delete_signal_from_set(&task->signal_state.pending, SIGTTIN);
     delete_signal_from_set(&task->signal_state.pending, SIGTTOU);
+    debugk("[SIGCONT] PID %llu state=%d stopped_sig=%d\n",
+           task->pid, task->state, task->stopped_sig);
     if (task->state == TASK_STOPPED) {
       /* Move directly back to the run queue — no signal delivery needed. */
       task->stopped_sig = 0;
@@ -105,6 +107,7 @@ void send_signal(struct task_t *task, int sig) {
       task->runtime = 0;
       list_remove(&task->scheduler_list);
       list_append(scheduler.expired_list, &task->scheduler_list);
+      debugk("[SIGCONT] PID %llu moved to expired_list\n", task->pid);
     }
     /* Only queue SIGCONT for delivery if the task has a custom handler. */
     if (task->signal_state.actions[SIGCONT] &&
