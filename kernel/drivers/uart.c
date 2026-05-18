@@ -180,8 +180,8 @@ void handle_uart_interrupt() {
 
   debugk("UART interrupt: irq=%u\n", irq);
 
-  char buff[16];
-  uint64_t size = uart_getc(buff, 16);
+  char buff[1024];
+  uint64_t size = uart_getc(buff, 1024);
 
   debugk("UART interrupt: got %llu chars\n", size);
 
