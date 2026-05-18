@@ -5,7 +5,7 @@
 #include <errno.h>
 #include <sys/wait.h>
 
-#define N_RUNS 100
+#define N_RUNS 1000
 
 /* -----------------------------------------------------------------------
  * Test 1: SIGTSTP stops child, WUNTRACED reports it.
