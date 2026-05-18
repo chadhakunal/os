@@ -206,19 +206,18 @@ trap_from_kernel:
 # NOTE: Caller must set sscratch to kernel stack top before calling this
 .global trap_return
 trap_return:
-  # a0 = trap_frame pointer
-  # We need to save a0 across the function call, but can't use stack (might overflow)
-  # Save in a callee-saved register that will be restored from trap frame later
-  # Use t6 as temporary - it will be restored from the trap frame anyway
+  # a0 = trap_frame pointer (always current_task->tf = tp+120)
   mv t6, a0
 
   # Check for pending signals before returning to user space
   call check_and_deliver_signals
 
-  # If the task is now TASK_STOPPED, yield here while tf is safely saved.
+  # If the task is TASK_STOPPED, yield until SIGCONT.
+  # switch_to clobbers caller-saved regs including t6, so reload tf from tp+120.
   call maybe_schedule_stopped
+  addi t6, tp, 120
 
-  # Restore trap_frame pointer from t6
+  # sp = trap frame pointer
   mv sp, t6
 
   # Restore sscratch to kernel stack TOP, before restoring general regs
