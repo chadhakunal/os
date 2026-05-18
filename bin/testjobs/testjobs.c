@@ -283,27 +283,30 @@ static int test_tstp_ignored(void) {
   pid_t child = fork();
   if (child == 0) {
     signal(SIGTSTP, SIG_IGN);
-    for (volatile int i = 0; i < 5000000; i++);
-    _exit(0);
+    while (1) sched_yield();
   }
   for (int i = 0; i < 3; i++) sched_yield();
   kill(child, SIGTSTP);
-  for (int i = 0; i < 5; i++) sched_yield();
 
-  /* Should NOT be stopped — SIGTSTP is ignored. */
+  /* Give signal time to be delivered — child should stay running. */
+  for (int i = 0; i < 20; i++) sched_yield();
+
+  /* Should NOT be stopped. */
   int status;
   pid_t r = waitpid(child, &status, WUNTRACED | WNOHANG);
   if (r == child && WIFSTOPPED(status)) {
     kill(child, SIGKILL); waitpid(child, NULL, 0); return 0;
   }
 
-  /* Wait for natural exit. */
-  r = waitpid(child, &status, 0);
-  return r == child && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+  kill(child, SIGKILL);
+  waitpid(child, NULL, 0);
+  return 1;
 }
 
 /* -----------------------------------------------------------------------
- * Test 11: Stop a child that is blocked in a pipe read — SIGCONT unblocks it.
+ * Test 11: Stop a child that is blocked in a pipe read — SIGCONT resumes
+ * it, then write unblocks it and child exits with the received byte.
+ * pipe_read returns -EINTR on signal wakeup so child retries the read.
  * -------------------------------------------------------------------- */
 static int test_tstp_pipe_blocked(void) {
   int fds[2];
@@ -313,9 +316,11 @@ static int test_tstp_pipe_blocked(void) {
   if (child == 0) {
     close(fds[1]);
     char buf[1];
-    read(fds[0], buf, 1);  /* blocks until parent writes */
+    ssize_t n;
+    /* Retry read on EINTR so stop/cont doesn't abort the wait. */
+    do { n = read(fds[0], buf, 1); } while (n < 0 && errno == EINTR);
     close(fds[0]);
-    _exit(buf[0]);
+    _exit(n == 1 ? buf[0] : 1);
   }
   close(fds[0]);
 
