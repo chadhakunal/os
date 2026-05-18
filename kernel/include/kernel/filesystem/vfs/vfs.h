@@ -22,7 +22,8 @@
 #define O_EXCL      0x0080
 #define O_TRUNC     0x0200
 #define O_APPEND    0x0400
-#define O_CLOEXEC     0x0800
+#define O_NONBLOCK    0x0800
+#define O_CLOEXEC     0x80000
 #define O_DIRECTORY   0x10000
 
 /* fcntl(fd, cmd, ...) — descriptor flags (F_*), not open flags */

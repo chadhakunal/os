@@ -71,3 +71,13 @@ int strncasecmp(const char *s1, const char *s2, size_t n) {
   }
   return ascii_tolower((unsigned char)*s1) - ascii_tolower((unsigned char)*s2);
 }
+
+int strcasecmp_l(const char *s1, const char *s2, locale_t loc) {
+  (void)loc;
+  return strcasecmp(s1, s2);
+}
+
+int strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t loc) {
+  (void)loc;
+  return strncasecmp(s1, s2, n);
+}

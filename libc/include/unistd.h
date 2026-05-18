@@ -25,9 +25,11 @@ void _exit(int status);
 #define TCSRAW   0x5411
 #define TCSCANON 0x5412
 
-#define _PC_NAME_MAX 4
+#define _PC_NAME_MAX      4
+#define _PC_FILESIZEBITS  13
 
-#define _SC_PAGESIZE 30
+#define _SC_PAGESIZE  30
+#define _SC_PAGE_SIZE 30
 
 extern char *optarg;
 extern int optind;
@@ -106,9 +108,32 @@ int ftruncate(int fd, off_t length);
 int reboot(int cmd);
 int statfs(const char *path, struct statfs *buf);
 long fpathconf(int fd, int name);
+long pathconf(const char *path, int name);
 long sysconf(int name);
 
 uid_t getuid(void);
 uid_t geteuid(void);
 gid_t getgid(void);
 gid_t getegid(void);
+pid_t getpgrp(void);
+long gethostid(void);
+void swab(const void *from, void *to, ssize_t n);
+int fdatasync(int fd);
+int isatty(int fd);
+void sync(void);
+ssize_t pread(int fd, void *buf, size_t count, off_t offset);
+ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset);
+
+#define HOST_NAME_MAX 64
+int gethostname(char *name, size_t len);
+int sethostname(const char *name, size_t len);
+
+#define GETENTROPY_MAX 256
+int getentropy(void *buf, size_t len);
+
+#define _CS_PATH 0
+size_t confstr(int name, char *buf, size_t len);
+
+#define POSIX_CLOSE_RESTART 0
+int posix_close(int fd, int flags);
+int pause(void);

@@ -178,7 +178,7 @@ static void sync_dentry_tree(struct dentry_t *dentry, int depth) {
 }
 
 void vfs_sync_all(void) {
-  printk("vfs: syncing all dirty pages to disk...\n");
+  debugk("vfs: syncing all dirty pages to disk...\n");
 
   /* Walk every mounted filesystem's dentry tree. */
   list_for_each(&mount_list, pos) {
@@ -188,5 +188,5 @@ void vfs_sync_all(void) {
     sync_dentry_tree(mount->superblock->root_dentry, 0);
   }
 
-  printk("vfs: sync complete\n");
+  debugk("vfs: sync complete\n");
 }

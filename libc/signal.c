@@ -141,3 +141,38 @@ void psiginfo(const siginfo_t *info, const char *msg) {
   if (info)
     psignal(info->si_signo, msg);
 }
+
+static const struct { int num; const char *name; } sig_table[] = {
+  { SIGHUP,  "HUP"  }, { SIGINT,  "INT"  }, { SIGQUIT, "QUIT" },
+  { SIGILL,  "ILL"  }, { SIGTRAP, "TRAP" }, { SIGABRT, "ABRT" },
+  { SIGBUS,  "BUS"  }, { SIGFPE,  "FPE"  }, { SIGKILL, "KILL" },
+  { SIGUSR1, "USR1" }, { SIGSEGV, "SEGV" }, { SIGUSR2, "USR2" },
+  { SIGPIPE, "PIPE" }, { SIGALRM, "ALRM" }, { SIGTERM, "TERM" },
+  { SIGCHLD, "CHLD" }, { SIGCONT, "CONT" }, { SIGSTOP, "STOP" },
+  { SIGTSTP, "TSTP" }, { SIGTTIN, "TTIN" }, { SIGTTOU, "TTOU" },
+  { SIGURG,  "URG"  }, { SIGXCPU, "XCPU" }, { SIGXFSZ, "XFSZ" },
+  { SIGVTALRM,"VTALRM"},{ SIGPROF, "PROF" }, { SIGWINCH,"WINCH"},
+  { SIGIO,   "IO"   }, { SIGPWR,  "PWR"  }, { SIGSYS,  "SYS"  },
+  { 0, NULL }
+};
+
+int sig2str(int signum, char *str) {
+  for (int i = 0; sig_table[i].name; i++) {
+    if (sig_table[i].num == signum) {
+      int j = 0;
+      while (sig_table[i].name[j]) { str[j] = sig_table[i].name[j]; j++; }
+      str[j] = '\0';
+      return 0;
+    }
+  }
+  return -1;
+}
+
+int str2sig(const char *str, int *signum) {
+  for (int i = 0; sig_table[i].name; i++) {
+    const char *a = str, *b = sig_table[i].name;
+    while (*a && *b && *a == *b) { a++; b++; }
+    if (*a == '\0' && *b == '\0') { *signum = sig_table[i].num; return 0; }
+  }
+  return -1;
+}

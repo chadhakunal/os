@@ -324,6 +324,49 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_pselect6(tf);
       break;
 
+    case SYS_sync:
+      debugk("syscall: sync()\n");
+      ret = sys_sync(tf);
+      break;
+
+    case SYS_msync:
+      debugk("syscall: msync(addr=%llx, len=%llu, flags=%lld)\n",
+             tf->a0, tf->a1, (int64_t)tf->a2);
+      ret = sys_msync(tf);
+      break;
+
+    case SYS_pread64:
+      debugk("syscall: pread64(fd=%lld, buf=%llx, count=%llu, offset=%lld)\n",
+             (int64_t)tf->a0, tf->a1, tf->a2, (int64_t)tf->a3);
+      ret = sys_pread64(tf);
+      break;
+
+    case SYS_pwrite64:
+      debugk("syscall: pwrite64(fd=%lld, buf=%llx, count=%llu, offset=%lld)\n",
+             (int64_t)tf->a0, tf->a1, tf->a2, (int64_t)tf->a3);
+      ret = sys_pwrite64(tf);
+      break;
+
+    case SYS_uname:
+      debugk("syscall: uname(buf=%llx)\n", tf->a0);
+      ret = sys_uname(tf);
+      break;
+
+    case SYS_sethostname:
+      debugk("syscall: sethostname(name=%llx, len=%llu)\n", tf->a0, tf->a1);
+      ret = sys_sethostname(tf);
+      break;
+
+    case SYS_getrandom:
+      debugk("syscall: getrandom(buf=%llx, count=%llu, flags=%llu)\n", tf->a0, tf->a1, tf->a2);
+      ret = sys_getrandom(tf);
+      break;
+
+    case SYS_clock_gettime:
+      debugk("syscall: clock_gettime(clk=%lld, tp=%llx)\n", (int64_t)tf->a0, tf->a1);
+      ret = sys_clock_gettime(tf);
+      break;
+
     default:
       debugk("syscall: unknown syscall %llu\n", syscall_num);
       tf->a0 = -1; // ENOSYS

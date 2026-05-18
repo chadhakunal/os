@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <types.h>
+#include <locale.h>
 
 typedef long clock_t;
 typedef long time_t;
@@ -80,6 +81,8 @@ char     *ctime(const time_t *t);
 char     *ctime_r(const time_t *t, char *buf);
 size_t    strftime(char *restrict s, size_t max, const char *restrict fmt,
                    const struct tm *restrict tm);
+size_t    strftime_l(char *restrict s, size_t max, const char *restrict fmt,
+                     const struct tm *restrict tm, locale_t loc);
 char     *strptime(const char *s, const char *fmt, struct tm *tm);
 void      tzset(void);
 

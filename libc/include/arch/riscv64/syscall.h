@@ -61,6 +61,14 @@
 #define SYS_ppoll            89
 #define SYS_select           23
 #define SYS_pselect6         72
+#define SYS_sync             81
+#define SYS_pread64          67
+#define SYS_pwrite64         68
+#define SYS_msync            227
+#define SYS_uname            160
+#define SYS_sethostname      161
+#define SYS_getrandom        278
+#define SYS_clock_gettime    113
 
 #define syscall0(n) ({ \
   register long _a0 asm("a0"); \

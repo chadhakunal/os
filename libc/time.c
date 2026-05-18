@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
+#include <arch/riscv64/syscall.h>
 
 char *tzname[2] = { "UTC", "UTC" };
 long  timezone  = 0;
@@ -12,9 +13,8 @@ void tzset(void) {}
 /* nanosleep is implemented in unistd.c via syscall */
 
 int clock_gettime(clockid_t clk, struct timespec *tp) {
-  (void)clk;
-  tp->tv_sec  = 0;
-  tp->tv_nsec = 0;
+  long ret = syscall2(SYS_clock_gettime, clk, tp);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
   return 0;
 }
 
@@ -33,8 +33,22 @@ int clock_getres(clockid_t clk, struct timespec *res) {
 
 int clock_nanosleep(clockid_t clk, int flags, const struct timespec *req,
                     struct timespec *rem) {
-  (void)clk; (void)flags; (void)rem;
-  return nanosleep(req, rem);
+  if (!(flags & TIMER_ABSTIME))
+    return nanosleep(req, rem);
+
+  /* TIMER_ABSTIME: sleep until the absolute time req; if already past, return immediately. */
+  struct timespec now;
+  if (clock_gettime(clk, &now) < 0) return -1;
+
+  long long diff_ns = ((long long)(req->tv_sec  - now.tv_sec)  * 1000000000LL)
+                    +  (long long)(req->tv_nsec - now.tv_nsec);
+  if (diff_ns <= 0) return 0;
+
+  struct timespec rel = {
+    .tv_sec  = diff_ns / 1000000000LL,
+    .tv_nsec = diff_ns % 1000000000LL,
+  };
+  return nanosleep(&rel, rem);
 }
 
 int clock_getcpuclockid(int pid, clockid_t *clk) {
@@ -84,8 +98,10 @@ clock_t clock(void) {
 }
 
 time_t time(time_t *t) {
-  if (t) *t = 0;
-  return 0;
+  struct timespec ts;
+  if (clock_gettime(CLOCK_REALTIME, &ts) < 0) return (time_t)-1;
+  if (t) *t = (time_t)ts.tv_sec;
+  return (time_t)ts.tv_sec;
 }
 
 double difftime(time_t t1, time_t t0) {
@@ -273,4 +289,10 @@ char *strptime(const char *s, const char *fmt, struct tm *tm) {
     }
   }
   return (char *)s;
+}
+
+size_t strftime_l(char *restrict s, size_t max, const char *restrict fmt,
+                  const struct tm *restrict tm, locale_t loc) {
+  (void)loc;
+  return strftime(s, max, fmt, tm);
 }

@@ -36,5 +36,12 @@ int   posix_mem_offset(const void *addr, size_t len, off_t *offset,
 int   posix_typed_mem_open(const char *name, int oflag, int tflag);
 int   posix_typed_mem_get_info(int fildes, struct posix_typed_mem_info *info);
 
+/* msync flags */
+#define MS_ASYNC      1
+#define MS_SYNC       4
+#define MS_INVALIDATE 2
+
+int msync(void *addr, size_t len, int flags);
+
 void *sbrk(long increment);
 long  brk(unsigned long new_brk);

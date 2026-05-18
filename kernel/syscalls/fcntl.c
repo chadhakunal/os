@@ -23,6 +23,15 @@ DEFINE_SYSCALL3(fcntl, int, fd, int, cmd, uint64_t, arg) {
         return -EBADF;
       return file->flags;
 
+    case F_SETFL:
+      file = find_file(&current_task->file_table, fd);
+      if (file == NULL)
+        return -EBADF;
+      /* Only update the settable flags: O_APPEND, O_NONBLOCK */
+      file->flags = (file->flags & ~(O_APPEND | O_NONBLOCK))
+                  | ((int)arg   &  (O_APPEND | O_NONBLOCK));
+      return 0;
+
     default:
       return -EINVAL;
   }
