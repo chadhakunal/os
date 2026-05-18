@@ -2,44 +2,97 @@
 #include <signal.h>
 #include <stdio.h>
 
-int main(int argc, char **argv) {
-  printf("testsignal: Starting signal test\n");
+/* -----------------------------------------------------------------------
+ * Test 1: SIGKILL terminates a child (existing test, kept as-is)
+ * -------------------------------------------------------------------- */
+static void test_sigkill(void) {
+  printf("test_sigkill: START\n");
 
   pid_t child = fork();
-
   if (child == 0) {
-    printf("testsignal: Child process (PID should be non-zero)\n");
-    printf("testsignal: Child waiting to be killed...\n");
-
-    while (1) {
-      sched_yield();
-    }
-
-    printf("testsignal: Child should never reach here!\n");
-    return 1;
-  } else {
-    printf("testsignal: Parent process, child PID = %d\n", child);
-    printf("testsignal: Parent yielding to let child run...\n");
-
-    for (int i = 0; i < 5; i++) {
-      sched_yield();
-    }
-
-    printf("testsignal: Parent sending SIGKILL to child PID %d\n", child);
-    int ret = kill(child, SIGKILL);
-    printf("testsignal: kill() returned %d\n", ret);
-
-    printf("testsignal: Parent waiting for child to exit...\n");
-    int status;
-    pid_t waited = waitpid(child, &status, 0);
-    printf("testsignal: waitpid returned %d, status = %d\n", waited, status);
-
-    if (status == 137) {
-      printf("testsignal: SUCCESS - child killed by SIGKILL (exit status 128+9=137)\n");
-    } else {
-      printf("testsignal: FAIL - unexpected exit status %d\n", status);
-    }
-
-    return 0;
+    while (1) sched_yield();
   }
+
+  for (int i = 0; i < 3; i++) sched_yield();
+
+  kill(child, SIGKILL);
+
+  int status;
+  pid_t waited = waitpid(child, &status, 0);
+  if (waited == child && status == 137)
+    printf("test_sigkill: PASS (exit status %d)\n", status);
+  else
+    printf("test_sigkill: FAIL (waited=%d status=%d)\n", waited, status);
+}
+
+/* -----------------------------------------------------------------------
+ * Test 2: SIGSTOP suspends a child, SIGCONT resumes it.
+ * The child spins then exits. We stop it mid-spin, yield many times
+ * (the child cannot make progress while stopped), then SIGCONT and
+ * verify it exits cleanly with status 0.
+ * -------------------------------------------------------------------- */
+static void test_sigstop_sigcont(void) {
+  printf("test_sigstop_sigcont: START\n");
+
+  pid_t child = fork();
+  if (child == 0) {
+    for (volatile int i = 0; i < 5000000; i++);
+    printf("test_sigstop_sigcont: child finished spin, exiting\n");
+    return;
+  }
+
+  for (int i = 0; i < 5; i++) sched_yield();
+
+  printf("test_sigstop_sigcont: sending SIGSTOP to child %d\n", child);
+  kill(child, SIGSTOP);
+
+  printf("test_sigstop_sigcont: yielding while child is stopped...\n");
+  for (int i = 0; i < 20; i++) sched_yield();
+  printf("test_sigstop_sigcont: parent still running (child suspended)\n");
+
+  printf("test_sigstop_sigcont: sending SIGCONT to child %d\n", child);
+  kill(child, SIGCONT);
+
+  int status;
+  pid_t r = waitpid(child, &status, 0);
+  if (r == child && status == 0)
+    printf("test_sigstop_sigcont: PASS - child exited cleanly after SIGCONT\n");
+  else
+    printf("test_sigstop_sigcont: FAIL - waited=%d status=%d\n", r, status);
+}
+
+/* -----------------------------------------------------------------------
+ * Test 3: SIGSTOP then SIGKILL wakes and kills a stopped process
+ * -------------------------------------------------------------------- */
+static void test_sigkill_stopped(void) {
+  printf("test_sigkill_stopped: START\n");
+
+  pid_t child = fork();
+  if (child == 0) {
+    while (1) sched_yield();
+  }
+
+  for (int i = 0; i < 3; i++) sched_yield();
+
+  kill(child, SIGSTOP);
+  for (int i = 0; i < 5; i++) sched_yield();
+
+  /* SIGKILL must wake and kill even a stopped process. */
+  kill(child, SIGKILL);
+
+  int status;
+  pid_t r = waitpid(child, &status, 0);
+  if (r == child && status == 137)
+    printf("test_sigkill_stopped: PASS (status=%d)\n", status);
+  else
+    printf("test_sigkill_stopped: FAIL (waited=%d status=%d)\n", r, status);
+}
+
+int main(void) {
+  printf("=== signal tests ===\n");
+  test_sigkill();
+  test_sigstop_sigcont();
+  test_sigkill_stopped();
+  printf("=== done ===\n");
+  return 0;
 }

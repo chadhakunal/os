@@ -127,6 +127,14 @@ void send_signal(struct task_t *task, int sig) {
         task->wait_reason == WAIT_SIGNAL) {
       unblock_task(task);
     }
+  } else if (task->state == TASK_STOPPED && sig == SIGKILL) {
+    /* SIGKILL is the one signal that must wake even a stopped task. */
+    task->stopped_sig = 0;
+    task->state = TASK_READY;
+    task->wait_reason = WAIT_NONE;
+    task->runtime = 0;
+    list_remove(&task->scheduler_list);
+    list_append(scheduler.expired_list, &task->scheduler_list);
   }
 }
 
