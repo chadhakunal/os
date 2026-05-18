@@ -151,12 +151,9 @@ static int readline_with_history(const char *prompt, char *out_buf,
       continue;
     }
 
-    /* Ctrl-Z: ignored at prompt (shell has SIG_IGN for SIGTSTP). */
-    if (c == 0x1a) {
-      write(1, "^Z\n", 3);
-      write(1, prompt, strlen(prompt));
+    /* Ctrl-Z: ignored at prompt. */
+    if (c == 0x1a)
       continue;
-    }
 
     if (c == '\n' || c == '\r') {
       write(1, "\n", 1);
