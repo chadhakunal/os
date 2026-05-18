@@ -17,10 +17,14 @@ static int test_tstp_wuntraced(void) {
   }
   for (int i = 0; i < 3; i++) sched_yield();
   kill(child, SIGTSTP);
-  for (int i = 0; i < 5; i++) sched_yield();
 
   int status;
-  pid_t r = waitpid(child, &status, WUNTRACED | WNOHANG);
+  pid_t r = 0;
+  for (int i = 0; i < 50; i++) {
+    sched_yield();
+    r = waitpid(child, &status, WUNTRACED | WNOHANG);
+    if (r == child) break;
+  }
   if (r != child || !WIFSTOPPED(status) || WSTOPSIG(status) != SIGTSTP) {
     kill(child, SIGKILL);
     waitpid(child, NULL, 0);
@@ -42,10 +46,15 @@ static int test_tstp_resume_exit(void) {
   }
   for (int i = 0; i < 3; i++) sched_yield();
   kill(child, SIGTSTP);
-  for (int i = 0; i < 10; i++) sched_yield();
 
+  /* Poll until child is stopped — delivery requires trap_return. */
   int status;
-  pid_t r = waitpid(child, &status, WUNTRACED | WNOHANG);
+  pid_t r = 0;
+  for (int i = 0; i < 50; i++) {
+    sched_yield();
+    r = waitpid(child, &status, WUNTRACED | WNOHANG);
+    if (r == child) break;
+  }
   if (r != child || !WIFSTOPPED(status)) {
     kill(child, SIGKILL);
     waitpid(child, NULL, 0);
@@ -73,10 +82,14 @@ static int test_tstp_pgid(void) {
 
   for (int i = 0; i < 5; i++) sched_yield();
   kill(-child, SIGTSTP);
-  for (int i = 0; i < 5; i++) sched_yield();
 
   int status;
-  pid_t r = waitpid(child, &status, WUNTRACED | WNOHANG);
+  pid_t r = 0;
+  for (int i = 0; i < 50; i++) {
+    sched_yield();
+    r = waitpid(child, &status, WUNTRACED | WNOHANG);
+    if (r == child) break;
+  }
   if (r != child || !WIFSTOPPED(status)) {
     kill(-child, SIGKILL);
     waitpid(child, NULL, 0);
@@ -101,10 +114,14 @@ static int test_tstp_multi_cycle(void) {
   for (int round = 0; round < 5; round++) {
     for (int i = 0; i < 3; i++) sched_yield();
     kill(child, SIGTSTP);
-    for (int i = 0; i < 5; i++) sched_yield();
 
     int status;
-    pid_t r = waitpid(child, &status, WUNTRACED | WNOHANG);
+    pid_t r = 0;
+    for (int i = 0; i < 50; i++) {
+      sched_yield();
+      r = waitpid(child, &status, WUNTRACED | WNOHANG);
+      if (r == child) break;
+    }
     if (r != child || !WIFSTOPPED(status)) {
       kill(child, SIGKILL);
       waitpid(child, NULL, 0);
@@ -128,10 +145,14 @@ static int test_sigstop_wuntraced(void) {
   }
   for (int i = 0; i < 3; i++) sched_yield();
   kill(child, SIGSTOP);
-  for (int i = 0; i < 5; i++) sched_yield();
 
   int status;
-  pid_t r = waitpid(child, &status, WUNTRACED | WNOHANG);
+  pid_t r = 0;
+  for (int i = 0; i < 50; i++) {
+    sched_yield();
+    r = waitpid(child, &status, WUNTRACED | WNOHANG);
+    if (r == child) break;
+  }
   if (r != child || !WIFSTOPPED(status)) {
     kill(child, SIGKILL);
     waitpid(child, NULL, 0);
