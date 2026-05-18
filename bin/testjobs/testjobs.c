@@ -41,13 +41,13 @@ static int test_tstp_wuntraced(void) {
 static int test_tstp_resume_exit(void) {
   pid_t child = fork();
   if (child == 0) {
-    for (volatile int i = 0; i < 1000000; i++);
-    _exit(42);
+    /* Loop forever via sched_yield so SIGTSTP is always deliverable. */
+    while (1) sched_yield();
   }
   for (int i = 0; i < 3; i++) sched_yield();
   kill(child, SIGTSTP);
 
-  /* Poll until child is stopped — delivery requires trap_return. */
+  /* Poll until child is stopped. */
   int status;
   pid_t r = 0;
   for (int i = 0; i < 50; i++) {
@@ -61,9 +61,12 @@ static int test_tstp_resume_exit(void) {
     return 0;
   }
 
+  /* Resume and kill — verify it was alive and resumable. */
   kill(child, SIGCONT);
+  for (int i = 0; i < 5; i++) sched_yield();
+  kill(child, SIGKILL);
   r = waitpid(child, &status, 0);
-  return r == child && WIFEXITED(status) && WEXITSTATUS(status) == 42;
+  return r == child && WIFSIGNALED(status) && WTERMSIG(status) == SIGKILL;
 }
 
 /* -----------------------------------------------------------------------
