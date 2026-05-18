@@ -102,6 +102,7 @@ void send_signal(struct task_t *task, int sig) {
     if (task->state == TASK_STOPPED) {
       /* Move directly back to the run queue — no signal delivery needed. */
       task->stopped_sig = 0;
+      task->stop_reported = 0;
       task->state = TASK_READY;
       task->wait_reason = WAIT_NONE;
       task->runtime = 0;
@@ -133,6 +134,7 @@ void send_signal(struct task_t *task, int sig) {
   } else if (task->state == TASK_STOPPED && sig == SIGKILL) {
     /* SIGKILL is the one signal that must wake even a stopped task. */
     task->stopped_sig = 0;
+    task->stop_reported = 0;
     task->state = TASK_READY;
     task->wait_reason = WAIT_NONE;
     task->runtime = 0;
@@ -208,18 +210,26 @@ void check_and_deliver_signals(struct trap_frame *tf) {
   copy_to_user((void *)(new_sp + sizeof(struct trap_frame)), &sig, sizeof(uint64_t));
   copy_to_user((void *)(new_sp + sizeof(struct trap_frame) + 8), &frame_old_mask, sizeof(uint64_t));
 
+  void (*handler_fn)(int) = action->sa_handler;
   sigset_t new_blocked = current_task->signal_state.blocked | action->sa_mask;
   if (!(action->sa_flags & SA_NODEFER)) {
     add_signal_to_set(&new_blocked, sig);
   }
+  int resethand = action->sa_flags & SA_RESETHAND;
   current_task->signal_state.blocked = new_blocked;
 
   delete_signal_from_set(&current_task->signal_state.pending, sig);
 
+  /* SA_RESETHAND: reset to SIG_DFL before running the handler */
+  if (resethand) {
+    sigaction_t_free(action);
+    current_task->signal_state.actions[sig] = (struct sigaction_t *)SIG_DEFAULT_HANDLER;
+  }
+
   current_task->signal_handler_depth++;
 
   tf->sp = new_sp;
-  tf->sepc = (uint64_t)action->sa_handler;
+  tf->sepc = (uint64_t)handler_fn;
   tf->ra = SIGNAL_JUMP_POINT_ADDR;
   tf->a0 = sig;
 

@@ -10,6 +10,8 @@
 #define WTERMSIG(s)    ((s) & 0x7f)
 #define WIFEXITED(s)   (WTERMSIG(s) == 0)
 #define WIFSIGNALED(s) (WTERMSIG(s) > 0 && WTERMSIG(s) <= 31)
+#define WIFSTOPPED(s)  (((s) & 0xff) == 0x7f)
+#define WSTOPSIG(s)    (((s) >> 8) & 0xff)
 
 typedef enum { P_ALL = 0, P_PID = 1, P_PGID = 2 } idtype_t;
 

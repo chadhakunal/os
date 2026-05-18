@@ -105,6 +105,7 @@ struct task_t {
 
   uint64_t sleep_until; // os_ticks deadline for WAIT_SLEEP
   int stopped_sig;      /* signal that caused TASK_STOPPED (0 otherwise) */
+  int stop_reported;    /* 1 if WUNTRACED waitpid already reported this stop */
 
   struct signal_state_t signal_state;
   uint32_t signal_handler_depth;  // Nesting depth of signal handlers (0 = not in handler)
