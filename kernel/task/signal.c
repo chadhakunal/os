@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "kernel/task/signal.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
@@ -89,7 +89,9 @@ void send_signal(struct task_t *task, int sig) {
   if (task->state == TASK_ZOMBIE)
     return;
 
-  debugk("signal: sending signal %d to PID %llu\n", sig, task->pid);
+  if (sig == SIGCHLD)
+    debugk("[SIGCHLD] send_signal: to PID %llu state=%d action=%p\n",
+           task->pid, task->state, task->signal_state.actions[SIGCHLD]);
 
   if (sig == SIGCONT) {
     /* Discard any pending stop signals. */
@@ -97,10 +99,7 @@ void send_signal(struct task_t *task, int sig) {
     delete_signal_from_set(&task->signal_state.pending, SIGTSTP);
     delete_signal_from_set(&task->signal_state.pending, SIGTTIN);
     delete_signal_from_set(&task->signal_state.pending, SIGTTOU);
-    debugk("[SIGCONT] PID %llu state=%d stopped_sig=%d\n",
-           task->pid, task->state, task->stopped_sig);
     if (task->state == TASK_STOPPED) {
-      /* Move directly back to the run queue — no signal delivery needed. */
       task->stopped_sig = 0;
       task->stop_reported = 0;
       task->state = TASK_READY;
@@ -108,7 +107,6 @@ void send_signal(struct task_t *task, int sig) {
       task->runtime = 0;
       list_remove(&task->scheduler_list);
       list_append(scheduler.expired_list, &task->scheduler_list);
-      debugk("[SIGCONT] PID %llu moved to expired_list\n", task->pid);
     }
     /* Only queue SIGCONT for delivery if the task has a custom handler. */
     if (task->signal_state.actions[SIGCONT] &&
@@ -126,9 +124,15 @@ void send_signal(struct task_t *task, int sig) {
 
   add_signal_to_set(&task->signal_state.pending, sig);
 
+  if (sig == SIGCHLD)
+    debugk("[SIGCHLD] queued, task state=%d wait_reason=%d blocked=%llx\n",
+           task->state, task->wait_reason, task->signal_state.blocked);
+
   if (task->state == TASK_BLOCKED) {
     if (!sig_in_set(&task->signal_state.blocked, sig) ||
         task->wait_reason == WAIT_SIGNAL) {
+      if (sig == SIGCHLD)
+        debugk("[SIGCHLD] unblocking PID %llu\n", task->pid);
       unblock_task(task);
     }
   } else if (task->state == TASK_STOPPED && sig == SIGKILL) {
@@ -153,52 +157,39 @@ void send_signal_to_pgid(uint64_t pgid, int sig) {
 }
 
 void maybe_schedule_stopped(void) {
-  while (current_task->state == TASK_STOPPED) {
-    debugk("signal: PID %llu yielding in TASK_STOPPED\n", current_task->pid);
+  while (current_task->state == TASK_STOPPED)
     schedule();
-    debugk("signal: PID %llu resumed from TASK_STOPPED\n", current_task->pid);
-  }
 }
 
 void check_and_deliver_signals(struct trap_frame *tf) {
-  // Check if we're returning to user mode (SPP=0 means returning to user mode)
-  // Note: tf->sstatus contains the SAVED status that will be restored on sret
-  if (!current_task || (tf->sstatus & SSTATUS_SPP)) {
+  if (!current_task || (tf->sstatus & SSTATUS_SPP))
     return;
-  }
 
   int sig = get_pending_unblocked_signal(&current_task->signal_state);
-  if (sig == 0) {
+  if (sig == 0)
     return;
-  }
 
-  debugk("signal: delivering signal %d to PID %llu\n", sig, current_task->pid);
+  if (sig == SIGCHLD)
+    debugk("[SIGCHLD] check_and_deliver: PID %llu action=%p\n",
+           current_task->pid, current_task->signal_state.actions[sig]);
 
   struct sigaction_t *action = current_task->signal_state.actions[sig];
 
   if (action == (struct sigaction_t *)SIG_IGNORE) {
-    debugk("signal: SIG_IGNORE for signal %d\n", sig);
     delete_signal_from_set(&current_task->signal_state.pending, sig);
     return;
   }
 
   if (action == (struct sigaction_t *)SIG_DEFAULT_HANDLER || action == NULL) {
-    debugk("signal: SIG_DEFAULT_HANDLER for signal %d\n", sig);
     delete_signal_from_set(&current_task->signal_state.pending, sig);
     handle_default_signal_action(sig);
     return;
   }
 
-  debugk("signal: custom handler at %p for signal %d\n", action->sa_handler, sig);
+  if (sig == SIGCHLD)
+    debugk("[SIGCHLD] dispatching custom handler=%p\n", action->sa_handler);
 
   uint64_t new_sp = (tf->sp - sizeof(struct signal_frame)) & ~15ULL;
-
-  debugk("signal: current sp=%llx, new_sp=%llx, stack_start=0x%llx, stack_top=0x%llx\n",
-         tf->sp, new_sp, DEFAULT_STACK_START, DEFAULT_STACK_TOP);
-
-  if (new_sp < DEFAULT_STACK_START) {
-    debugk("signal: ERROR - new_sp %llx is below stack start 0x%llx!\n", new_sp, DEFAULT_STACK_START);
-  }
 
   /* When returning from sigsuspend, restore the pre-sigsuspend mask via the frame */
   sigset_t frame_old_mask = current_task->sigsuspend_active
@@ -232,7 +223,4 @@ void check_and_deliver_signals(struct trap_frame *tf) {
   tf->sepc = (uint64_t)handler_fn;
   tf->ra = SIGNAL_JUMP_POINT_ADDR;
   tf->a0 = sig;
-
-  debugk("signal: setup complete, handler=%llx, sp=%llx, ra=%llx\n",
-         tf->sepc, tf->sp, tf->ra);
 }

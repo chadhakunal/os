@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "kernel/task/task.h"
@@ -81,8 +81,15 @@ DEFINE_SYSCALL3(waitpid, int64_t, pid, int *, wstatus, int, options)
 
     asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
 
-    /* SIGCHLD wakes waitpid but doesn't interrupt it — clear it and loop. */
-    current_task->signal_state.pending &= ~(1ULL << (SIGCHLD - 1));
+    struct sigaction_t *chld_act = current_task->signal_state.actions[SIGCHLD];
+    int has_custom_chld = (chld_act != NULL &&
+                           chld_act != (struct sigaction_t *)SIG_DEFAULT_HANDLER &&
+                           chld_act != (struct sigaction_t *)SIG_IGNORE);
+    debugk("[SIGCHLD] waitpid woke: pending=%llx action=%p custom=%d\n",
+           current_task->signal_state.pending, chld_act, has_custom_chld);
+    if (!has_custom_chld)
+      current_task->signal_state.pending &= ~(1ULL << (SIGCHLD - 1));
+
     sigset_t pending_unblocked = current_task->signal_state.pending
                                  & ~current_task->signal_state.blocked;
     if (pending_unblocked)
