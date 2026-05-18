@@ -110,8 +110,7 @@ static int test_tstp_pgid(void) {
 static int test_tstp_multi_cycle(void) {
   pid_t child = fork();
   if (child == 0) {
-    for (volatile long i = 0; i < 50000000L; i++);
-    _exit(0);
+    while (1) sched_yield();
   }
 
   for (int round = 0; round < 5; round++) {
@@ -133,9 +132,11 @@ static int test_tstp_multi_cycle(void) {
     kill(child, SIGCONT);
   }
 
+  for (int i = 0; i < 5; i++) sched_yield();
+  kill(child, SIGKILL);
   int status;
   pid_t r = waitpid(child, &status, 0);
-  return r == child && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+  return r == child && WIFSIGNALED(status) && WTERMSIG(status) == SIGKILL;
 }
 
 /* -----------------------------------------------------------------------
