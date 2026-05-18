@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <sys/wait.h>
 
@@ -283,23 +284,407 @@ static int test_wuntraced(void) {
 }
 
 /* -----------------------------------------------------------------------
+ * Test 13: Scheduler stress — many processes forking/exiting while
+ * signals fly between them.
+ * -------------------------------------------------------------------- */
+static int test_scheduler_stress(void) {
+#define N_SCHED 8
+  pid_t kids[N_SCHED];
+  for (int i = 0; i < N_SCHED; i++) {
+    kids[i] = fork();
+    if (kids[i] == 0) {
+      /* Each child yields a few times then exits. */
+      for (int j = 0; j < 5; j++) sched_yield();
+      _exit(0);
+    }
+  }
+  /* While children run, rapidly send SIGUSR1 to each (ignored by default
+   * — just stresses signal delivery path under scheduler churn). */
+  for (int round = 0; round < 4; round++) {
+    for (int i = 0; i < N_SCHED; i++)
+      kill(kids[i], SIGUSR1);
+    sched_yield();
+  }
+  int pass = 1;
+  for (int i = 0; i < N_SCHED; i++) {
+    int status;
+    pid_t r = waitpid(kids[i], &status, 0);
+    /* SIGUSR1 default action is terminate — child may exit via signal or
+     * normally; either is acceptable here, we just want no hang/panic. */
+    if (r != kids[i])
+      pass = 0;
+  }
+  return pass;
+#undef N_SCHED
+}
+
+/* -----------------------------------------------------------------------
+ * Test 14: Scheduler stress with stop/cont — many children stopped and
+ * continued while new forks are happening.
+ * -------------------------------------------------------------------- */
+static int test_scheduler_stress_stop(void) {
+#define N_SC 6
+  pid_t kids[N_SC];
+  for (int i = 0; i < N_SC; i++) {
+    kids[i] = fork();
+    if (kids[i] == 0) {
+      for (volatile long j = 0; j < 10000000L; j++);
+      _exit(0);
+    }
+  }
+  /* Stop half, cont them, fork more, repeat. */
+  for (int round = 0; round < 4; round++) {
+    for (int i = 0; i < N_SC / 2; i++) kill(kids[i], SIGSTOP);
+    sched_yield();
+    for (int i = 0; i < N_SC / 2; i++) kill(kids[i], SIGCONT);
+    sched_yield();
+  }
+  int pass = 1;
+  for (int i = 0; i < N_SC; i++) {
+    int status;
+    pid_t r = waitpid(kids[i], &status, 0);
+    if (r != kids[i] || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+      pass = 0;
+  }
+  return pass;
+#undef N_SC
+}
+
+/* -----------------------------------------------------------------------
+ * Test 15: Signal handler that calls malloc — memory allocator must be
+ * safe to call from a signal handler (single-threaded, so re-entrancy
+ * is not an issue here, but the handler must not corrupt the heap).
+ * -------------------------------------------------------------------- */
+static volatile int handler15_ran;
+static void handler15(int sig) {
+  (void)sig;
+  /* Allocate and free inside the handler. */
+  char *p = malloc(256);
+  if (p) {
+    for (int i = 0; i < 256; i++) p[i] = (char)i;
+    free(p);
+    handler15_ran = 1;
+  }
+}
+
+static int test_signal_malloc(void) {
+  handler15_ran = 0;
+  struct sigaction sa = { .sa_handler = handler15, .sa_flags = 0 };
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGUSR1, &sa, NULL);
+  /* Do a heap allocation before and after to check the heap isn't corrupted. */
+  char *pre = malloc(128);
+  if (!pre) return 0;
+  for (int i = 0; i < 128; i++) pre[i] = (char)i;
+  raise(SIGUSR1);
+  /* Verify pre-signal allocation is intact. */
+  int ok = handler15_ran;
+  for (int i = 0; i < 128; i++) if (pre[i] != (char)i) { ok = 0; break; }
+  free(pre);
+  char *post = malloc(128);
+  if (!post) return 0;
+  free(post);
+  struct sigaction def = { .sa_handler = SIG_DFL, .sa_flags = 0 };
+  sigemptyset(&def.sa_mask);
+  sigaction(SIGUSR1, &def, NULL);
+  return ok;
+}
+
+/* -----------------------------------------------------------------------
+ * Test 16: Signal handler allocates, main allocates concurrently across
+ * many raises — stress the heap across repeated handler invocations.
+ * -------------------------------------------------------------------- */
+static volatile int handler16_failures;
+static void handler16(int sig) {
+  (void)sig;
+  void *p = malloc(64);
+  if (!p) { handler16_failures++; return; }
+  free(p);
+}
+
+static int test_signal_malloc_stress(void) {
+  handler16_failures = 0;
+  struct sigaction sa = { .sa_handler = handler16, .sa_flags = 0 };
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGUSR2, &sa, NULL);
+  /* Interleave malloc in main with raises. */
+  void *ptrs[16];
+  for (int i = 0; i < 16; i++) {
+    ptrs[i] = malloc(32 * (i + 1));
+    raise(SIGUSR2);
+  }
+  for (int i = 0; i < 16; i++) free(ptrs[i]);
+  struct sigaction def = { .sa_handler = SIG_DFL, .sa_flags = 0 };
+  sigemptyset(&def.sa_mask);
+  sigaction(SIGUSR2, &def, NULL);
+  return handler16_failures == 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Test 17: nanosleep interrupted by signal returns -1/EINTR.
+ * -------------------------------------------------------------------- */
+static void handler17(int sig) { (void)sig; }
+
+static int test_nanosleep_eintr(void) {
+  struct sigaction sa = { .sa_handler = handler17, .sa_flags = 0 };
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGUSR1, &sa, NULL);
+
+  pid_t child = fork();
+  if (child == 0) {
+    pid_t parent = getppid();
+    /* Give parent time to enter nanosleep. */
+    for (int i = 0; i < 5; i++) sched_yield();
+    kill(parent, SIGUSR1);
+    _exit(0);
+  }
+
+  struct timespec req = { .tv_sec = 10, .tv_nsec = 0 };
+  struct timespec rem = { 0, 0 };
+  int r = nanosleep(&req, &rem);
+
+  /* Reap child regardless of outcome. */
+  int s;
+  waitpid(child, &s, 0);
+
+  struct sigaction def = { .sa_handler = SIG_DFL, .sa_flags = 0 };
+  sigemptyset(&def.sa_mask);
+  sigaction(SIGUSR1, &def, NULL);
+
+  /* nanosleep should return -1 with errno == EINTR */
+  return r == -1 && errno == EINTR;
+}
+
+/* -----------------------------------------------------------------------
+ * Test 18: nanosleep completes normally (not interrupted).
+ * -------------------------------------------------------------------- */
+static int test_nanosleep_completes(void) {
+  struct timespec req = { .tv_sec = 0, .tv_nsec = 50000000 }; /* 50ms */
+  int r = nanosleep(&req, NULL);
+  return r == 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Test 19: SIGPIPE — writing to a pipe with no readers sends SIGPIPE
+ * and write returns -1/EPIPE.
+ * -------------------------------------------------------------------- */
+static volatile int handler19_ran;
+static void handler19(int sig) { (void)sig; handler19_ran = 1; }
+
+static int test_sigpipe(void) {
+  handler19_ran = 0;
+  struct sigaction sa = { .sa_handler = handler19, .sa_flags = 0 };
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGPIPE, &sa, NULL);
+
+  int fds[2];
+  if (pipe(fds) < 0) return 0;
+
+  /* Close the read end — pipe is now broken. */
+  close(fds[0]);
+
+  char buf[4] = "test";
+  int r = write(fds[1], buf, 4);
+  close(fds[1]);
+
+  struct sigaction def = { .sa_handler = SIG_DFL, .sa_flags = 0 };
+  sigemptyset(&def.sa_mask);
+  sigaction(SIGPIPE, &def, NULL);
+
+  /* write must return -1 and SIGPIPE handler must have run */
+  return r == -1 && handler19_ran == 1;
+}
+
+/* -----------------------------------------------------------------------
+ * Test 20: SIGPIPE ignored — write returns -1/EPIPE without terminating.
+ * -------------------------------------------------------------------- */
+static int test_sigpipe_ignored(void) {
+  struct sigaction sa = { .sa_handler = SIG_IGN, .sa_flags = 0 };
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGPIPE, &sa, NULL);
+
+  int fds[2];
+  if (pipe(fds) < 0) return 0;
+  close(fds[0]);
+
+  char buf[4] = "test";
+  int r = write(fds[1], buf, 4);
+  close(fds[1]);
+
+  struct sigaction def = { .sa_handler = SIG_DFL, .sa_flags = 0 };
+  sigemptyset(&def.sa_mask);
+  sigaction(SIGPIPE, &def, NULL);
+
+  return r == -1 && errno == EPIPE;
+}
+
+/* -----------------------------------------------------------------------
+ * Test 21: Process groups — kill(-pgid) delivers signal to all members.
+ * -------------------------------------------------------------------- */
+static int test_kill_pgid(void) {
+#define N_PG 4
+  /* Put all children in a new process group. */
+  pid_t kids[N_PG];
+  pid_t new_pgid = 0;
+
+  for (int i = 0; i < N_PG; i++) {
+    kids[i] = fork();
+    if (kids[i] == 0) {
+      /* First child becomes the process group leader. */
+      if (i == 0) setpgid(0, 0);
+      else        setpgid(0, kids[0] ? kids[0] : getpid());
+      while (1) sched_yield();
+    }
+    if (i == 0) new_pgid = kids[0];
+  }
+
+  /* Give children time to call setpgid. */
+  for (int i = 0; i < 10; i++) sched_yield();
+
+  /* Kill the whole group with SIGKILL. */
+  kill(-new_pgid, SIGKILL);
+
+  int pass = 1;
+  for (int i = 0; i < N_PG; i++) {
+    int status;
+    pid_t r = waitpid(kids[i], &status, 0);
+    if (r != kids[i] || !WIFSIGNALED(status) || WTERMSIG(status) != SIGKILL)
+      pass = 0;
+  }
+  return pass;
+#undef N_PG
+}
+
+/* -----------------------------------------------------------------------
+ * Test 22: setpgid isolation — child moves to its own group, parent's
+ * kill(-pgid) does NOT reach it.
+ * -------------------------------------------------------------------- */
+static int test_pgid_isolation(void) {
+  pid_t child = fork();
+  if (child == 0) {
+    /* Move to own process group — out of parent's group. */
+    setpgid(0, 0);
+    /* Sleep long enough that the parent's kill fires, then exit cleanly. */
+    for (volatile long i = 0; i < 30000000L; i++);
+    _exit(0);
+  }
+
+  /* Give child time to call setpgid. */
+  for (int i = 0; i < 5; i++) sched_yield();
+
+  /* Kill parent's own pgid — should NOT reach the child. */
+  kill(-getpgid(0), SIGUSR1);   /* SIGUSR1: default=terminate, proves isolation */
+
+  int status;
+  pid_t r = waitpid(child, &status, 0);
+
+  /* Child should have exited cleanly (not via SIGUSR1). */
+  return r == child && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Test 23: Signal inheritance across fork — child inherits blocked mask
+ * and dispositions; pending signals are NOT inherited.
+ * -------------------------------------------------------------------- */
+static volatile int handler23_count;
+static void handler23(int sig) { (void)sig; handler23_count++; }
+
+static int test_signal_inheritance(void) {
+  /* Set up: block SIGUSR2, install handler for SIGUSR1. */
+  struct sigaction sa = { .sa_handler = handler23, .sa_flags = 0 };
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGUSR1, &sa, NULL);
+
+  sigset_t block;
+  sigemptyset(&block);
+  sigaddset(&block, SIGUSR2);
+  sigprocmask(SIG_BLOCK, &block, NULL);
+
+  /* Queue a SIGUSR1 to parent (pending) before fork. */
+  sigset_t also_block;
+  sigemptyset(&also_block);
+  sigaddset(&also_block, SIGUSR1);
+  sigprocmask(SIG_BLOCK, &also_block, NULL);
+  raise(SIGUSR1);  /* now pending in parent */
+
+  int fds[2];
+  pipe(fds);
+
+  pid_t child = fork();
+  if (child == 0) {
+    close(fds[0]);
+    /* Child: SIGUSR1 should NOT be pending (pending not inherited).
+     * SIGUSR2 should still be blocked (mask inherited).
+     * SIGUSR1 handler should be inherited. */
+    sigset_t pending;
+    sigpending(&pending);
+    int sigusr1_pending = sigismember(&pending, SIGUSR1);
+
+    sigset_t cur_blocked;
+    sigprocmask(SIG_SETMASK, NULL, &cur_blocked);
+    int sigusr2_blocked = sigismember(&cur_blocked, SIGUSR2);
+
+    /* Check handler inherited: install nothing, check current action. */
+    struct sigaction cur_act;
+    sigaction(SIGUSR1, NULL, &cur_act);
+    int handler_inherited = (cur_act.sa_handler == handler23);
+
+    uint8_t result = (!sigusr1_pending && sigusr2_blocked && handler_inherited) ? 1 : 0;
+    write(fds[1], &result, 1);
+    close(fds[1]);
+    _exit(0);
+  }
+
+  close(fds[1]);
+
+  /* Unblock SIGUSR1 in parent — delivers the queued signal. */
+  sigprocmask(SIG_UNBLOCK, &also_block, NULL);
+
+  uint8_t child_result = 0;
+  read(fds[0], &child_result, 1);
+  close(fds[0]);
+
+  int status;
+  waitpid(child, &status, 0);
+
+  /* Restore parent state. */
+  sigprocmask(SIG_UNBLOCK, &block, NULL);
+  struct sigaction def = { .sa_handler = SIG_DFL, .sa_flags = 0 };
+  sigemptyset(&def.sa_mask);
+  sigaction(SIGUSR1, &def, NULL);
+
+  return child_result == 1;
+}
+
+/* -----------------------------------------------------------------------
  * Runner
  * -------------------------------------------------------------------- */
 typedef int (*test_fn)(void);
 
 static struct { const char *name; test_fn fn; } tests[] = {
-  { "test_sigkill",         test_sigkill         },
-  { "test_sigstop_sigcont", test_sigstop_sigcont  },
-  { "test_sigkill_stopped", test_sigkill_stopped  },
-  { "test_stress_stop_cont",test_stress_stop_cont },
-  { "test_custom_handler",  test_custom_handler   },
-  { "test_signal_mask",     test_signal_mask      },
-  { "test_sigchld",         test_sigchld          },
-  { "test_multi_pending",   test_multi_pending    },
-  { "test_eintr",           test_eintr            },
-  { "test_sa_resethand",    test_sa_resethand     },
-  { "test_nested_signals",  test_nested_signals   },
-  { "test_wuntraced",       test_wuntraced        },
+  { "test_sigkill",              test_sigkill              },
+  { "test_sigstop_sigcont",      test_sigstop_sigcont      },
+  { "test_sigkill_stopped",      test_sigkill_stopped      },
+  { "test_stress_stop_cont",     test_stress_stop_cont     },
+  { "test_custom_handler",       test_custom_handler       },
+  { "test_signal_mask",          test_signal_mask          },
+  { "test_sigchld",              test_sigchld              },
+  { "test_multi_pending",        test_multi_pending        },
+  { "test_eintr",                test_eintr                },
+  { "test_sa_resethand",         test_sa_resethand         },
+  { "test_nested_signals",       test_nested_signals       },
+  { "test_wuntraced",            test_wuntraced            },
+  { "test_scheduler_stress",     test_scheduler_stress     },
+  { "test_scheduler_stress_stop",test_scheduler_stress_stop},
+  { "test_signal_malloc",        test_signal_malloc        },
+  { "test_signal_malloc_stress", test_signal_malloc_stress },
+  { "test_nanosleep_eintr",      test_nanosleep_eintr      },
+  { "test_nanosleep_completes",  test_nanosleep_completes  },
+  { "test_sigpipe",              test_sigpipe              },
+  { "test_sigpipe_ignored",      test_sigpipe_ignored      },
+  { "test_kill_pgid",            test_kill_pgid            },
+  { "test_pgid_isolation",       test_pgid_isolation       },
+  { "test_signal_inheritance",   test_signal_inheritance   },
 };
 
 int main(void) {
