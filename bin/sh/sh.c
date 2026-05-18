@@ -19,6 +19,42 @@
 #define HISTORY_FILE      "/.history"
 #define SCRIPT_BUF_SIZE   65536
 #define MAX_SCRIPT_LINES  2048
+#define MAX_JOBS          16
+
+/* -------------------------------------------------------------------------
+ * Job table
+ * ---------------------------------------------------------------------- */
+struct job {
+  pid_t pgid;
+  char  cmd[COMMAND_BUF_SIZE];
+  int   stopped;  /* 1 = stopped, 0 = running in background */
+};
+
+static struct job jobs[MAX_JOBS];
+static int njobs = 0;
+
+static int job_add(pid_t pgid, const char *cmd, int stopped) {
+  if (njobs >= MAX_JOBS) return -1;
+  jobs[njobs].pgid    = pgid;
+  jobs[njobs].stopped = stopped;
+  strncpy(jobs[njobs].cmd, cmd, COMMAND_BUF_SIZE - 1);
+  jobs[njobs].cmd[COMMAND_BUF_SIZE - 1] = '\0';
+  return ++njobs;  /* job number (1-based) */
+}
+
+static void job_remove(int idx) {
+  for (int i = idx; i < njobs - 1; i++)
+    jobs[i] = jobs[i + 1];
+  njobs--;
+}
+
+/* Find most recently stopped job (top of stack). Returns index or -1. */
+static int job_find_last_stopped(void) {
+  for (int i = njobs - 1; i >= 0; i--)
+    if (jobs[i].stopped)
+      return i;
+  return -1;
+}
 
 /* -------------------------------------------------------------------------
  * History subsystem
@@ -505,6 +541,56 @@ static int builtin_history(void) {
   return 0;
 }
 
+static int builtin_jobs(void) {
+  for (int i = 0; i < njobs; i++)
+    printf("[%d]%s %s\t\t%s\n", i + 1,
+           (i == njobs - 1) ? "+" : "-",
+           jobs[i].stopped ? "Stopped" : "Running",
+           jobs[i].cmd);
+  return 0;
+}
+
+static int builtin_fg(int argc, char *argv[]) {
+  int idx;
+  if (argc >= 2 && argv[1][0] == '%') {
+    int jnum = atoi(argv[1] + 1) - 1;
+    if (jnum < 0 || jnum >= njobs) {
+      printf("fg: %s: no such job\n", argv[1]);
+      return 1;
+    }
+    idx = jnum;
+  } else {
+    idx = job_find_last_stopped();
+    if (idx < 0) {
+      printf("fg: no current job\n");
+      return 1;
+    }
+  }
+
+  pid_t pgid = jobs[idx].pgid;
+  char cmd[COMMAND_BUF_SIZE];
+  strncpy(cmd, jobs[idx].cmd, COMMAND_BUF_SIZE);
+  job_remove(idx);
+
+  printf("%s\n", cmd);
+  tcsetpgrp(0, pgid);
+  kill(-pgid, SIGCONT);
+  ioctl(0, TCSCANON, (void *)0);
+
+  int status = 0;
+  pid_t waited;
+  do { waited = waitpid(-pgid, &status, WUNTRACED); } while (waited < 0 && errno == EINTR);
+  tcsetpgrp(0, getpid());
+  ioctl(0, TCSRAW, (void *)0);
+
+  if (WIFSTOPPED(status)) {
+    printf("\n[%d]+ Stopped\t\t%s\n", job_add(pgid, cmd, 1), cmd);
+    return 0;
+  }
+  kill(-pgid, SIGHUP);
+  return WEXITSTATUS(status);
+}
+
 /* -------------------------------------------------------------------------
  * Command parser / executor
  * ---------------------------------------------------------------------- */
@@ -638,6 +724,10 @@ int parse_and_exec(char *buf) {
     return builtin_pwd();
   if (strcmp("history", command_buf) == 0)
     return builtin_history();
+  if (strcmp("jobs", command_buf) == 0)
+    return builtin_jobs();
+  if (strcmp("fg", command_buf) == 0)
+    return builtin_fg(argc, argv);
   if (strcmp("exit", command_buf) == 0) {
     int code = 0;
     if (argc > 1)
@@ -697,7 +787,8 @@ int parse_and_exec(char *buf) {
     tcsetpgrp(0, getpid());
     ioctl(0, TCSRAW, (void *)0);
     if (WIFSTOPPED(status)) {
-      printf("\n[1]+ Stopped\t\t%s\n", command_buf);
+      int jnum = job_add(pid, command_buf, 1);
+      printf("\n[%d]+ Stopped\t\t%s\n", jnum, command_buf);
       return 0;
     }
     kill(-pid, SIGHUP);
