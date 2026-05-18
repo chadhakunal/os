@@ -254,12 +254,9 @@ int fgetc(FILE *stream) {
     return (unsigned char)stream->membuf[stream->mempos++];
   }
   unsigned char c;
-  ssize_t n = read(stream->fd, &c, 1);
-  if (n <= 0) {
-    if (n == 0) stream->eof = 1;
-    else stream->err = 1;
-    return EOF;
-  }
+  ssize_t n;
+  do { n = read(stream->fd, &c, 1); } while (n < 0 && errno == EINTR);
+  if (n <= 0) { if (n == 0) stream->eof = 1; else stream->err = 1; return EOF; }
   return (unsigned char)c;
 }
 
@@ -334,7 +331,8 @@ size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     if (r < total) stream->eof = 1;
     return r / size;
   }
-  ssize_t n = read(stream->fd, ptr, total);
+  ssize_t n;
+  do { n = read(stream->fd, ptr, total); } while (n < 0 && errno == EINTR);
   if (n <= 0) { if (n == 0) stream->eof = 1; else stream->err = 1; return 0; }
   return (size_t)n / size;
 }
