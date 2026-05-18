@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/task/schedule.h"
 #include "kernel/task/task.h"
 #include "kernel/filesystem/poll.h"
@@ -150,26 +150,16 @@ void schedule() {
   extern struct task_t *idle_task;
   extern void trap_return(struct trap_frame *tf);
 
-  debugk("[schedule] ENTERED - current_task PID=%llu, state=%d, runtime=%llu/%llu, PC=0x%llx\n",
-         current_task->pid, current_task->state, current_task->runtime, current_task->max_runtime,
-         current_task->tf.sepc);
+  if (!current_task)
+    panic("schedule: current_task is NULL");
 
   if (current_task == idle_task) {
-    debugk("[schedule] current_task is idle, picking next task\n");
     struct task_t *next_task = pick_next_task();
-    if (next_task == idle_task) {
-      debugk("[schedule] only idle task available, returning\n");
+    if (next_task == idle_task)
       return;
-    }
-    debugk("[schedule] picked PID %llu from idle\n", next_task->pid);
     next_task->state = TASK_RUNNING;
-    debugk("[schedule] ABOUT TO CALL set_current_task (from idle)\n");
     set_current_task(next_task);
-    debugk("[schedule] ABOUT TO CALL switch_to from idle to PID %llu\n", next_task->pid);
     switch_to(idle_task, next_task);
-    // After switch_to, we're now running as next_task
-    // Jump to user mode
-    debugk("[schedule] ABOUT TO CALL trap_return after switch from idle\n");
     trap_return(&current_task->tf);
   }
 
@@ -182,46 +172,31 @@ void schedule() {
       list_append(scheduler.blocked_list, &current_task->scheduler_list);
     }
   } else if (has_expired()) {
-    debugk("[schedule] current_task PID=%llu has expired, moving to expired list\n", current_task->pid);
     move_to_expired(current_task);
   } else {
-    debugk("[schedule] current_task PID=%llu not expired and not blocked, returning without switch\n", current_task->pid);
     return;
   }
 
-  debugk("[schedule] picking next task\n");
   struct task_t *next_task = pick_next_task();
-  debugk("[schedule] picked next_task PID=%llu\n", next_task->pid);
 
   if (next_task == current_task) {
-    // Could happen if there is only 1 task
-    // it expires then active list is empty -> in pick_next_task we swap them and the only one available is the task that just ran
-    debugk("[schedule] next_task is same as current_task, resetting runtime and returning\n");
-    current_task->runtime = 0;  // Reset runtime so it doesn't immediately expire again
+    current_task->runtime = 0;
     return;
   }
 
   struct task_t *prev = current_task;
 
-  if (prev->state == TASK_RUNNING) {
+  if (prev->state == TASK_RUNNING)
     prev->state = TASK_READY;
-  }
   next_task->state = TASK_RUNNING;
 
-  debugk("[schedule] Switching from PID %llu (state=%d) to PID %llu (state=%d)\n",
-         prev->pid, prev->state, next_task->pid, next_task->state);
-  debugk("[schedule] next_task kernel_context: sp=0x%llx ra=0x%llx\n",
-         next_task->kernel_context.sp, next_task->kernel_context.ra);
-  debugk("[schedule] ABOUT TO CALL set_current_task\n");
-
   set_current_task(next_task);
-
-  debugk("[schedule] ABOUT TO CALL switch_to(prev=%llu, next=%llu)\n", prev->pid, next_task->pid);
   switch_to(prev, next_task);
 
-  debugk("[schedule] RETURNED after context switch - now running as PID %llu\n", current_task->pid);
-  // When we return here, we've been rescheduled
-  // Just return to caller (either trap_handler or kernel code)
+  /* Sanity check: after resuming, we must be RUNNING (not blocked/stopped). */
+  if (current_task->state != TASK_RUNNING)
+    panic("schedule: resumed task PID=%llu has unexpected state=%d",
+          current_task->pid, current_task->state);
 }
 
 // Called when a newly created task is first scheduled

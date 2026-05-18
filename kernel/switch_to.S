@@ -29,6 +29,13 @@
 #   mm_struct at offset 424
 #     root_satp at offset 424 (first field of mm_struct)
 switch_to:
+    # Disable supervisor interrupts for the duration of the context switch.
+    # A timer interrupt mid-switch (after satp changes but before sp is restored)
+    # would land on the wrong task's kernel stack and corrupt it.
+    # Save SIE state in t2, then clear SIE.
+    csrr t2, sstatus
+    csrci sstatus, 2        # clear SIE (bit 1)
+
     # me->kernel_context is at a0 + 0 (just a0)
     # Check if 'me' is idle task (PID 0)
     # PID is at offset 408 in task_t
@@ -108,6 +115,11 @@ switch_to:
     # trap_return will set sscratch to the real kernel stack top before
     # returning to user mode, so we don't need to do it here.
     csrw sscratch, zero
+
+    # Restore SIE to whatever the caller had (t2 holds the saved sstatus).
+    # Only restore SIE bit (bit 1); leave all other bits as-is from new context.
+    andi t2, t2, 2          # isolate SIE bit from saved sstatus
+    csrs sstatus, t2        # set SIE if it was set before
 
     # Return to next task (jumps to address in ra)
     # This will resume next task at the point where it was switched out

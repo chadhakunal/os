@@ -88,11 +88,54 @@ static void test_sigkill_stopped(void) {
     printf("test_sigkill_stopped: FAIL (waited=%d status=%d)\n", r, status);
 }
 
+/* -----------------------------------------------------------------------
+ * Test 4: Stress test — rapid stop/cont on multiple children to hit
+ * scheduler races (timer firing mid context-switch).
+ * -------------------------------------------------------------------- */
+static void test_stress_stop_cont(void) {
+  printf("test_stress_stop_cont: START\n");
+
+#define N_STRESS 4
+  pid_t kids[N_STRESS];
+
+  for (int i = 0; i < N_STRESS; i++) {
+    kids[i] = fork();
+    if (kids[i] == 0) {
+      /* Spin so we stay schedulable for a while. */
+      for (volatile long j = 0; j < 20000000L; j++);
+      return;
+    }
+  }
+
+  /* Rapidly stop and cont each child several times. */
+  for (int round = 0; round < 8; round++) {
+    for (int i = 0; i < N_STRESS; i++)
+      kill(kids[i], SIGSTOP);
+    for (int i = 0; i < N_STRESS; i++)
+      kill(kids[i], SIGCONT);
+  }
+
+  int pass = 1;
+  for (int i = 0; i < N_STRESS; i++) {
+    int status;
+    pid_t r = waitpid(kids[i], &status, 0);
+    if (r != kids[i] || status != 0) {
+      printf("test_stress_stop_cont: FAIL child %d (waited=%d status=%d)\n",
+             kids[i], r, status);
+      pass = 0;
+    }
+  }
+  if (pass)
+    printf("test_stress_stop_cont: PASS\n");
+#undef N_STRESS
+}
+
 int main(void) {
   printf("=== signal tests ===\n");
   test_sigkill();
   test_sigstop_sigcont();
   test_sigkill_stopped();
+  test_stress_stop_cont();
   printf("=== done ===\n");
   return 0;
 }
