@@ -316,6 +316,14 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_ppoll(tf);
       break;
 
+    case SYS_select:
+      ret = sys_select(tf);
+      break;
+
+    case SYS_pselect6:
+      ret = sys_pselect6(tf);
+      break;
+
     default:
       debugk("syscall: unknown syscall %llu\n", syscall_num);
       tf->a0 = -1; // ENOSYS

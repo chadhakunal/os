@@ -67,6 +67,8 @@
 #define SYS_rt_sigtimedwait  137
 #define SYS_poll             73
 #define SYS_ppoll            89
+#define SYS_select           23
+#define SYS_pselect6         72
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -128,5 +130,7 @@ int64_t sys_rt_sigsuspend(struct trap_frame *tf);
 int64_t sys_rt_sigtimedwait(struct trap_frame *tf);
 int64_t sys_poll(struct trap_frame *tf);
 int64_t sys_ppoll(struct trap_frame *tf);
+int64_t sys_select(struct trap_frame *tf);
+int64_t sys_pselect6(struct trap_frame *tf);
 
 #endif

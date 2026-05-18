@@ -12,6 +12,7 @@
 #include <string.h>
 #include <limits.h>
 #include <poll.h>
+#include <sys/select.h>
 
 char *getcwd(char *buf, size_t size) {
   if (buf == NULL) {
@@ -484,6 +485,22 @@ int poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 int ppoll(struct pollfd *fds, nfds_t nfds, const struct timespec *timeout,
           const sigset_t *sigmask) {
   long ret = syscall4(SYS_ppoll, fds, (long)nfds, timeout, sigmask);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return (int)ret;
+}
+
+int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
+           struct timeval *timeout) {
+  long ret = syscall5(SYS_select, (long)nfds, readfds, writefds, exceptfds, timeout);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return (int)ret;
+}
+
+int pselect(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
+            const struct timespec *timeout, const sigset_t *sigmask) {
+  /* Linux pselect6 arg6 is a {sigset_t *, size_t} pair, not a bare pointer. */
+  struct { const sigset_t *ptr; unsigned long size; } sm = { sigmask, sizeof(sigset_t) };
+  long ret = syscall6(SYS_pselect6, (long)nfds, readfds, writefds, exceptfds, timeout, &sm);
   if (ret < 0) { errno = (int)(-ret); return -1; }
   return (int)ret;
 }

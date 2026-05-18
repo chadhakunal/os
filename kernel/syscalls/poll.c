@@ -78,8 +78,8 @@ static void poll_remove_waiters(struct poll_waiter *waiters, nfds_t nfds) {
 }
 
 /* Core poll logic shared by sys_poll and sys_ppoll. */
-static int64_t do_poll(struct pollfd *kpfds, nfds_t nfds, int timeout_ms,
-                       sigset_t *saved_mask) {
+int64_t do_poll(struct pollfd *kpfds, nfds_t nfds, int timeout_ms,
+                sigset_t *saved_mask) {
   if (saved_mask)
     current_task->signal_state.blocked = *saved_mask;
 

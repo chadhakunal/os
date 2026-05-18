@@ -59,6 +59,8 @@
 #define SYS_rt_sigtimedwait  137
 #define SYS_poll             73
 #define SYS_ppoll            89
+#define SYS_select           23
+#define SYS_pselect6         72
 
 #define syscall0(n) ({ \
   register long _a0 asm("a0"); \

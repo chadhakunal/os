@@ -49,7 +49,6 @@ OSTEST_PRUNE_DIRS := \
 	fmtmsg fnmatch ftw glob iconv \
 	langinfo locale monetary nl_types \
 	mqueue ndbm \
-	sys_select \
 	sched search \
 	sys_ipc sys_msg sys_shm \
 	sys_resource sys_statvfs sys_times sys_utsname sys_uio \
