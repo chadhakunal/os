@@ -103,7 +103,16 @@ static int readline_with_history(const char *prompt, char *out_buf,
 
   while (1) {
     char c;
-    if (read(0, &c, 1) <= 0) continue;
+    if (read(0, &c, 1) <= 0) {
+      if (errno == EINTR) {
+        /* Ctrl-C: erase current input, print ^C on a new line, reshow prompt. */
+        term_erase(line_len);
+        write(1, "^C\n", 3);
+        write(1, prompt, strlen(prompt));
+        line_len = 0;
+      }
+      continue;
+    }
 
     if (c == '\n' || c == '\r') {
       write(1, "\n", 1);
