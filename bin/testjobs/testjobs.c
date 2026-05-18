@@ -200,17 +200,207 @@ static int test_tstp_stress(void) {
 }
 
 /* -----------------------------------------------------------------------
+ * Test 7: SIGCONT on a running process is a no-op — child still exits 0.
+ * -------------------------------------------------------------------- */
+static int test_sigcont_noop(void) {
+  pid_t child = fork();
+  if (child == 0) {
+    for (volatile int i = 0; i < 100000; i++);
+    _exit(0);
+  }
+  for (int i = 0; i < 2; i++) sched_yield();
+  kill(child, SIGCONT);  /* should do nothing, child is already running */
+  int status;
+  pid_t r = waitpid(child, &status, 0);
+  return r == child && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Test 8: stop_reported — WUNTRACED only reports a stop once.
+ * -------------------------------------------------------------------- */
+static int test_stop_reported_once(void) {
+  pid_t child = fork();
+  if (child == 0) {
+    while (1) sched_yield();
+  }
+  for (int i = 0; i < 3; i++) sched_yield();
+  kill(child, SIGTSTP);
+
+  /* First waitpid should report the stop. */
+  int status;
+  pid_t r = 0;
+  for (int i = 0; i < 50; i++) {
+    sched_yield();
+    r = waitpid(child, &status, WUNTRACED | WNOHANG);
+    if (r == child) break;
+  }
+  if (r != child || !WIFSTOPPED(status)) {
+    kill(child, SIGKILL); waitpid(child, NULL, 0); return 0;
+  }
+
+  /* Second waitpid should NOT report the same stop again. */
+  r = waitpid(child, &status, WUNTRACED | WNOHANG);
+  if (r != 0) {
+    kill(child, SIGKILL); waitpid(child, NULL, 0); return 0;
+  }
+
+  kill(child, SIGKILL);
+  waitpid(child, NULL, 0);
+  return 1;
+}
+
+/* -----------------------------------------------------------------------
+ * Test 9: SIGKILL wakes and kills a SIGTSTP-stopped process.
+ * -------------------------------------------------------------------- */
+static int test_sigkill_wakes_stopped(void) {
+  pid_t child = fork();
+  if (child == 0) {
+    while (1) sched_yield();
+  }
+  for (int i = 0; i < 3; i++) sched_yield();
+  kill(child, SIGTSTP);
+
+  int status;
+  pid_t r = 0;
+  for (int i = 0; i < 50; i++) {
+    sched_yield();
+    r = waitpid(child, &status, WUNTRACED | WNOHANG);
+    if (r == child) break;
+  }
+  if (r != child || !WIFSTOPPED(status)) {
+    kill(child, SIGKILL); waitpid(child, NULL, 0); return 0;
+  }
+
+  kill(child, SIGKILL);
+  r = waitpid(child, &status, 0);
+  return r == child && WIFSIGNALED(status) && WTERMSIG(status) == SIGKILL;
+}
+
+/* -----------------------------------------------------------------------
+ * Test 10: Child ignoring SIGTSTP cannot be stopped by it.
+ * -------------------------------------------------------------------- */
+static int test_tstp_ignored(void) {
+  pid_t child = fork();
+  if (child == 0) {
+    signal(SIGTSTP, SIG_IGN);
+    for (volatile int i = 0; i < 5000000; i++);
+    _exit(0);
+  }
+  for (int i = 0; i < 3; i++) sched_yield();
+  kill(child, SIGTSTP);
+  for (int i = 0; i < 5; i++) sched_yield();
+
+  /* Should NOT be stopped — SIGTSTP is ignored. */
+  int status;
+  pid_t r = waitpid(child, &status, WUNTRACED | WNOHANG);
+  if (r == child && WIFSTOPPED(status)) {
+    kill(child, SIGKILL); waitpid(child, NULL, 0); return 0;
+  }
+
+  /* Wait for natural exit. */
+  r = waitpid(child, &status, 0);
+  return r == child && WIFEXITED(status) && WEXITSTATUS(status) == 0;
+}
+
+/* -----------------------------------------------------------------------
+ * Test 11: Stop a child that is blocked in a pipe read — SIGCONT unblocks it.
+ * -------------------------------------------------------------------- */
+static int test_tstp_pipe_blocked(void) {
+  int fds[2];
+  if (pipe(fds) < 0) return 0;
+
+  pid_t child = fork();
+  if (child == 0) {
+    close(fds[1]);
+    char buf[1];
+    read(fds[0], buf, 1);  /* blocks until parent writes */
+    close(fds[0]);
+    _exit(buf[0]);
+  }
+  close(fds[0]);
+
+  for (int i = 0; i < 3; i++) sched_yield();
+  kill(child, SIGTSTP);
+
+  int status;
+  pid_t r = 0;
+  for (int i = 0; i < 50; i++) {
+    sched_yield();
+    r = waitpid(child, &status, WUNTRACED | WNOHANG);
+    if (r == child) break;
+  }
+  if (r != child || !WIFSTOPPED(status)) {
+    close(fds[1]); kill(child, SIGKILL); waitpid(child, NULL, 0); return 0;
+  }
+
+  /* Resume then write to unblock the pipe read. */
+  kill(child, SIGCONT);
+  char val = 42;
+  write(fds[1], &val, 1);
+  close(fds[1]);
+
+  r = waitpid(child, &status, 0);
+  return r == child && WIFEXITED(status) && WEXITSTATUS(status) == 42;
+}
+
+/* -----------------------------------------------------------------------
+ * Test 12: Stress — interleaved SIGTSTP/SIGCONT with concurrent children.
+ * -------------------------------------------------------------------- */
+static int test_tstp_interleaved_stress(void) {
+#define N_IL 6
+  pid_t kids[N_IL];
+  for (int i = 0; i < N_IL; i++) {
+    kids[i] = fork();
+    if (kids[i] == 0) {
+      while (1) sched_yield();
+    }
+  }
+
+  /* Stop odd-indexed, leave even running, then swap. */
+  for (int round = 0; round < 4; round++) {
+    for (int i = 0; i < 3; i++) sched_yield();
+    for (int i = 0; i < N_IL; i++) {
+      if (i % 2 == round % 2)
+        kill(kids[i], SIGTSTP);
+      else
+        kill(kids[i], SIGCONT);
+    }
+  }
+
+  /* Resume all then kill. */
+  for (int i = 0; i < N_IL; i++) kill(kids[i], SIGCONT);
+  for (int i = 0; i < 3; i++) sched_yield();
+
+  int pass = 1;
+  for (int i = 0; i < N_IL; i++) {
+    kill(kids[i], SIGKILL);
+    int status;
+    pid_t r = waitpid(kids[i], &status, 0);
+    if (r != kids[i] || !WIFSIGNALED(status) || WTERMSIG(status) != SIGKILL)
+      pass = 0;
+  }
+  return pass;
+#undef N_IL
+}
+
+/* -----------------------------------------------------------------------
  * Runner
  * -------------------------------------------------------------------- */
 typedef int (*test_fn)(void);
 
 static struct { const char *name; test_fn fn; } tests[] = {
-  { "test_tstp_wuntraced",    test_tstp_wuntraced    },
-  { "test_tstp_resume_exit",  test_tstp_resume_exit  },
-  { "test_tstp_pgid",         test_tstp_pgid         },
-  { "test_tstp_multi_cycle",  test_tstp_multi_cycle  },
-  { "test_sigstop_wuntraced", test_sigstop_wuntraced },
-  { "test_tstp_stress",       test_tstp_stress       },
+  { "test_tstp_wuntraced",         test_tstp_wuntraced         },
+  { "test_tstp_resume_exit",       test_tstp_resume_exit       },
+  { "test_tstp_pgid",              test_tstp_pgid              },
+  { "test_tstp_multi_cycle",       test_tstp_multi_cycle       },
+  { "test_sigstop_wuntraced",      test_sigstop_wuntraced      },
+  { "test_tstp_stress",            test_tstp_stress            },
+  { "test_sigcont_noop",           test_sigcont_noop           },
+  { "test_stop_reported_once",     test_stop_reported_once     },
+  { "test_sigkill_wakes_stopped",  test_sigkill_wakes_stopped  },
+  { "test_tstp_ignored",           test_tstp_ignored           },
+  { "test_tstp_pipe_blocked",      test_tstp_pipe_blocked      },
+  { "test_tstp_interleaved_stress",test_tstp_interleaved_stress},
 };
 
 int main(void) {
