@@ -32,9 +32,6 @@ static int fdset_isset(struct kern_fd_set *s, int fd) {
   return !!(s->fds_bits[fd / ULONG_BITS] & (1UL << (fd % ULONG_BITS)));
 }
 
-static void fdset_clr(struct kern_fd_set *s, int fd) {
-  s->fds_bits[fd / ULONG_BITS] &= ~(1UL << (fd % ULONG_BITS));
-}
 
 /*
  * Core: convert fd_sets to pollfd array, call do_poll, write results back.
