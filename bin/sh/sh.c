@@ -686,6 +686,9 @@ int parse_and_exec(char *buf) {
     int status = 0;
     pid_t waited;
     do { waited = waitpid(pid, &status, 0); } while (waited < 0 && errno == EINTR);
+    /* Clean up any leftover members of the job's process group (e.g.
+     * children that called setpgid into a sub-group of the job). */
+    kill(-pid, SIGHUP);
     tcsetpgrp(0, getpid());
     ioctl(0, TCSRAW, (void *)0);
     return WEXITSTATUS(status);
