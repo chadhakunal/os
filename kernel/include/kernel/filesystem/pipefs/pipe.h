@@ -22,7 +22,7 @@ DEFINE_POOL(pipe_t, struct pipe_t)
 
 struct pipe_t *pipe_create(void);
 
-int64_t pipe_read (struct pipe_t *pipe, void *user_buf, uint64_t size);
+int64_t pipe_read (struct pipe_t *pipe, void *user_buf, uint64_t size, bool nonblock);
 int64_t pipe_write(struct pipe_t *pipe, const void *kernel_buf, uint64_t size);
 
 /* is_write_end: 1 = write end closing, 0 = read end closing */

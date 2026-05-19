@@ -175,7 +175,7 @@ int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
   }
 
   if (file->pipe != NULL)
-    return pipe_read(file->pipe, buffer, size);
+    return pipe_read(file->pipe, buffer, size, !!(file->flags & O_NONBLOCK));
 
   if (IS_DIR(file->vnode->permission_mode))
     return -EISDIR;

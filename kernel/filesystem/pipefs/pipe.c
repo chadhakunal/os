@@ -19,7 +19,7 @@ struct pipe_t *pipe_create(void) {
   return p;
 }
 
-int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size) {
+int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size, bool nonblock) {
   uint8_t *dst = (uint8_t *)user_buf;
   uint64_t copied = 0;
 
@@ -27,6 +27,9 @@ int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size) {
   while (pipe->len == 0) {
     if (pipe->writer_count == 0)
       return 0; /* EOF */
+
+    if (nonblock)
+      return -EAGAIN;
 
     list_append(&pipe->wait_queue, &current_task->wait_list);
     current_task->wait_reason = WAIT_IO;
