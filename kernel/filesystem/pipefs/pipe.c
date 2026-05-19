@@ -19,6 +19,27 @@ struct pipe_t *pipe_create(void) {
   return p;
 }
 
+/* Returns true if any pending+unblocked signal will actually interrupt the
+ * syscall — i.e., it has a custom handler or a terminating default action.
+ * Signals whose default action is to be discarded (SIGCHLD, SIGCONT, SIGURG,
+ * SIGWINCH) are excluded because send_signal() never wakes WAIT_IO tasks for
+ * them; they accumulate in pending but must not cause -EINTR. */
+static bool has_interrupting_signal(struct signal_state_t *s) {
+  sigset_t pending = s->pending & ~s->blocked;
+  for (int sig = 1; sig < NUM_SIGS; sig++) {
+    if (!sig_in_set(&pending, sig))
+      continue;
+    struct sigaction_t *act = s->actions[sig];
+    bool is_ign = (act == (struct sigaction_t *)SIG_IGNORE);
+    bool is_dfl_discard =
+        (act == NULL || act == (struct sigaction_t *)SIG_DEFAULT_HANDLER) &&
+        (sig == SIGCHLD || sig == SIGCONT || sig == SIGURG || sig == SIGWINCH);
+    if (!is_ign && !is_dfl_discard)
+      return true;
+  }
+  return false;
+}
+
 int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size, bool nonblock) {
   uint8_t *dst = (uint8_t *)user_buf;
   uint64_t copied = 0;
@@ -36,9 +57,7 @@ int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size, bool nonbl
     current_task->state       = TASK_BLOCKED;
     schedule();
     asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
-    sigset_t _pending = current_task->signal_state.pending
-                        & ~current_task->signal_state.blocked;
-    if (_pending)
+    if (has_interrupting_signal(&current_task->signal_state))
       return -EINTR;
   }
 
@@ -80,9 +99,7 @@ int64_t pipe_write(struct pipe_t *pipe, const void *kernel_buf, uint64_t size) {
       current_task->state       = TASK_BLOCKED;
       schedule();
       asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
-      sigset_t _pending = current_task->signal_state.pending
-                          & ~current_task->signal_state.blocked;
-      if (_pending)
+      if (has_interrupting_signal(&current_task->signal_state))
         return written > 0 ? (int64_t)written : -EINTR;
     }
 
