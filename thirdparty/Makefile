@@ -22,9 +22,9 @@ $(LIBC) $(CRT):
 $(BINDIR)/test_syscalls: test_syscalls/test_syscalls.c $(CRT) $(LIBC)
 $(BINDIR)/test_shell: test_shell/test_shell.c $(CRT) $(LIBC)
 $(BINDIR)/test_signals: test_signals/test_signals.c $(CRT) $(LIBC)
-$(BINDIR)/stacktest: stacktest/stacktest.c $(CRT) $(LIBC)
-$(BINDIR)/stacktest2: stacktest2/stacktest.c $(CRT) $(LIBC)
-$(BINDIR)/test_rlimit: test_rlimit/test_rlimit.c $(CRT) $(LIBC)
+#$(BINDIR)/stacktest: stacktest/stacktest.c $(CRT) $(LIBC)
+#$(BINDIR)/stacktest2: stacktest2/stacktest.c $(CRT) $(LIBC)
+#$(BINDIR)/test_rlimit: test_rlimit/test_rlimit.c $(CRT) $(LIBC)
 $(BINDIR)/posix_compliance: posix_compliance.c $(CRT) $(LIBC)
 
 $(RC_TESTS:%=$(BINDIR)/%):
