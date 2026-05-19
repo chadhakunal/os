@@ -58,6 +58,14 @@ echo "Skipping stacktest2 (/bin/stacktest2 not installed)"
 fi
 
 echo ""
+if [ -x /bin/test_oom ]; then
+echo "Running test_oom..."
+/bin/test_oom
+else
+echo "Skipping test_oom (/bin/test_oom not installed)"
+fi
+
+echo ""
 echo "========================================="
 echo "  Initialization Complete"
 echo "========================================="
