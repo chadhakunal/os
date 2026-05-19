@@ -5,15 +5,18 @@
 #include "kernel/filesystem/mode.h"
 #include "lib/list.h"
 #include "lib/string.h"
+#include "lib/printk/printk.h"
 #include "errno.h"
 
 static int64_t null_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   (void)file; (void)offset; (void)buffer; (void)size;
+  printk("[devfs] null_read called, returning 0\n");
   return 0; /* always EOF */
 }
 
 static int64_t null_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   (void)file; (void)offset; (void)buffer;
+  printk("[devfs] null_write called, size=%llu\n", (uint64_t)size);
   return (int64_t)size; /* discard, claim success */
 }
 

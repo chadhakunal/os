@@ -233,11 +233,15 @@ int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
     return vfs_vnode_write(file->vnode, buffer, size, offset);
   }
 
-  debugk("vfs_write: taking file_ops path, file_ops=%p\n", file->file_ops);
+  debugk("vfs_write: taking file_ops path, file_ops=%p write=%p\n",
+         file->file_ops, file->file_ops ? file->file_ops->write : (void*)0);
   if (file->file_ops == NULL || file->file_ops->write == NULL)
     panic("vfs_write: no write path available\n");
 
-  return file->file_ops->write(file, offset, buffer, size);
+  debugk("vfs_write: calling file_ops->write\n");
+  int64_t ret = file->file_ops->write(file, offset, buffer, size);
+  debugk("vfs_write: file_ops->write returned %lld\n", ret);
+  return ret;
 }
 
 static int64_t vfs_open_dentry(struct dentry_t *dentry, int flags, struct file_t **file) {
