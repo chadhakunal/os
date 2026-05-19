@@ -20,11 +20,7 @@ int64_t null_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t 
   return (int64_t)size; /* discard, claim success */
 }
 
-static struct file_ops_t null_file_ops = {
-  .read  = null_read,
-  .write = null_write,
-  .ioctl = NULL,
-};
+static struct file_ops_t null_file_ops;
 
 int64_t vda_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   uint64_t sector = offset / SECTOR_BLOCK_SIZE;
@@ -38,11 +34,7 @@ int64_t vda_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
   return virtio_blk_write(sector, buffer, num_sectors) == 0 ? (int64_t)size : -1;
 }
 
-static struct file_ops_t vda_file_ops = {
-  .read  = vda_read,
-  .write = vda_write,
-  .ioctl = NULL,
-};
+static struct file_ops_t vda_file_ops;
 
 static int64_t devfs_lookup(const char *name, struct vnode_t *dir, struct dentry_t **out) {
   list_for_each(&dir->children_dentries, pos) {
@@ -127,6 +119,16 @@ struct vnode_t *build_devfs(struct superblock_t *superblock) {
 }
 
 struct superblock_t *devfs_mount() {
+  /* Initialize ops at runtime so function pointers use the higher-half
+   * virtual addresses, not the boot-time physical link addresses. */
+  null_file_ops.read  = null_read;
+  null_file_ops.write = null_write;
+  null_file_ops.ioctl = NULL;
+
+  vda_file_ops.read  = vda_read;
+  vda_file_ops.write = vda_write;
+  vda_file_ops.ioctl = NULL;
+
   struct superblock_t *superblock = superblock_t_alloc();
   // devfs doesn't use superblock file_ops (devices override per-vnode)
   superblock->file_ops.read = NULL;
