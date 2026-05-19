@@ -10,6 +10,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <signal.h>
 
 /* -------------------------------------------------------------------------
  * Constants
@@ -19,6 +20,42 @@
 #define HISTORY_FILE      "/.history"
 #define SCRIPT_BUF_SIZE   65536
 #define MAX_SCRIPT_LINES  2048
+#define MAX_JOBS          16
+
+/* -------------------------------------------------------------------------
+ * Job table
+ * ---------------------------------------------------------------------- */
+struct job {
+  pid_t  pid;
+  int    id;
+  char   cmd[COMMAND_BUF_SIZE];
+};
+
+static struct job jobs[MAX_JOBS];
+static int        njobs = 0;
+
+static void job_add(pid_t pid, const char *cmd) {
+  if (njobs >= MAX_JOBS) return;
+  int id = njobs + 1;
+  jobs[njobs].pid = pid;
+  jobs[njobs].id  = id;
+  strncpy(jobs[njobs].cmd, cmd, COMMAND_BUF_SIZE - 1);
+  jobs[njobs].cmd[COMMAND_BUF_SIZE - 1] = '\0';
+  njobs++;
+}
+
+static void job_remove(pid_t pid) {
+  for (int i = 0; i < njobs; i++) {
+    if (jobs[i].pid == pid) {
+      jobs[i] = jobs[--njobs];
+      return;
+    }
+  }
+}
+
+static struct job *job_find_last_stopped(void) {
+  return njobs > 0 ? &jobs[njobs - 1] : NULL;
+}
 
 /* -------------------------------------------------------------------------
  * History subsystem
@@ -121,14 +158,21 @@ static int readline_with_history(const char *prompt, char *out_buf,
   while (1) {
     char c;
     if (read(0, &c, 1) <= 0) {
-      if (errno == EINTR) {
-        /* Ctrl-C: clear input, print ^C, reshow prompt. */
-        if (pos < line_len) term_move(line_len - pos, 0);
-        for (int i = 0; i < line_len; i++) write(1, "\b \b", 3);
-        write(1, "^C\n", 3);
-        write(1, prompt, strlen(prompt));
-        line_len = 0; pos = 0;
-      }
+      continue;
+    }
+
+    /* Ctrl-C — clear line, reshow prompt */
+    if (c == 0x03) {
+      if (pos < line_len) term_move(line_len - pos, 0);
+      for (int i = 0; i < line_len; i++) write(1, "\b \b", 3);
+      write(1, "^C\n", 3);
+      write(1, prompt, strlen(prompt));
+      line_len = 0; pos = 0;
+      continue;
+    }
+
+    /* Ctrl-Z — ignore silently (SIGTSTP already sent to foreground PGID by TTY) */
+    if (c == 0x1a) {
       continue;
     }
 
@@ -1113,6 +1157,49 @@ static int builtin_history(void) {
   return 0;
 }
 
+static int builtin_jobs(void) {
+  for (int i = 0; i < njobs; i++)
+    printf("[%d]+ Stopped  %s\n", jobs[i].id, jobs[i].cmd);
+  return 0;
+}
+
+static int builtin_fg(int argc, char *argv[]) {
+  struct job *j = NULL;
+  if (argc >= 2) {
+    int id = atoi(argv[1]);
+    for (int i = 0; i < njobs; i++) {
+      if (jobs[i].id == id) { j = &jobs[i]; break; }
+    }
+  } else {
+    j = job_find_last_stopped();
+  }
+  if (!j) { printf("fg: no current job\n"); return 1; }
+
+  pid_t pid = j->pid;
+  char cmd[COMMAND_BUF_SIZE];
+  strncpy(cmd, j->cmd, COMMAND_BUF_SIZE - 1);
+  cmd[COMMAND_BUF_SIZE - 1] = '\0';
+  job_remove(pid);
+
+  printf("%s\n", cmd);
+  tcsetpgrp(0, pid);
+  kill(-pid, SIGCONT);
+
+  int status = 0;
+  pid_t waited;
+  do { waited = waitpid(pid, &status, WUNTRACED); } while (waited < 0 && errno == EINTR);
+
+  if (WIFSTOPPED(status)) {
+    job_add(pid, cmd);
+    printf("\n[%d]+ Stopped  %s\n", njobs, cmd);
+  } else {
+    kill(-pid, SIGHUP);
+  }
+  tcsetpgrp(0, getpid());
+  ioctl(0, TCSRAW, (void *)0);
+  return WIFEXITED(status) ? WEXITSTATUS(status) : 0;
+}
+
 /* -------------------------------------------------------------------------
  * Command parser / executor
  * ---------------------------------------------------------------------- */
@@ -1369,6 +1456,10 @@ int parse_and_exec(char *buf) {
     return builtin_pwd();
   if (strcmp("history", command_buf) == 0)
     return builtin_history();
+  if (strcmp("jobs", command_buf) == 0)
+    return builtin_jobs();
+  if (strcmp("fg", command_buf) == 0)
+    return builtin_fg(argc, argv);
   if (strcmp("exit", command_buf) == 0) {
     int code = 0;
     if (argc > 1)
@@ -1433,9 +1524,17 @@ int parse_and_exec(char *buf) {
     tcsetpgrp(0, pid);
     int status = 0;
     pid_t waited;
-    do { waited = waitpid(pid, &status, 0); } while (waited < 0 && errno == EINTR);
-    /* Clean up any leftover members of the job's process group (e.g.
-     * children that called setpgid into a sub-group of the job). */
+    do { waited = waitpid(pid, &status, WUNTRACED); } while (waited < 0 && errno == EINTR);
+
+    if (WIFSTOPPED(status)) {
+      job_add(pid, command_buf);
+      printf("\n[%d]+ Stopped  %s\n", njobs, command_buf);
+      tcsetpgrp(0, getpid());
+      ioctl(0, TCSRAW, (void *)0);
+      return 0;
+    }
+
+    /* Clean up any leftover members of the job's process group. */
     kill(-pid, SIGHUP);
     tcsetpgrp(0, getpid());
     ioctl(0, TCSRAW, (void *)0);
@@ -1495,8 +1594,12 @@ int main(int argc, char **argv, char **envp) {
 
   // Interactive mode
   (void)envp;
+  setpgid(0, 0);
   pid_t shell_pgid = getpid();
   tcsetpgrp(0, shell_pgid);
+
+  signal(SIGINT,  SIG_IGN);
+  signal(SIGTSTP, SIG_IGN);
 
   history_load();
   ioctl(0, TCSRAW, (void*)0);
