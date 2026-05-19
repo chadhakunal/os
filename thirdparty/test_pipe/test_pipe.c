@@ -177,11 +177,6 @@ static void test_epipe(void) {
   if (pid == 0) {
     /* Close read end in child — now no readers anywhere after parent closes. */
     close(fds[0]);
-    /* Wait for parent to signal it has closed everything. */
-    char sync;
-    /* Use the write-end as a sync channel: parent closes its write end,
-     * which is harmless since we check errno, not read data. */
-    /* Actually: parent closes both fds[0] and fds[1] then we proceed. */
     ssize_t r = write(fds[1], "x", 1);
     int got_epipe = (r < 0 && errno == EPIPE);
     close(fds[1]);
