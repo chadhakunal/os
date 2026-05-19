@@ -11,7 +11,8 @@ LIBC := $(ROOT)/build/libc.a
 BINDIR := $(ROOT)/build/rootfs/bin
 
 RC_TESTS := test_syscalls test_shell test_signals stacktest stacktest2 test_rlimit posix_compliance \
-	testjobs testsignal test_dprintf test_long_wait test_mmap test_pipe test_sleep test-kernel
+	testjobs testsignal test_dprintf test_long_wait test_mmap test_pipe test_sleep test-kernel \
+	test_devnull
 
 .PHONY: install os-tests-sortix-clone os-tests-build os-tests-install
 
@@ -35,6 +36,7 @@ $(BINDIR)/test_mmap:        test_mmap/test_mmap.c $(CRT) $(LIBC)
 $(BINDIR)/test_pipe:        test_pipe/test_pipe.c $(CRT) $(LIBC)
 $(BINDIR)/test_sleep:       test_sleep/test_sleep.c $(CRT) $(LIBC)
 $(BINDIR)/test-kernel:      test-kernel/test-kernel.c $(CRT) $(LIBC)
+$(BINDIR)/test_devnull:     test_devnull/test_devnull.c $(CRT) $(LIBC)
 
 $(RC_TESTS:%=$(BINDIR)/%):
 	@mkdir -p $(BINDIR)
