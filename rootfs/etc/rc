@@ -66,6 +66,14 @@ echo "Skipping test_oom (/bin/test_oom not installed)"
 fi
 
 echo ""
+if [ -x /bin/test_oom_vs_enomem ]; then
+echo "Running test_oom_vs_enomem..."
+/bin/test_oom_vs_enomem
+else
+echo "Skipping test_oom_vs_enomem (/bin/test_oom_vs_enomem not installed)"
+fi
+
+echo ""
 echo "========================================="
 echo "  Initialization Complete"
 echo "========================================="
