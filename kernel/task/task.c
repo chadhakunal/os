@@ -332,8 +332,11 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
   if (eager) {
     for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
       void *phys_page = get_zero_page(false);
-      if (phys_page == NULL) {
-        panic("anon_memory_map: failed to allocate zero page\n");
+      if (!phys_page)
+        phys_page = get_page(false);
+      if (!phys_page) {
+        oom_kill_current();
+        return -ENOMEM;
       }
 
       // Convert VM flags to PTE flags
@@ -524,6 +527,15 @@ void reap_zombie(struct task_t *zombie) {
 
   // Free the task structure
   task_t_free(zombie);
+}
+
+void oom_kill_current(void) {
+  printk("OOM: killing PID %llu\n", current_task->pid);
+  if (current_task->pid == 1)
+    panic("OOM: init (PID 1) ran out of memory");
+  send_signal(current_task, SIGKILL);
+  /* Return normally — the trap handler will deliver SIGKILL before
+   * returning to userspace via check_and_deliver_signals. */
 }
 
 void task_cleanup(int exit_status) {

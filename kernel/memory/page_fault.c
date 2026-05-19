@@ -59,7 +59,7 @@ static void handle_cow_fault(uint64_t fault_addr, uint64_t faulting_pte) {
     // Shared — allocate a private copy
     new_phys = get_page(false);
     if (!new_phys)
-      panic("handle_cow_fault: OOM");
+      oom_kill_current();
     memcpy(PHYS_TO_VIRT(new_phys), PHYS_TO_VIRT(old_phys), DEFAULT_PAGE_SIZE);
     page_decref(old_phys); // Release our share of the old page
   }
@@ -157,6 +157,13 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
   } else {
     debugk("Anonymous page fault\n");
     phys_page = get_zero_page(false);
+    if (!phys_page)
+      phys_page = get_page(false);
+  }
+
+  if (!phys_page) {
+    oom_kill_current();
+    return -1;
   }
 
   uint64_t pte_flags = vma_to_pte_flags(vma->vm_flags);

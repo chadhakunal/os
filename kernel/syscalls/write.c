@@ -48,10 +48,8 @@ DEFINE_SYSCALL3(write, int, fd, const void *, buf, size_t, count) {
   debugk("write syscall: allocating page\n");
   // Allocate kernel buffer for safe user data access
   void *phys_page = get_page(false);
-  if (!phys_page) {
-    debugk("write syscall: page allocation failed\n");
-    return -1;
-  }
+  if (!phys_page)
+    return -ENOMEM;
 
   // Convert physical address to virtual address for kernel access
   char *kernel_buf = (char *)PHYS_TO_VIRT(phys_page);

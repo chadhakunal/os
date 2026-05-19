@@ -99,7 +99,9 @@ void print_pages_metadata() {
   }
 }
 
-// Returns physical address of allocated page
+// Returns physical address of allocated page.
+// is_kernel=true: panics on OOM (kernel path, unrecoverable).
+// is_kernel=false: returns NULL on OOM (user path, caller kills the process).
 void *get_page(bool is_kernel) {
   page_t *first_free_page = pages_metadata.free_page_head;
 
@@ -107,7 +109,9 @@ void *get_page(bool is_kernel) {
   if (first_free_page == NULL) {
     first_free_page = pages_metadata.zero_page_head;
     if (first_free_page == NULL) {
-      panic("ATTEMPTED TO get_page, RAN OUT OF FREE PAGES");
+      if (is_kernel)
+        panic("OOM: kernel ran out of pages");
+      return NULL;
     }
     pages_metadata.zero_page_head = first_free_page->next_free_page;
   } else {
