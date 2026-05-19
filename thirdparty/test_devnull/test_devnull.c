@@ -33,10 +33,15 @@ int main(void) {
    * 2. write to /dev/null — must discard and return size
    * -------------------------------------------------------------------- */
   if (fd >= 0) {
-    /* Write 1 byte first to rule out size-related issues */
-    SAY("  [2a] write 1 byte ...\n");
-    ssize_t n = write(fd, "x", 1);
-    SAY("  [2a] write returned n=%zd errno=%d\n", n, errno);
+    /* Raw syscall to bypass libc — isolates kernel from libc */
+    SAY("  [2a] write 1 byte (raw ecall) ...\n");
+    register long _a0 asm("a0") = fd;
+    register long _a1 asm("a1") = (long)"x";
+    register long _a2 asm("a2") = 1;
+    register long _a7 asm("a7") = 64; /* SYS_write */
+    asm volatile("ecall" : "+r"(_a0) : "r"(_a1), "r"(_a2), "r"(_a7) : "memory");
+    ssize_t n = (ssize_t)_a0;
+    SAY("  [2a] raw ecall returned n=%zd\n", n);
     if (n != 1)
       FAIL("write_1byte", "expected 1, got %zd errno=%d", n, errno);
     else
