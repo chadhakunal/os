@@ -70,7 +70,7 @@ static void fmt_time(unsigned long long sec, char out[17]) {
 static void list_dir(const char *path, int long_fmt) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
-    printf("ls: cannot open '%s'\n", path);
+    fprintf(stderr, "ls: cannot open '%s'\n", path);
     return;
   }
 
