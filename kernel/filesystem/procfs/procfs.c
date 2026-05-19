@@ -304,7 +304,7 @@ static int64_t procfs_pid_readdir(struct vnode_t *dir, uint32_t index,
 static int64_t procfs_pid_lookup(const char *name, struct vnode_t *parent,
                                  struct dentry_t **out) {
   uint64_t pid = (uint64_t)parent->fs_private_vnode;
-  if (strncmp(name, "status", sizeof("status")) == 0) {
+  if (strcmp(name, "status") == 0) {
     struct vnode_t *vnode = vnode_t_alloc();
     vfs_init_vnode(vnode, parent->superblock, 0);
     vnode->permission_mode  = S_IFREG | READ_EXECUTE_PERM;
@@ -316,7 +316,7 @@ static int64_t procfs_pid_lookup(const char *name, struct vnode_t *parent,
     *out = d;
     return 0;
   }
-  if (strncmp(name, "fd", sizeof("fd")) == 0) {
+  if (strcmp(name, "fd") == 0) {
     *out = proc_make_fd_dir_dentry(parent->superblock, pid);
     return 0;
   }
