@@ -168,14 +168,6 @@ FILE *fopen(const char *path, const char *mode) {
 
 FILE *freopen(const char *path, const char *mode, FILE *stream) {
   if (!stream) return NULL;
-  _flush(stream);
-  if (!stream->memonly && stream->fd >= 0)
-    close(stream->fd);
-  stream->fd     = -1;
-  stream->eof    = 0;
-  stream->err    = 0;
-  stream->memonly = 0;
-  stream->wbuf_len = 0;
 
   int flags;
   if (mode[0] == 'r')
@@ -185,9 +177,23 @@ FILE *freopen(const char *path, const char *mode, FILE *stream) {
   else
     flags = O_WRONLY | O_CREAT | O_APPEND | (mode[1] == '+' ? O_RDWR : 0);
 
+  /* Open first — don't touch the stream until we know it succeeded */
   int fd = open(path, flags, 0666);
   if (fd < 0) return NULL;
-  stream->fd = fd;
+
+  _flush(stream);
+  stream->eof      = 0;
+  stream->err      = 0;
+  stream->memonly  = 0;
+  stream->wbuf_len = 0;
+
+  if (stream->fd >= 0 && fd != stream->fd) {
+    /* Transplant onto the existing fd number (musl-style: dup2 + close tmp) */
+    dup2(fd, stream->fd);
+    close(fd);
+  } else {
+    stream->fd = fd;
+  }
   return stream;
 }
 

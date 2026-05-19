@@ -56,7 +56,11 @@ static int64_t devfs_lookup(const char *name, struct vnode_t *dir, struct dentry
 static int64_t devfs_create(const char *name, struct vnode_t *dir,
                              struct dentry_t **out, uint32_t mode) {
   (void)mode;
-  return devfs_lookup(name, dir, out) == 0 ? -EEXIST : -EPERM;
+  /* devfs entries are fixed — existing name → EEXIST, new name → EPERM */
+  if (devfs_lookup(name, dir, out) == 0)
+    return -EEXIST;
+  *out = NULL;
+  return -EPERM;
 }
 
 static int64_t devfs_readdir(struct vnode_t *dir, uint32_t index, struct dentry_t **out) {
