@@ -1,0 +1,135 @@
+#!/bin/sh
+# Shell feature test script.
+# Run with: source /etc/test_source
+
+echo "=== shell feature test ==="
+
+# 1. Variable assignment and $VAR expansion
+GREETING=hello
+echo "1. var: $GREETING"
+
+# 2. Braced variable expansion
+NAME=world
+echo "2. braced: ${NAME}"
+
+# 3. $? last exit status
+true
+echo "3. after true: $?"
+false
+echo "3. after false: $?"
+
+# 4. export + child inherits env
+export MYVAR=exported
+echo "4. exported: $MYVAR"
+
+# 5. unset
+TMPVAR=gone
+unset TMPVAR
+echo "5. after unset: '$TMPVAR'"
+
+# 6. read builtin
+echo "6. read test (sending via echo pipe):"
+echo "hello from read" > /tmp/read_input
+read LINE < /tmp/read_input
+echo "   read got: $LINE"
+
+# 7. $# and $@
+echo "7. argc=$# args=$@"
+
+# 8. Command substitution $()
+CWD=$(pwd)
+echo "8. pwd via subst: $CWD"
+
+# 9. Backtick substitution
+CWD2=`pwd`
+echo "9. pwd via backtick: $CWD2"
+
+# 10. Pipes
+echo "10. pipe test:"
+echo "hello pipe world" | cat
+
+# 11. Stderr redirect
+echo "11. stderr to file:"
+ls /nonexistent 2> /tmp/err_out
+cat /tmp/err_out
+
+# 12. 2>&1
+echo "12. stderr to stdout:"
+ls /nonexistent 2>&1
+
+# 13. for loop
+echo "13. for loop:"
+for F in a b c
+do
+  echo "   item=$F"
+done
+
+# 14. cd changes cwd in sourced file
+cd /tmp
+echo "14. cwd after cd: $(pwd)"
+cd /
+
+# 15. Nested source
+echo "echo 15. nested source works" > /tmp/nested_src
+source /tmp/nested_src
+
+# 16. Append redirect
+echo "16. append redirect:"
+echo "line1" > /tmp/append_test
+echo "line2" >> /tmp/append_test
+cat /tmp/append_test
+
+# 17. Multiple var expansion in one line
+A=one
+B=two
+echo "17. multi expand: $A and $B"
+
+# 18. Quoted string with spaces
+X="hello world"
+echo "18. quoted: $X"
+
+# 19. Exit status of failed command
+false
+echo "19. false exit: $?"
+true
+echo "19. true exit: $?"
+
+# 20. Command not found exit status
+nonexistent_cmd_xyz 2>/dev/null
+echo "20. not found: $?"
+
+# 21. Nested command substitution
+INNER=$(echo inner)
+echo "21. nested subst: $INNER"
+
+# 22. if/else true branch
+echo "22. if/else:"
+if test 1 -eq 1
+then
+  echo "   true branch ok"
+else
+  echo "   false branch (wrong)"
+fi
+
+# 23. if/else false branch
+if test 1 -eq 2
+then
+  echo "   true branch (wrong)"
+else
+  echo "   false branch ok"
+fi
+
+# 24. Glob expansion
+echo "24. glob /tmp/*:"
+echo "gfile1" > /tmp/gfile1
+echo "gfile2" > /tmp/gfile2
+for F in /tmp/gfile*
+do
+  echo "   $F"
+done
+
+# 25. Pipeline exit status (last command)
+true | false
+echo "25. pipe exit: $?"
+
+echo "=== done ==="

@@ -18,6 +18,9 @@ void vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id)
   vnode->owner_gid = 0;
   vnode->permission_mode = 0;
   vnode->size = 0;
+  vnode->mtime = 0;
+  vnode->mounted_vnode = NULL;
+  vnode->address_space = NULL;
   vnode->children_dentries.next = &vnode->children_dentries;
   vnode->children_dentries.prev = &vnode->children_dentries;
   vnode->fs_private_vnode = NULL;
@@ -379,8 +382,10 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dentry, struct dent
     return -ENOENT;
   }
 
+  debugk("[vfs_lookup] '%s' not in children_dentries, calling fs lookup (parent vnode=%p)\n", name, parent_dir);
   int32_t ret = parent_dir->vnode_ops->lookup(name, parent_dir, out);
   if (ret != 0 || *out == NULL) {
+    debugk("[vfs_lookup] '%s' not found in cache or fs (ret=%d)\n", name, ret);
     *out = NULL;
     return -ENOENT;
   }
