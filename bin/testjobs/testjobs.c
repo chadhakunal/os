@@ -389,6 +389,35 @@ static int test_tstp_interleaved_stress(void) {
 }
 
 /* -----------------------------------------------------------------------
+ * Test 13: Race — SIGTSTP sent immediately after fork before parent
+ * has had a chance to set tcsetpgrp. Child should still be stoppable.
+ * -------------------------------------------------------------------- */
+static int test_tstp_immediate_after_fork(void) {
+  pid_t child = fork();
+  if (child == 0) {
+    setpgid(0, 0);
+    while (1) sched_yield();
+  }
+  /* No sched_yield — send SIGTSTP as fast as possible after fork. */
+  setpgid(child, child);
+  kill(child, SIGTSTP);
+
+  int status;
+  pid_t r = 0;
+  for (int i = 0; i < 100; i++) {
+    sched_yield();
+    r = waitpid(child, &status, WUNTRACED | WNOHANG);
+    if (r == child) break;
+  }
+  if (r != child || !WIFSTOPPED(status)) {
+    kill(child, SIGKILL); waitpid(child, NULL, 0); return 0;
+  }
+  kill(child, SIGKILL);
+  waitpid(child, NULL, 0);
+  return 1;
+}
+
+/* -----------------------------------------------------------------------
  * Runner
  * -------------------------------------------------------------------- */
 typedef int (*test_fn)(void);
@@ -405,7 +434,8 @@ static struct { const char *name; test_fn fn; } tests[] = {
   { "test_sigkill_wakes_stopped",  test_sigkill_wakes_stopped  },
   { "test_tstp_ignored",           test_tstp_ignored           },
   { "test_tstp_pipe_blocked",      test_tstp_pipe_blocked      },
-  { "test_tstp_interleaved_stress",test_tstp_interleaved_stress},
+  { "test_tstp_interleaved_stress",   test_tstp_interleaved_stress   },
+  { "test_tstp_immediate_after_fork", test_tstp_immediate_after_fork },
 };
 
 int main(void) {
