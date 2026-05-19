@@ -17,8 +17,7 @@ static int failed = 0;
 /* QEMU virt machine has 128MB RAM. Map well beyond that to guarantee OOM. */
 #define OOM_MAP_BYTES (256UL * 1024 * 1024)  /* 256 MB */
 
-/* Expected exit code when kernel OOM-kills a process (128 + SIGKILL). */
-#define OOM_EXIT_CODE (128 + SIGKILL)
+/* Kernel OOM-kills the process by delivering SIGKILL. */
 
 /* Touch every page in [p, p+len) to force physical allocation. */
 static void touch_pages(volatile char *p, size_t len) {
@@ -47,11 +46,11 @@ static void test_oom_anon_fault(void) {
   int status = 0;
   waitpid(pid, &status, 0);
 
-  if (WIFEXITED(status) && WEXITSTATUS(status) == OOM_EXIT_CODE)
+  if (WIFSIGNALED(status) && WTERMSIG(status) == SIGKILL)
     PASS("oom_anon_fault");
   else
-    FAIL("oom_anon_fault", "exit=%d termsig=%d (want exit %d)",
-         WEXITSTATUS(status), WTERMSIG(status), OOM_EXIT_CODE);
+    FAIL("oom_anon_fault", "exit=%d termsig=%d (want SIGKILL)",
+         WEXITSTATUS(status), WTERMSIG(status));
 }
 
 /*
@@ -84,11 +83,11 @@ static void test_oom_cow_fault(void) {
   int status = 0;
   waitpid(pid, &status, 0);
 
-  if (WIFEXITED(status) && WEXITSTATUS(status) == OOM_EXIT_CODE)
+  if (WIFSIGNALED(status) && WTERMSIG(status) == SIGKILL)
     PASS("oom_cow_fault");
   else
-    FAIL("oom_cow_fault", "exit=%d termsig=%d (want exit %d)",
-         WEXITSTATUS(status), WTERMSIG(status), OOM_EXIT_CODE);
+    FAIL("oom_cow_fault", "exit=%d termsig=%d (want SIGKILL)",
+         WEXITSTATUS(status), WTERMSIG(status));
 }
 
 /*
@@ -117,9 +116,9 @@ static void test_oom_write_enomem(void) {
   int status = 0;
   waitpid(pid, &status, 0);
 
-  /* Any clean exit (including OOM kill) means no panic. */
-  int no_panic = WIFEXITED(status) &&
-                 (WEXITSTATUS(status) == 0 || WEXITSTATUS(status) == OOM_EXIT_CODE);
+  /* Clean exit or OOM-killed — either means no kernel panic. */
+  int no_panic = (WIFEXITED(status) && WEXITSTATUS(status) == 0) ||
+                 (WIFSIGNALED(status) && WTERMSIG(status) == SIGKILL);
   if (no_panic)
     PASS("oom_write_enomem");
   else
