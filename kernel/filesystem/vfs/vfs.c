@@ -218,12 +218,22 @@ int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
   if (file->pipe != NULL)
     return pipe_write(file->pipe, buffer, size);
 
+  debugk("vfs_write: vnode=%p address_space=%p\n", file->vnode,
+         file->vnode ? file->vnode->address_space : (void*)0xDEAD);
+  if (file->vnode->address_space != NULL) {
+    debugk("vfs_write: address_space_ops=%p\n", file->vnode->address_space->address_space_ops);
+    if (file->vnode->address_space->address_space_ops != NULL)
+      debugk("vfs_write: write_page=%p\n", file->vnode->address_space->address_space_ops->write_page);
+  }
+
   if (file->vnode->address_space != NULL &&
       file->vnode->address_space->address_space_ops != NULL &&
       file->vnode->address_space->address_space_ops->write_page != NULL) {
+    debugk("vfs_write: taking page-cache path\n");
     return vfs_vnode_write(file->vnode, buffer, size, offset);
   }
 
+  debugk("vfs_write: taking file_ops path, file_ops=%p\n", file->file_ops);
   if (file->file_ops == NULL || file->file_ops->write == NULL)
     panic("vfs_write: no write path available\n");
 

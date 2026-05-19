@@ -1,4 +1,4 @@
-#define DEBUG 0
+#define DEBUG 1
 #include "kernel/filesystem/vfs/vfs.h"
 #include "lib/printk/printk.h"
 #include "kernel/filesystem/mode.h"
@@ -262,6 +262,11 @@ int32_t vfs_vnode_write(struct vnode_t *vnode, const void *buf, size_t size, siz
     size_t copy_size      = (size < bytes_in_page) ? size : bytes_in_page;
 
     /* Get (or populate) the page in the cache so we can do a read-modify-write. */
+    debugk("vfs_vnode_write: calling vfs_get_page vnode=%p page_offset=%zu fill_page=%p\n",
+           vnode,
+           page_offset,
+           vnode->address_space && vnode->address_space->address_space_ops
+             ? (void*)vnode->address_space->address_space_ops->fill_page : (void*)0);
     void *page_phys = vfs_get_page(vnode, page_offset, VFS_PAGE_NOREF);
     if (page_phys == NULL)
       return total_written > 0 ? (int32_t)total_written : -1;
