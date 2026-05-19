@@ -35,7 +35,7 @@ DEFINE_SYSCALL1(brk, size_t, new_brk)
         for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
           uint64_t pte = get_pte(current_task->mm_struct.root_satp, va);
           if (pte & PTE_VALID)
-            free_page((void *)PTE_DECODE(pte));
+            page_decref((void *)PTE_DECODE(pte));
         }
         unmap_pages(current_task->mm_struct.root_satp, vma->start_addr, vma->end_addr);
         list_remove(&vma->sibling_vma);

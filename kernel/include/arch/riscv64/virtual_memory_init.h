@@ -30,6 +30,7 @@
 #define PTE_G (1ULL << 5) // global
 #define PTE_A (1ULL << 6) // accessed
 #define PTE_D (1ULL << 7) // dirty
+#define PTE_COW (1ULL << 8) // software: copy-on-write (RSW bit 0)
 
 /* Access permission aliases to match aarch64 naming used in page_tables.c */
 #define PTE_AP_KERNEL (PTE_R | PTE_W | PTE_A | PTE_D)

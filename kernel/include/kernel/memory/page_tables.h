@@ -26,6 +26,9 @@ void unmap_pages(page_table_t *pt, uint64_t va_start, uint64_t va_end);
 /* Get PTE for a given virtual address (returns 0 if not mapped) */
 uint64_t get_pte(page_table_t *pt, uint64_t va);
 
+/* Update an existing leaf PTE in-place (panics if leaf does not exist) */
+void set_pte(page_table_t *pt, uint64_t va, uint64_t new_pte);
+
 page_table_t *init_new_page_table();
 
 #endif

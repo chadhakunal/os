@@ -38,6 +38,7 @@ void init_page_allocator() {
     pages_metadata.page_list[i].is_disk_cache = false;
     pages_metadata.page_list[i].is_kernel = false;
     pages_metadata.page_list[i].in_use = false;
+    pages_metadata.page_list[i].refcount = 0;
     pages_metadata.page_list[i].next_free_page = NULL;
     uintptr_t page_start =
         DEFAULT_PAGE_SIZE * i + memory_info.total_memory_base;
@@ -116,6 +117,7 @@ void *get_page(bool is_kernel) {
   first_free_page->is_kernel = is_kernel;
   first_free_page->in_use = true;
   first_free_page->is_zeroed = false;
+  first_free_page->refcount = 1;
   first_free_page->next_free_page = NULL;
   pages_metadata.pages_in_use++;
   return _get_page_address_from_page(first_free_page);
@@ -131,6 +133,7 @@ void *get_zero_page(bool is_kernel) {
   first_zero_page->is_kernel = is_kernel;
   first_zero_page->in_use = true;
   first_zero_page->is_zeroed = true;
+  first_zero_page->refcount = 1;
   first_zero_page->next_free_page = NULL;
   pages_metadata.pages_in_use++;
   return _get_page_address_from_page(first_zero_page);
@@ -149,16 +152,42 @@ page_t *_address_to_page(void *addr) {
   return &pages_metadata.page_list[pfn];
 }
 
+uint16_t page_get_refcount(void *phys) {
+  return _address_to_page(phys)->refcount;
+}
+
+void page_incref(void *phys) {
+  page_t *pg = _address_to_page(phys);
+  if (!pg->in_use)
+    panic("page_incref on free page");
+  pg->refcount++;
+}
+
+void page_decref(void *phys) {
+  page_t *pg = _address_to_page(phys);
+  if (!pg->in_use || pg->refcount == 0)
+    panic("page_decref: page not in use or refcount already zero");
+  if (pg->refcount > 1) {
+    pg->refcount--;
+    return;
+  }
+  /* refcount == 1: actually free */
+  free_page(phys);
+}
+
 // Accepts physical address
 void free_page(void *p) {
   page_t *freed_page = _address_to_page(p);
   if (!freed_page->in_use) {
     panic("DOUBLE FREE DETECTED");
   }
+  if (freed_page->refcount != 1)
+    panic("free_page: refcount != 1 (use page_decref for shared pages)");
   debugk("free_page: phys=%p, pages_in_use: %llu -> %llu\n",
          p, pages_metadata.pages_in_use, pages_metadata.pages_in_use - 1);
   freed_page->in_use = false;
   freed_page->is_kernel = false;
+  freed_page->refcount = 0;
   pages_metadata.pages_in_use--;
 
   // Zero the page and add to zero list

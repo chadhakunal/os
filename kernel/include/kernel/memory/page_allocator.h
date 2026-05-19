@@ -10,6 +10,7 @@ typedef struct page {
   bool is_zeroed;
   bool is_disk_cache;
   bool in_use;
+  uint16_t refcount; /* COW share count: 1 = exclusively owned, >1 = shared */
   struct page *next_free_page;
 } page_t;
 
@@ -31,6 +32,11 @@ void print_pages_metadata();
 void *get_page(bool is_kernel);
 void *get_zero_page(bool is_kernel);
 void free_page(void *p);
+
+/* Refcount operations for COW */
+void page_incref(void *phys);
+void page_decref(void *phys); /* frees when refcount drops to 0 */
+uint16_t page_get_refcount(void *phys);
 
 void update_page_structs_to_vm();
 
