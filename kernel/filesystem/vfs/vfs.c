@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/filesystem/pipefs/pipe.h"
 #include "kernel/filesystem/poll.h"
@@ -218,30 +218,16 @@ int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
   if (file->pipe != NULL)
     return pipe_write(file->pipe, buffer, size);
 
-  debugk("vfs_write: vnode=%p address_space=%p\n", file->vnode,
-         file->vnode ? file->vnode->address_space : (void*)0xDEAD);
-  if (file->vnode->address_space != NULL) {
-    debugk("vfs_write: address_space_ops=%p\n", file->vnode->address_space->address_space_ops);
-    if (file->vnode->address_space->address_space_ops != NULL)
-      debugk("vfs_write: write_page=%p\n", file->vnode->address_space->address_space_ops->write_page);
-  }
-
   if (file->vnode->address_space != NULL &&
       file->vnode->address_space->address_space_ops != NULL &&
       file->vnode->address_space->address_space_ops->write_page != NULL) {
-    debugk("vfs_write: taking page-cache path\n");
     return vfs_vnode_write(file->vnode, buffer, size, offset);
   }
 
-  debugk("vfs_write: taking file_ops path, file_ops=%p write=%p\n",
-         file->file_ops, file->file_ops ? file->file_ops->write : (void*)0);
   if (file->file_ops == NULL || file->file_ops->write == NULL)
     panic("vfs_write: no write path available\n");
 
-  debugk("vfs_write: calling file_ops->write\n");
-  int64_t ret = file->file_ops->write(file, offset, buffer, size);
-  debugk("vfs_write: file_ops->write returned %lld\n", ret);
-  return ret;
+  return file->file_ops->write(file, offset, buffer, size);
 }
 
 static int64_t vfs_open_dentry(struct dentry_t *dentry, int flags, struct file_t **file) {

@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "arch/riscv64/syscalls/syscalls.h"
 #include "arch/riscv64/virtual_memory_init.h"

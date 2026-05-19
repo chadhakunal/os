@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "kernel/filesystem/vfs/vfs.h"
 #include "lib/printk/printk.h"
 #include "kernel/filesystem/mode.h"
@@ -262,11 +262,6 @@ int32_t vfs_vnode_write(struct vnode_t *vnode, const void *buf, size_t size, siz
     size_t copy_size      = (size < bytes_in_page) ? size : bytes_in_page;
 
     /* Get (or populate) the page in the cache so we can do a read-modify-write. */
-    debugk("vfs_vnode_write: calling vfs_get_page vnode=%p page_offset=%zu fill_page=%p\n",
-           vnode,
-           page_offset,
-           vnode->address_space && vnode->address_space->address_space_ops
-             ? (void*)vnode->address_space->address_space_ops->fill_page : (void*)0);
     void *page_phys = vfs_get_page(vnode, page_offset, VFS_PAGE_NOREF);
     if (page_phys == NULL)
       return total_written > 0 ? (int32_t)total_written : -1;
@@ -387,10 +382,8 @@ int32_t vfs_lookup(const char *name, struct dentry_t *parent_dentry, struct dent
     return -ENOENT;
   }
 
-  debugk("[vfs_lookup] '%s' not in children_dentries, calling fs lookup (parent vnode=%p)\n", name, parent_dir);
   int32_t ret = parent_dir->vnode_ops->lookup(name, parent_dir, out);
   if (ret != 0 || *out == NULL) {
-    debugk("[vfs_lookup] '%s' not found in cache or fs (ret=%d)\n", name, ret);
     *out = NULL;
     return -ENOENT;
   }

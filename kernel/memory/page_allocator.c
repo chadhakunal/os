@@ -1,4 +1,4 @@
-#define DEBUG 1
+#define DEBUG 0
 #include "platform.h"
 #include "types.h"
 
@@ -201,11 +201,8 @@ void free_page(void *p) {
   uint64_t sstatus;
   asm volatile("csrr %0, sstatus" : "=r"(sstatus));
 
-  debugk("free_page: about to disable_interrupts+memset virt=%p\n", virt_page);
   disable_interrupts();
-  debugk("free_page: interrupts disabled, starting memset\n");
   memset(virt_page, 0, DEFAULT_PAGE_SIZE);
-  debugk("free_page: memset done\n");
   freed_page->is_zeroed = true;
 
   // Verify interrupts are actually disabled
