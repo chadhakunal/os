@@ -154,6 +154,31 @@ int main(void) {
     if (WIFEXITED(st) && WEXITSTATUS(st) == 1) passed++; else failed++;
   }
 
+  /* Does /bin/test exit correctly when called with environ (not NULL)? */
+  printf("\n/bin/test with environ (not NULL envp):\n");
+  {
+    extern char **environ;
+    int fds2[2];
+    pipe(fds2);
+    pid_t p = fork();
+    if (p == 0) {
+      close(fds2[0]);
+      dup2(fds2[1], 1);
+      close(fds2[1]);
+      char *argv[] = { "/bin/test", "-f", "/no/such/file", NULL };
+      execve("/bin/test", argv, environ);
+      _exit(127);
+    }
+    close(fds2[1]);
+    char buf[4]; ssize_t n;
+    while ((n = read(fds2[0], buf, sizeof(buf))) > 0);
+    close(fds2[0]);
+    int st = 0xdeadbeef; waitpid(p, &st, 0);
+    printf("status=0x%x WEXITSTATUS=%d -> %s\n", (unsigned)st, WEXITSTATUS(st),
+           (WIFEXITED(st) && WEXITSTATUS(st) == 1) ? "[PASS]" : "[FAIL]");
+    if (WIFEXITED(st) && WEXITSTATUS(st) == 1) passed++; else failed++;
+  }
+
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed != 0;
 }
