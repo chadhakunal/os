@@ -12,7 +12,7 @@ BINDIR := $(ROOT)/build/rootfs/bin/tests
 
 RC_TESTS := test_shell test_signals test_rlimit posix_compliance \
 	testjobs testsignal test_pipe \
-	test_devnull test_oom test_oom_vs_enomem test_oom_stress test_bins
+	test_devnull test_oom test_oom_vs_enomem test_oom_stress test_bins test_waitpid
 
 .PHONY: install os-tests-sortix-clone os-tests-build os-tests-install
 
@@ -41,6 +41,7 @@ $(BINDIR)/test_oom:         test_oom/test_oom.c $(CRT) $(LIBC)
 $(BINDIR)/test_oom_vs_enomem: test_oom_vs_enomem/test_oom_vs_enomem.c $(CRT) $(LIBC)
 $(BINDIR)/test_oom_stress:    test_oom_stress/test_oom_stress.c $(CRT) $(LIBC)
 $(BINDIR)/test_bins:          test_bins/test_bins.c $(CRT) $(LIBC)
+$(BINDIR)/test_waitpid:       test_waitpid/test_waitpid.c $(CRT) $(LIBC)
 
 $(RC_TESTS:%=$(BINDIR)/%):
 	@mkdir -p $(BINDIR)
