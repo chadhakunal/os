@@ -18,7 +18,7 @@ wait_for_prompt() {
   local elapsed=0
   while [ $elapsed -lt $TIMEOUT ]; do
     local last
-    last=$(tmux capture-pane -t "$PANE" -p | grep -v '^[[:space:]]*$' | tail -1)
+    last=$(tmux capture-pane -t "$PANE" -p -S -3 | grep -v '^[[:space:]]*$' | tail -1)
     if echo "$last" | grep -qE '\$\s*$'; then
       return 0
     fi
@@ -45,7 +45,7 @@ run_cmd() {
   send "echo $end"
   wait_for_prompt
 
-  tmux capture-pane -t "$PANE" -p \
+  tmux capture-pane -t "$PANE" -p -S - \
     | awk "/^${begin}$/{found=1; next} /^${end}$/{found=0} found && !/\\\$ /" \
     | grep -v '^\s*$'
 }
@@ -65,7 +65,7 @@ run_cmd_raw() {
   send "echo $end"
   wait_for_prompt
 
-  tmux capture-pane -t "$PANE" -p \
+  tmux capture-pane -t "$PANE" -p -S - \
     | awk "/^${begin}$/{found=1; next} /^${end}$/{found=0} found && !/\\\$ /"
 }
 
@@ -84,7 +84,7 @@ run_cmd_exitcode() {
   send "echo $end"
   wait_for_prompt
 
-  tmux capture-pane -t "$PANE" -p \
+  tmux capture-pane -t "$PANE" -p -S - \
     | awk "/^${begin}$/{found=1; next} /^${end}$/{found=0} found"
 }
 

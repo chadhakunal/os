@@ -150,7 +150,19 @@ echo "--- echo builtin ---"
 OUT=$(run_cmd "echo hello world")
 result "echo builtin basic"                "$(contains "$OUT" "hello world")"
 
-OUT=$(run_cmd_exitcode "echo -n noline")
+# echo -n leaves no newline so prompt runs onto same line as output.
+# Send a newline first to flush, then capture the combined line.
+_seq=$(( _seq + 1 ))
+_begin="__BEGIN_${_seq}__"
+_end="__END_${_seq}__"
+send "echo $_begin"
+wait_for_prompt
+send "echo -n noline"
+wait_for_prompt
+send "echo $_end"
+wait_for_prompt
+OUT=$(tmux capture-pane -t "$PANE" -p -S - \
+  | awk "/^${_begin}$/{found=1; next} /^${_end}$/{found=0} found")
 result "echo -n no trailing newline"       "$(contains "$OUT" "noline")"
 
 # -------------------------------------------------------------------------
