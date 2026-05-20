@@ -67,6 +67,35 @@ int main(void) {
   printf(" -> %s\n", ok ? "[PASS]" : "[FAIL]");
   if (ok) passed++; else failed++;
 
+  /* Simulate exactly what run_capture does for a false test condition */
+  printf("\nsimulated run_capture for /bin/test -f /no/such/file:\n");
+  {
+    int fds2[2];
+    pipe(fds2);
+    pid_t pid2 = fork();
+    if (pid2 == 0) {
+      close(fds2[0]);
+      dup2(fds2[1], 1);
+      close(fds2[1]);
+      char *argv[] = { "/bin/test", "-f", "/no/such/file", NULL };
+      execve("/bin/test", argv, NULL);
+      _exit(127);
+    }
+    close(fds2[1]);
+    char buf2[4];
+    ssize_t n2;
+    while ((n2 = read(fds2[0], buf2, sizeof(buf2))) > 0);
+    close(fds2[0]);
+
+    int status2 = 0xdeadbeef;
+    int ret2 = waitpid(pid2, &status2, 0);
+    printf("waitpid ret=%d status=0x%x WIFEXITED=%d WEXITSTATUS=%d -> %s\n",
+           ret2, (unsigned)status2,
+           WIFEXITED(status2), WEXITSTATUS(status2),
+           (WIFEXITED(status2) && WEXITSTATUS(status2) == 1) ? "[PASS]" : "[FAIL]");
+    if (WIFEXITED(status2) && WEXITSTATUS(status2) == 1) passed++; else failed++;
+  }
+
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed != 0;
 }
