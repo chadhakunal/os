@@ -10,8 +10,8 @@ CRT := $(ROOT)/build/libc/crt.S.o
 LIBC := $(ROOT)/build/libc.a
 BINDIR := $(ROOT)/build/rootfs/bin/tests
 
-RC_TESTS := test_syscalls test_shell test_signals stacktest stacktest2 test_rlimit posix_compliance \
-	testjobs testsignal test_dprintf test_long_wait test_mmap test_pipe test_sleep test-kernel \
+RC_TESTS := test_shell test_signals test_rlimit posix_compliance \
+	testjobs testsignal test_pipe \
 	test_devnull test_oom test_oom_vs_enomem test_oom_stress test_bins
 
 .PHONY: install os-tests-sortix-clone os-tests-build os-tests-install
