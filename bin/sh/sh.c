@@ -28,17 +28,19 @@
 struct job {
   pid_t  pid;
   int    id;
+  int    stopped; /* 1 = Ctrl-Z stopped, 0 = running background */
   char   cmd[COMMAND_BUF_SIZE];
 };
 
 static struct job jobs[MAX_JOBS];
 static int        njobs = 0;
+static int        next_job_id = 1;
 
-static void job_add(pid_t pid, const char *cmd) {
+static void job_add(pid_t pid, const char *cmd, int stopped) {
   if (njobs >= MAX_JOBS) return;
-  int id = njobs + 1;
-  jobs[njobs].pid = pid;
-  jobs[njobs].id  = id;
+  jobs[njobs].pid     = pid;
+  jobs[njobs].id      = next_job_id++;
+  jobs[njobs].stopped = stopped;
   strncpy(jobs[njobs].cmd, cmd, COMMAND_BUF_SIZE - 1);
   jobs[njobs].cmd[COMMAND_BUF_SIZE - 1] = '\0';
   njobs++;
@@ -53,8 +55,24 @@ static void job_remove(pid_t pid) {
   }
 }
 
+/* Reap finished background jobs, printing Done notices to stderr. */
+static void jobs_reap(void) {
+  for (int i = 0; i < njobs; i++) {
+    if (jobs[i].stopped) continue;
+    int st = 0;
+    pid_t r = waitpid(jobs[i].pid, &st, WNOHANG);
+    if (r > 0) {
+      fprintf(stderr, "[%d]+ Done    %s\n", jobs[i].id, jobs[i].cmd);
+      jobs[i] = jobs[--njobs];
+      i--;
+    }
+  }
+}
+
 static struct job *job_find_last_stopped(void) {
-  return njobs > 0 ? &jobs[njobs - 1] : NULL;
+  for (int i = njobs - 1; i >= 0; i--)
+    if (jobs[i].stopped) return &jobs[i];
+  return NULL;
 }
 
 /* -------------------------------------------------------------------------
@@ -1168,8 +1186,10 @@ static int builtin_history(void) {
 }
 
 static int builtin_jobs(void) {
-  for (int i = 0; i < njobs; i++)
-    printf("[%d]+ Stopped  %s\n", jobs[i].id, jobs[i].cmd);
+  for (int i = 0; i < njobs; i++) {
+    const char *state = jobs[i].stopped ? "Stopped" : "Running";
+    printf("[%d]+ %-8s %s\n", jobs[i].id, state, jobs[i].cmd);
+  }
   return 0;
 }
 
@@ -1200,8 +1220,8 @@ static int builtin_fg(int argc, char *argv[]) {
   do { waited = waitpid(pid, &status, WUNTRACED); } while (waited < 0 && errno == EINTR);
 
   if (WIFSTOPPED(status)) {
-    job_add(pid, cmd);
-    printf("\n[%d]+ Stopped  %s\n", njobs, cmd);
+    job_add(pid, cmd, 1);
+    printf("\n[%d]+ Stopped  %s\n", jobs[njobs-1].id, cmd);
   } else {
     kill(-pid, SIGHUP);
   }
@@ -1505,21 +1525,30 @@ int parse_and_exec(char *buf) {
   if (strcmp("wait", command_buf) == 0) {
     if (argc > 1) {
       pid_t target = (pid_t)atoi(argv[1]);
-      int st = 0;
-      if (waitpid(target, &st, 0) < 0) {
-        fprintf(stderr, "wait: %d: no such process\n", target);
+      /* check it's a known job first */
+      int found = 0;
+      for (int wi = 0; wi < njobs; wi++) {
+        if (jobs[wi].pid == target) { found = 1; break; }
+      }
+      if (!found) {
+        fprintf(stderr, "wait: %d: no such job\n", target);
         return 1;
       }
+      int st = 0;
+      waitpid(target, &st, 0);
+      job_remove(target);
       return WEXITSTATUS(st);
     }
-    /* wait for all known jobs */
+    /* wait for all known background jobs (not stopped ones) */
     int ret = 0;
     for (int wi = 0; wi < njobs; wi++) {
+      if (jobs[wi].stopped) continue;
       int st = 0;
       waitpid(jobs[wi].pid, &st, 0);
       ret = WEXITSTATUS(st);
+      jobs[wi] = jobs[--njobs];
+      wi--;
     }
-    njobs = 0;
     return ret;
   }
   if (strcmp("exit", command_buf) == 0) {
@@ -1585,8 +1614,8 @@ int parse_and_exec(char *buf) {
     setpgid(pid, pid);
 
     if (run_background) {
-      job_add(pid, command_buf);
-      printf("[%d] %d\n", njobs, pid);
+      job_add(pid, command_buf, 0);
+      printf("[%d] %d\n", jobs[njobs-1].id, pid);
       ioctl(0, TCSRAW, (void *)0);
       return 0;
     }
@@ -1597,8 +1626,8 @@ int parse_and_exec(char *buf) {
     do { waited = waitpid(pid, &status, WUNTRACED); } while (waited < 0 && errno == EINTR);
 
     if (WIFSTOPPED(status)) {
-      job_add(pid, command_buf);
-      printf("\n[%d]+ Stopped  %s\n", njobs, command_buf);
+      job_add(pid, command_buf, 1);
+      printf("\n[%d]+ Stopped  %s\n", jobs[njobs-1].id, command_buf);
       tcsetpgrp(0, getpid());
       ioctl(0, TCSRAW, (void *)0);
       return 0;
@@ -1685,15 +1714,7 @@ int main(int argc, char **argv, char **envp) {
 
   while (1) {
     /* Reap any finished background jobs before printing the prompt. */
-    for (int ji = 0; ji < njobs; ji++) {
-      int st = 0;
-      pid_t r = waitpid(jobs[ji].pid, &st, WNOHANG);
-      if (r > 0) {
-        printf("[%d]+ Done    %s\n", jobs[ji].id, jobs[ji].cmd);
-        jobs[ji] = jobs[--njobs];
-        ji--;
-      }
-    }
+    jobs_reap();
 
     if (getcwd(cwd, sizeof(cwd)) == NULL)
       cwd[0] = '\0';
