@@ -3,7 +3,7 @@
 # Usage: ./scripts/run_tests.sh [pane]
 
 PANE="${1:-${PANE:-0:0.0}}"
-TIMEOUT=300   # max seconds to wait per test before giving up
+TIMEOUT=600   # max poll iterations (each 0.5s = ~5 min per test)
 POLL=0.5      # seconds between prompt checks
 
 TESTS="

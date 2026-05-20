@@ -476,26 +476,19 @@ static int run_pipeline(char *segs[], int nseg) {
 }
 
 static int run_command_line(char *line) {
-  static char backtick_expanded[1024];
-  static char expanded[1024];
-  static char glob_expanded[1024];
   int last = 0;
 
   trim_line(line);
   if (line[0] == '\0' || line[0] == '#')
     return 0;
 
-  expand_backticks(line, backtick_expanded, sizeof(backtick_expanded));
-  expand_args(backtick_expanded, expanded, sizeof(expanded));
-  expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
-
-  /* Split glob_expanded on ; && || into a list of statements.
-   * sep[i]: 0=none/semicolon, 1=&&, 2=|| */
+  /* Split the raw line on ; && || into statements BEFORE variable expansion,
+   * so that $? in later statements sees the exit status of earlier ones. */
   static char stmts[32][1024];
-  static int  sep[32]; /* separator preceding stmt[i] */
+  static int  sep[32]; /* separator preceding stmt[i]: 0=; 1=&& 2=|| */
   int nstmts = 0;
 
-  char *p = glob_expanded;
+  char *p = line;
   while (*p && nstmts < 32) {
     while (*p == ' ' || *p == '\t') p++;
     if (*p == '\0') break;
@@ -535,10 +528,19 @@ static int run_command_line(char *line) {
       if (prev_sep == 2 && last == 0) break; /* || : stop on success */
     }
 
-    /* split on '|' (not inside quotes) */
+    /* Expand variables/backticks/globs per-statement so $? reflects the
+     * exit status of the preceding statement in this line. */
+    static char bt_expanded[1024];
+    static char var_expanded[1024];
+    static char gl_expanded[1024];
+    expand_backticks(stmt, bt_expanded, sizeof(bt_expanded));
+    expand_args(bt_expanded, var_expanded, sizeof(var_expanded));
+    expand_glob(var_expanded, gl_expanded, sizeof(gl_expanded));
+
+    /* split on '|' (not inside quotes) for pipeline */
     char *segs[16];
     int nseg = 0;
-    char *q = stmt;
+    char *q = gl_expanded;
     segs[nseg++] = q;
     int in_quote = 0;
     for (; *q; q++) {

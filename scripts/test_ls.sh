@@ -2,7 +2,7 @@
 # Test /bin/ls behaviour via tmux capture-pane.
 
 PANE="${1:-${PANE:-0:0.0}}"
-TIMEOUT=10
+TIMEOUT=30   # max poll iterations (each ~0.3s = ~9 seconds total)
 POLL=0.3
 
 passed=0
@@ -26,18 +26,46 @@ wait_for_prompt() {
   return 1
 }
 
-# Run a command, wait for prompt, return the output lines between the command
-# and the next prompt. Strips prompt lines and the echoed command itself.
+# Run a command and capture its output using sentinel markers.
+# Prints a unique BEGIN marker, runs the command, prints END marker,
+# then extracts only the lines between those two markers.
+_seq=0
 run_cmd() {
   local cmd="$1"
+  _seq=$(( _seq + 1 ))
+  local begin="__BEGIN_${_seq}__"
+  local end="__END_${_seq}__"
+
+  # Send begin marker, then command, then end marker as three separate commands
+  send "echo $begin"
+  wait_for_prompt
   send "$cmd"
   wait_for_prompt
-  # Capture full pane, drop blank lines, drop lines containing '$ ' (prompts),
-  # drop the first matching line (the echoed command).
+  send "echo $end"
+  wait_for_prompt
+
+  # Extract lines strictly between begin and end markers
   tmux capture-pane -t "$PANE" -p \
-    | grep -v '^\s*$' \
-    | grep -v '\$ ' \
-    | tail -n +2
+    | awk "/^${begin}$/{found=1; next} /^${end}$/{found=0} found && !/\\\$ /" \
+    | grep -v '^\s*$'
+}
+
+# Like run_cmd but also captures the exit code via a sentinel echo.
+run_cmd_exitcode() {
+  local cmd="$1"
+  _seq=$(( _seq + 1 ))
+  local begin="__BEGIN_${_seq}__"
+  local end="__END_${_seq}__"
+
+  send "echo $begin"
+  wait_for_prompt
+  send "$cmd"
+  wait_for_prompt
+  send "echo $end"
+  wait_for_prompt
+
+  tmux capture-pane -t "$PANE" -p \
+    | awk "/^${begin}$/{found=1; next} /^${end}$/{found=0} found"
 }
 
 result() {
@@ -76,9 +104,7 @@ BLANK=$(echo "$OUT" | grep -c '^[[:space:]]*$' || true)
 result "ls -a empty dir no blank lines" "$([ "$BLANK" = "0" ] && echo 1 || echo 0)"
 
 # 3. ls on missing dir exits nonzero
-send "ls /tmp/lstest/nosuchdir ; echo exitcode=\$?"
-wait_for_prompt
-OUT=$(tmux capture-pane -t "$PANE" -p | grep "exitcode=")
+OUT=$(run_cmd_exitcode "ls /tmp/lstest/nosuchdir ; echo exitcode=\$?")
 result "ls missing dir exits nonzero" "$(contains "$OUT" "exitcode=1")"
 
 # 4. ls -l shows permission bits
