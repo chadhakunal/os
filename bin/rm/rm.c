@@ -8,9 +8,9 @@ static int is_dir(const char *path) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) return 0;
   struct dirent de;
-  int n = getdents(fd, &de, sizeof(de));
+  int n = getdents(fd, &de, 1);
   close(fd);
-  return (n >= 0);
+  return (n > 0);
 }
 
 static int remove_recursive(const char *path);

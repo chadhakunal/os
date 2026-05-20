@@ -21,7 +21,7 @@ static int is_dir(const char *path) {
   struct dirent de;
   int n = getdents(fd, &de, 1);
   close(fd);
-  return (n >= 0);
+  return (n > 0);
 }
 
 static int copy_file(const char *src, const char *dst) {
