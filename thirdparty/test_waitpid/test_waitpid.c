@@ -67,7 +67,7 @@ int main(void) {
   printf(" -> %s\n", ok ? "[PASS]" : "[FAIL]");
   if (ok) passed++; else failed++;
 
-  /* Simulate exactly what run_capture does for a false test condition */
+  /* Simulated run_capture — capture stdout to see if test prints its argc/argv */
   printf("\nsimulated run_capture for /bin/test -f /no/such/file:\n");
   {
     int fds2[2];
@@ -82,10 +82,13 @@ int main(void) {
       _exit(127);
     }
     close(fds2[1]);
-    char buf2[4];
-    ssize_t n2;
-    while ((n2 = read(fds2[0], buf2, sizeof(buf2))) > 0);
+    char buf2[64]; ssize_t n2;
+    size_t tot = 0;
+    while (tot < sizeof(buf2)-1 && (n2 = read(fds2[0], buf2+tot, sizeof(buf2)-1-tot)) > 0)
+      tot += n2;
+    buf2[tot] = '\0';
     close(fds2[0]);
+    printf("stdout: '%s'\n", buf2);
 
     int status2 = 0xdeadbeef;
     int ret2 = waitpid(pid2, &status2, 0);
@@ -94,6 +97,35 @@ int main(void) {
            WIFEXITED(status2), WEXITSTATUS(status2),
            (WIFEXITED(status2) && WEXITSTATUS(status2) == 1) ? "[PASS]" : "[FAIL]");
     if (WIFEXITED(status2) && WEXITSTATUS(status2) == 1) passed++; else failed++;
+  }
+
+  /* Same but print argc inside test by using a debug wrapper — use /bin/echo instead */
+  printf("\nrun_capture /bin/test -f /etc/rc (should be TRUE, exit 0):\n");
+  {
+    int fds3[2];
+    pipe(fds3);
+    pid_t pid3 = fork();
+    if (pid3 == 0) {
+      close(fds3[0]);
+      dup2(fds3[1], 1);
+      close(fds3[1]);
+      char *argv[] = { "/bin/test", "-f", "/etc/rc", NULL };
+      execve("/bin/test", argv, NULL);
+      _exit(127);
+    }
+    close(fds3[1]);
+    char buf3[64]; ssize_t n3;
+    size_t tot3 = 0;
+    while (tot3 < sizeof(buf3)-1 && (n3 = read(fds3[0], buf3+tot3, sizeof(buf3)-1-tot3)) > 0)
+      tot3 += n3;
+    buf3[tot3] = '\0';
+    close(fds3[0]);
+    int status3 = 0xdeadbeef;
+    int ret3 = waitpid(pid3, &status3, 0);
+    printf("waitpid ret=%d status=0x%x WEXITSTATUS=%d -> %s\n",
+           ret3, (unsigned)status3, WEXITSTATUS(status3),
+           (WIFEXITED(status3) && WEXITSTATUS(status3) == 0) ? "[PASS]" : "[FAIL]");
+    if (WIFEXITED(status3) && WEXITSTATUS(status3) == 0) passed++; else failed++;
   }
 
   printf("\n%d passed, %d failed\n", passed, failed);
