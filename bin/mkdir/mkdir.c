@@ -39,7 +39,7 @@ int main(int argc, char **argv) {
       r = mkdir(argv[i], 0755);
     }
     if (r < 0) {
-      printf("mkdir: failed to create %s\n", argv[i]);
+      fprintf(stderr, "mkdir: cannot create directory '%s'\n", argv[i]);
       ret = 1;
     }
   }

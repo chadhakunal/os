@@ -827,6 +827,70 @@ static void test_test_extra(void) {
 }
 
 /* -----------------------------------------------------------------------
+ * new options: ls -a, wc -l/-w/-c, rm -r, sleep fractional
+ * -------------------------------------------------------------------- */
+static void test_new_options(void) {
+  printf("Test: new options\n");
+  char buf[512];
+
+  /* ls -a shows dot files */
+  write_file("/tmp/.tb_hidden", "x");
+  char *a1[] = { "/bin/ls", "-a", "/tmp", NULL };
+  run_capture(a1, buf, sizeof(buf));
+  result("ls -a shows dotfiles", strstr(buf, ".tb_hidden") != NULL);
+  /* ls without -a hides dot files */
+  char *a2[] = { "/bin/ls", "/tmp", NULL };
+  run_capture(a2, buf, sizeof(buf));
+  result("ls without -a hides dotfiles", strstr(buf, ".tb_hidden") == NULL);
+  unlink("/tmp/.tb_hidden");
+
+  /* wc -l counts only lines */
+  write_file("/tmp/tb_wc_opt", "a\nb\nc\n");
+  char *w1[] = { "/bin/wc", "-l", "/tmp/tb_wc_opt", NULL };
+  run_capture(w1, buf, sizeof(buf));
+  int lines = 0, words = 0, bytes = 0;
+  sscanf(buf, "%d", &lines);
+  result("wc -l: only line count", lines == 3);
+
+  /* wc -w counts only words */
+  char *w2[] = { "/bin/wc", "-w", "/tmp/tb_wc_opt", NULL };
+  run_capture(w2, buf, sizeof(buf));
+  sscanf(buf, "%d", &words);
+  result("wc -w: only word count", words == 3);
+
+  /* wc -c counts only bytes */
+  char *w3[] = { "/bin/wc", "-c", "/tmp/tb_wc_opt", NULL };
+  run_capture(w3, buf, sizeof(buf));
+  sscanf(buf, "%d", &bytes);
+  result("wc -c: only byte count", bytes == 6);
+
+  /* wc -lc shows two columns */
+  char *w4[] = { "/bin/wc", "-lc", "/tmp/tb_wc_opt", NULL };
+  run_capture(w4, buf, sizeof(buf));
+  int a = 0, b2 = 0;
+  int matched = sscanf(buf, "%d %d", &a, &b2);
+  result("wc -lc: two columns", matched == 2 && a == 3 && b2 == 6);
+  unlink("/tmp/tb_wc_opt");
+
+  /* rm -r removes directory tree */
+  char *m1[] = { "/bin/mkdir", "-p", "/tmp/tb_rmr/sub", NULL };
+  run_exit(m1);
+  write_file("/tmp/tb_rmr/f1", "x");
+  write_file("/tmp/tb_rmr/sub/f2", "y");
+  char *r1[] = { "/bin/rm", "-r", "/tmp/tb_rmr", NULL };
+  result("rm -r exits 0", child_ok(run_exit(r1)));
+  result("rm -r: tree gone", stat("/tmp/tb_rmr", &(struct stat){}) != 0);
+
+  /* sleep fractional — just check it exits 0 quickly */
+  char *s1[] = { "/bin/sleep", "0.1", NULL };
+  result("sleep 0.1 exits 0", child_ok(run_exit(s1)));
+
+  /* sleep integer still works */
+  char *s2[] = { "/bin/sleep", "0", NULL };
+  result("sleep 0 exits 0", child_ok(run_exit(s2)));
+}
+
+/* -----------------------------------------------------------------------
  * head
  * -------------------------------------------------------------------- */
 static void test_head(void) {
@@ -972,6 +1036,7 @@ int main(void) {
   test_head();
   test_date();
   test_df();
+  test_new_options();
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed != 0;
 }

@@ -67,7 +67,7 @@ static void fmt_time(unsigned long long sec, char out[17]) {
   out[16] = '\0';
 }
 
-static int list_dir(const char *path, int long_fmt) {
+static int list_dir(const char *path, int long_fmt, int show_all) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
     fprintf(stderr, "ls: cannot open '%s'\n", path);
@@ -78,6 +78,7 @@ static int list_dir(const char *path, int long_fmt) {
   int n;
   while ((n = getdents(fd, buf, 32)) > 0) {
     for (int i = 0; i < n; i++) {
+      if (!show_all && buf[i].d_name[0] == '.') continue;
       if (!long_fmt) {
         printf("%s\n", buf[i].d_name);
         continue;
@@ -124,25 +125,27 @@ static int list_dir(const char *path, int long_fmt) {
 
 int main(int argc, char **argv) {
   int long_fmt = 0;
+  int show_all = 0;
   int ret = 0;
   int nfiles = 0;
 
-  /* Collect non-flag args; flags first pass */
   const char *paths[16];
   for (int i = 1; i < argc; i++) {
     if (argv[i][0] == '-') {
-      for (int j = 1; argv[i][j]; j++)
+      for (int j = 1; argv[i][j]; j++) {
         if (argv[i][j] == 'l') long_fmt = 1;
+        if (argv[i][j] == 'a') show_all = 1;
+      }
     } else {
       if (nfiles < 16) paths[nfiles++] = argv[i];
     }
   }
 
   if (nfiles == 0) {
-    ret = list_dir(".", long_fmt);
+    ret = list_dir(".", long_fmt, show_all);
   } else {
     for (int i = 0; i < nfiles; i++) {
-      if (list_dir(paths[i], long_fmt) != 0)
+      if (list_dir(paths[i], long_fmt, show_all) != 0)
         ret = 1;
     }
   }
