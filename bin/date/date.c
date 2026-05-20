@@ -17,7 +17,11 @@ int main(int argc, char **argv) {
   unsigned long sec   = (unsigned long)t % 60;
   unsigned long min   = ((unsigned long)t / 60) % 60;
   unsigned long hour  = ((unsigned long)t / 3600) % 24;
-  unsigned long days  = (unsigned long)t / 86400;
+  unsigned long days_since_epoch = (unsigned long)t / 86400;
+  /* 1970-01-01 was a Thursday = day 4 in Sun=0 convention, or index 0 in our Thu-first array. */
+  unsigned long dow = (days_since_epoch + 4) % 7; /* 0=Thu,1=Fri,2=Sat,3=Sun,4=Mon,5=Tue,6=Wed */
+
+  unsigned long days  = days_since_epoch;
 
   /* Shift to a March-based year for simpler leap-year math. */
   days += 719468UL; /* days from 0000-03-01 to 1970-01-01 */
@@ -34,8 +38,6 @@ int main(int argc, char **argv) {
   static const char *days_of_week[] = {
     "Thu","Fri","Sat","Sun","Mon","Tue","Wed"
   };
-  /* days since epoch; 1970-01-01 was a Thursday (day 4). */
-  unsigned long dow = ((unsigned long)t / 86400 + 4) % 7;
 
   static const char *months[] = {
     "","Jan","Feb","Mar","Apr","May","Jun",
