@@ -28,7 +28,7 @@ static int copy_file(const char *src, const char *dst) {
   int src_fd = open(src, O_RDONLY);
   if (src_fd < 0) { printf("mv: cannot open '%s'\n", src); return 1; }
 
-  int dst_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC);
+  int dst_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (dst_fd < 0) {
     printf("mv: cannot create '%s'\n", dst);
     close(src_fd);

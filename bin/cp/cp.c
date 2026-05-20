@@ -14,7 +14,7 @@ static int copy_file(const char *src, const char *dst) {
     return 1;
   }
 
-  int dst_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC);
+  int dst_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (dst_fd < 0) {
     printf("cp: cannot create '%s'\n", dst);
     close(src_fd);
