@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
 
   if (end == 1) return 1; /* no expression = false */
 
-  int pos = 1;
+  int pos = 0;
   int result = eval(end - 1, argv + 1, &pos);
   /* Invert: test returns 0 (success) when expression is true. */
   return result ? 0 : 1;
