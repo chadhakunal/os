@@ -933,6 +933,9 @@ static void test_date(void) {
   run_capture(a3, buf, sizeof(buf));
   len = strlen(buf);
   if (len && buf[len-1] == '\n') buf[len-1] = '\0';
+  printf("  [dbg] +%%H:%%M:%%S len=%d: ", (int)strlen(buf));
+  for (int i = 0; buf[i]; i++) printf("[%d]=%02x ", i, (unsigned char)buf[i]);
+  printf("\n");
   result("date +%H:%M:%S: 8 chars", strlen(buf) == 8);
   result("date +%H:%M:%S: contains colons", buf[2] == ':' && buf[5] == ':');
 
@@ -941,6 +944,9 @@ static void test_date(void) {
   run_capture(a4, buf, sizeof(buf));
   len = strlen(buf);
   if (len && buf[len-1] == '\n') buf[len-1] = '\0';
+  printf("  [dbg] +%%Y-%%m-%%d len=%d: ", (int)strlen(buf));
+  for (int i = 0; buf[i]; i++) printf("[%d]=%02x ", i, (unsigned char)buf[i]);
+  printf("\n");
   result("date +%Y-%m-%d: 10 chars", strlen(buf) == 10);
   result("date +%Y-%m-%d: has dashes", buf[4] == '-' && buf[7] == '-');
 }

@@ -44,6 +44,7 @@ int main(int argc, char **argv) {
   /* Check for optional format string: date +FORMAT */
   if (argc >= 2 && argv[1][0] == '+') {
     const char *fmt = argv[1] + 1;
+    fprintf(stderr, "[date dbg] fmt='%s' len=%d\n", fmt, (int)__builtin_strlen(fmt));
     for (; *fmt; ) {
       if (*fmt != '%') { putchar(*fmt++); continue; }
       fmt++; /* skip '%' */
