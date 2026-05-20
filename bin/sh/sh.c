@@ -489,10 +489,10 @@ static int run_command_line(char *line) {
   expand_args(backtick_expanded, expanded, sizeof(expanded));
   expand_glob(expanded, glob_expanded, sizeof(glob_expanded));
 
-  /* Split glob_expanded on semicolons into a list of statements first,
-   * then execute each one. This avoids the static buffer being overwritten
-   * by recursive run_command_line calls during execution. */
+  /* Split glob_expanded on ; && || into a list of statements.
+   * sep[i]: 0=none/semicolon, 1=&&, 2=|| */
   static char stmts[32][1024];
+  static int  sep[32]; /* separator preceding stmt[i] */
   int nstmts = 0;
 
   char *p = glob_expanded;
@@ -501,23 +501,39 @@ static int run_command_line(char *line) {
     if (*p == '\0') break;
     char *start = p;
     int in_q = 0;
+    int next_sep = 0;
     while (*p) {
-      if (*p == '"') in_q = !in_q;
-      if (!in_q && *p == ';') break;
+      if (*p == '"') { in_q = !in_q; p++; continue; }
+      if (!in_q) {
+        if (*p == ';') { next_sep = 0; break; }
+        if (*p == '&' && *(p+1) == '&') { next_sep = 1; break; }
+        if (*p == '|' && *(p+1) == '|') { next_sep = 2; break; }
+      }
       p++;
     }
     size_t len = (size_t)(p - start);
+    /* advance past the separator */
     if (*p == ';') p++;
+    else if ((*p == '&' || *p == '|') && *(p+1) == *p) p += 2;
     if (len >= 1024) len = 1023;
     memcpy(stmts[nstmts], start, len);
     stmts[nstmts][len] = '\0';
     trim_line(stmts[nstmts]);
-    if (stmts[nstmts][0] != '\0')
+    if (stmts[nstmts][0] != '\0') {
+      sep[nstmts] = next_sep;
       nstmts++;
+    }
   }
 
   for (int si = 0; si < nstmts; si++) {
     char *stmt = stmts[si];
+
+    /* honour && and || from previous statement's separator */
+    if (si > 0) {
+      int prev_sep = sep[si - 1];
+      if (prev_sep == 1 && last != 0) break; /* && : stop on failure */
+      if (prev_sep == 2 && last == 0) break; /* || : stop on success */
+    }
 
     /* split on '|' (not inside quotes) */
     char *segs[16];
