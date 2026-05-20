@@ -934,9 +934,6 @@ static void test_date(void) {
   len = strlen(buf);
   if (len && buf[len-1] == '\n') buf[len-1] = '\0';
   result("date +%H:%M:%S: 8 chars", strlen(buf) == 8);
-  printf("  [dbg] +%%H:%%M:%%S bytes: ");
-  for (int i = 0; buf[i]; i++) printf("%02x ", (unsigned char)buf[i]);
-  printf("\n");
   result("date +%H:%M:%S: contains colons", buf[2] == ':' && buf[5] == ':');
 
   /* +%Y-%m-%d produces YYYY-MM-DD */

@@ -44,10 +44,10 @@ int main(int argc, char **argv) {
   /* Check for optional format string: date +FORMAT */
   if (argc >= 2 && argv[1][0] == '+') {
     const char *fmt = argv[1] + 1;
-    for (; *fmt; fmt++) {
-      if (*fmt != '%') { putchar(*fmt); continue; }
-      fmt++;
-      switch (*fmt) {
+    for (; *fmt; ) {
+      if (*fmt != '%') { putchar(*fmt++); continue; }
+      fmt++; /* skip '%' */
+      switch (*fmt++) {
         case 'Y': printf("%04lu", y);   break;
         case 'm': printf("%02lu", mo);  break;
         case 'd': printf("%02lu", d);   break;
