@@ -30,16 +30,17 @@ send() {
 wait_for_prompt() {
   local elapsed=0
   while [ $elapsed -lt $TIMEOUT ]; do
-    # Capture the last line of the pane
+    # Capture the last non-empty line of the pane
     local last
-    last=$(tmux capture-pane -t "$PANE" -p | grep -v '^$' | tail -1)
+    last=$(tmux capture-pane -t "$PANE" -p | grep -v '^[[:space:]]*$' | tail -1)
+    # Match "<anything> $ <anything including nothing>" — cwd prompt
     case "$last" in
-      *'$ ') return 0 ;;
+      *'$ '*|*'$ ') return 0 ;;
     esac
     sleep $POLL
     elapsed=$(( elapsed + 1 ))
   done
-  echo "  [TIMEOUT] waited ${TIMEOUT}s for prompt after test — continuing anyway"
+  echo "  [TIMEOUT] waited ${TIMEOUT}s for prompt — last line was: $last"
   return 1
 }
 
