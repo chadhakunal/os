@@ -78,6 +78,7 @@ static int list_dir(const char *path, int long_fmt, int show_all) {
   int n;
   while ((n = getdents(fd, buf, 32)) > 0) {
     for (int i = 0; i < n; i++) {
+      if (buf[i].d_name[0] == '\0') continue;
       if (!show_all && buf[i].d_name[0] == '.') continue;
       if (!long_fmt) {
         printf("%s\n", buf[i].d_name);
