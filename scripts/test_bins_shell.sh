@@ -45,11 +45,21 @@ echo "--- echo ---"
 OUT=$(run_cmd "echo foo bar baz")
 result "echo multiple args"                "$(contains "$OUT" "foo bar baz")"
 
-OUT=$(run_cmd "echo -n noline")
-result "echo -n no newline"                "$(equals "$OUT" "noline")"
+# echo -n: no trailing newline so output merges with prompt on same line.
+# Use raw capture (no prompt-line filter) so the merged line is kept.
+_seq=$(( _seq + 1 ))
+_b="__BEGIN_${_seq}__" ; _e="__END_${_seq}__"
+send "echo $_b" ; wait_for_prompt
+send "echo -n noline" ; wait_for_prompt
+send "echo $_e" ; wait_for_prompt
+_raw=$(tmux capture-pane -t "$PANE" -p -S - \
+  | awk "/^${_b}$/{f=1;next} /^${_e}$/{f=0} f")
+result "echo -n no newline"                "$(contains "$_raw" "noline")"
 
-OUT=$(run_cmd "echo")
-result "echo no args prints blank line"    "$(equals "$OUT" "")"
+# echo with no args: blank line is stripped by run_cmd — use run_cmd_raw.
+OUT=$(run_cmd_raw "echo")
+BLANK=$(echo "$OUT" | grep -c '^[[:space:]]*$' || true)
+result "echo no args prints blank line"    "$([ "$BLANK" -ge 1 ] && echo 1 || echo 0)"
 
 # -------------------------------------------------------------------------
 # printf
