@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
     }
     int fd = open(argv[i], O_RDONLY);
     if (fd < 0) {
-      printf("cat: failed to open %s\n", argv[i]);
+      fprintf(stderr, "cat: %s: no such file or directory\n", argv[i]);
       return 1;
     }
     cat_fd(fd);

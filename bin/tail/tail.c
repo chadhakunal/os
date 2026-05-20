@@ -8,7 +8,7 @@
 int tail_lines(int fd, int num_lines) {
   off_t file_size = lseek(fd, 0, SEEK_END);
   if (file_size < 0) {
-    printf("tail: failed to seek to end\n");
+    fprintf(stderr, "tail: failed to seek to end\n");
     return 1;
   }
 
@@ -28,12 +28,12 @@ int tail_lines(int fd, int num_lines) {
 
   while (pos >= 0 && lines_found < num_lines) {
     if (lseek(fd, pos, SEEK_SET) < 0) {
-      printf("tail: seek failed\n");
+      fprintf(stderr, "tail: seek failed\n");
       return 1;
     }
 
     if (read(fd, buf, 1) != 1) {
-      printf("tail: read failed\n");
+      fprintf(stderr, "tail: read failed\n");
       return 1;
     }
 
@@ -52,7 +52,7 @@ int tail_lines(int fd, int num_lines) {
   }
 
   if (lseek(fd, pos, SEEK_SET) < 0) {
-    printf("tail: seek failed\n");
+    fprintf(stderr, "tail: seek failed\n");
     return 1;
   }
 
@@ -68,7 +68,7 @@ int tail_lines(int fd, int num_lines) {
 int tail_bytes(int fd, int num_bytes) {
   off_t file_size = lseek(fd, 0, SEEK_END);
   if (file_size < 0) {
-    printf("tail: failed to seek to end\n");
+    fprintf(stderr, "tail: failed to seek to end\n");
     return 1;
   }
 
@@ -82,7 +82,7 @@ int tail_bytes(int fd, int num_bytes) {
   }
 
   if (lseek(fd, start_pos, SEEK_SET) < 0) {
-    printf("tail: seek failed\n");
+    fprintf(stderr, "tail: seek failed\n");
     return 1;
   }
 
@@ -106,25 +106,25 @@ int main(int argc, char *argv[]) {
         use_bytes = 1;
         num = atoi(optarg);
         if (num <= 0) {
-          printf("tail: invalid number of bytes: '%s'\n", optarg);
+          fprintf(stderr, "tail: invalid number of bytes: '%s'\n", optarg);
           return 1;
         }
         break;
       case 'n':
         num = atoi(optarg);
         if (num <= 0) {
-          printf("tail: invalid number of lines: '%s'\n", optarg);
+          fprintf(stderr, "tail: invalid number of lines: '%s'\n", optarg);
           return 1;
         }
         break;
       case '?':
-        printf("Usage: tail [-c NUM] [-n NUM] <file>\n");
+        fprintf(stderr, \"Usage: tail [-c NUM] [-n NUM] <file>\n");
         return 1;
     }
   }
 
   if (optind >= argc) {
-    printf("Usage: tail [-c NUM] [-n NUM] <file>\n");
+    fprintf(stderr, \"Usage: tail [-c NUM] [-n NUM] <file>\n");
     printf("  -c NUM    output last NUM bytes\n");
     printf("  -n NUM    output last NUM lines (default: 10)\n");
     return 1;
@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
 
   int fd = open(filename, O_RDONLY);
   if (fd < 0) {
-    printf("tail: cannot open '%s'\n", filename);
+    fprintf(stderr, "tail: cannot open '%s'\n", filename);
     return 1;
   }
 

@@ -3,7 +3,7 @@
 #include <unistd.h>
 
 static void usage(void) {
-  printf("Usage: chmod <octal-mode> <file>\n");
+  fprintf(stderr, "Usage: chmod <octal-mode> <file>\n");
 }
 
 int main(int argc, char **argv) {
@@ -19,12 +19,12 @@ int main(int argc, char **argv) {
     s++;
   }
   if (*s != '\0') {
-    printf("chmod: invalid mode '%s'\n", argv[1]);
+    fprintf(stderr, "chmod: invalid mode '%s'\n", argv[1]);
     return 1;
   }
 
   if (chmod(argv[2], mode) < 0) {
-    printf("chmod: failed on '%s'\n", argv[2]);
+    fprintf(stderr, "chmod: cannot change permissions of '%s'\n", argv[2]);
     return 1;
   }
   return 0;

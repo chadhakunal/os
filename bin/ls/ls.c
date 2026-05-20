@@ -67,11 +67,11 @@ static void fmt_time(unsigned long long sec, char out[17]) {
   out[16] = '\0';
 }
 
-static void list_dir(const char *path, int long_fmt) {
+static int list_dir(const char *path, int long_fmt) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
     fprintf(stderr, "ls: cannot open '%s'\n", path);
-    return;
+    return 1;
   }
 
   struct dirent buf[32];
@@ -119,22 +119,33 @@ static void list_dir(const char *path, int long_fmt) {
   }
 
   close(fd);
+  return 0;
 }
 
 int main(int argc, char **argv) {
   int long_fmt = 0;
-  const char *path = ".";
+  int ret = 0;
+  int nfiles = 0;
 
+  /* Collect non-flag args; flags first pass */
+  const char *paths[16];
   for (int i = 1; i < argc; i++) {
     if (argv[i][0] == '-') {
-      for (int j = 1; argv[i][j]; j++) {
+      for (int j = 1; argv[i][j]; j++)
         if (argv[i][j] == 'l') long_fmt = 1;
-      }
     } else {
-      path = argv[i];
+      if (nfiles < 16) paths[nfiles++] = argv[i];
     }
   }
 
-  list_dir(path, long_fmt);
-  return 0;
+  if (nfiles == 0) {
+    ret = list_dir(".", long_fmt);
+  } else {
+    for (int i = 0; i < nfiles; i++) {
+      if (list_dir(paths[i], long_fmt) != 0)
+        ret = 1;
+    }
+  }
+
+  return ret;
 }

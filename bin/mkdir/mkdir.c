@@ -22,7 +22,7 @@ static int mkdir_p(const char *path, mode_t mode) {
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    printf("Usage: mkdir [-p] <dir>...\n");
+    fprintf(stderr, "Usage: mkdir [-p] <dir>...\n");
     return 1;
   }
 
