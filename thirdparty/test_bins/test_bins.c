@@ -538,9 +538,6 @@ static void test_tail(void) {
 
   char *t1[] = { "/bin/tail", "-n", "2", "/tmp/tb_tail", NULL };
   run_capture(t1, buf, sizeof(buf));
-  printf("  [dbg] tail -n 2 got %d bytes: ", (int)strlen(buf));
-  for (int i = 0; buf[i]; i++) printf("%02x ", (unsigned char)buf[i]);
-  printf("\n");
   result("tail -n 2: last 2 lines", strcmp(buf, "line4\nline5\n") == 0);
 
   char *t2[] = { "/bin/tail", "-n", "1", "/tmp/tb_tail", NULL };

@@ -20,6 +20,12 @@ int tail_lines(int fd, int num_lines) {
   int lines_found = 0;
   off_t pos = file_size - 1;
 
+  /* Skip a trailing newline so it doesn't count as an extra line boundary. */
+  lseek(fd, pos, SEEK_SET);
+  read(fd, buf, 1);
+  if (buf[0] == '\n')
+    pos--;
+
   while (pos >= 0 && lines_found < num_lines) {
     if (lseek(fd, pos, SEEK_SET) < 0) {
       printf("tail: seek failed\n");
