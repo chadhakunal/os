@@ -18,22 +18,24 @@ static int remove_recursive(const char *path);
 static int remove_dir(const char *path) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) { fprintf(stderr, "rm: cannot open '%s'\n", path); return 1; }
-  struct dirent entries[64];
-  int n = getdents(fd, entries, 64);
-  close(fd);
   int ret = 0;
-  int num = n;
-  for (int i = 0; i < num; i++) {
-    const char *name = entries[i].d_name;
-    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
-    char child[512];
-    int pl = strlen(path), nl = strlen(name);
-    if (pl + nl + 2 > (int)sizeof(child)) continue;
-    memcpy(child, path, pl);
-    child[pl] = '/';
-    memcpy(child + pl + 1, name, nl + 1);
-    if (remove_recursive(child) != 0) ret = 1;
+  struct dirent entries[64];
+  int n;
+  while ((n = getdents(fd, entries, 64)) > 0) {
+    for (int i = 0; i < n; i++) {
+      const char *name = entries[i].d_name;
+      if (name[0] == '\0') continue;
+      if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+      char child[512];
+      int pl = strlen(path), nl = strlen(name);
+      if (pl + nl + 2 > (int)sizeof(child)) continue;
+      memcpy(child, path, pl);
+      child[pl] = '/';
+      memcpy(child + pl + 1, name, nl + 1);
+      if (remove_recursive(child) != 0) ret = 1;
+    }
   }
+  close(fd);
   if (rmdir(path) < 0) { fprintf(stderr, "rm: cannot remove dir '%s'\n", path); return 1; }
   return ret;
 }
