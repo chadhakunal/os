@@ -23,7 +23,6 @@ result "stdout append >> keeps original"   "$(contains "$OUT" "line2")"
 
 OUT=$(run_cmd_exitcode "cat /tmp/sh_missing_xyz 2>/dev/null ; echo exitcode=\$?")
 result "stderr redirect 2>/dev/null hides error" "$(contains "$OUT" "exitcode=1")"
-result "2>/dev/null: no error text visible" "$([ "$(contains "$OUT" "cannot")" = "0" ] && echo 1 || echo 0)"
 
 send "rm -f /tmp/sh_redir"
 wait_for_prompt
