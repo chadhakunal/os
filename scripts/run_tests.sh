@@ -33,10 +33,10 @@ wait_for_prompt() {
     # Capture the last non-empty line of the pane
     local last
     last=$(tmux capture-pane -t "$PANE" -p | grep -v '^[[:space:]]*$' | tail -1)
-    # Match "<anything> $ <anything including nothing>" — cwd prompt
-    case "$last" in
-      *'$ '*|*'$ ') return 0 ;;
-    esac
+    # Match any line ending with '$ ' or '$ ' at end (the shell prompt)
+    if echo "$last" | grep -qE '\$\s*$'; then
+      return 0
+    fi
     sleep $POLL
     elapsed=$(( elapsed + 1 ))
   done
