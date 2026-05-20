@@ -51,6 +51,7 @@ SHELL_TESTS="
 test_ls
 test_shell
 test_bins_shell
+test_posix
 "
 
 echo "=== running tests on QEMU pane $PANE ==="

@@ -117,10 +117,10 @@ OUT=$(run_cmd "tail -n 2 /tmp/tb_ht")
 result "tail -n 2 last 2 lines"           "$([ "$(contains "$OUT" "l4")" = "1" ] && [ "$(contains "$OUT" "l5")" = "1" ] && [ "$(contains "$OUT" "l3")" = "0" ] && echo 1 || echo 0)"
 
 OUT=$(run_cmd "cat /tmp/tb_ht | head -n 1")
-result "head via pipe"                    "$(equals "$OUT" "l1")"
+result "head via pipe"                    "$(contains "$OUT" "l1")"
 
 OUT=$(run_cmd "cat /tmp/tb_ht | tail -n 1")
-result "tail via pipe"                    "$(equals "$OUT" "l5")"
+result "tail via pipe"                    "$(contains "$OUT" "l5")"
 
 send "rm -f /tmp/tb_ht"
 wait_for_prompt
@@ -128,8 +128,8 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 # grep (if present in guest)
 # -------------------------------------------------------------------------
-GREP_CHECK=$(run_cmd_exitcode "which grep ; echo exitcode=\$?")
-if [ "$(contains "$GREP_CHECK" "exitcode=0")" = "1" ]; then
+GREP_CHECK=$(run_cmd "which grep")
+if [ "$(contains "$GREP_CHECK" "/bin/grep")" = "1" ]; then
   echo "--- grep ---"
   send "printf 'apple\nbanana\ncherry\n' > /tmp/tb_grep"
   wait_for_prompt

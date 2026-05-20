@@ -1182,11 +1182,18 @@ static int builtin_source(int argc, char *argv[]) {
 }
 
 static int builtin_echo(int argc, char *argv[], int out_fd) {
-  for (int i = 1; i < argc; i++) {
-    if (i > 1) write(out_fd, " ", 1);
+  int no_newline = 0;
+  int start = 1;
+  if (argc > 1 && strcmp(argv[1], "-n") == 0) {
+    no_newline = 1;
+    start = 2;
+  }
+  for (int i = start; i < argc; i++) {
+    if (i > start) write(out_fd, " ", 1);
     echo_write_arg(out_fd, argv[i]);
   }
-  write(out_fd, "\n", 1);
+  if (!no_newline)
+    write(out_fd, "\n", 1);
   return 0;
 }
 
@@ -1272,35 +1279,89 @@ int parse_and_exec(char *buf) {
   size_t i = 0;
   size_t cmd_len = 0;
 
-  /* VAR=value assignment — detect before space-splitting so quoted values work.
-     Pattern: NAME=... where NAME is [A-Za-z_][A-Za-z0-9_]* */
+  /* VAR=value [VAR=value ...] [command] — collect leading assignments.
+   * If no command follows, set in shell. If a command follows, set only
+   * in the environment for that child (POSIX inline env prefix). */
   {
-    size_t j = 0;
-    while ((buf[j] >= 'A' && buf[j] <= 'Z') || (buf[j] >= 'a' && buf[j] <= 'z') ||
-           (buf[j] >= '0' && buf[j] <= '9') || buf[j] == '_')
-      j++;
-    if (j > 0 && buf[j] == '=') {
-      char varname[MAX_VAR_NAME];
+    /* Saved env pairs to apply to child */
+    static char env_names[8][MAX_VAR_NAME];
+    static char env_vals[8][MAX_VAR_VALUE];
+    int nenv = 0;
+
+    const char *p = buf;
+    while (*p) {
+      /* skip spaces */
+      while (*p == ' ' || *p == '\t') p++;
+      if (*p == '\0') break;
+
+      /* check for NAME= */
+      size_t j = 0;
+      const char *tok = p;
+      while ((tok[j] >= 'A' && tok[j] <= 'Z') || (tok[j] >= 'a' && tok[j] <= 'z') ||
+             (tok[j] >= '0' && tok[j] <= '9') || tok[j] == '_')
+        j++;
+      if (j == 0 || tok[j] != '=') break; /* not an assignment, stop */
+
+      /* extract name */
       size_t nlen = j < MAX_VAR_NAME ? j : MAX_VAR_NAME - 1;
-      memcpy(varname, buf, nlen);
-      varname[nlen] = '\0';
-      /* value starts after '=' */
-      const char *raw = buf + j + 1;
-      char value[MAX_VAR_VALUE];
-      size_t vlen = strlen(raw);
-      /* strip surrounding double quotes */
-      if (vlen >= 2 && raw[0] == '"' && raw[vlen-1] == '"') {
-        vlen -= 2;
-        if (vlen >= MAX_VAR_VALUE) vlen = MAX_VAR_VALUE - 1;
-        memcpy(value, raw + 1, vlen);
-      } else {
-        if (vlen >= MAX_VAR_VALUE) vlen = MAX_VAR_VALUE - 1;
-        memcpy(value, raw, vlen);
+      if (nenv < 8) {
+        memcpy(env_names[nenv], tok, nlen);
+        env_names[nenv][nlen] = '\0';
       }
-      value[vlen] = '\0';
-      shell_var_set(varname, value);
+
+      /* extract value — advance past '=' */
+      const char *raw = tok + j + 1;
+      /* find end of value token (next space not in quotes) */
+      size_t vlen = 0;
+      int in_q = 0;
+      while (raw[vlen] && (in_q || (raw[vlen] != ' ' && raw[vlen] != '\t'))) {
+        if (raw[vlen] == '"') in_q = !in_q;
+        vlen++;
+      }
+      if (nenv < 8) {
+        /* strip surrounding double quotes */
+        const char *vs = raw;
+        size_t vl = vlen;
+        if (vl >= 2 && vs[0] == '"' && vs[vl-1] == '"') { vs++; vl -= 2; }
+        if (vl >= MAX_VAR_VALUE) vl = MAX_VAR_VALUE - 1;
+        memcpy(env_vals[nenv], vs, vl);
+        env_vals[nenv][vl] = '\0';
+        nenv++;
+      }
+      p = raw + vlen;
+    }
+
+    /* skip spaces to see if a command follows */
+    while (*p == ' ' || *p == '\t') p++;
+
+    if (nenv > 0 && *p == '\0') {
+      /* Pure assignment(s): set in shell and return */
+      for (int ei = 0; ei < nenv; ei++)
+        shell_var_set(env_names[ei], env_vals[ei]);
       return 0;
     }
+
+    if (nenv > 0 && *p != '\0') {
+      /* Inline env prefix: set vars in environment, run command, then restore */
+      char *saved[8];
+      for (int ei = 0; ei < nenv; ei++) {
+        const char *old = getenv(env_names[ei]);
+        saved[ei] = old ? strdup(old) : NULL;
+        setenv(env_names[ei], env_vals[ei], 1);
+      }
+      /* Run the rest of the line as the command */
+      char rest[COMMAND_BUF_SIZE];
+      strncpy(rest, p, sizeof(rest) - 1);
+      rest[sizeof(rest) - 1] = '\0';
+      int ret = parse_and_exec(rest);
+      /* Restore environment */
+      for (int ei = 0; ei < nenv; ei++) {
+        if (saved[ei]) { setenv(env_names[ei], saved[ei], 1); free(saved[ei]); }
+        else unsetenv(env_names[ei]);
+      }
+      return ret;
+    }
+    /* nenv == 0: fall through to normal command parsing */
   }
 
   while (i < COMMAND_BUF_SIZE - 1 && buf[i] != ' ' && buf[i] != '\0')

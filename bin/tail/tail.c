@@ -124,10 +124,33 @@ int main(int argc, char *argv[]) {
   }
 
   if (optind >= argc) {
-    fprintf(stderr, "Usage: tail [-c NUM] [-n NUM] <file>\n");
-    fprintf(stderr, "  -c NUM    output last NUM bytes\n");
-    fprintf(stderr, "  -n NUM    output last NUM lines (default: 10)\n");
-    return 1;
+    /* No filename: read from stdin. Buffer all input, output last N lines. */
+    static char ibuf[65536];
+    ssize_t total = 0, n;
+    while (total < (ssize_t)(sizeof(ibuf) - 1) &&
+           (n = read(0, ibuf + total, sizeof(ibuf) - 1 - total)) > 0)
+      total += n;
+    ibuf[total] = '\0';
+
+    if (use_bytes) {
+      ssize_t start = total > num ? total - num : 0;
+      write(1, ibuf + start, total - start);
+    } else {
+      /* find the start of the last `num` lines */
+      int lines = 0;
+      ssize_t pos = total;
+      /* skip trailing newline */
+      if (pos > 0 && ibuf[pos - 1] == '\n') pos--;
+      while (pos > 0) {
+        pos--;
+        if (ibuf[pos] == '\n') {
+          lines++;
+          if (lines == num) { pos++; break; }
+        }
+      }
+      write(1, ibuf + pos, total - pos);
+    }
+    return 0;
   }
 
   const char *filename = argv[optind];
