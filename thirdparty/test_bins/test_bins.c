@@ -1005,6 +1005,168 @@ static void test_date(void) {
   result("date +%Y-%m-%d: has dashes", buf[4] == '-' && buf[7] == '-');
 }
 
+/* -----------------------------------------------------------------------
+ * printf binary
+ * -------------------------------------------------------------------- */
+static void test_printf(void) {
+  printf("Test: printf\n");
+  char buf[256];
+
+  /* Basic string */
+  char *a1[] = { "/bin/printf", "%s", "hello", NULL };
+  run_capture(a1, buf, sizeof(buf));
+  result("printf %s", strcmp(buf, "hello") == 0);
+
+  /* String with newline escape in format */
+  char *a2[] = { "/bin/printf", "%s\n", "world", NULL };
+  run_capture(a2, buf, sizeof(buf));
+  result("printf %s\\n", strcmp(buf, "world\n") == 0);
+
+  /* Decimal integer */
+  char *a3[] = { "/bin/printf", "%d\n", "42", NULL };
+  run_capture(a3, buf, sizeof(buf));
+  result("printf %d", strcmp(buf, "42\n") == 0);
+
+  /* Negative integer */
+  char *a4[] = { "/bin/printf", "%d\n", "-7", NULL };
+  run_capture(a4, buf, sizeof(buf));
+  result("printf %d negative", strcmp(buf, "-7\n") == 0);
+
+  /* Octal */
+  char *a5[] = { "/bin/printf", "%o\n", "8", NULL };
+  run_capture(a5, buf, sizeof(buf));
+  result("printf %o", strcmp(buf, "10\n") == 0);
+
+  /* Hex lower */
+  char *a6[] = { "/bin/printf", "%x\n", "255", NULL };
+  run_capture(a6, buf, sizeof(buf));
+  result("printf %x", strcmp(buf, "ff\n") == 0);
+
+  /* Hex upper */
+  char *a7[] = { "/bin/printf", "%X\n", "255", NULL };
+  run_capture(a7, buf, sizeof(buf));
+  result("printf %X", strcmp(buf, "FF\n") == 0);
+
+  /* Unsigned */
+  char *a8[] = { "/bin/printf", "%u\n", "4294967295", NULL };
+  run_capture(a8, buf, sizeof(buf));
+  result("printf %u large", strcmp(buf, "4294967295\n") == 0);
+
+  /* Character */
+  char *a9[] = { "/bin/printf", "%c\n", "A", NULL };
+  run_capture(a9, buf, sizeof(buf));
+  result("printf %c", strcmp(buf, "A\n") == 0);
+
+  /* Width right-align */
+  char *a10[] = { "/bin/printf", "%5d\n", "42", NULL };
+  run_capture(a10, buf, sizeof(buf));
+  result("printf %5d right-align", strcmp(buf, "   42\n") == 0);
+
+  /* Width left-align */
+  char *a11[] = { "/bin/printf", "%-5d|\n", "42", NULL };
+  run_capture(a11, buf, sizeof(buf));
+  result("printf %-5d left-align", strcmp(buf, "42   |\n") == 0);
+
+  /* Zero-pad */
+  char *a12[] = { "/bin/printf", "%05d\n", "42", NULL };
+  run_capture(a12, buf, sizeof(buf));
+  result("printf %05d zero-pad", strcmp(buf, "00042\n") == 0);
+
+  /* String width */
+  char *a13[] = { "/bin/printf", "%10s\n", "hi", NULL };
+  run_capture(a13, buf, sizeof(buf));
+  result("printf %10s right-align", strcmp(buf, "        hi\n") == 0);
+
+  /* String left-align */
+  char *a14[] = { "/bin/printf", "%-10s|\n", "hi", NULL };
+  run_capture(a14, buf, sizeof(buf));
+  result("printf %-10s left-align", strcmp(buf, "hi        |\n") == 0);
+
+  /* Escape sequences in format: \n \t \\ */
+  char *a15[] = { "/bin/printf", "a\tb\nc\n", NULL };
+  run_capture(a15, buf, sizeof(buf));
+  result("printf \\t \\n escapes", strcmp(buf, "a\tb\nc\n") == 0);
+
+  /* \a \b \r escapes */
+  char *a16[] = { "/bin/printf", "\a\b\r", NULL };
+  run_capture(a16, buf, sizeof(buf));
+  result("printf \\a \\b \\r escapes", buf[0] == '\a' && buf[1] == '\b' && buf[2] == '\r');
+
+  /* Octal escape \0NNN */
+  char *a17[] = { "/bin/printf", "\101\n", NULL };
+  run_capture(a17, buf, sizeof(buf));
+  result("printf octal \\101 = A", strcmp(buf, "A\n") == 0);
+
+  /* Hex escape \xHH */
+  char *a18[] = { "/bin/printf", "\x41\n", NULL };
+  run_capture(a18, buf, sizeof(buf));
+  result("printf hex \\x41 = A", strcmp(buf, "A\n") == 0);
+
+  /* %% literal percent */
+  char *a19[] = { "/bin/printf", "100%%\n", NULL };
+  run_capture(a19, buf, sizeof(buf));
+  result("printf %% literal", strcmp(buf, "100%\n") == 0);
+
+  /* Multiple args, format reused */
+  char *a20[] = { "/bin/printf", "%d\n", "1", "2", "3", NULL };
+  run_capture(a20, buf, sizeof(buf));
+  result("printf format reuse", strcmp(buf, "1\n2\n3\n") == 0);
+
+  /* Multiple format specifiers in one format */
+  char *a21[] = { "/bin/printf", "%s=%d\n", "x", "5", NULL };
+  run_capture(a21, buf, sizeof(buf));
+  result("printf multiple specifiers", strcmp(buf, "x=5\n") == 0);
+
+  /* Hex with 0x prefix using %#x — libc may not support #, just check no crash */
+  char *a22[] = { "/bin/printf", "%i\n", "010", NULL };
+  run_capture(a22, buf, sizeof(buf));
+  result("printf %i octal input 010=8", strcmp(buf, "8\n") == 0);
+
+  /* %i hex input */
+  char *a23[] = { "/bin/printf", "%i\n", "0x1f", NULL };
+  run_capture(a23, buf, sizeof(buf));
+  result("printf %i hex input 0x1f=31", strcmp(buf, "31\n") == 0);
+
+  /* \\ double backslash */
+  char *a24[] = { "/bin/printf", "a\\\\b\n", NULL };
+  run_capture(a24, buf, sizeof(buf));
+  result("printf \\\\\\\\ = single backslash", strcmp(buf, "a\\b\n") == 0);
+
+  /* Empty format */
+  char *a25[] = { "/bin/printf", "", NULL };
+  run_capture(a25, buf, sizeof(buf));
+  result("printf empty format produces no output", strcmp(buf, "") == 0);
+
+  /* No args past format, missing arg treated as empty/0 */
+  char *a26[] = { "/bin/printf", "%s\n", NULL };
+  run_capture(a26, buf, sizeof(buf));
+  result("printf missing string arg is empty", strcmp(buf, "\n") == 0);
+
+  char *a27[] = { "/bin/printf", "%d\n", NULL };
+  run_capture(a27, buf, sizeof(buf));
+  result("printf missing int arg is 0", strcmp(buf, "0\n") == 0);
+
+  /* exit code 0 on success */
+  char *a28[] = { "/bin/printf", "hi", NULL };
+  int st = run_exit(a28);
+  result("printf exits 0", WIFEXITED(st) && WEXITSTATUS(st) == 0);
+
+  /* exit code nonzero with no format */
+  char *a29[] = { "/bin/printf", NULL };
+  st = run_exit(a29);
+  result("printf no args exits nonzero", WIFEXITED(st) && WEXITSTATUS(st) != 0);
+
+  /* %b interprets escapes in argument */
+  char *a30[] = { "/bin/printf", "%b\n", "hello\\nworld", NULL };
+  run_capture(a30, buf, sizeof(buf));
+  result("printf %b interprets \\n in arg", strcmp(buf, "hello\nworld\n") == 0);
+
+  /* \c stops output */
+  char *a31[] = { "/bin/printf", "hello\\cworld", NULL };
+  run_capture(a31, buf, sizeof(buf));
+  result("printf \\c stops output", strcmp(buf, "hello") == 0);
+}
+
 int main(void) {
   printf("=== bin tests ===\n");
   test_echo();
@@ -1033,6 +1195,7 @@ int main(void) {
   test_date();
   test_df();
   test_new_options();
+  test_printf();
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed != 0;
 }
