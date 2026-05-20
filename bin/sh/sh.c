@@ -1286,8 +1286,15 @@ int parse_and_exec(char *buf) {
   const char *redirect_err = NULL;
   int append_mode = 0;
   int stderr_to_stdout = 0;
+  int run_background = 0;
 
   for (int ri = 1; ri < argc; ri++) {
+    if (strcmp(argv[ri], "&") == 0) {
+      run_background = 1;
+      for (int rj = ri; rj < argc - 1; rj++) argv[rj] = argv[rj + 1];
+      argc--; argv[argc] = NULL; ri--;
+      continue;
+    }
     /* 2>&1 — redirect stderr to stdout */
     if (strcmp(argv[ri], "2>&1") == 0) {
       stderr_to_stdout = 1;
@@ -1337,6 +1344,17 @@ int parse_and_exec(char *buf) {
       redirect_in = argv[ri + 1];
       for (int rj = ri; rj < argc - 2; rj++) argv[rj] = argv[rj + 2];
       argc -= 2; argv[argc] = NULL; ri--;
+    }
+  }
+
+  /* Handle trailing & attached to last token, e.g. "sleep 5&" */
+  if (argc > 0) {
+    char *last_arg = argv[argc - 1];
+    size_t last_len = strlen(last_arg);
+    if (last_len > 0 && last_arg[last_len - 1] == '&') {
+      run_background = 1;
+      last_arg[last_len - 1] = '\0';
+      if (last_len == 1) { argc--; argv[argc] = NULL; }
     }
   }
 
@@ -1565,6 +1583,14 @@ int parse_and_exec(char *buf) {
     exit(1);
   } else if (pid > 0) {
     setpgid(pid, pid);
+
+    if (run_background) {
+      job_add(pid, command_buf);
+      printf("[%d] %d\n", njobs, pid);
+      ioctl(0, TCSRAW, (void *)0);
+      return 0;
+    }
+
     tcsetpgrp(0, pid);
     int status = 0;
     pid_t waited;
@@ -1658,6 +1684,17 @@ int main(int argc, char **argv, char **envp) {
   char prompt[300];
 
   while (1) {
+    /* Reap any finished background jobs before printing the prompt. */
+    for (int ji = 0; ji < njobs; ji++) {
+      int st = 0;
+      pid_t r = waitpid(jobs[ji].pid, &st, WNOHANG);
+      if (r > 0) {
+        printf("[%d]+ Done    %s\n", jobs[ji].id, jobs[ji].cmd);
+        jobs[ji] = jobs[--njobs];
+        ji--;
+      }
+    }
+
     if (getcwd(cwd, sizeof(cwd)) == NULL)
       cwd[0] = '\0';
 
