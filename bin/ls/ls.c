@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 /* Build a "drwxrwxrwx" mode string from a stat st_mode. */
 static void fmt_mode(unsigned int mode, char out[11]) {
@@ -67,6 +68,33 @@ static void fmt_time(unsigned long long sec, char out[17]) {
   out[16] = '\0';
 }
 
+static void print_long(const char *path, const char *name) {
+  struct stat st;
+  if (stat(path, &st) < 0) {
+    printf("%s\n", name);
+    return;
+  }
+  char modestr[11];
+  fmt_mode(st.st_mode, modestr);
+  char timestr[17];
+  fmt_time(st.st_mtime, timestr);
+  printf("%s %3u %8llu  %s  %s\n",
+         modestr,
+         (unsigned int)st.st_nlink,
+         (unsigned long long)st.st_size,
+         timestr,
+         name);
+}
+
+static int list_file(const char *path, const char *name, int long_fmt) {
+  if (!long_fmt) {
+    printf("%s\n", name);
+    return 0;
+  }
+  print_long(path, name);
+  return 0;
+}
+
 static int list_dir(const char *path, int long_fmt, int show_all) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
@@ -97,31 +125,23 @@ static int list_dir(const char *path, int long_fmt, int show_all) {
       if (full[plen - 1] != '/') full[plen++] = '/';
       memcpy(full + plen, buf[i].d_name, nlen + 1);
 
-      struct stat st;
-      if (stat(full, &st) < 0) {
-        /* Fall back to name-only if stat fails. */
-        printf("%s\n", buf[i].d_name);
-        continue;
-      }
-
-      char modestr[11];
-      fmt_mode(st.st_mode, modestr);
-
-      char timestr[17];
-      fmt_time(st.st_mtime, timestr);
-
-      /* Format: mode  nlinks  size  mtime  name */
-      printf("%s %3u %8llu  %s  %s\n",
-             modestr,
-             (unsigned int)st.st_nlink,
-             (unsigned long long)st.st_size,
-             timestr,
-             buf[i].d_name);
+      print_long(full, buf[i].d_name);
     }
   }
 
   close(fd);
   return 0;
+}
+
+static int list_path(const char *path, int long_fmt, int show_all) {
+  struct stat st;
+  if (stat(path, &st) < 0) {
+    fprintf(stderr, "ls: cannot access '%s'\n", path);
+    return 1;
+  }
+  if (S_ISDIR(st.st_mode))
+    return list_dir(path, long_fmt, show_all);
+  return list_file(path, path, long_fmt);
 }
 
 int main(int argc, char **argv) {
@@ -146,7 +166,7 @@ int main(int argc, char **argv) {
     ret = list_dir(".", long_fmt, show_all);
   } else {
     for (int i = 0; i < nfiles; i++) {
-      if (list_dir(paths[i], long_fmt, show_all) != 0)
+      if (list_path(paths[i], long_fmt, show_all) != 0)
         ret = 1;
     }
   }

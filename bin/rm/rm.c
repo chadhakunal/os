@@ -3,14 +3,12 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <sys/stat.h>
 
 static int is_dir(const char *path) {
-  int fd = open(path, O_RDONLY);
-  if (fd < 0) return 0;
-  struct dirent de;
-  int n = getdents(fd, &de, 1);
-  close(fd);
-  return (n > 0);
+  struct stat st;
+  if (stat(path, &st) < 0) return 0;
+  return S_ISDIR(st.st_mode);
 }
 
 static int remove_recursive(const char *path);
