@@ -8,8 +8,7 @@ CFLAGS := -gdwarf-4 -Wall -Werror -Os -ffreestanding -fno-builtin -nostdlib -nos
 
 CRT := $(ROOT)/build/libc/crt.S.o
 LIBC := $(ROOT)/build/libc.a
-BINDIR := $(ROOT)/build/rootfs/bin
-TESTDIR := $(ROOT)/build/rootfs/bin/tests
+BINDIR := $(ROOT)/build/rootfs/bin/tests
 
 RC_TESTS := test_syscalls test_shell test_signals stacktest stacktest2 test_rlimit posix_compliance \
 	testjobs testsignal test_dprintf test_long_wait test_mmap test_pipe test_sleep test-kernel \
@@ -17,34 +16,34 @@ RC_TESTS := test_syscalls test_shell test_signals stacktest stacktest2 test_rlim
 
 .PHONY: install os-tests-sortix-clone os-tests-build os-tests-install
 
-install: $(LIBC) $(CRT) $(RC_TESTS:%=$(TESTDIR)/%) os-tests-install
+install: $(LIBC) $(CRT) $(RC_TESTS:%=$(BINDIR)/%) os-tests-install
 
 $(LIBC) $(CRT):
 	$(MAKE) -C $(ROOT) build/libc.a build/libc/crt.S.o
 
-# $(TESTDIR)/test_syscalls:    test_syscalls/test_syscalls.c $(CRT) $(LIBC)
-$(TESTDIR)/test_shell:       test_shell/test_shell.c $(CRT) $(LIBC)
-$(TESTDIR)/test_signals:     test_signals/test_signals.c $(CRT) $(LIBC)
-# $(TESTDIR)/stacktest:        stacktest/stacktest.c $(CRT) $(LIBC)
-# $(TESTDIR)/stacktest2:       stacktest2/stacktest.c $(CRT) $(LIBC)
-$(TESTDIR)/test_rlimit:      test_rlimit/test_rlimit.c $(CRT) $(LIBC)
-$(TESTDIR)/posix_compliance: posix_compliance.c $(CRT) $(LIBC)
-$(TESTDIR)/testjobs:         testjobs/testjobs.c $(CRT) $(LIBC)
-$(TESTDIR)/testsignal:       testsignal/testsignal.c $(CRT) $(LIBC)
-# $(TESTDIR)/test_dprintf:     test_dprintf/test_dprintf.c $(CRT) $(LIBC)
-# $(TESTDIR)/test_long_wait:   test_long_wait/test_long_wait.c $(CRT) $(LIBC)
-# $(TESTDIR)/test_mmap:        test_mmap/test_mmap.c $(CRT) $(LIBC)
-$(TESTDIR)/test_pipe:        test_pipe/test_pipe.c $(CRT) $(LIBC)
-# $(TESTDIR)/test_sleep:       test_sleep/test_sleep.c $(CRT) $(LIBC)
-# $(TESTDIR)/test-kernel:      test-kernel/test-kernel.c $(CRT) $(LIBC)
-$(TESTDIR)/test_devnull:     test_devnull/test_devnull.c $(CRT) $(LIBC)
-$(TESTDIR)/test_oom:         test_oom/test_oom.c $(CRT) $(LIBC)
-$(TESTDIR)/test_oom_vs_enomem: test_oom_vs_enomem/test_oom_vs_enomem.c $(CRT) $(LIBC)
-$(TESTDIR)/test_oom_stress:    test_oom_stress/test_oom_stress.c $(CRT) $(LIBC)
-$(TESTDIR)/test_bins:          test_bins/test_bins.c $(CRT) $(LIBC)
+# $(BINDIR)/test_syscalls:    test_syscalls/test_syscalls.c $(CRT) $(LIBC)
+$(BINDIR)/test_shell:       test_shell/test_shell.c $(CRT) $(LIBC)
+$(BINDIR)/test_signals:     test_signals/test_signals.c $(CRT) $(LIBC)
+# $(BINDIR)/stacktest:        stacktest/stacktest.c $(CRT) $(LIBC)
+# $(BINDIR)/stacktest2:       stacktest2/stacktest.c $(CRT) $(LIBC)
+$(BINDIR)/test_rlimit:      test_rlimit/test_rlimit.c $(CRT) $(LIBC)
+$(BINDIR)/posix_compliance: posix_compliance.c $(CRT) $(LIBC)
+$(BINDIR)/testjobs:         testjobs/testjobs.c $(CRT) $(LIBC)
+$(BINDIR)/testsignal:       testsignal/testsignal.c $(CRT) $(LIBC)
+# $(BINDIR)/test_dprintf:     test_dprintf/test_dprintf.c $(CRT) $(LIBC)
+# $(BINDIR)/test_long_wait:   test_long_wait/test_long_wait.c $(CRT) $(LIBC)
+# $(BINDIR)/test_mmap:        test_mmap/test_mmap.c $(CRT) $(LIBC)
+$(BINDIR)/test_pipe:        test_pipe/test_pipe.c $(CRT) $(LIBC)
+# $(BINDIR)/test_sleep:       test_sleep/test_sleep.c $(CRT) $(LIBC)
+# $(BINDIR)/test-kernel:      test-kernel/test-kernel.c $(CRT) $(LIBC)
+$(BINDIR)/test_devnull:     test_devnull/test_devnull.c $(CRT) $(LIBC)
+$(BINDIR)/test_oom:         test_oom/test_oom.c $(CRT) $(LIBC)
+$(BINDIR)/test_oom_vs_enomem: test_oom_vs_enomem/test_oom_vs_enomem.c $(CRT) $(LIBC)
+$(BINDIR)/test_oom_stress:    test_oom_stress/test_oom_stress.c $(CRT) $(LIBC)
+$(BINDIR)/test_bins:          test_bins/test_bins.c $(CRT) $(LIBC)
 
-$(RC_TESTS:%=$(TESTDIR)/%):
-	@mkdir -p $(TESTDIR)
+$(RC_TESTS:%=$(BINDIR)/%):
+	@mkdir -p $(BINDIR)
 	$(CC) $(CFLAGS) $(CRT) $(filter %.c,$^) $(LIBC) -Wl,--gc-sections -o $@
 
 # os-test (Sortix basic suite)
