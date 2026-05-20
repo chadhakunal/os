@@ -826,6 +826,125 @@ static void test_test_extra(void) {
   result("test 1 -ne 2", child_ok(run_exit(t13)));
 }
 
+/* -----------------------------------------------------------------------
+ * head
+ * -------------------------------------------------------------------- */
+static void test_head(void) {
+  printf("Test: head\n");
+  char buf[256];
+
+  write_file("/tmp/tb_head", "line1\nline2\nline3\nline4\nline5\n");
+
+  /* default 10 lines returns whole 5-line file */
+  char *a1[] = { "/bin/head", "/tmp/tb_head", NULL };
+  run_capture(a1, buf, sizeof(buf));
+  result("head default: returns all lines when fewer than 10",
+         strcmp(buf, "line1\nline2\nline3\nline4\nline5\n") == 0);
+
+  /* -n 3 returns first 3 */
+  char *a2[] = { "/bin/head", "-n", "3", "/tmp/tb_head", NULL };
+  run_capture(a2, buf, sizeof(buf));
+  result("head -n 3: first 3 lines", strcmp(buf, "line1\nline2\nline3\n") == 0);
+
+  /* -n 1 returns first line */
+  char *a3[] = { "/bin/head", "-n", "1", "/tmp/tb_head", NULL };
+  run_capture(a3, buf, sizeof(buf));
+  result("head -n 1: first line only", strcmp(buf, "line1\n") == 0);
+
+  /* -n more than file returns whole file */
+  char *a4[] = { "/bin/head", "-n", "20", "/tmp/tb_head", NULL };
+  run_capture(a4, buf, sizeof(buf));
+  result("head -n 20 on 5-line file: returns all",
+         strcmp(buf, "line1\nline2\nline3\nline4\nline5\n") == 0);
+
+  /* shorthand -2 */
+  char *a5[] = { "/bin/head", "-2", "/tmp/tb_head", NULL };
+  run_capture(a5, buf, sizeof(buf));
+  result("head -2 shorthand: first 2 lines", strcmp(buf, "line1\nline2\n") == 0);
+
+  /* stdin */
+  int in_fds[2], out_fds[2];
+  pipe(in_fds); pipe(out_fds);
+  pid_t pid = fork();
+  if (pid == 0) {
+    close(in_fds[1]); close(out_fds[0]);
+    dup2(in_fds[0], 0); close(in_fds[0]);
+    dup2(out_fds[1], 1); close(out_fds[1]);
+    char *ha[] = { "/bin/head", "-n", "2", NULL };
+    execve("/bin/head", ha, NULL);
+    _exit(127);
+  }
+  close(in_fds[0]); close(out_fds[1]);
+  write(in_fds[1], "a\nb\nc\nd\n", 8);
+  close(in_fds[1]);
+  size_t tot = 0; ssize_t n;
+  while (tot < sizeof(buf)-1 && (n = read(out_fds[0], buf+tot, sizeof(buf)-1-tot)) > 0)
+    tot += n;
+  buf[tot] = '\0';
+  close(out_fds[0]);
+  int st; waitpid(pid, &st, 0);
+  result("head stdin -n 2", strcmp(buf, "a\nb\n") == 0);
+
+  /* missing file exits non-zero */
+  char *a6[] = { "/bin/head", "/no/such/file", NULL };
+  int s = run_exit(a6);
+  result("head missing file exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
+
+  /* multiple files shows headers */
+  write_file("/tmp/tb_head2", "x\ny\n");
+  char *a7[] = { "/bin/head", "-n", "1", "/tmp/tb_head", "/tmp/tb_head2", NULL };
+  run_capture(a7, buf, sizeof(buf));
+  result("head multiple files shows ==> headers", strstr(buf, "==>") != NULL);
+  result("head multiple files: first file content", strstr(buf, "line1") != NULL);
+  result("head multiple files: second file content", strstr(buf, "x") != NULL);
+  unlink("/tmp/tb_head2");
+
+  unlink("/tmp/tb_head");
+}
+
+/* -----------------------------------------------------------------------
+ * date
+ * -------------------------------------------------------------------- */
+static void test_date(void) {
+  printf("Test: date\n");
+  char buf[128];
+
+  /* date exits 0 and produces output */
+  char *a1[] = { "/bin/date", NULL };
+  int s = run_capture(a1, buf, sizeof(buf));
+  result("date exits 0", child_ok(s));
+  result("date output non-empty", strlen(buf) > 0);
+
+  /* Output contains UTC */
+  result("date output contains 'UTC'", strstr(buf, "UTC") != NULL);
+
+  /* Format string: +%Y gives a 4-digit year */
+  char *a2[] = { "/bin/date", "+%Y", NULL };
+  run_capture(a2, buf, sizeof(buf));
+  /* strip newline */
+  size_t len = strlen(buf);
+  if (len && buf[len-1] == '\n') buf[len-1] = '\0';
+  result("date +%Y: 4-digit year", strlen(buf) == 4);
+  int year = atoi(buf);
+  result("date +%Y: year >= 2024", year >= 2024);
+
+  /* Format string: +%H:%M:%S produces HH:MM:SS */
+  char *a3[] = { "/bin/date", "+%H:%M:%S", NULL };
+  run_capture(a3, buf, sizeof(buf));
+  len = strlen(buf);
+  if (len && buf[len-1] == '\n') buf[len-1] = '\0';
+  result("date +%H:%M:%S: 8 chars", strlen(buf) == 8);
+  result("date +%H:%M:%S: contains colons", buf[2] == ':' && buf[5] == ':');
+
+  /* +%Y-%m-%d produces YYYY-MM-DD */
+  char *a4[] = { "/bin/date", "+%Y-%m-%d", NULL };
+  run_capture(a4, buf, sizeof(buf));
+  len = strlen(buf);
+  if (len && buf[len-1] == '\n') buf[len-1] = '\0';
+  result("date +%Y-%m-%d: 10 chars", strlen(buf) == 10);
+  result("date +%Y-%m-%d: has dashes", buf[4] == '-' && buf[7] == '-');
+}
+
 int main(void) {
   printf("=== bin tests ===\n");
   test_echo();
@@ -850,6 +969,8 @@ int main(void) {
   test_ls();
   test_tail();
   test_tail_extra();
+  test_head();
+  test_date();
   test_df();
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed != 0;
