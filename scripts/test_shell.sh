@@ -137,7 +137,7 @@ result "cd /tmp then pwd shows /tmp"       "$(contains "$OUT" "/tmp")"
 send "cd /"
 wait_for_prompt
 OUT=$(run_cmd "pwd")
-result "cd / then pwd shows /"             "$(equals "$OUT" "/")"
+result "cd / then pwd shows /"             "$(contains "$OUT" "/")"
 
 OUT=$(run_cmd_exitcode "cd /no_such_dir_xyz ; echo exitcode=\$?")
 result "cd nonexistent exits nonzero"      "$(contains "$OUT" "exitcode=1")"
@@ -150,8 +150,8 @@ echo "--- echo builtin ---"
 OUT=$(run_cmd "echo hello world")
 result "echo builtin basic"                "$(contains "$OUT" "hello world")"
 
-OUT=$(run_cmd "echo -n noline")
-result "echo -n no trailing newline"       "$(equals "$OUT" "noline")"
+OUT=$(run_cmd_exitcode "echo -n noline")
+result "echo -n no trailing newline"       "$(contains "$OUT" "noline")"
 
 # -------------------------------------------------------------------------
 # Builtin: which

@@ -482,6 +482,18 @@ static int run_command_line(char *line) {
   if (line[0] == '\0' || line[0] == '#')
     return 0;
 
+  /* Inline compound commands: if/while/for on a single line with ; then/do.
+   * Route directly to execute_script_lines so the semicolons inside are
+   * not mistaken for statement separators. */
+  if ((strncmp(line, "if ",    3) == 0 && (strstr(line, "; then") || strstr(line, " then "))) ||
+      (strncmp(line, "while ", 6) == 0 && (strstr(line, "; do")   || strstr(line, " do ")))   ||
+      (strncmp(line, "for ",   4) == 0 && (strstr(line, "; do")   || strstr(line, " do ")))) {
+    static char *sl[1];
+    sl[0] = line;
+    execute_script_lines(sl, 1);
+    return last_exit_status;
+  }
+
   /* Split the raw line on ; && || into statements BEFORE variable expansion,
    * so that $? in later statements sees the exit status of earlier ones. */
   static char stmts[32][1024];
