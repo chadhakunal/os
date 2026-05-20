@@ -547,22 +547,310 @@ static void test_tail(void) {
   unlink("/tmp/tb_tail");
 }
 
+/* -----------------------------------------------------------------------
+ * ls
+ * -------------------------------------------------------------------- */
+static void test_ls(void) {
+  printf("Test: ls\n");
+  char buf[1024];
+
+  /* ls /bin lists binaries */
+  char *a1[] = { "/bin/ls", "/bin", NULL };
+  int s = run_capture(a1, buf, sizeof(buf));
+  result("ls /bin exits 0", child_ok(s));
+  result("ls /bin contains 'echo'", strstr(buf, "echo") != NULL);
+  result("ls /bin contains 'sh'",   strstr(buf, "sh")   != NULL);
+
+  /* ls /tmp should work (writable fs) */
+  char *a2[] = { "/bin/ls", "/tmp", NULL };
+  s = run_capture(a2, buf, sizeof(buf));
+  result("ls /tmp exits 0", child_ok(s));
+
+  /* ls -l shows permission bits */
+  char *a3[] = { "/bin/ls", "-l", "/bin", NULL };
+  s = run_capture(a3, buf, sizeof(buf));
+  result("ls -l exits 0", child_ok(s));
+  result("ls -l output has mode chars", strstr(buf, "rwx") != NULL || strstr(buf, "r-x") != NULL);
+
+  /* ls nonexistent exits non-zero */
+  char *a4[] = { "/bin/ls", "/no/such/dir", NULL };
+  s = run_exit(a4);
+  result("ls missing dir exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
+
+  /* ls a file we created */
+  write_file("/tmp/tb_ls_file", "x");
+  char *a5[] = { "/bin/ls", "/tmp", NULL };
+  run_capture(a5, buf, sizeof(buf));
+  result("ls shows newly created file", strstr(buf, "tb_ls_file") != NULL);
+  unlink("/tmp/tb_ls_file");
+}
+
+/* -----------------------------------------------------------------------
+ * cat — additional coverage
+ * -------------------------------------------------------------------- */
+static void test_cat(void) {
+  printf("Test: cat\n");
+  char buf[256];
+
+  /* cat two files concatenates them */
+  write_file("/tmp/tb_cat_a", "aaa\n");
+  write_file("/tmp/tb_cat_b", "bbb\n");
+  char *a1[] = { "/bin/cat", "/tmp/tb_cat_a", "/tmp/tb_cat_b", NULL };
+  run_capture(a1, buf, sizeof(buf));
+  result("cat two files", strcmp(buf, "aaa\nbbb\n") == 0);
+
+  /* cat missing file exits non-zero */
+  char *a2[] = { "/bin/cat", "/no/such/file", NULL };
+  int s = run_exit(a2);
+  result("cat missing file exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
+
+  /* cat stdin via pipe */
+  int in_fds[2], out_fds[2];
+  pipe(in_fds); pipe(out_fds);
+  pid_t pid = fork();
+  if (pid == 0) {
+    close(in_fds[1]); close(out_fds[0]);
+    dup2(in_fds[0], 0); close(in_fds[0]);
+    dup2(out_fds[1], 1); close(out_fds[1]);
+    char *ca[] = { "/bin/cat", NULL };
+    execve("/bin/cat", ca, NULL);
+    _exit(127);
+  }
+  close(in_fds[0]); close(out_fds[1]);
+  write(in_fds[1], "stdin data\n", 11);
+  close(in_fds[1]);
+  size_t tot = 0; ssize_t n;
+  while (tot < sizeof(buf)-1 && (n = read(out_fds[0], buf+tot, sizeof(buf)-1-tot)) > 0)
+    tot += n;
+  buf[tot] = '\0';
+  close(out_fds[0]);
+  int st; waitpid(pid, &st, 0);
+  result("cat stdin passthrough", strcmp(buf, "stdin data\n") == 0);
+
+  unlink("/tmp/tb_cat_a");
+  unlink("/tmp/tb_cat_b");
+}
+
+/* -----------------------------------------------------------------------
+ * touch — additional coverage
+ * -------------------------------------------------------------------- */
+static void test_touch(void) {
+  printf("Test: touch\n");
+
+  /* touch creates a file */
+  char *a1[] = { "/bin/touch", "/tmp/tb_touch2", NULL };
+  result("touch creates file", child_ok(run_exit(a1)));
+  struct stat st;
+  result("touch: file is regular", stat("/tmp/tb_touch2", &st) == 0 && S_ISREG(st.st_mode));
+
+  /* touch existing file is idempotent (exits 0) */
+  char *a2[] = { "/bin/touch", "/tmp/tb_touch2", NULL };
+  result("touch existing is idempotent", child_ok(run_exit(a2)));
+
+  /* touch multiple files */
+  char *a3[] = { "/bin/touch", "/tmp/tb_touch3", "/tmp/tb_touch4", NULL };
+  result("touch multiple files", child_ok(run_exit(a3)));
+  result("touch multi: first exists",  stat("/tmp/tb_touch3", &st) == 0);
+  result("touch multi: second exists", stat("/tmp/tb_touch4", &st) == 0);
+
+  unlink("/tmp/tb_touch2");
+  unlink("/tmp/tb_touch3");
+  unlink("/tmp/tb_touch4");
+}
+
+/* -----------------------------------------------------------------------
+ * cp — additional coverage
+ * -------------------------------------------------------------------- */
+static void test_cp_extra(void) {
+  printf("Test: cp (extra)\n");
+  char buf[256];
+
+  /* cp overwrites existing file */
+  write_file("/tmp/tb_cp_src", "version1\n");
+  write_file("/tmp/tb_cp_dst", "old content\n");
+  char *a1[] = { "/bin/cp", "/tmp/tb_cp_src", "/tmp/tb_cp_dst", NULL };
+  result("cp overwrite exits 0", child_ok(run_exit(a1)));
+  read_file("/tmp/tb_cp_dst", buf, sizeof(buf));
+  result("cp overwrite: dst has new content", strcmp(buf, "version1\n") == 0);
+
+  /* cp from tarfs (read-only) to /tmp (writable) */
+  char *a2[] = { "/bin/cp", "/etc/rc", "/tmp/tb_cp_rc", NULL };
+  result("cp tarfs->tmp exits 0", child_ok(run_exit(a2)));
+  result("cp tarfs->tmp: dst exists", stat("/tmp/tb_cp_rc", &(struct stat){}) == 0);
+
+  /* cp missing src exits non-zero */
+  char *a3[] = { "/bin/cp", "/no/such", "/tmp/tb_cp_dst", NULL };
+  int s = run_exit(a3);
+  result("cp missing src exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
+
+  unlink("/tmp/tb_cp_src");
+  unlink("/tmp/tb_cp_dst");
+  unlink("/tmp/tb_cp_rc");
+}
+
+/* -----------------------------------------------------------------------
+ * rm — additional coverage
+ * -------------------------------------------------------------------- */
+static void test_rm_extra(void) {
+  printf("Test: rm (extra)\n");
+
+  /* rm missing file exits non-zero */
+  char *a1[] = { "/bin/rm", "/tmp/no_such_file_xyz", NULL };
+  int s = run_exit(a1);
+  result("rm missing file exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
+
+  /* rm multiple files */
+  write_file("/tmp/tb_rm1", "a");
+  write_file("/tmp/tb_rm2", "b");
+  char *a2[] = { "/bin/rm", "/tmp/tb_rm1", "/tmp/tb_rm2", NULL };
+  result("rm multiple files exits 0", child_ok(run_exit(a2)));
+  result("rm multi: first gone",  stat("/tmp/tb_rm1", &(struct stat){}) != 0);
+  result("rm multi: second gone", stat("/tmp/tb_rm2", &(struct stat){}) != 0);
+}
+
+/* -----------------------------------------------------------------------
+ * tail — additional coverage
+ * -------------------------------------------------------------------- */
+static void test_tail_extra(void) {
+  printf("Test: tail (extra)\n");
+  char buf[256];
+
+  /* requesting more lines than exist returns the whole file */
+  write_file("/tmp/tb_tail2", "only\ntwo\n");
+  char *a1[] = { "/bin/tail", "-n", "10", "/tmp/tb_tail2", NULL };
+  run_capture(a1, buf, sizeof(buf));
+  result("tail -n 10 on 2-line file returns all", strcmp(buf, "only\ntwo\n") == 0);
+
+  /* exact line count */
+  char *a2[] = { "/bin/tail", "-n", "2", "/tmp/tb_tail2", NULL };
+  run_capture(a2, buf, sizeof(buf));
+  result("tail -n 2 exact match", strcmp(buf, "only\ntwo\n") == 0);
+
+  /* tail -c bytes */
+  char *a3[] = { "/bin/tail", "-c", "4", "/tmp/tb_tail2", NULL };
+  run_capture(a3, buf, sizeof(buf));
+  result("tail -c 4: last 4 bytes", strcmp(buf, "two\n") == 0);
+
+  unlink("/tmp/tb_tail2");
+}
+
+/* -----------------------------------------------------------------------
+ * df
+ * -------------------------------------------------------------------- */
+static void test_df(void) {
+  printf("Test: df\n");
+  char buf[512];
+
+  char *a1[] = { "/bin/df", NULL };
+  int s = run_capture(a1, buf, sizeof(buf));
+  result("df exits 0", child_ok(s));
+  result("df output has 'Filesystem' header", strstr(buf, "Filesystem") != NULL);
+  result("df output has 'Use%'", strstr(buf, "Use%") != NULL);
+
+  char *a2[] = { "/bin/df", "/tmp", NULL };
+  s = run_capture(a2, buf, sizeof(buf));
+  result("df /tmp exits 0", child_ok(s));
+}
+
+/* -----------------------------------------------------------------------
+ * echo — additional coverage (redirected output via shell not testable here,
+ *        but we can test more arg combinations)
+ * -------------------------------------------------------------------- */
+static void test_echo_extra(void) {
+  printf("Test: echo (extra)\n");
+  char buf[128];
+
+  /* echo with special chars */
+  char *a1[] = { "/bin/echo", "hello", "world", NULL };
+  run_capture(a1, buf, sizeof(buf));
+  result("echo two args space-separated", strcmp(buf, "hello world\n") == 0);
+
+  /* echo -n with multiple args */
+  char *a2[] = { "/bin/echo", "-n", "a", "b", "c", NULL };
+  run_capture(a2, buf, sizeof(buf));
+  result("echo -n multiple args", strcmp(buf, "a b c") == 0);
+
+  /* echo empty string arg */
+  char *a3[] = { "/bin/echo", "", NULL };
+  run_capture(a3, buf, sizeof(buf));
+  result("echo empty string arg prints newline", strcmp(buf, "\n") == 0);
+}
+
+/* -----------------------------------------------------------------------
+ * test binary — additional coverage
+ * -------------------------------------------------------------------- */
+static void test_test_extra(void) {
+  printf("Test: test (extra)\n");
+
+  /* -e tests existence regardless of type */
+  char *t1[] = { "/bin/test", "-e", "/bin", NULL };
+  result("test -e directory", child_ok(run_exit(t1)));
+
+  char *t2[] = { "/bin/test", "-e", "/etc/rc", NULL };
+  result("test -e file", child_ok(run_exit(t2)));
+
+  char *t3[] = { "/bin/test", "-e", "/no/such", NULL };
+  int s = run_exit(t3);
+  result("test -e missing exits 1", WIFEXITED(s) && WEXITSTATUS(s) == 1);
+
+  /* -s: file with content */
+  write_file("/tmp/tb_test_s", "data");
+  char *t4[] = { "/bin/test", "-s", "/tmp/tb_test_s", NULL };
+  result("test -s non-empty file", child_ok(run_exit(t4)));
+  unlink("/tmp/tb_test_s");
+
+  /* -z and -n */
+  char *t5[] = { "/bin/test", "-z", "", NULL };
+  result("test -z empty", child_ok(run_exit(t5)));
+  char *t6[] = { "/bin/test", "-z", "x", NULL };
+  s = run_exit(t6);
+  result("test -z non-empty exits 1", WIFEXITED(s) && WEXITSTATUS(s) == 1);
+
+  /* negation */
+  char *t7[] = { "/bin/test", "!", "-f", "/no/such", NULL };
+  result("test ! -f missing", child_ok(run_exit(t7)));
+  char *t8[] = { "/bin/test", "!", "-f", "/etc/rc", NULL };
+  s = run_exit(t8);
+  result("test ! -f existing exits 1", WIFEXITED(s) && WEXITSTATUS(s) == 1);
+
+  /* integer comparisons */
+  char *t9[]  = { "/bin/test", "5", "-le", "5", NULL };
+  result("test 5 -le 5", child_ok(run_exit(t9)));
+  char *t10[] = { "/bin/test", "4", "-lt", "5", NULL };
+  result("test 4 -lt 5", child_ok(run_exit(t10)));
+  char *t11[] = { "/bin/test", "5", "-ge", "5", NULL };
+  result("test 5 -ge 5", child_ok(run_exit(t11)));
+  char *t12[] = { "/bin/test", "0", "-eq", "0", NULL };
+  result("test 0 -eq 0", child_ok(run_exit(t12)));
+  char *t13[] = { "/bin/test", "1", "-ne", "2", NULL };
+  result("test 1 -ne 2", child_ok(run_exit(t13)));
+}
+
 int main(void) {
   printf("=== bin tests ===\n");
   test_echo();
+  test_echo_extra();
   test_true_false();
   test_pwd();
   test_wc();
+  test_wc_pipe_echo();
   test_kill();
   test_ps();
   test_test();
-  test_wc_pipe_echo();
+  test_test_extra();
   test_fs_basics();
+  test_touch();
+  test_cat();
   test_cp_cat();
+  test_cp_extra();
   test_mv();
+  test_rm_extra();
   test_chmod();
   test_ln_readlink();
+  test_ls();
   test_tail();
+  test_tail_extra();
+  test_df();
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed != 0;
 }
