@@ -115,8 +115,8 @@ static void test_wc(void) {
   int status = run_capture(argv1, buf, sizeof(buf));
   result("wc file exits 0", child_ok(status));
 
-  long lines, words, bytes;
-  int matched = sscanf(buf, "%ld %ld %ld", &lines, &words, &bytes);
+  int lines, words, bytes;
+  int matched = sscanf(buf, "%d %d %d", &lines, &words, &bytes);
   result("wc file produces 3 counts", matched == 3);
   result("wc file line count > 0", lines > 0);
   result("wc file byte count >= line count", bytes >= lines);
@@ -163,7 +163,6 @@ static void test_wc(void) {
   write(in_fds[1], input, strlen(input));
   close(in_fds[1]);
 
-  memset(buf, 0, sizeof(buf));
   size_t total = 0;
   ssize_t n;
   while (total < sizeof(buf)-1 && (n = read(out_fds[0], buf+total, sizeof(buf)-1-total)) > 0)
@@ -173,12 +172,10 @@ static void test_wc(void) {
   waitpid(pid, &status, 0);
 
   result("wc stdin exits 0", child_ok(status));
-  matched = sscanf(buf, "%ld %ld %ld", &lines, &words, &bytes);
-  printf("  [dbg] matched=%d lines=%ld words=%ld bytes=%ld inputlen=%ld\n",
-         matched, lines, words, bytes, (long)strlen(input));
+  matched = sscanf(buf, "%d %d %d", &lines, &words, &bytes);
   result("wc stdin: 2 lines", matched == 3 && lines == 2);
   result("wc stdin: 5 words", words == 5);
-  result("wc stdin: correct bytes", bytes == (long)strlen(input));
+  result("wc stdin: correct bytes", bytes == (int)strlen(input));
 
   /* wc multiple files shows total line */
   char *argv2[] = { "/bin/wc", "/etc/rc", "/etc/rc", NULL };
@@ -306,8 +303,8 @@ static void test_wc_pipe_echo(void) {
   close(out_fds[0]);
 
   int status; waitpid(pid, &status, 0);
-  long lines, words, bytes;
-  int matched = sscanf(buf, "%ld %ld %ld", &lines, &words, &bytes);
+  int lines, words, bytes;
+  int matched = sscanf(buf, "%d %d %d", &lines, &words, &bytes);
   result("echo|wc: 1 line",    matched == 3 && lines == 1);
   result("echo|wc: 3 words",   words == 3);
   result("echo|wc: 6 bytes",   bytes == 6);
