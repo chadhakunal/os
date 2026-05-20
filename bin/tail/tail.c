@@ -118,15 +118,15 @@ int main(int argc, char *argv[]) {
         }
         break;
       case '?':
-        fprintf(stderr, \"Usage: tail [-c NUM] [-n NUM] <file>\n");
+        fprintf(stderr, "Usage: tail [-c NUM] [-n NUM] <file>\n");
         return 1;
     }
   }
 
   if (optind >= argc) {
-    fprintf(stderr, \"Usage: tail [-c NUM] [-n NUM] <file>\n");
-    printf("  -c NUM    output last NUM bytes\n");
-    printf("  -n NUM    output last NUM lines (default: 10)\n");
+    fprintf(stderr, "Usage: tail [-c NUM] [-n NUM] <file>\n");
+    fprintf(stderr, "  -c NUM    output last NUM bytes\n");
+    fprintf(stderr, "  -n NUM    output last NUM lines (default: 10)\n");
     return 1;
   }
 
