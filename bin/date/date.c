@@ -44,24 +44,31 @@ int main(int argc, char **argv) {
   /* Check for optional format string: date +FORMAT */
   if (argc >= 2 && argv[1][0] == '+') {
     const char *fmt = argv[1] + 1;
-    fprintf(stderr, "[date dbg] fmt='%s' len=%d\n", fmt, (int)__builtin_strlen(fmt));
-    for (; *fmt; ) {
-      if (*fmt != '%') { putchar(*fmt++); continue; }
+    char out[64];
+    int olen = 0;
+    for (; *fmt && olen < 63; ) {
+      if (*fmt != '%') { out[olen++] = *fmt++; continue; }
       fmt++; /* skip '%' */
       char spec = *fmt++;
+      char tmp[16];
+      int tlen = 0;
       switch (spec) {
-        case 'Y': printf("%04lu", y);    break;
-        case 'm': printf("%02lu", mo);   break;
-        case 'd': printf("%02lu", d);    break;
-        case 'H': printf("%02lu", hour); break;
-        case 'M': printf("%02lu", min);  break;
-        case 'S': printf("%02lu", sec);  break;
-        case 'n': putchar('\n');         break;
-        case '%': putchar('%');          break;
-        default:  putchar('%'); putchar(spec); break;
+        case 'Y': tlen = snprintf(tmp, sizeof(tmp), "%04lu", y);    break;
+        case 'm': tlen = snprintf(tmp, sizeof(tmp), "%02lu", mo);   break;
+        case 'd': tlen = snprintf(tmp, sizeof(tmp), "%02lu", d);    break;
+        case 'H': tlen = snprintf(tmp, sizeof(tmp), "%02lu", hour); break;
+        case 'M': tlen = snprintf(tmp, sizeof(tmp), "%02lu", min);  break;
+        case 'S': tlen = snprintf(tmp, sizeof(tmp), "%02lu", sec);  break;
+        case 'n': tmp[0] = '\n'; tlen = 1;                          break;
+        case '%': tmp[0] = '%';  tlen = 1;                          break;
+        default:  tmp[0] = '%'; tmp[1] = spec; tlen = 2;            break;
       }
+      for (int i = 0; i < tlen && olen < 63; i++)
+        out[olen++] = tmp[i];
     }
-    putchar('\n');
+    out[olen++] = '\n';
+    out[olen] = '\0';
+    write(1, out, olen);
     return 0;
   }
 
