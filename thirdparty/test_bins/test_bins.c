@@ -172,9 +172,10 @@ static void test_wc(void) {
   close(out_fds[0]);
   waitpid(pid, &status, 0);
 
-  printf("  [dbg] wc stdin buf='%s'\n", buf);
   result("wc stdin exits 0", child_ok(status));
   matched = sscanf(buf, "%ld %ld %ld", &lines, &words, &bytes);
+  printf("  [dbg] matched=%d lines=%ld words=%ld bytes=%ld inputlen=%ld\n",
+         matched, lines, words, bytes, (long)strlen(input));
   result("wc stdin: 2 lines", matched == 3 && lines == 2);
   result("wc stdin: 5 words", words == 5);
   result("wc stdin: correct bytes", bytes == (long)strlen(input));
