@@ -117,15 +117,17 @@ static int do_format(const char **fmt, int *argi, int argc, char **argv) {
 
   const char *arg = (*argi < argc) ? argv[(*argi)++] : "";
 
+  char out[4096];
+  int olen = 0;
+
   switch (conv) {
   case 'd': case 'i': {
     long long v = strtoll(arg, NULL, 0);
-    /* rebuild spec with ll */
     char lspec[68];
     int li = 0;
     for (int k = 0; spec[k] && spec[k] != conv; k++) lspec[li++] = spec[k];
     lspec[li++] = 'l'; lspec[li++] = 'l'; lspec[li++] = conv; lspec[li] = '\0';
-    printf(lspec, v);
+    olen = snprintf(out, sizeof(out), lspec, v);
     break;
   }
   case 'u': case 'o': case 'x': case 'X': {
@@ -134,22 +136,21 @@ static int do_format(const char **fmt, int *argi, int argc, char **argv) {
     int li = 0;
     for (int k = 0; spec[k] && spec[k] != conv; k++) lspec[li++] = spec[k];
     lspec[li++] = 'l'; lspec[li++] = 'l'; lspec[li++] = conv; lspec[li] = '\0';
-    printf(lspec, v);
+    olen = snprintf(out, sizeof(out), lspec, v);
     break;
   }
   case 's': {
-    printf(spec, arg);
+    olen = snprintf(out, sizeof(out), spec, arg);
     break;
   }
   case 'c': {
     char ch = arg[0];
-    printf(spec, (int)(unsigned char)ch);
+    olen = snprintf(out, sizeof(out), spec, (int)(unsigned char)ch);
     break;
   }
   case 'e': case 'E': case 'f': case 'g': case 'G': {
-    /* No float library — print 0 and warn. */
     (void)arg;
-    printf("0");
+    olen = snprintf(out, sizeof(out), "0");
     break;
   }
   case 'b': {
@@ -159,34 +160,36 @@ static int do_format(const char **fmt, int *argi, int argc, char **argv) {
     int n = unescape(arg, unesc, sizeof(unesc), &stop);
     write(1, unesc, n);
     if (stop) return 1; /* signal \c stop */
-    break;
+    return 0;
   }
   case '%':
-    putchar('%');
+    out[0] = '%'; olen = 1;
     break;
   default:
-    putchar('%');
-    putchar(conv);
+    out[0] = '%'; out[1] = conv; olen = 2;
     break;
   }
+  if (olen > 0) write(1, out, olen);
   return 0;
 }
 
 /* Advance p past one escape sequence, write the result to stdout.
  * Returns 1 if \c was seen (stop output), 0 otherwise. */
+#define WCHAR(c) do { char _c = (c); write(1, &_c, 1); } while(0)
+
 static int emit_escape(const char **p) {
   (*p)++; /* skip backslash */
   switch (**p) {
-  case 'a':  putchar('\a'); (*p)++; break;
-  case 'b':  putchar('\b'); (*p)++; break;
-  case 'f':  putchar('\f'); (*p)++; break;
-  case 'n':  putchar('\n'); (*p)++; break;
-  case 'r':  putchar('\r'); (*p)++; break;
-  case 't':  putchar('\t'); (*p)++; break;
-  case 'v':  putchar('\v'); (*p)++; break;
-  case '\\': putchar('\\'); (*p)++; break;
-  case '"':  putchar('"');  (*p)++; break;
-  case '\'': putchar('\''); (*p)++; break;
+  case 'a':  WCHAR('\a'); (*p)++; break;
+  case 'b':  WCHAR('\b'); (*p)++; break;
+  case 'f':  WCHAR('\f'); (*p)++; break;
+  case 'n':  WCHAR('\n'); (*p)++; break;
+  case 'r':  WCHAR('\r'); (*p)++; break;
+  case 't':  WCHAR('\t'); (*p)++; break;
+  case 'v':  WCHAR('\v'); (*p)++; break;
+  case '\\': WCHAR('\\'); (*p)++; break;
+  case '"':  WCHAR('"');  (*p)++; break;
+  case '\'': WCHAR('\''); (*p)++; break;
   case 'c':  (*p)++; return 1;
   case 'x': {
     (*p)++;
@@ -200,7 +203,7 @@ static int emit_escape(const char **p) {
       else                               val |= **p - 'A' + 10;
       (*p)++; digits++;
     }
-    putchar(val);
+    WCHAR(val);
     break;
   }
   case '0': case '1': case '2': case '3':
@@ -210,12 +213,12 @@ static int emit_escape(const char **p) {
       val = val * 8 + (**p - '0');
       (*p)++; digits++;
     }
-    putchar(val);
+    WCHAR(val);
     break;
   }
   default:
-    putchar('\\');
-    if (**p) putchar(*(*p)++);
+    WCHAR('\\');
+    if (**p) WCHAR(*(*p)++);
     break;
   }
   return 0;
@@ -243,12 +246,13 @@ int main(int argc, char **argv) {
         if (emit_escape(&fmt)) goto done;
       } else if (*fmt == '%') {
         fmt++;
-        if (!*fmt) { putchar('%'); break; }
-        if (*fmt == '%') { putchar('%'); fmt++; continue; }
+        if (!*fmt) { char c = '%'; write(1, &c, 1); break; }
+        if (*fmt == '%') { char c = '%'; write(1, &c, 1); fmt++; continue; }
         int r = do_format(&fmt, &argi, argc, argv);
         if (r > 0) goto done;
       } else {
-        putchar(*fmt++);
+        write(1, fmt, 1);
+        fmt++;
       }
     }
 
@@ -258,6 +262,5 @@ int main(int argc, char **argv) {
   } while (argi < argc);
 
 done:
-  fflush(stdout);
   return 0;
 }
