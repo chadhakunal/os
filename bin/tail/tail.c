@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
   int num = DEFAULT_LINES;
   int opt;
 
-  while ((opt = getopt(argc, argv, "c:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:n:")) != -1) {
     switch (opt) {
       case 'c':
         use_bytes = 1;
@@ -104,16 +104,23 @@ int main(int argc, char *argv[]) {
           return 1;
         }
         break;
+      case 'n':
+        num = atoi(optarg);
+        if (num <= 0) {
+          printf("tail: invalid number of lines: '%s'\n", optarg);
+          return 1;
+        }
+        break;
       case '?':
-        printf("Usage: tail [-c NUM] <file>\n");
+        printf("Usage: tail [-c NUM] [-n NUM] <file>\n");
         return 1;
     }
   }
 
   if (optind >= argc) {
-    printf("Usage: tail [-c NUM] <file>\n");
+    printf("Usage: tail [-c NUM] [-n NUM] <file>\n");
     printf("  -c NUM    output last NUM bytes\n");
-    printf("  default: output last 10 lines\n");
+    printf("  -n NUM    output last NUM lines (default: 10)\n");
     return 1;
   }
 

@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 static int passed = 0;
 static int failed = 0;
@@ -310,6 +311,242 @@ static void test_wc_pipe_echo(void) {
   result("echo|wc: 6 bytes",   bytes == 6);
 }
 
+/* Helper: write content to a file directly via open/write. */
+static int write_file(const char *path, const char *content) {
+  int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC);
+  if (fd < 0) return -1;
+  size_t len = strlen(content);
+  ssize_t n = write(fd, content, len);
+  close(fd);
+  return (n == (ssize_t)len) ? 0 : -1;
+}
+
+/* Helper: read file content into buf. Returns bytes read, -1 on error. */
+static int read_file(const char *path, char *buf, size_t bufsz) {
+  int fd = open(path, O_RDONLY);
+  if (fd < 0) return -1;
+  ssize_t n = read(fd, buf, bufsz - 1);
+  close(fd);
+  if (n < 0) return -1;
+  buf[n] = '\0';
+  return (int)n;
+}
+
+/* -----------------------------------------------------------------------
+ * touch, mkdir, rmdir, rm
+ * -------------------------------------------------------------------- */
+static void test_fs_basics(void) {
+  printf("Test: touch/mkdir/rmdir/rm\n");
+  char buf[64];
+
+  /* touch creates a file */
+  char *t1[] = { "/bin/touch", "/tmp/tb_touch", NULL };
+  result("touch creates file", child_ok(run_exit(t1)));
+  result("touch: file exists after touch", stat("/tmp/tb_touch", &(struct stat){}) == 0);
+
+  /* rm removes it */
+  char *r1[] = { "/bin/rm", "/tmp/tb_touch", NULL };
+  result("rm removes file", child_ok(run_exit(r1)));
+  result("rm: file gone after rm", stat("/tmp/tb_touch", &(struct stat){}) != 0);
+
+  /* mkdir creates a dir */
+  char *m1[] = { "/bin/mkdir", "/tmp/tb_dir", NULL };
+  result("mkdir creates dir", child_ok(run_exit(m1)));
+  struct stat st;
+  result("mkdir: is a directory", stat("/tmp/tb_dir", &st) == 0 && S_ISDIR(st.st_mode));
+
+  /* rmdir removes it */
+  char *rd1[] = { "/bin/rmdir", "/tmp/tb_dir", NULL };
+  result("rmdir removes dir", child_ok(run_exit(rd1)));
+  result("rmdir: dir gone", stat("/tmp/tb_dir", &st) != 0);
+
+  /* mkdir -p creates nested dirs */
+  char *m2[] = { "/bin/mkdir", "-p", "/tmp/tb_nest/a/b", NULL };
+  result("mkdir -p nested", child_ok(run_exit(m2)));
+  result("mkdir -p: leaf is dir", stat("/tmp/tb_nest/a/b", &st) == 0 && S_ISDIR(st.st_mode));
+
+  /* cleanup */
+  char *rd2[] = { "/bin/rmdir", "/tmp/tb_nest/a/b", NULL };
+  char *rd3[] = { "/bin/rmdir", "/tmp/tb_nest/a", NULL };
+  char *rd4[] = { "/bin/rmdir", "/tmp/tb_nest", NULL };
+  run_exit(rd2); run_exit(rd3); run_exit(rd4);
+  (void)buf;
+}
+
+/* -----------------------------------------------------------------------
+ * cp and cat
+ * -------------------------------------------------------------------- */
+static void test_cp_cat(void) {
+  printf("Test: cp/cat\n");
+  char buf[256];
+
+  /* Write a known file in /tmp */
+  write_file("/tmp/tb_src", "hello cp\n");
+
+  /* cp it */
+  char *cp1[] = { "/bin/cp", "/tmp/tb_src", "/tmp/tb_dst", NULL };
+  result("cp exits 0", child_ok(run_exit(cp1)));
+
+  /* cat it back */
+  char *cat1[] = { "/bin/cat", "/tmp/tb_dst", NULL };
+  run_capture(cat1, buf, sizeof(buf));
+  result("cp: content preserved", strcmp(buf, "hello cp\n") == 0);
+
+  /* cat from tarfs file */
+  char *cat2[] = { "/bin/cat", "/etc/rc", NULL };
+  int s = run_capture(cat2, buf, sizeof(buf));
+  result("cat tarfs file exits 0", child_ok(s));
+  result("cat tarfs file non-empty", strlen(buf) > 0);
+
+  /* cleanup */
+  unlink("/tmp/tb_src");
+  unlink("/tmp/tb_dst");
+}
+
+/* -----------------------------------------------------------------------
+ * mv
+ * -------------------------------------------------------------------- */
+static void test_mv(void) {
+  printf("Test: mv\n");
+  char buf[64];
+
+  write_file("/tmp/tb_mv_src", "mv content\n");
+
+  char *mv1[] = { "/bin/mv", "/tmp/tb_mv_src", "/tmp/tb_mv_dst", NULL };
+  result("mv exits 0", child_ok(run_exit(mv1)));
+
+  result("mv: src gone", stat("/tmp/tb_mv_src", &(struct stat){}) != 0);
+
+  read_file("/tmp/tb_mv_dst", buf, sizeof(buf));
+  result("mv: content at dst", strcmp(buf, "mv content\n") == 0);
+
+  unlink("/tmp/tb_mv_dst");
+}
+
+/* -----------------------------------------------------------------------
+ * chmod
+ * -------------------------------------------------------------------- */
+static void test_chmod(void) {
+  printf("Test: chmod\n");
+
+  write_file("/tmp/tb_chmod", "data");
+
+  char *ch1[] = { "/bin/chmod", "755", "/tmp/tb_chmod", NULL };
+  result("chmod exits 0", child_ok(run_exit(ch1)));
+
+  struct stat st;
+  stat("/tmp/tb_chmod", &st);
+  result("chmod 755: exec bit set", (st.st_mode & 0111) != 0);
+
+  char *ch2[] = { "/bin/chmod", "644", "/tmp/tb_chmod", NULL };
+  run_exit(ch2);
+  stat("/tmp/tb_chmod", &st);
+  result("chmod 644: exec bit cleared", (st.st_mode & 0111) == 0);
+
+  unlink("/tmp/tb_chmod");
+}
+
+/* -----------------------------------------------------------------------
+ * ln (hard link) and readlink
+ * -------------------------------------------------------------------- */
+static void test_ln_readlink(void) {
+  printf("Test: ln / readlink\n");
+  char buf[256];
+
+  /* Hard link within /tmp */
+  write_file("/tmp/tb_hard_src", "hard link data\n");
+  char *ln1[] = { "/bin/ln", "/tmp/tb_hard_src", "/tmp/tb_hard_dst", NULL };
+  result("ln hard link exits 0", child_ok(run_exit(ln1)));
+  read_file("/tmp/tb_hard_dst", buf, sizeof(buf));
+  result("ln hard: content readable via link", strcmp(buf, "hard link data\n") == 0);
+  unlink("/tmp/tb_hard_src");
+  unlink("/tmp/tb_hard_dst");
+
+  /* Symlink within /tmp pointing to a /tmp file */
+  write_file("/tmp/tb_sym_target", "symlink target\n");
+  char *ln2[] = { "/bin/ln", "-s", "/tmp/tb_sym_target", "/tmp/tb_sym_link", NULL };
+  result("ln -s exits 0", child_ok(run_exit(ln2)));
+
+  /* readlink shows the target */
+  char *rl1[] = { "/bin/readlink", "/tmp/tb_sym_link", NULL };
+  run_capture(rl1, buf, sizeof(buf));
+  /* strip newline */
+  size_t len = strlen(buf);
+  if (len && buf[len-1] == '\n') buf[len-1] = '\0';
+  result("readlink shows target", strcmp(buf, "/tmp/tb_sym_target") == 0);
+
+  /* stat follows symlink and sees the file */
+  struct stat st;
+  result("stat follows symlink", stat("/tmp/tb_sym_link", &st) == 0 && S_ISREG(st.st_mode));
+
+  /* cat through symlink reads target content */
+  char *cat1[] = { "/bin/cat", "/tmp/tb_sym_link", NULL };
+  run_capture(cat1, buf, sizeof(buf));
+  result("cat through symlink", strcmp(buf, "symlink target\n") == 0);
+
+  unlink("/tmp/tb_sym_link");
+  unlink("/tmp/tb_sym_target");
+
+  /* Symlink in /tmp pointing across mount into tarfs (/etc/rc) */
+  char *ln3[] = { "/bin/ln", "-s", "/etc/rc", "/tmp/tb_cross_link", NULL };
+  result("ln -s cross-mount exits 0", child_ok(run_exit(ln3)));
+
+  char *rl2[] = { "/bin/readlink", "/tmp/tb_cross_link", NULL };
+  run_capture(rl2, buf, sizeof(buf));
+  len = strlen(buf);
+  if (len && buf[len-1] == '\n') buf[len-1] = '\0';
+  result("readlink cross-mount target", strcmp(buf, "/etc/rc") == 0);
+
+  /* stat should follow the symlink into tarfs */
+  result("stat cross-mount symlink", stat("/tmp/tb_cross_link", &st) == 0 && S_ISREG(st.st_mode));
+
+  /* cat through cross-mount symlink */
+  char *cat2[] = { "/bin/cat", "/tmp/tb_cross_link", NULL };
+  int s = run_capture(cat2, buf, sizeof(buf));
+  result("cat cross-mount symlink exits 0", child_ok(s));
+  result("cat cross-mount symlink non-empty", strlen(buf) > 0);
+
+  unlink("/tmp/tb_cross_link");
+
+  /* Symlink in /tmp pointing to /bin (a directory on tarfs) */
+  char *ln4[] = { "/bin/ln", "-s", "/bin", "/tmp/tb_bin_link", NULL };
+  result("ln -s to dir exits 0", child_ok(run_exit(ln4)));
+  result("stat symlink-to-dir: is dir", stat("/tmp/tb_bin_link", &st) == 0 && S_ISDIR(st.st_mode));
+  unlink("/tmp/tb_bin_link");
+
+  /* Relative symlink: link in /tmp pointing to ../etc/rc */
+  char *ln5[] = { "/bin/ln", "-s", "../etc/rc", "/tmp/tb_rel_link", NULL };
+  result("ln -s relative exits 0", child_ok(run_exit(ln5)));
+  char *rl3[] = { "/bin/readlink", "/tmp/tb_rel_link", NULL };
+  run_capture(rl3, buf, sizeof(buf));
+  len = strlen(buf);
+  if (len && buf[len-1] == '\n') buf[len-1] = '\0';
+  result("readlink relative symlink", strcmp(buf, "../etc/rc") == 0);
+  result("stat relative symlink resolves", stat("/tmp/tb_rel_link", &st) == 0 && S_ISREG(st.st_mode));
+  unlink("/tmp/tb_rel_link");
+}
+
+/* -----------------------------------------------------------------------
+ * tail
+ * -------------------------------------------------------------------- */
+static void test_tail(void) {
+  printf("Test: tail\n");
+  char buf[256];
+
+  /* Write a 5-line file */
+  write_file("/tmp/tb_tail", "line1\nline2\nline3\nline4\nline5\n");
+
+  char *t1[] = { "/bin/tail", "-n", "2", "/tmp/tb_tail", NULL };
+  run_capture(t1, buf, sizeof(buf));
+  result("tail -n 2: last 2 lines", strcmp(buf, "line4\nline5\n") == 0);
+
+  char *t2[] = { "/bin/tail", "-n", "1", "/tmp/tb_tail", NULL };
+  run_capture(t2, buf, sizeof(buf));
+  result("tail -n 1: last line", strcmp(buf, "line5\n") == 0);
+
+  unlink("/tmp/tb_tail");
+}
+
 int main(void) {
   printf("=== bin tests ===\n");
   test_echo();
@@ -320,6 +557,12 @@ int main(void) {
   test_ps();
   test_test();
   test_wc_pipe_echo();
+  test_fs_basics();
+  test_cp_cat();
+  test_mv();
+  test_chmod();
+  test_ln_readlink();
+  test_tail();
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed != 0;
 }
