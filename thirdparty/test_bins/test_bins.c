@@ -538,10 +538,12 @@ static void test_tail(void) {
 
   char *t1[] = { "/bin/tail", "-n", "2", "/tmp/tb_tail", NULL };
   run_capture(t1, buf, sizeof(buf));
+  printf("  [dbg] tail -n 2: '%s'\n", buf);
   result("tail -n 2: last 2 lines", strcmp(buf, "line4\nline5\n") == 0);
 
   char *t2[] = { "/bin/tail", "-n", "1", "/tmp/tb_tail", NULL };
   run_capture(t2, buf, sizeof(buf));
+  printf("  [dbg] tail -n 1: '%s'\n", buf);
   result("tail -n 1: last line", strcmp(buf, "line5\n") == 0);
 
   unlink("/tmp/tb_tail");
