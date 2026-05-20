@@ -47,16 +47,17 @@ int main(int argc, char **argv) {
     for (; *fmt; ) {
       if (*fmt != '%') { putchar(*fmt++); continue; }
       fmt++; /* skip '%' */
-      switch (*fmt++) {
-        case 'Y': printf("%04lu", y);   break;
-        case 'm': printf("%02lu", mo);  break;
-        case 'd': printf("%02lu", d);   break;
+      char spec = *fmt++;
+      switch (spec) {
+        case 'Y': printf("%04lu", y);    break;
+        case 'm': printf("%02lu", mo);   break;
+        case 'd': printf("%02lu", d);    break;
         case 'H': printf("%02lu", hour); break;
         case 'M': printf("%02lu", min);  break;
         case 'S': printf("%02lu", sec);  break;
         case 'n': putchar('\n');         break;
         case '%': putchar('%');          break;
-        default:  putchar('%'); putchar(*fmt); break;
+        default:  putchar('%'); putchar(spec); break;
       }
     }
     putchar('\n');
