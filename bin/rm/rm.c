@@ -46,28 +46,53 @@ static int remove_recursive(const char *path) {
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    fprintf(stderr, "Usage: rm [-r] <file>...\n");
+    fprintf(stderr, "Usage: rm [-rf] <file>...\n");
     return 1;
   }
   int recursive = 0;
+  int force = 0;
   int first = 1;
-  if (strcmp(argv[1], "-r") == 0 || strcmp(argv[1], "-rf") == 0 ||
-      strcmp(argv[1], "-fr") == 0) {
-    recursive = 1;
-    first = 2;
+
+  /* Parse flags: handle -r, -f, -rf, -fr, -r -f, -f -r, etc. */
+  while (first < argc && argv[first][0] == '-') {
+    const char *p = argv[first] + 1;
+    if (*p == '\0') break; /* bare '-' treated as filename */
+    for (; *p; p++) {
+      if (*p == 'r') recursive = 1;
+      else if (*p == 'f') force = 1;
+      else {
+        fprintf(stderr, "rm: unknown option '-%c'\n", *p);
+        return 1;
+      }
+    }
+    first++;
   }
+
   if (first >= argc) {
-    fprintf(stderr, "Usage: rm [-r] <file>...\n");
+    if (force) return 0; /* rm -f with no args is OK */
+    fprintf(stderr, "Usage: rm [-rf] <file>...\n");
     return 1;
   }
   int ret = 0;
   for (int i = first; i < argc; i++) {
     if (recursive) {
+      /* Check existence first; with -f, missing paths are not an error */
+      int fd = open(argv[i], O_RDONLY);
+      if (fd < 0) {
+        if (!force) {
+          fprintf(stderr, "rm: cannot remove '%s'\n", argv[i]);
+          ret = 1;
+        }
+        continue;
+      }
+      close(fd);
       if (remove_recursive(argv[i]) != 0) ret = 1;
     } else {
       if (unlink(argv[i]) < 0) {
-        fprintf(stderr, "rm: cannot remove '%s'\n", argv[i]);
-        ret = 1;
+        if (!force) {
+          fprintf(stderr, "rm: cannot remove '%s'\n", argv[i]);
+          ret = 1;
+        }
       }
     }
   }
