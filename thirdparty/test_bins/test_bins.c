@@ -1115,6 +1115,8 @@ static void test_printf(void) {
   /* Multiple format specifiers in one format */
   char *a21[] = { "/bin/printf", "%s=%d\n", "x", "5", NULL };
   run_capture(a21, buf, sizeof(buf));
+  if (strcmp(buf, "x=5\n") != 0)
+    printf("  [DBG] got '%s' (%zu bytes)\n", buf, strlen(buf));
   result("printf multiple specifiers", strcmp(buf, "x=5\n") == 0);
 
   /* Hex with 0x prefix using %#x — libc may not support #, just check no crash */
