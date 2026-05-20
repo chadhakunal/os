@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <errno.h>
 
 int main(void) {
@@ -126,6 +127,31 @@ int main(void) {
            ret3, (unsigned)status3, WEXITSTATUS(status3),
            (WIFEXITED(status3) && WEXITSTATUS(status3) == 0) ? "[PASS]" : "[FAIL]");
     if (WIFEXITED(status3) && WEXITSTATUS(status3) == 0) passed++; else failed++;
+  }
+
+  /* Test what stat() returns for missing vs existing file in this process */
+  printf("\nstat() sanity in this process:\n");
+  {
+    struct stat st;
+    int r1 = stat("/no/such/file", &st);
+    int r2 = stat("/etc/rc", &st);
+    printf("stat('/no/such/file') = %d (expect -1)\n", r1);
+    printf("stat('/etc/rc')       = %d (expect 0)\n",  r2);
+  }
+
+  /* Run a child that calls stat and exits based on result */
+  printf("\nchild stat exit code test:\n");
+  {
+    pid_t p = fork();
+    if (p == 0) {
+      struct stat st;
+      int r = stat("/no/such/file", &st);
+      /* exit 0 if stat succeeded (wrong), exit 1 if failed (correct) */
+      _exit(r == 0 ? 0 : 1);
+    }
+    int st = 0; waitpid(p, &st, 0);
+    printf("child stat('/no/such/file') exit=%d (expect 1)\n", WEXITSTATUS(st));
+    if (WIFEXITED(st) && WEXITSTATUS(st) == 1) passed++; else failed++;
   }
 
   printf("\n%d passed, %d failed\n", passed, failed);
