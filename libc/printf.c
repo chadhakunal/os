@@ -341,7 +341,9 @@ int vsscanf(const char *str, const char *fmt, va_list ap) {
     while (*fmt >= '0' && *fmt <= '9')
       width = width * 10 + (*fmt++ - '0');
 
-    if (*fmt == 'l' || *fmt == 'h') fmt++; /* ignore length modifier */
+    int length = 0; /* 0=default, 1=long, -1=short */
+    if (*fmt == 'l') { length = 1; fmt++; }
+    else if (*fmt == 'h') { length = -1; fmt++; }
 
     char spec = *fmt;
 
@@ -373,10 +375,13 @@ int vsscanf(const char *str, const char *fmt, va_list ap) {
       if (!digits) return matched ? matched : EOF;
       if (neg) val = -val;
       if (!suppress) {
-        if (spec == 'u' || spec == 'x' || spec == 'o')
-          *va_arg(ap, unsigned int *) = (unsigned int)val;
-        else
-          *va_arg(ap, int *) = (int)val;
+        if (spec == 'u' || spec == 'x' || spec == 'o') {
+          if (length == 1) *va_arg(ap, unsigned long *) = (unsigned long)val;
+          else             *va_arg(ap, unsigned int *)  = (unsigned int)val;
+        } else {
+          if (length == 1) *va_arg(ap, long *) = val;
+          else             *va_arg(ap, int *)  = (int)val;
+        }
         matched++;
       }
     } else if (spec == 's') {
