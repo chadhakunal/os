@@ -791,12 +791,22 @@ static int resolve_command(const char *command, char *resolved_path, size_t path
     return file_exists(resolved_path);
   }
 
-  const char *path_dirs[] = {"/bin", "/usr/bin", NULL};
-  for (int i = 0; path_dirs[i] != NULL; i++) {
-    snprintf(resolved_path, path_size, "%s/%s", path_dirs[i], command);
-    if (file_exists(resolved_path)) {
+  const char *path_env = getenv("PATH");
+  if (!path_env || !*path_env)
+    path_env = "/bin";
+
+  char path_buf[1024];
+  strncpy(path_buf, path_env, sizeof(path_buf) - 1);
+  path_buf[sizeof(path_buf) - 1] = '\0';
+
+  char *dir = path_buf;
+  while (dir && *dir) {
+    char *colon = strchr(dir, ':');
+    if (colon) *colon = '\0';
+    snprintf(resolved_path, path_size, "%s/%s", dir, command);
+    if (file_exists(resolved_path))
       return 1;
-    }
+    dir = colon ? colon + 1 : NULL;
   }
   return 0;
 }
@@ -1460,6 +1470,40 @@ int parse_and_exec(char *buf) {
     return builtin_jobs();
   if (strcmp("fg", command_buf) == 0)
     return builtin_fg(argc, argv);
+  if (strcmp("which", command_buf) == 0) {
+    if (argc < 2) { fprintf(stderr, "usage: which <command>\n"); return 1; }
+    int ret = 0;
+    for (int wi = 1; wi < argc; wi++) {
+      char wp[512];
+      if (resolve_command(argv[wi], wp, sizeof(wp)))
+        printf("%s\n", wp);
+      else {
+        fprintf(stderr, "which: %s: not found\n", argv[wi]);
+        ret = 1;
+      }
+    }
+    return ret;
+  }
+  if (strcmp("wait", command_buf) == 0) {
+    if (argc > 1) {
+      pid_t target = (pid_t)atoi(argv[1]);
+      int st = 0;
+      if (waitpid(target, &st, 0) < 0) {
+        fprintf(stderr, "wait: %d: no such process\n", target);
+        return 1;
+      }
+      return WEXITSTATUS(st);
+    }
+    /* wait for all known jobs */
+    int ret = 0;
+    for (int wi = 0; wi < njobs; wi++) {
+      int st = 0;
+      waitpid(jobs[wi].pid, &st, 0);
+      ret = WEXITSTATUS(st);
+    }
+    njobs = 0;
+    return ret;
+  }
   if (strcmp("exit", command_buf) == 0) {
     int code = 0;
     if (argc > 1)
@@ -1593,7 +1637,12 @@ int main(int argc, char **argv, char **envp) {
   }
 
   // Interactive mode
-  (void)envp;
+  if (envp && !environ)
+    environ = envp;
+  if (!getenv("PATH"))
+    setenv("PATH", "/bin", 1);
+  if (!getenv("HOME"))
+    setenv("HOME", "/", 1);
   setpgid(0, 0);
   pid_t shell_pgid = getpid();
   tcsetpgrp(0, shell_pgid);
