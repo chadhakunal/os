@@ -1167,6 +1167,300 @@ static void test_printf(void) {
   result("printf \\c stops output", strcmp(buf, "hello") == 0);
 }
 
+/* -----------------------------------------------------------------------
+ * sleep
+ * -------------------------------------------------------------------- */
+static void test_sleep(void) {
+  printf("Test: sleep\n");
+
+  /* sleep 0 exits 0 immediately */
+  char *a1[] = { "/bin/sleep", "0", NULL };
+  result("sleep 0 exits 0", child_ok(run_exit(a1)));
+
+  /* sleep 1 exits 0 */
+  char *a2[] = { "/bin/sleep", "1", NULL };
+  result("sleep 1 exits 0", child_ok(run_exit(a2)));
+
+  /* sleep with no args exits non-zero */
+  char *a3[] = { "/bin/sleep", NULL };
+  int s = run_exit(a3);
+  result("sleep no args exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
+}
+
+/* -----------------------------------------------------------------------
+ * dmesg
+ * -------------------------------------------------------------------- */
+static void test_dmesg(void) {
+  printf("Test: dmesg\n");
+  char buf[4096];
+
+  char *a1[] = { "/bin/dmesg", NULL };
+  int s = run_capture(a1, buf, sizeof(buf));
+  result("dmesg exits 0", child_ok(s));
+  result("dmesg output non-empty", strlen(buf) > 0);
+}
+
+/* -----------------------------------------------------------------------
+ * env
+ * -------------------------------------------------------------------- */
+static void test_env(void) {
+  printf("Test: env\n");
+  char buf[1024];
+
+  /* env with no args prints environment — should contain PATH */
+  char *a1[] = { "/bin/env", NULL };
+  int s = run_capture(a1, buf, sizeof(buf));
+  result("env exits 0", child_ok(s));
+  result("env output contains PATH=", strstr(buf, "PATH=") != NULL);
+
+  /* env NAME=val command: command sees the variable */
+  char *a2[] = { "/bin/env", "TESTVAR=hello", "/bin/env", NULL };
+  run_capture(a2, buf, sizeof(buf));
+  result("env NAME=val passes var to command", strstr(buf, "TESTVAR=hello") != NULL);
+
+  /* env -i clears environment and runs command cleanly */
+  char *a3[] = { "/bin/env", "-i", "ONLY=x", "/bin/env", NULL };
+  run_capture(a3, buf, sizeof(buf));
+  result("env -i: only set vars present", strstr(buf, "ONLY=x") != NULL);
+  result("env -i: PATH not present", strstr(buf, "PATH=") == NULL);
+
+  /* env with unknown command exits 127 */
+  char *a4[] = { "/bin/env", "/bin/no_such_cmd_xyz", NULL };
+  s = run_exit(a4);
+  result("env unknown command exits 127", WIFEXITED(s) && WEXITSTATUS(s) == 127);
+}
+
+/* -----------------------------------------------------------------------
+ * rm -f and -rf
+ * -------------------------------------------------------------------- */
+static void test_rm_force(void) {
+  printf("Test: rm -f / -rf\n");
+
+  /* rm -f on nonexistent file exits 0 */
+  char *a1[] = { "/bin/rm", "-f", "/tmp/no_such_file_rmf_xyz", NULL };
+  result("rm -f nonexistent exits 0", child_ok(run_exit(a1)));
+
+  /* rm -rf on nonexistent dir exits 0 */
+  char *a2[] = { "/bin/rm", "-rf", "/tmp/no_such_dir_rmrf_xyz", NULL };
+  result("rm -rf nonexistent exits 0", child_ok(run_exit(a2)));
+
+  /* rm -rf removes nested tree */
+  char *m1[] = { "/bin/mkdir", "-p", "/tmp/tb_rmrf/a/b", NULL };
+  run_exit(m1);
+  write_file("/tmp/tb_rmrf/a/f1", "x");
+  write_file("/tmp/tb_rmrf/a/b/f2", "y");
+  char *a3[] = { "/bin/rm", "-rf", "/tmp/tb_rmrf", NULL };
+  result("rm -rf nested tree exits 0", child_ok(run_exit(a3)));
+  result("rm -rf: tree gone", stat("/tmp/tb_rmrf", &(struct stat){}) != 0);
+
+  /* rm -f on existing file removes it */
+  write_file("/tmp/tb_rmf_file", "data");
+  char *a4[] = { "/bin/rm", "-f", "/tmp/tb_rmf_file", NULL };
+  result("rm -f existing file exits 0", child_ok(run_exit(a4)));
+  result("rm -f: file gone", stat("/tmp/tb_rmf_file", &(struct stat){}) != 0);
+
+  /* rm -rf on empty dir */
+  char *m2[] = { "/bin/mkdir", "/tmp/tb_rmrf_empty", NULL };
+  run_exit(m2);
+  char *a5[] = { "/bin/rm", "-rf", "/tmp/tb_rmrf_empty", NULL };
+  result("rm -rf empty dir exits 0", child_ok(run_exit(a5)));
+  result("rm -rf: empty dir gone", stat("/tmp/tb_rmrf_empty", &(struct stat){}) != 0);
+}
+
+/* -----------------------------------------------------------------------
+ * cp -r (recursive copy)
+ * -------------------------------------------------------------------- */
+static void test_cp_recursive(void) {
+  printf("Test: cp -r\n");
+  char buf[256];
+
+  /* cp -r a directory tree */
+  char *m1[] = { "/bin/mkdir", "-p", "/tmp/tb_cpr_src/sub", NULL };
+  run_exit(m1);
+  write_file("/tmp/tb_cpr_src/f1", "file1\n");
+  write_file("/tmp/tb_cpr_src/sub/f2", "file2\n");
+
+  char *a1[] = { "/bin/cp", "-r", "/tmp/tb_cpr_src", "/tmp/tb_cpr_dst", NULL };
+  result("cp -r exits 0", child_ok(run_exit(a1)));
+
+  struct stat st;
+  result("cp -r: dst dir exists", stat("/tmp/tb_cpr_dst", &st) == 0 && S_ISDIR(st.st_mode));
+  result("cp -r: file copied", stat("/tmp/tb_cpr_dst/f1", &st) == 0);
+  read_file("/tmp/tb_cpr_dst/f1", buf, sizeof(buf));
+  result("cp -r: file content preserved", strcmp(buf, "file1\n") == 0);
+  result("cp -r: subdir exists", stat("/tmp/tb_cpr_dst/sub", &st) == 0 && S_ISDIR(st.st_mode));
+  result("cp -r: nested file copied", stat("/tmp/tb_cpr_dst/sub/f2", &st) == 0);
+  read_file("/tmp/tb_cpr_dst/sub/f2", buf, sizeof(buf));
+  result("cp -r: nested file content", strcmp(buf, "file2\n") == 0);
+
+  /* cleanup */
+  char *r1[] = { "/bin/rm", "-rf", "/tmp/tb_cpr_src", NULL };
+  char *r2[] = { "/bin/rm", "-rf", "/tmp/tb_cpr_dst", NULL };
+  run_exit(r1); run_exit(r2);
+}
+
+/* -----------------------------------------------------------------------
+ * mv — directory rename
+ * -------------------------------------------------------------------- */
+static void test_mv_dir(void) {
+  printf("Test: mv dir\n");
+  char buf[256];
+
+  /* mv a directory */
+  char *m1[] = { "/bin/mkdir", "/tmp/tb_mvd_src", NULL };
+  run_exit(m1);
+  write_file("/tmp/tb_mvd_src/file", "content\n");
+
+  char *a1[] = { "/bin/mv", "/tmp/tb_mvd_src", "/tmp/tb_mvd_dst", NULL };
+  result("mv dir exits 0", child_ok(run_exit(a1)));
+
+  struct stat st;
+  result("mv dir: src gone", stat("/tmp/tb_mvd_src", &st) != 0);
+  result("mv dir: dst exists", stat("/tmp/tb_mvd_dst", &st) == 0 && S_ISDIR(st.st_mode));
+  read_file("/tmp/tb_mvd_dst/file", buf, sizeof(buf));
+  result("mv dir: file content preserved", strcmp(buf, "content\n") == 0);
+
+  char *r1[] = { "/bin/rm", "-rf", "/tmp/tb_mvd_dst", NULL };
+  run_exit(r1);
+}
+
+/* -----------------------------------------------------------------------
+ * wc — edge cases
+ * -------------------------------------------------------------------- */
+static void test_wc_edge(void) {
+  printf("Test: wc edge cases\n");
+  char buf[128];
+
+  /* empty file */
+  write_file("/tmp/tb_wc_empty", "");
+  char *a1[] = { "/bin/wc", "/tmp/tb_wc_empty", NULL };
+  run_capture(a1, buf, sizeof(buf));
+  long l, w, b;
+  int m = sscanf(buf, "%ld %ld %ld", &l, &w, &b);
+  result("wc empty file: 0 lines 0 words 0 bytes", m == 3 && l == 0 && w == 0 && b == 0);
+  unlink("/tmp/tb_wc_empty");
+
+  /* single word no trailing newline */
+  write_file("/tmp/tb_wc_noln", "word");
+  char *a2[] = { "/bin/wc", "/tmp/tb_wc_noln", NULL };
+  run_capture(a2, buf, sizeof(buf));
+  m = sscanf(buf, "%ld %ld %ld", &l, &w, &b);
+  result("wc no-newline: 0 lines 1 word 4 bytes", m == 3 && l == 0 && w == 1 && b == 4);
+  unlink("/tmp/tb_wc_noln");
+}
+
+/* -----------------------------------------------------------------------
+ * chmod — more modes
+ * -------------------------------------------------------------------- */
+static void test_chmod_extra(void) {
+  printf("Test: chmod (extra)\n");
+
+  write_file("/tmp/tb_chmod2", "data");
+
+  /* chmod 000 clears all bits */
+  char *a1[] = { "/bin/chmod", "000", "/tmp/tb_chmod2", NULL };
+  result("chmod 000 exits 0", child_ok(run_exit(a1)));
+  struct stat st;
+  stat("/tmp/tb_chmod2", &st);
+  result("chmod 000: no permission bits", (st.st_mode & 0777) == 0);
+
+  /* chmod 777 sets all bits */
+  char *a2[] = { "/bin/chmod", "777", "/tmp/tb_chmod2", NULL };
+  result("chmod 777 exits 0", child_ok(run_exit(a2)));
+  stat("/tmp/tb_chmod2", &st);
+  result("chmod 777: all bits set", (st.st_mode & 0777) == 0777);
+
+  /* chmod 400 read-only owner */
+  char *a3[] = { "/bin/chmod", "400", "/tmp/tb_chmod2", NULL };
+  result("chmod 400 exits 0", child_ok(run_exit(a3)));
+  stat("/tmp/tb_chmod2", &st);
+  result("chmod 400: owner read only", (st.st_mode & 0777) == 0400);
+
+  /* chmod on nonexistent exits non-zero */
+  char *a4[] = { "/bin/chmod", "755", "/tmp/no_such_chmod_xyz", NULL };
+  int s = run_exit(a4);
+  result("chmod nonexistent exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
+
+  /* chmod 644 to restore for unlink */
+  char *a5[] = { "/bin/chmod", "644", "/tmp/tb_chmod2", NULL };
+  run_exit(a5);
+  unlink("/tmp/tb_chmod2");
+}
+
+/* -----------------------------------------------------------------------
+ * cat — binary/large data passthrough
+ * -------------------------------------------------------------------- */
+static void test_cat_extra(void) {
+  printf("Test: cat (extra)\n");
+  char buf[512];
+
+  /* cat with - reads stdin */
+  int in_fds[2], out_fds[2];
+  pipe(in_fds); pipe(out_fds);
+  pid_t pid = fork();
+  if (pid == 0) {
+    close(in_fds[1]); close(out_fds[0]);
+    dup2(in_fds[0], 0); close(in_fds[0]);
+    dup2(out_fds[1], 1); close(out_fds[1]);
+    char *ca[] = { "/bin/cat", "-", NULL };
+    execve("/bin/cat", ca, NULL);
+    _exit(127);
+  }
+  close(in_fds[0]); close(out_fds[1]);
+  write(in_fds[1], "dash stdin\n", 11);
+  close(in_fds[1]);
+  size_t tot = 0; ssize_t n;
+  while (tot < sizeof(buf)-1 && (n = read(out_fds[0], buf+tot, sizeof(buf)-1-tot)) > 0)
+    tot += n;
+  buf[tot] = '\0';
+  close(out_fds[0]);
+  int st; waitpid(pid, &st, 0);
+  result("cat - reads stdin", strcmp(buf, "dash stdin\n") == 0);
+
+  /* cat empty file outputs nothing */
+  write_file("/tmp/tb_cat_empty", "");
+  char *a1[] = { "/bin/cat", "/tmp/tb_cat_empty", NULL };
+  run_capture(a1, buf, sizeof(buf));
+  result("cat empty file outputs nothing", strcmp(buf, "") == 0);
+  unlink("/tmp/tb_cat_empty");
+}
+
+/* -----------------------------------------------------------------------
+ * ls — stat-based (single file, missing, -l)
+ * -------------------------------------------------------------------- */
+static void test_ls_extra(void) {
+  printf("Test: ls (extra)\n");
+  char buf[1024];
+
+  /* ls single file prints its name */
+  write_file("/tmp/tb_ls_single", "x");
+  char *a1[] = { "/bin/ls", "/tmp/tb_ls_single", NULL };
+  run_capture(a1, buf, sizeof(buf));
+  /* strip newline */
+  size_t len = strlen(buf);
+  if (len && buf[len-1] == '\n') buf[len-1] = '\0';
+  result("ls single file prints path", strcmp(buf, "/tmp/tb_ls_single") == 0);
+
+  /* ls -l single file shows permissions */
+  char *a2[] = { "/bin/ls", "-l", "/tmp/tb_ls_single", NULL };
+  run_capture(a2, buf, sizeof(buf));
+  result("ls -l single file: starts with -", buf[0] == '-');
+  result("ls -l single file: shows name", strstr(buf, "tb_ls_single") != NULL);
+  unlink("/tmp/tb_ls_single");
+
+  /* ls on nonexistent exits 1 */
+  char *a3[] = { "/bin/ls", "/tmp/no_such_ls_xyz", NULL };
+  int s = run_exit(a3);
+  result("ls nonexistent exits 1", WIFEXITED(s) && WEXITSTATUS(s) == 1);
+
+  /* ls multiple paths: one valid one invalid — exits nonzero */
+  write_file("/tmp/tb_ls_multi", "x");
+  char *a4[] = { "/bin/ls", "/tmp/tb_ls_multi", "/tmp/no_such_ls_xyz", NULL };
+  s = run_exit(a4);
+  result("ls mixed paths exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
+  unlink("/tmp/tb_ls_multi");
+}
+
 int main(void) {
   printf("=== bin tests ===\n");
   test_echo();
@@ -1175,6 +1469,7 @@ int main(void) {
   test_pwd();
   test_wc();
   test_wc_pipe_echo();
+  test_wc_edge();
   test_kill();
   test_ps();
   test_test();
@@ -1182,18 +1477,27 @@ int main(void) {
   test_fs_basics();
   test_touch();
   test_cat();
+  test_cat_extra();
   test_cp_cat();
   test_cp_extra();
+  test_cp_recursive();
   test_mv();
+  test_mv_dir();
   test_rm_extra();
+  test_rm_force();
   test_chmod();
+  test_chmod_extra();
   test_ln_readlink();
   test_ls();
+  test_ls_extra();
   test_tail();
   test_tail_extra();
   test_head();
   test_date();
   test_df();
+  test_dmesg();
+  test_sleep();
+  test_env();
   test_new_options();
   test_printf();
   printf("\n%d passed, %d failed\n", passed, failed);

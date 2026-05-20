@@ -65,20 +65,22 @@ static int copy_recursive(const char *src, const char *dst) {
 
   int dir_fd = open(src, O_RDONLY);
   if (dir_fd < 0) { fprintf(stderr, "mv: cannot open '%s'\n", src); return 1; }
-  struct dirent entries[64];
-  int n = getdents(dir_fd, entries, 64);
-  close(dir_fd);
 
   int ret = 0;
-  int num = n;
-  for (int i = 0; i < num; i++) {
-    const char *name = entries[i].d_name;
-    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
-    char sc[512], dc[512];
-    snprintf(sc, sizeof(sc), "%s/%s", src, name);
-    snprintf(dc, sizeof(dc), "%s/%s", dst, name);
-    if (copy_recursive(sc, dc) != 0) ret = 1;
+  struct dirent entries[64];
+  int n;
+  while ((n = getdents(dir_fd, entries, 64)) > 0) {
+    for (int i = 0; i < n; i++) {
+      const char *name = entries[i].d_name;
+      if (name[0] == '\0') continue;
+      if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+      char sc[512], dc[512];
+      snprintf(sc, sizeof(sc), "%s/%s", src, name);
+      snprintf(dc, sizeof(dc), "%s/%s", dst, name);
+      if (copy_recursive(sc, dc) != 0) ret = 1;
+    }
   }
+  close(dir_fd);
   return ret;
 }
 
@@ -90,18 +92,20 @@ static int remove_file(const char *path) {
 static int remove_dir(const char *path) {
   int dir_fd = open(path, O_RDONLY);
   if (dir_fd < 0) return 1;
-  struct dirent entries[64];
-  int n = getdents(dir_fd, entries, 64);
-  close(dir_fd);
 
-  int num = n;
-  for (int i = 0; i < num; i++) {
-    const char *name = entries[i].d_name;
-    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
-    char child[512];
-    snprintf(child, sizeof(child), "%s/%s", path, name);
-    remove_recursive(child);
+  struct dirent entries[64];
+  int n;
+  while ((n = getdents(dir_fd, entries, 64)) > 0) {
+    for (int i = 0; i < n; i++) {
+      const char *name = entries[i].d_name;
+      if (name[0] == '\0') continue;
+      if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+      char child[512];
+      snprintf(child, sizeof(child), "%s/%s", path, name);
+      remove_recursive(child);
+    }
   }
+  close(dir_fd);
   if (rmdir(path) < 0) { fprintf(stderr, "mv: cannot remove dir '%s'\n", path); return 1; }
   return 0;
 }

@@ -63,29 +63,24 @@ static int copy_dir(const char *src, const char *dst) {
     return 1;
   }
 
-  struct dirent entries[64];
-  int n = getdents(dir_fd, entries, 64);
-  close(dir_fd);
-
-  if (n < 0) {
-    fprintf(stderr, "cp: cannot read directory '%s'\n", src);
-    return 1;
-  }
-
-  int num = n / sizeof(struct dirent);
   int ret = 0;
-  for (int i = 0; i < num; i++) {
-    const char *name = entries[i].d_name;
-    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
-      continue;
+  struct dirent entries[64];
+  int n;
+  while ((n = getdents(dir_fd, entries, 64)) > 0) {
+    for (int i = 0; i < n; i++) {
+      const char *name = entries[i].d_name;
+      if (name[0] == '\0') continue;
+      if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
 
-    char src_child[512], dst_child[512];
-    snprintf(src_child, sizeof(src_child), "%s/%s", src, name);
-    snprintf(dst_child, sizeof(dst_child), "%s/%s", dst, name);
+      char src_child[512], dst_child[512];
+      snprintf(src_child, sizeof(src_child), "%s/%s", src, name);
+      snprintf(dst_child, sizeof(dst_child), "%s/%s", dst, name);
 
-    if (copy_recursive(src_child, dst_child) != 0)
-      ret = 1;
+      if (copy_recursive(src_child, dst_child) != 0)
+        ret = 1;
+    }
   }
+  close(dir_fd);
   return ret;
 }
 
