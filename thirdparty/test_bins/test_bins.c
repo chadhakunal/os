@@ -6,6 +6,8 @@
 #include <sys/wait.h>
 #include <sys/stat.h>
 
+extern char **environ;
+
 static int passed = 0;
 static int failed = 0;
 
@@ -27,7 +29,7 @@ static int run_capture(char *const argv[], char *buf, size_t bufsz) {
     close(fds[0]);
     dup2(fds[1], 1);
     close(fds[1]);
-    execve(argv[0], argv, NULL);
+    execve(argv[0], argv, environ);
     _exit(127);
   }
   close(fds[1]);
@@ -1224,8 +1226,8 @@ static void test_env(void) {
   result("env -i: only set vars present", strstr(buf, "ONLY=x") != NULL);
   result("env -i: PATH not present", strstr(buf, "PATH=") == NULL);
 
-  /* env with unknown command exits 127 */
-  char *a4[] = { "/bin/env", "/bin/no_such_cmd_xyz", NULL };
+  /* env with unknown command exits 127 (name-only so env does PATH lookup) */
+  char *a4[] = { "/bin/env", "no_such_cmd_xyz", NULL };
   s = run_exit(a4);
   result("env unknown command exits 127", WIFEXITED(s) && WEXITSTATUS(s) == 127);
 }

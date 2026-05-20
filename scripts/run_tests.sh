@@ -44,6 +44,15 @@ wait_for_prompt() {
   return 1
 }
 
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Shell-side test scripts (run on host, inject into QEMU via tmux)
+SHELL_TESTS="
+test_ls
+test_shell
+test_bins_shell
+"
+
 echo "=== running tests on QEMU pane $PANE ==="
 
 # Wait for initial prompt before starting
@@ -54,6 +63,7 @@ send "clear"
 sleep 0.3
 wait_for_prompt
 
+# Run in-guest test binaries
 for t in $TESTS; do
   echo "--- running: $t"
   send "/bin/tests/$t"
@@ -61,7 +71,14 @@ for t in $TESTS; do
   echo "--- done: $t"
 done
 
-send "echo '=== ALL TESTS DONE ==='"
+send "echo '=== BINARY TESTS DONE ==='"
 wait_for_prompt
+
+# Run host-side tmux test scripts
+for t in $SHELL_TESTS; do
+  echo "--- running shell test: $t"
+  PANE="$PANE" sh "$SCRIPT_DIR/${t}.sh"
+  echo "--- done: $t"
+done
 
 echo "=== all tests complete ==="
