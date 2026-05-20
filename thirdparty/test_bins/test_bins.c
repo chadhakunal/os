@@ -163,6 +163,7 @@ static void test_wc(void) {
   write(in_fds[1], input, strlen(input));
   close(in_fds[1]);
 
+  memset(buf, 0, sizeof(buf));
   size_t total = 0;
   ssize_t n;
   while (total < sizeof(buf)-1 && (n = read(out_fds[0], buf+total, sizeof(buf)-1-total)) > 0)
@@ -171,6 +172,7 @@ static void test_wc(void) {
   close(out_fds[0]);
   waitpid(pid, &status, 0);
 
+  printf("  [dbg] wc stdin buf='%s'\n", buf);
   result("wc stdin exits 0", child_ok(status));
   matched = sscanf(buf, "%ld %ld %ld", &lines, &words, &bytes);
   result("wc stdin: 2 lines", matched == 3 && lines == 2);

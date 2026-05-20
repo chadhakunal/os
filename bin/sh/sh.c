@@ -357,10 +357,7 @@ static int builtin_test(int argc, char *argv[]) {
     }
     if (strcmp(op, "-f") == 0) {
       struct stat st;
-      int sr = stat(arg, &st);
-      int ok = sr == 0 && S_ISREG(st.st_mode);
-      fprintf(stderr, "[builtin_test] -f '%s' stat=%d mode=0x%x ok=%d ret=%d\n",
-              arg, sr, st.st_mode, ok, negate ? (ok ? 1 : 0) : (ok ? 0 : 1));
+      int ok = stat(arg, &st) == 0 && S_ISREG(st.st_mode);
       return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
     }
     if (strcmp(op, "-d") == 0) {
