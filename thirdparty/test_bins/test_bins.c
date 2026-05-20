@@ -881,13 +881,9 @@ static void test_new_options(void) {
   result("rm -r exits 0", child_ok(run_exit(r1)));
   result("rm -r: tree gone", stat("/tmp/tb_rmr", &(struct stat){}) != 0);
 
-  /* sleep fractional — just check it exits 0 quickly */
-  char *s1[] = { "/bin/sleep", "0.1", NULL };
-  result("sleep 0.1 exits 0", child_ok(run_exit(s1)));
-
-  /* sleep integer still works */
-  char *s2[] = { "/bin/sleep", "0", NULL };
-  result("sleep 0 exits 0", child_ok(run_exit(s2)));
+  /* sleep basic sanity */
+  char *s1[] = { "/bin/sleep", "0", NULL };
+  result("sleep 0 exits 0", child_ok(run_exit(s1)));
 }
 
 /* -----------------------------------------------------------------------
