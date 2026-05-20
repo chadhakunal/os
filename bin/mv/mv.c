@@ -19,7 +19,7 @@ static int is_dir(const char *path) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) return 0;
   struct dirent de;
-  int n = getdents(fd, &de, sizeof(de));
+  int n = getdents(fd, &de, 1);
   close(fd);
   return (n >= 0);
 }
@@ -68,11 +68,11 @@ static int copy_recursive(const char *src, const char *dst) {
   int dir_fd = open(src, O_RDONLY);
   if (dir_fd < 0) { fprintf(stderr, "mv: cannot open '%s'\n", src); return 1; }
   struct dirent entries[64];
-  int n = getdents(dir_fd, entries, sizeof(entries));
+  int n = getdents(dir_fd, entries, 64);
   close(dir_fd);
 
   int ret = 0;
-  int num = n / sizeof(struct dirent);
+  int num = n;
   for (int i = 0; i < num; i++) {
     const char *name = entries[i].d_name;
     if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
@@ -93,10 +93,10 @@ static int remove_dir(const char *path) {
   int dir_fd = open(path, O_RDONLY);
   if (dir_fd < 0) return 1;
   struct dirent entries[64];
-  int n = getdents(dir_fd, entries, sizeof(entries));
+  int n = getdents(dir_fd, entries, 64);
   close(dir_fd);
 
-  int num = n / sizeof(struct dirent);
+  int num = n;
   for (int i = 0; i < num; i++) {
     const char *name = entries[i].d_name;
     if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;

@@ -19,10 +19,10 @@ static int remove_dir(const char *path) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) { fprintf(stderr, "rm: cannot open '%s'\n", path); return 1; }
   struct dirent entries[64];
-  int n = getdents(fd, entries, sizeof(entries));
+  int n = getdents(fd, entries, 64);
   close(fd);
   int ret = 0;
-  int num = n / (int)sizeof(struct dirent);
+  int num = n;
   for (int i = 0; i < num; i++) {
     const char *name = entries[i].d_name;
     if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;

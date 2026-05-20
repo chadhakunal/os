@@ -63,7 +63,7 @@ static int copy_dir(const char *src, const char *dst) {
   }
 
   struct dirent entries[64];
-  int n = getdents(dir_fd, entries, sizeof(entries));
+  int n = getdents(dir_fd, entries, 64);
   close(dir_fd);
 
   if (n < 0) {
@@ -93,7 +93,7 @@ static int is_dir(const char *path) {
   if (fd < 0) return 0;
   /* Try getdents — succeeds for directories, not for files. */
   struct dirent de;
-  int n = getdents(fd, &de, sizeof(de));
+  int n = getdents(fd, &de, 1);
   close(fd);
   return (n >= 0);
 }
