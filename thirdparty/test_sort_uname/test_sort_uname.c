@@ -231,29 +231,29 @@ static void test_sort_file(void) {
   printf("Test: sort from file\n");
   char buf[256];
 
-  write_file("/tmp/ts_sort", "cherry\napple\nbanana\n");
+  write_file("/mnt/tmp/ts_sort", "cherry\napple\nbanana\n");
 
-  char *a1[] = { "/bin/sort", "/tmp/ts_sort", NULL };
+  char *a1[] = { "/bin/sort", "/mnt/tmp/ts_sort", NULL };
   int st = run_capture(a1, buf, sizeof(buf));
   result("sort file exits 0", child_ok(st));
   result("sort file alphabetic", strcmp(buf, "apple\nbanana\ncherry\n") == 0);
 
   /* missing file exits non-zero */
-  char *a2[] = { "/bin/sort", "/tmp/no_such_sort_xyz", NULL };
+  char *a2[] = { "/bin/sort", "/mnt/tmp/no_such_sort_xyz", NULL };
   st = run_exit(a2);
   result("sort missing file exits non-zero", WIFEXITED(st) && WEXITSTATUS(st) != 0);
 
   /* two files concatenated and sorted */
-  write_file("/tmp/ts_sort_a", "dog\ncat\n");
-  write_file("/tmp/ts_sort_b", "ant\nbee\n");
-  char *a3[] = { "/bin/sort", "/tmp/ts_sort_a", "/tmp/ts_sort_b", NULL };
+  write_file("/mnt/tmp/ts_sort_a", "dog\ncat\n");
+  write_file("/mnt/tmp/ts_sort_b", "ant\nbee\n");
+  char *a3[] = { "/bin/sort", "/mnt/tmp/ts_sort_a", "/mnt/tmp/ts_sort_b", NULL };
   run_capture(a3, buf, sizeof(buf));
   result("sort two files merged and sorted",
          strcmp(buf, "ant\nbee\ncat\ndog\n") == 0);
 
-  unlink("/tmp/ts_sort");
-  unlink("/tmp/ts_sort_a");
-  unlink("/tmp/ts_sort_b");
+  unlink("/mnt/tmp/ts_sort");
+  unlink("/mnt/tmp/ts_sort_a");
+  unlink("/mnt/tmp/ts_sort_b");
 }
 
 int main(void) {

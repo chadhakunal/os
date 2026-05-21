@@ -193,7 +193,7 @@ static void test_env(void) {
  * ====================================================================== */
 static void test_fcntl(void) {
     /* create a temp file */
-    char path[] = "/tmp/posix_fcntl_XXXXXX";
+    char path[] = "/mnt/tmp/posix_fcntl_XXXXXX";
     int fd = mkstemp(path);
     if (fd < 0) { perror("mkstemp"); return; }
     unlink(path);
@@ -219,7 +219,7 @@ static void test_fcntl(void) {
  * 9. lseek, pread, pwrite
  * ====================================================================== */
 static void test_positional_io(void) {
-    char path[] = "/tmp/posix_pio_XXXXXX";
+    char path[] = "/mnt/tmp/posix_pio_XXXXXX";
     int fd = mkstemp(path);
     if (fd < 0) { perror("mkstemp"); return; }
     unlink(path);
@@ -246,12 +246,12 @@ static void test_positional_io(void) {
  * 10. symlink / readlink / lstat
  * ====================================================================== */
 static void test_symlink(void) {
-    char target[] = "/tmp/posix_sym_target_XXXXXX";
+    char target[] = "/mnt/tmp/posix_sym_target_XXXXXX";
     int fd = mkstemp(target);
     if (fd < 0) { perror("mkstemp target"); return; }
     close(fd);
 
-    char link[] = "/tmp/posix_sym_link_XXXXXX";
+    char link[] = "/mnt/tmp/posix_sym_link_XXXXXX";
     /* make link path unique by appending _lnk */
     link[sizeof(link) - 5] = 'l';
     link[sizeof(link) - 4] = 'n';
@@ -372,7 +372,7 @@ static void test_signals(void) {
  * ====================================================================== */
 static void test_filesystem(void) {
     /* mkdir + stat */
-    const char *dir = "/tmp/posix_fstest";
+    const char *dir = "/mnt/tmp/posix_fstest";
     rmdir(dir);
     if (mkdir(dir, 0755) < 0) { perror("mkdir"); return; }
 

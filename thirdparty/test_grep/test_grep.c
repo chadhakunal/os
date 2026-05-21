@@ -129,23 +129,23 @@ static void test_file_match(void) {
   printf("Test: file match\n");
   char buf[256];
 
-  write_file("/tmp/tg_file", "apple\nbanana\ncherry\n");
+  write_file("/mnt/tmp/tg_file", "apple\nbanana\ncherry\n");
 
-  char *a1[] = { "/bin/grep", "banana", "/tmp/tg_file", NULL };
+  char *a1[] = { "/bin/grep", "banana", "/mnt/tmp/tg_file", NULL };
   int st = run_capture(a1, buf, sizeof(buf));
   result("grep file: exits 0 on match", child_ok(st));
   result("grep file: correct line", strcmp(buf, "banana\n") == 0);
 
-  char *a2[] = { "/bin/grep", "mango", "/tmp/tg_file", NULL };
+  char *a2[] = { "/bin/grep", "mango", "/mnt/tmp/tg_file", NULL };
   st = run_exit(a2);
   result("grep file: exits 1 on no match", child_exit(st) == 1);
 
   /* missing file — exits 2 (usage/error) or non-zero */
-  char *a3[] = { "/bin/grep", "foo", "/tmp/no_such_file_tg_xyz", NULL };
+  char *a3[] = { "/bin/grep", "foo", "/mnt/tmp/no_such_file_tg_xyz", NULL };
   st = run_exit(a3);
   result("grep missing file: exits non-zero", WIFEXITED(st) && WEXITSTATUS(st) != 0);
 
-  unlink("/tmp/tg_file");
+  unlink("/mnt/tmp/tg_file");
 }
 
 /* -----------------------------------------------------------------------
@@ -227,16 +227,16 @@ static void test_flag_l(void) {
   printf("Test: -l (filename only)\n");
   char buf[256];
 
-  write_file("/tmp/tg_l_match",    "hello world\n");
-  write_file("/tmp/tg_l_nomatch",  "nothing here\n");
+  write_file("/mnt/tmp/tg_l_match",    "hello world\n");
+  write_file("/mnt/tmp/tg_l_nomatch",  "nothing here\n");
 
   char *a1[] = { "/bin/grep", "-l", "hello",
-                 "/tmp/tg_l_match", "/tmp/tg_l_nomatch", NULL };
+                 "/mnt/tmp/tg_l_match", "/mnt/tmp/tg_l_nomatch", NULL };
   run_capture(a1, buf, sizeof(buf));
-  result("grep -l prints only matching filename", strcmp(buf, "/tmp/tg_l_match\n") == 0);
+  result("grep -l prints only matching filename", strcmp(buf, "/mnt/tmp/tg_l_match\n") == 0);
 
-  unlink("/tmp/tg_l_match");
-  unlink("/tmp/tg_l_nomatch");
+  unlink("/mnt/tmp/tg_l_match");
+  unlink("/mnt/tmp/tg_l_nomatch");
 }
 
 /* -----------------------------------------------------------------------
@@ -246,30 +246,30 @@ static void test_multi_file(void) {
   printf("Test: multiple files\n");
   char buf[512];
 
-  write_file("/tmp/tg_mf_a", "hit\nmiss\n");
-  write_file("/tmp/tg_mf_b", "miss\nhit\n");
+  write_file("/mnt/tmp/tg_mf_a", "hit\nmiss\n");
+  write_file("/mnt/tmp/tg_mf_b", "miss\nhit\n");
 
   char *a1[] = { "/bin/grep", "hit",
-                 "/tmp/tg_mf_a", "/tmp/tg_mf_b", NULL };
+                 "/mnt/tmp/tg_mf_a", "/mnt/tmp/tg_mf_b", NULL };
   run_capture(a1, buf, sizeof(buf));
   result("grep multi-file: filename prefix in output",
-         strstr(buf, "/tmp/tg_mf_a:hit") != NULL &&
-         strstr(buf, "/tmp/tg_mf_b:hit") != NULL);
+         strstr(buf, "/mnt/tmp/tg_mf_a:hit") != NULL &&
+         strstr(buf, "/mnt/tmp/tg_mf_b:hit") != NULL);
 
   /* -h suppresses filename prefix */
   char *a2[] = { "/bin/grep", "-h", "hit",
-                 "/tmp/tg_mf_a", "/tmp/tg_mf_b", NULL };
+                 "/mnt/tmp/tg_mf_a", "/mnt/tmp/tg_mf_b", NULL };
   run_capture(a2, buf, sizeof(buf));
-  result("grep -h: no filename prefix", strstr(buf, "/tmp/tg_mf_a:") == NULL);
+  result("grep -h: no filename prefix", strstr(buf, "/mnt/tmp/tg_mf_a:") == NULL);
   result("grep -h: matching lines still printed", strstr(buf, "hit") != NULL);
 
   /* -H forces filename prefix even for single file */
-  char *a3[] = { "/bin/grep", "-H", "hit", "/tmp/tg_mf_a", NULL };
+  char *a3[] = { "/bin/grep", "-H", "hit", "/mnt/tmp/tg_mf_a", NULL };
   run_capture(a3, buf, sizeof(buf));
-  result("grep -H: forces filename prefix", strstr(buf, "/tmp/tg_mf_a:hit") != NULL);
+  result("grep -H: forces filename prefix", strstr(buf, "/mnt/tmp/tg_mf_a:hit") != NULL);
 
-  unlink("/tmp/tg_mf_a");
-  unlink("/tmp/tg_mf_b");
+  unlink("/mnt/tmp/tg_mf_a");
+  unlink("/mnt/tmp/tg_mf_b");
 }
 
 /* -----------------------------------------------------------------------
@@ -349,7 +349,7 @@ static void test_flag_r(void) {
   char buf[512];
 
   /* Build /tmp/tg_r/{a.txt,sub/b.txt} */
-  char *m1[] = { "/bin/mkdir", "-p", "/tmp/tg_r/sub", NULL };
+  char *m1[] = { "/bin/mkdir", "-p", "/mnt/tmp/tg_r/sub", NULL };
   {
     pid_t pid = fork();
     if (pid == 0) {
@@ -358,28 +358,28 @@ static void test_flag_r(void) {
     }
     int st; waitpid(pid, &st, 0);
   }
-  write_file("/tmp/tg_r/a.txt",     "needle\nhay\n");
-  write_file("/tmp/tg_r/sub/b.txt", "hay\nneedle\n");
+  write_file("/mnt/tmp/tg_r/a.txt",     "needle\nhay\n");
+  write_file("/mnt/tmp/tg_r/sub/b.txt", "hay\nneedle\n");
 
-  char *a1[] = { "/bin/grep", "-r", "needle", "/tmp/tg_r", NULL };
+  char *a1[] = { "/bin/grep", "-r", "needle", "/mnt/tmp/tg_r", NULL };
   int st = run_capture(a1, buf, sizeof(buf));
   result("grep -r exits 0 on match", child_ok(st));
   result("grep -r finds in nested file",
          strstr(buf, "needle") != NULL);
   result("grep -r matches from both files",
-         strstr(buf, "/tmp/tg_r/a.txt") != NULL &&
-         strstr(buf, "/tmp/tg_r/sub/b.txt") != NULL);
+         strstr(buf, "/mnt/tmp/tg_r/a.txt") != NULL &&
+         strstr(buf, "/mnt/tmp/tg_r/sub/b.txt") != NULL);
 
   /* no match → exit 1 */
-  char *a2[] = { "/bin/grep", "-r", "xyz", "/tmp/tg_r", NULL };
+  char *a2[] = { "/bin/grep", "-r", "xyz", "/mnt/tmp/tg_r", NULL };
   st = run_exit(a2);
   result("grep -r no match: exits 1", child_exit(st) == 1);
 
   /* cleanup */
-  unlink("/tmp/tg_r/a.txt");
-  unlink("/tmp/tg_r/sub/b.txt");
-  char *rd1[] = { "/bin/rmdir", "/tmp/tg_r/sub", NULL };
-  char *rd2[] = { "/bin/rmdir", "/tmp/tg_r",     NULL };
+  unlink("/mnt/tmp/tg_r/a.txt");
+  unlink("/mnt/tmp/tg_r/sub/b.txt");
+  char *rd1[] = { "/bin/rmdir", "/mnt/tmp/tg_r/sub", NULL };
+  char *rd2[] = { "/bin/rmdir", "/mnt/tmp/tg_r",     NULL };
   run_exit(rd1); run_exit(rd2);
 }
 
@@ -420,15 +420,15 @@ static void test_double_dash(void) {
   printf("Test: -- end-of-flags\n");
   char buf[256];
 
-  write_file("/tmp/tg_dd", "-flag\nword\n");
+  write_file("/mnt/tmp/tg_dd", "-flag\nword\n");
 
   /* grep -- -flag file: treats -flag as pattern, not a flag */
-  char *a1[] = { "/bin/grep", "--", "-flag", "/tmp/tg_dd", NULL };
+  char *a1[] = { "/bin/grep", "--", "-flag", "/mnt/tmp/tg_dd", NULL };
   int st = run_capture(a1, buf, sizeof(buf));
   result("grep -- treats next arg as pattern", child_ok(st));
   result("grep -- matches literal -flag", strcmp(buf, "-flag\n") == 0);
 
-  unlink("/tmp/tg_dd");
+  unlink("/mnt/tmp/tg_dd");
 }
 
 /* -----------------------------------------------------------------------
@@ -438,18 +438,18 @@ static void test_count_multi_file(void) {
   printf("Test: -c with multiple files\n");
   char buf[256];
 
-  write_file("/tmp/tg_cm_a", "hit\nhit\nmiss\n");
-  write_file("/tmp/tg_cm_b", "miss\nhit\n");
+  write_file("/mnt/tmp/tg_cm_a", "hit\nhit\nmiss\n");
+  write_file("/mnt/tmp/tg_cm_b", "miss\nhit\n");
 
   char *a1[] = { "/bin/grep", "-c", "hit",
-                 "/tmp/tg_cm_a", "/tmp/tg_cm_b", NULL };
+                 "/mnt/tmp/tg_cm_a", "/mnt/tmp/tg_cm_b", NULL };
   run_capture(a1, buf, sizeof(buf));
   result("grep -c multi-file: per-file counts with prefix",
-         strstr(buf, "/tmp/tg_cm_a:2") != NULL &&
-         strstr(buf, "/tmp/tg_cm_b:1") != NULL);
+         strstr(buf, "/mnt/tmp/tg_cm_a:2") != NULL &&
+         strstr(buf, "/mnt/tmp/tg_cm_b:1") != NULL);
 
-  unlink("/tmp/tg_cm_a");
-  unlink("/tmp/tg_cm_b");
+  unlink("/mnt/tmp/tg_cm_a");
+  unlink("/mnt/tmp/tg_cm_b");
 }
 
 int main(void) {

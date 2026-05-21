@@ -179,7 +179,7 @@ static void test_as_enforcement(void) {
 static void test_fsize_enforcement(void) {
   struct rlimit saved, low;
   struct sigaction sa, old;
-  const char *path = "rlimit_fsize_test";
+  const char *path = "/mnt/tmp/rlimit_fsize_test";
   char buf[64];
   int fd;
   ssize_t n;

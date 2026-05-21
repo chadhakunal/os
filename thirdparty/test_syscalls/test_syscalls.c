@@ -61,9 +61,9 @@ void test_read_file() {
 }
 
 void test_hardlinks() {
-  const char *orig  = "/hl_orig.txt";
-  const char *hard1 = "/hl_link1.txt";
-  const char *hard2 = "/hl_link2.txt";
+  const char *orig  = "/mnt/tmp/hl_orig.txt";
+  const char *hard1 = "/mnt/tmp/hl_link1.txt";
+  const char *hard2 = "/mnt/tmp/hl_link2.txt";
   const char *msg   = "hardlink-data";
   int msg_len       = strlen(msg);
 
@@ -154,13 +154,13 @@ void test_hardlinks() {
 }
 
 void test_symlinks() {
-  const char *orig     = "/sl_orig.txt";
-  const char *sl_abs   = "/sl_abs.txt";     /* absolute symlink → orig */
-  const char *sl_rel   = "/sl_rel.txt";     /* relative symlink → sl_orig.txt */
-  const char *sl_dir   = "/sl_etc";         /* symlink → /etc directory */
-  const char *sl_dang  = "/sl_dang.txt";    /* dangling symlink */
-  const char *sl_loop1 = "/sl_loop1.txt";
-  const char *sl_loop2 = "/sl_loop2.txt";
+  const char *orig     = "/mnt/tmp/sl_orig.txt";
+  const char *sl_abs   = "/mnt/tmp/sl_abs.txt";     /* absolute symlink → orig */
+  const char *sl_rel   = "/mnt/tmp/sl_rel.txt";     /* relative symlink → sl_orig.txt */
+  const char *sl_dir   = "/mnt/tmp/sl_etc";         /* symlink → /etc directory */
+  const char *sl_dang  = "/mnt/tmp/sl_dang.txt";    /* dangling symlink */
+  const char *sl_loop1 = "/mnt/tmp/sl_loop1.txt";
+  const char *sl_loop2 = "/mnt/tmp/sl_loop2.txt";
   const char *msg      = "symlink-data";
   int msg_len          = strlen(msg);
 
@@ -261,7 +261,7 @@ void test_symlinks() {
 }
 
 void test_chmod_stat() {
-  const char *path = "/chmod_test.txt";
+  const char *path = "/mnt/tmp/chmod_test.txt";
   const char *msg  = "permission test";
 
   unlink(path);
@@ -326,7 +326,7 @@ void test_chmod_stat() {
 }
 
 void test_fstat() {
-  const char *path = "/fstat_test.txt";
+  const char *path = "/mnt/tmp/fstat_test.txt";
   const char *msg  = "fstat-payload";
 
   unlink(path);
@@ -356,10 +356,10 @@ void test_fstat() {
 }
 
 void test_lstat() {
-  const char *orig = "/lstat_orig.txt";
-  const char *sl   = "/lstat_sl.txt";
+  const char *orig = "/mnt/tmp/lstat_orig.txt";
+  const char *sl   = "/mnt/tmp/lstat_sl.txt";
   const char *msg  = "xy";
-  const char *target = "/lstat_orig.txt";
+  const char *target = "/mnt/tmp/lstat_orig.txt";
 
   unlink(sl);
   unlink(orig);
@@ -391,8 +391,8 @@ void test_lstat() {
 }
 
 void test_open_creat_mode() {
-  const char *path644 = "/creat_mode_644.txt";
-  const char *path600 = "/creat_mode_600.txt";
+  const char *path644 = "/mnt/tmp/creat_mode_644.txt";
+  const char *path600 = "/mnt/tmp/creat_mode_600.txt";
 
   unlink(path644);
   unlink(path600);
@@ -428,7 +428,7 @@ void test_open_creat_mode() {
 }
 
 void test_truncate() {
-  const char *path = "/truncate_test.txt";
+  const char *path = "/mnt/tmp/truncate_test.txt";
   const char *msg  = "hello truncate world";
 
   unlink(path);

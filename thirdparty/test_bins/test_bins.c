@@ -342,35 +342,35 @@ static void test_fs_basics(void) {
   char buf[64];
 
   /* touch creates a file */
-  char *t1[] = { "/bin/touch", "/tmp/tb_touch", NULL };
+  char *t1[] = { "/bin/touch", "/mnt/tmp/tb_touch", NULL };
   result("touch creates file", child_ok(run_exit(t1)));
-  result("touch: file exists after touch", stat("/tmp/tb_touch", &(struct stat){}) == 0);
+  result("touch: file exists after touch", stat("/mnt/tmp/tb_touch", &(struct stat){}) == 0);
 
   /* rm removes it */
-  char *r1[] = { "/bin/rm", "/tmp/tb_touch", NULL };
+  char *r1[] = { "/bin/rm", "/mnt/tmp/tb_touch", NULL };
   result("rm removes file", child_ok(run_exit(r1)));
-  result("rm: file gone after rm", stat("/tmp/tb_touch", &(struct stat){}) != 0);
+  result("rm: file gone after rm", stat("/mnt/tmp/tb_touch", &(struct stat){}) != 0);
 
   /* mkdir creates a dir */
-  char *m1[] = { "/bin/mkdir", "/tmp/tb_dir", NULL };
+  char *m1[] = { "/bin/mkdir", "/mnt/tmp/tb_dir", NULL };
   result("mkdir creates dir", child_ok(run_exit(m1)));
   struct stat st;
-  result("mkdir: is a directory", stat("/tmp/tb_dir", &st) == 0 && S_ISDIR(st.st_mode));
+  result("mkdir: is a directory", stat("/mnt/tmp/tb_dir", &st) == 0 && S_ISDIR(st.st_mode));
 
   /* rmdir removes it */
-  char *rd1[] = { "/bin/rmdir", "/tmp/tb_dir", NULL };
+  char *rd1[] = { "/bin/rmdir", "/mnt/tmp/tb_dir", NULL };
   result("rmdir removes dir", child_ok(run_exit(rd1)));
-  result("rmdir: dir gone", stat("/tmp/tb_dir", &st) != 0);
+  result("rmdir: dir gone", stat("/mnt/tmp/tb_dir", &st) != 0);
 
   /* mkdir -p creates nested dirs */
-  char *m2[] = { "/bin/mkdir", "-p", "/tmp/tb_nest/a/b", NULL };
+  char *m2[] = { "/bin/mkdir", "-p", "/mnt/tmp/tb_nest/a/b", NULL };
   result("mkdir -p nested", child_ok(run_exit(m2)));
-  result("mkdir -p: leaf is dir", stat("/tmp/tb_nest/a/b", &st) == 0 && S_ISDIR(st.st_mode));
+  result("mkdir -p: leaf is dir", stat("/mnt/tmp/tb_nest/a/b", &st) == 0 && S_ISDIR(st.st_mode));
 
   /* cleanup */
-  char *rd2[] = { "/bin/rmdir", "/tmp/tb_nest/a/b", NULL };
-  char *rd3[] = { "/bin/rmdir", "/tmp/tb_nest/a", NULL };
-  char *rd4[] = { "/bin/rmdir", "/tmp/tb_nest", NULL };
+  char *rd2[] = { "/bin/rmdir", "/mnt/tmp/tb_nest/a/b", NULL };
+  char *rd3[] = { "/bin/rmdir", "/mnt/tmp/tb_nest/a", NULL };
+  char *rd4[] = { "/bin/rmdir", "/mnt/tmp/tb_nest", NULL };
   run_exit(rd2); run_exit(rd3); run_exit(rd4);
   (void)buf;
 }
@@ -383,14 +383,14 @@ static void test_cp_cat(void) {
   char buf[256];
 
   /* Write a known file in /tmp */
-  write_file("/tmp/tb_src", "hello cp\n");
+  write_file("/mnt/tmp/tb_src", "hello cp\n");
 
   /* cp it */
-  char *cp1[] = { "/bin/cp", "/tmp/tb_src", "/tmp/tb_dst", NULL };
+  char *cp1[] = { "/bin/cp", "/mnt/tmp/tb_src", "/mnt/tmp/tb_dst", NULL };
   result("cp exits 0", child_ok(run_exit(cp1)));
 
   /* cat it back */
-  char *cat1[] = { "/bin/cat", "/tmp/tb_dst", NULL };
+  char *cat1[] = { "/bin/cat", "/mnt/tmp/tb_dst", NULL };
   run_capture(cat1, buf, sizeof(buf));
   result("cp: content preserved", strcmp(buf, "hello cp\n") == 0);
 
@@ -401,8 +401,8 @@ static void test_cp_cat(void) {
   result("cat tarfs file non-empty", strlen(buf) > 0);
 
   /* cleanup */
-  unlink("/tmp/tb_src");
-  unlink("/tmp/tb_dst");
+  unlink("/mnt/tmp/tb_src");
+  unlink("/mnt/tmp/tb_dst");
 }
 
 /* -----------------------------------------------------------------------
@@ -412,17 +412,17 @@ static void test_mv(void) {
   printf("Test: mv\n");
   char buf[64];
 
-  write_file("/tmp/tb_mv_src", "mv content\n");
+  write_file("/mnt/tmp/tb_mv_src", "mv content\n");
 
-  char *mv1[] = { "/bin/mv", "/tmp/tb_mv_src", "/tmp/tb_mv_dst", NULL };
+  char *mv1[] = { "/bin/mv", "/mnt/tmp/tb_mv_src", "/mnt/tmp/tb_mv_dst", NULL };
   result("mv exits 0", child_ok(run_exit(mv1)));
 
-  result("mv: src gone", stat("/tmp/tb_mv_src", &(struct stat){}) != 0);
+  result("mv: src gone", stat("/mnt/tmp/tb_mv_src", &(struct stat){}) != 0);
 
-  read_file("/tmp/tb_mv_dst", buf, sizeof(buf));
+  read_file("/mnt/tmp/tb_mv_dst", buf, sizeof(buf));
   result("mv: content at dst", strcmp(buf, "mv content\n") == 0);
 
-  unlink("/tmp/tb_mv_dst");
+  unlink("/mnt/tmp/tb_mv_dst");
 }
 
 /* -----------------------------------------------------------------------
@@ -431,21 +431,21 @@ static void test_mv(void) {
 static void test_chmod(void) {
   printf("Test: chmod\n");
 
-  write_file("/tmp/tb_chmod", "data");
+  write_file("/mnt/tmp/tb_chmod", "data");
 
-  char *ch1[] = { "/bin/chmod", "755", "/tmp/tb_chmod", NULL };
+  char *ch1[] = { "/bin/chmod", "755", "/mnt/tmp/tb_chmod", NULL };
   result("chmod exits 0", child_ok(run_exit(ch1)));
 
   struct stat st;
-  stat("/tmp/tb_chmod", &st);
+  stat("/mnt/tmp/tb_chmod", &st);
   result("chmod 755: exec bit set", (st.st_mode & 0111) != 0);
 
-  char *ch2[] = { "/bin/chmod", "644", "/tmp/tb_chmod", NULL };
+  char *ch2[] = { "/bin/chmod", "644", "/mnt/tmp/tb_chmod", NULL };
   run_exit(ch2);
-  stat("/tmp/tb_chmod", &st);
+  stat("/mnt/tmp/tb_chmod", &st);
   result("chmod 644: exec bit cleared", (st.st_mode & 0111) == 0);
 
-  unlink("/tmp/tb_chmod");
+  unlink("/mnt/tmp/tb_chmod");
 }
 
 /* -----------------------------------------------------------------------
@@ -456,76 +456,76 @@ static void test_ln_readlink(void) {
   char buf[256];
 
   /* Hard link within /tmp */
-  write_file("/tmp/tb_hard_src", "hard link data\n");
-  char *ln1[] = { "/bin/ln", "/tmp/tb_hard_src", "/tmp/tb_hard_dst", NULL };
+  write_file("/mnt/tmp/tb_hard_src", "hard link data\n");
+  char *ln1[] = { "/bin/ln", "/mnt/tmp/tb_hard_src", "/mnt/tmp/tb_hard_dst", NULL };
   result("ln hard link exits 0", child_ok(run_exit(ln1)));
-  read_file("/tmp/tb_hard_dst", buf, sizeof(buf));
+  read_file("/mnt/tmp/tb_hard_dst", buf, sizeof(buf));
   result("ln hard: content readable via link", strcmp(buf, "hard link data\n") == 0);
-  unlink("/tmp/tb_hard_src");
-  unlink("/tmp/tb_hard_dst");
+  unlink("/mnt/tmp/tb_hard_src");
+  unlink("/mnt/tmp/tb_hard_dst");
 
   /* Symlink within /tmp pointing to a /tmp file */
-  write_file("/tmp/tb_sym_target", "symlink target\n");
-  char *ln2[] = { "/bin/ln", "-s", "/tmp/tb_sym_target", "/tmp/tb_sym_link", NULL };
+  write_file("/mnt/tmp/tb_sym_target", "symlink target\n");
+  char *ln2[] = { "/bin/ln", "-s", "/mnt/tmp/tb_sym_target", "/mnt/tmp/tb_sym_link", NULL };
   result("ln -s exits 0", child_ok(run_exit(ln2)));
 
   /* readlink shows the target */
-  char *rl1[] = { "/bin/readlink", "/tmp/tb_sym_link", NULL };
+  char *rl1[] = { "/bin/readlink", "/mnt/tmp/tb_sym_link", NULL };
   run_capture(rl1, buf, sizeof(buf));
   /* strip newline */
   size_t len = strlen(buf);
   if (len && buf[len-1] == '\n') buf[len-1] = '\0';
-  result("readlink shows target", strcmp(buf, "/tmp/tb_sym_target") == 0);
+  result("readlink shows target", strcmp(buf, "/mnt/tmp/tb_sym_target") == 0);
 
   /* stat follows symlink and sees the file */
   struct stat st;
-  result("stat follows symlink", stat("/tmp/tb_sym_link", &st) == 0 && S_ISREG(st.st_mode));
+  result("stat follows symlink", stat("/mnt/tmp/tb_sym_link", &st) == 0 && S_ISREG(st.st_mode));
 
   /* cat through symlink reads target content */
-  char *cat1[] = { "/bin/cat", "/tmp/tb_sym_link", NULL };
+  char *cat1[] = { "/bin/cat", "/mnt/tmp/tb_sym_link", NULL };
   run_capture(cat1, buf, sizeof(buf));
   result("cat through symlink", strcmp(buf, "symlink target\n") == 0);
 
-  unlink("/tmp/tb_sym_link");
-  unlink("/tmp/tb_sym_target");
+  unlink("/mnt/tmp/tb_sym_link");
+  unlink("/mnt/tmp/tb_sym_target");
 
   /* Symlink in /tmp pointing across mount into tarfs (/etc/rc) */
-  char *ln3[] = { "/bin/ln", "-s", "/etc/rc", "/tmp/tb_cross_link", NULL };
+  char *ln3[] = { "/bin/ln", "-s", "/etc/rc", "/mnt/tmp/tb_cross_link", NULL };
   result("ln -s cross-mount exits 0", child_ok(run_exit(ln3)));
 
-  char *rl2[] = { "/bin/readlink", "/tmp/tb_cross_link", NULL };
+  char *rl2[] = { "/bin/readlink", "/mnt/tmp/tb_cross_link", NULL };
   run_capture(rl2, buf, sizeof(buf));
   len = strlen(buf);
   if (len && buf[len-1] == '\n') buf[len-1] = '\0';
   result("readlink cross-mount target", strcmp(buf, "/etc/rc") == 0);
 
   /* stat should follow the symlink into tarfs */
-  result("stat cross-mount symlink", stat("/tmp/tb_cross_link", &st) == 0 && S_ISREG(st.st_mode));
+  result("stat cross-mount symlink", stat("/mnt/tmp/tb_cross_link", &st) == 0 && S_ISREG(st.st_mode));
 
   /* cat through cross-mount symlink */
-  char *cat2[] = { "/bin/cat", "/tmp/tb_cross_link", NULL };
+  char *cat2[] = { "/bin/cat", "/mnt/tmp/tb_cross_link", NULL };
   int s = run_capture(cat2, buf, sizeof(buf));
   result("cat cross-mount symlink exits 0", child_ok(s));
   result("cat cross-mount symlink non-empty", strlen(buf) > 0);
 
-  unlink("/tmp/tb_cross_link");
+  unlink("/mnt/tmp/tb_cross_link");
 
   /* Symlink in /tmp pointing to /bin (a directory on tarfs) */
-  char *ln4[] = { "/bin/ln", "-s", "/bin", "/tmp/tb_bin_link", NULL };
+  char *ln4[] = { "/bin/ln", "-s", "/bin", "/mnt/tmp/tb_bin_link", NULL };
   result("ln -s to dir exits 0", child_ok(run_exit(ln4)));
-  result("stat symlink-to-dir: is dir", stat("/tmp/tb_bin_link", &st) == 0 && S_ISDIR(st.st_mode));
-  unlink("/tmp/tb_bin_link");
+  result("stat symlink-to-dir: is dir", stat("/mnt/tmp/tb_bin_link", &st) == 0 && S_ISDIR(st.st_mode));
+  unlink("/mnt/tmp/tb_bin_link");
 
   /* Relative symlink: link in /tmp pointing to ../etc/rc */
-  char *ln5[] = { "/bin/ln", "-s", "../etc/rc", "/tmp/tb_rel_link", NULL };
+  char *ln5[] = { "/bin/ln", "-s", "../etc/rc", "/mnt/tmp/tb_rel_link", NULL };
   result("ln -s relative exits 0", child_ok(run_exit(ln5)));
-  char *rl3[] = { "/bin/readlink", "/tmp/tb_rel_link", NULL };
+  char *rl3[] = { "/bin/readlink", "/mnt/tmp/tb_rel_link", NULL };
   run_capture(rl3, buf, sizeof(buf));
   len = strlen(buf);
   if (len && buf[len-1] == '\n') buf[len-1] = '\0';
   result("readlink relative symlink", strcmp(buf, "../etc/rc") == 0);
-  result("stat relative symlink resolves", stat("/tmp/tb_rel_link", &st) == 0 && S_ISREG(st.st_mode));
-  unlink("/tmp/tb_rel_link");
+  result("stat relative symlink resolves", stat("/mnt/tmp/tb_rel_link", &st) == 0 && S_ISREG(st.st_mode));
+  unlink("/mnt/tmp/tb_rel_link");
 }
 
 /* -----------------------------------------------------------------------
@@ -536,17 +536,17 @@ static void test_tail(void) {
   char buf[256];
 
   /* Write a 5-line file */
-  write_file("/tmp/tb_tail", "line1\nline2\nline3\nline4\nline5\n");
+  write_file("/mnt/tmp/tb_tail", "line1\nline2\nline3\nline4\nline5\n");
 
-  char *t1[] = { "/bin/tail", "-n", "2", "/tmp/tb_tail", NULL };
+  char *t1[] = { "/bin/tail", "-n", "2", "/mnt/tmp/tb_tail", NULL };
   run_capture(t1, buf, sizeof(buf));
   result("tail -n 2: last 2 lines", strcmp(buf, "line4\nline5\n") == 0);
 
-  char *t2[] = { "/bin/tail", "-n", "1", "/tmp/tb_tail", NULL };
+  char *t2[] = { "/bin/tail", "-n", "1", "/mnt/tmp/tb_tail", NULL };
   run_capture(t2, buf, sizeof(buf));
   result("tail -n 1: last line", strcmp(buf, "line5\n") == 0);
 
-  unlink("/tmp/tb_tail");
+  unlink("/mnt/tmp/tb_tail");
 }
 
 /* -----------------------------------------------------------------------
@@ -564,7 +564,7 @@ static void test_ls(void) {
   result("ls /bin contains 'sh'",   strstr(buf, "sh")   != NULL);
 
   /* ls /tmp should work (writable fs) */
-  char *a2[] = { "/bin/ls", "/tmp", NULL };
+  char *a2[] = { "/bin/ls", "/mnt/tmp", NULL };
   s = run_capture(a2, buf, sizeof(buf));
   result("ls /tmp exits 0", child_ok(s));
 
@@ -580,11 +580,11 @@ static void test_ls(void) {
   result("ls missing dir exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
 
   /* ls a file we created */
-  write_file("/tmp/tb_ls_file", "x");
-  char *a5[] = { "/bin/ls", "/tmp", NULL };
+  write_file("/mnt/tmp/tb_ls_file", "x");
+  char *a5[] = { "/bin/ls", "/mnt/tmp", NULL };
   run_capture(a5, buf, sizeof(buf));
   result("ls shows newly created file", strstr(buf, "tb_ls_file") != NULL);
-  unlink("/tmp/tb_ls_file");
+  unlink("/mnt/tmp/tb_ls_file");
 }
 
 /* -----------------------------------------------------------------------
@@ -595,9 +595,9 @@ static void test_cat(void) {
   char buf[256];
 
   /* cat two files concatenates them */
-  write_file("/tmp/tb_cat_a", "aaa\n");
-  write_file("/tmp/tb_cat_b", "bbb\n");
-  char *a1[] = { "/bin/cat", "/tmp/tb_cat_a", "/tmp/tb_cat_b", NULL };
+  write_file("/mnt/tmp/tb_cat_a", "aaa\n");
+  write_file("/mnt/tmp/tb_cat_b", "bbb\n");
+  char *a1[] = { "/bin/cat", "/mnt/tmp/tb_cat_a", "/mnt/tmp/tb_cat_b", NULL };
   run_capture(a1, buf, sizeof(buf));
   result("cat two files", strcmp(buf, "aaa\nbbb\n") == 0);
 
@@ -629,8 +629,8 @@ static void test_cat(void) {
   int st; waitpid(pid, &st, 0);
   result("cat stdin passthrough", strcmp(buf, "stdin data\n") == 0);
 
-  unlink("/tmp/tb_cat_a");
-  unlink("/tmp/tb_cat_b");
+  unlink("/mnt/tmp/tb_cat_a");
+  unlink("/mnt/tmp/tb_cat_b");
 }
 
 /* -----------------------------------------------------------------------
@@ -640,24 +640,24 @@ static void test_touch(void) {
   printf("Test: touch\n");
 
   /* touch creates a file */
-  char *a1[] = { "/bin/touch", "/tmp/tb_touch2", NULL };
+  char *a1[] = { "/bin/touch", "/mnt/tmp/tb_touch2", NULL };
   result("touch creates file", child_ok(run_exit(a1)));
   struct stat st;
-  result("touch: file is regular", stat("/tmp/tb_touch2", &st) == 0 && S_ISREG(st.st_mode));
+  result("touch: file is regular", stat("/mnt/tmp/tb_touch2", &st) == 0 && S_ISREG(st.st_mode));
 
   /* touch existing file is idempotent (exits 0) */
-  char *a2[] = { "/bin/touch", "/tmp/tb_touch2", NULL };
+  char *a2[] = { "/bin/touch", "/mnt/tmp/tb_touch2", NULL };
   result("touch existing is idempotent", child_ok(run_exit(a2)));
 
   /* touch multiple files */
-  char *a3[] = { "/bin/touch", "/tmp/tb_touch3", "/tmp/tb_touch4", NULL };
+  char *a3[] = { "/bin/touch", "/mnt/tmp/tb_touch3", "/mnt/tmp/tb_touch4", NULL };
   result("touch multiple files", child_ok(run_exit(a3)));
-  result("touch multi: first exists",  stat("/tmp/tb_touch3", &st) == 0);
-  result("touch multi: second exists", stat("/tmp/tb_touch4", &st) == 0);
+  result("touch multi: first exists",  stat("/mnt/tmp/tb_touch3", &st) == 0);
+  result("touch multi: second exists", stat("/mnt/tmp/tb_touch4", &st) == 0);
 
-  unlink("/tmp/tb_touch2");
-  unlink("/tmp/tb_touch3");
-  unlink("/tmp/tb_touch4");
+  unlink("/mnt/tmp/tb_touch2");
+  unlink("/mnt/tmp/tb_touch3");
+  unlink("/mnt/tmp/tb_touch4");
 }
 
 /* -----------------------------------------------------------------------
@@ -668,26 +668,26 @@ static void test_cp_extra(void) {
   char buf[256];
 
   /* cp overwrites existing file */
-  write_file("/tmp/tb_cp_src", "version1\n");
-  write_file("/tmp/tb_cp_dst", "old content\n");
-  char *a1[] = { "/bin/cp", "/tmp/tb_cp_src", "/tmp/tb_cp_dst", NULL };
+  write_file("/mnt/tmp/tb_cp_src", "version1\n");
+  write_file("/mnt/tmp/tb_cp_dst", "old content\n");
+  char *a1[] = { "/bin/cp", "/mnt/tmp/tb_cp_src", "/mnt/tmp/tb_cp_dst", NULL };
   result("cp overwrite exits 0", child_ok(run_exit(a1)));
-  read_file("/tmp/tb_cp_dst", buf, sizeof(buf));
+  read_file("/mnt/tmp/tb_cp_dst", buf, sizeof(buf));
   result("cp overwrite: dst has new content", strcmp(buf, "version1\n") == 0);
 
   /* cp from tarfs (read-only) to /tmp (writable) */
-  char *a2[] = { "/bin/cp", "/etc/rc", "/tmp/tb_cp_rc", NULL };
+  char *a2[] = { "/bin/cp", "/etc/rc", "/mnt/tmp/tb_cp_rc", NULL };
   result("cp tarfs->tmp exits 0", child_ok(run_exit(a2)));
-  result("cp tarfs->tmp: dst exists", stat("/tmp/tb_cp_rc", &(struct stat){}) == 0);
+  result("cp tarfs->tmp: dst exists", stat("/mnt/tmp/tb_cp_rc", &(struct stat){}) == 0);
 
   /* cp missing src exits non-zero */
-  char *a3[] = { "/bin/cp", "/no/such", "/tmp/tb_cp_dst", NULL };
+  char *a3[] = { "/bin/cp", "/no/such", "/mnt/tmp/tb_cp_dst", NULL };
   int s = run_exit(a3);
   result("cp missing src exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
 
-  unlink("/tmp/tb_cp_src");
-  unlink("/tmp/tb_cp_dst");
-  unlink("/tmp/tb_cp_rc");
+  unlink("/mnt/tmp/tb_cp_src");
+  unlink("/mnt/tmp/tb_cp_dst");
+  unlink("/mnt/tmp/tb_cp_rc");
 }
 
 /* -----------------------------------------------------------------------
@@ -697,17 +697,17 @@ static void test_rm_extra(void) {
   printf("Test: rm (extra)\n");
 
   /* rm missing file exits non-zero */
-  char *a1[] = { "/bin/rm", "/tmp/no_such_file_xyz", NULL };
+  char *a1[] = { "/bin/rm", "/mnt/tmp/no_such_file_xyz", NULL };
   int s = run_exit(a1);
   result("rm missing file exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
 
   /* rm multiple files */
-  write_file("/tmp/tb_rm1", "a");
-  write_file("/tmp/tb_rm2", "b");
-  char *a2[] = { "/bin/rm", "/tmp/tb_rm1", "/tmp/tb_rm2", NULL };
+  write_file("/mnt/tmp/tb_rm1", "a");
+  write_file("/mnt/tmp/tb_rm2", "b");
+  char *a2[] = { "/bin/rm", "/mnt/tmp/tb_rm1", "/mnt/tmp/tb_rm2", NULL };
   result("rm multiple files exits 0", child_ok(run_exit(a2)));
-  result("rm multi: first gone",  stat("/tmp/tb_rm1", &(struct stat){}) != 0);
-  result("rm multi: second gone", stat("/tmp/tb_rm2", &(struct stat){}) != 0);
+  result("rm multi: first gone",  stat("/mnt/tmp/tb_rm1", &(struct stat){}) != 0);
+  result("rm multi: second gone", stat("/mnt/tmp/tb_rm2", &(struct stat){}) != 0);
 }
 
 /* -----------------------------------------------------------------------
@@ -718,22 +718,22 @@ static void test_tail_extra(void) {
   char buf[256];
 
   /* requesting more lines than exist returns the whole file */
-  write_file("/tmp/tb_tail2", "only\ntwo\n");
-  char *a1[] = { "/bin/tail", "-n", "10", "/tmp/tb_tail2", NULL };
+  write_file("/mnt/tmp/tb_tail2", "only\ntwo\n");
+  char *a1[] = { "/bin/tail", "-n", "10", "/mnt/tmp/tb_tail2", NULL };
   run_capture(a1, buf, sizeof(buf));
   result("tail -n 10 on 2-line file returns all", strcmp(buf, "only\ntwo\n") == 0);
 
   /* exact line count */
-  char *a2[] = { "/bin/tail", "-n", "2", "/tmp/tb_tail2", NULL };
+  char *a2[] = { "/bin/tail", "-n", "2", "/mnt/tmp/tb_tail2", NULL };
   run_capture(a2, buf, sizeof(buf));
   result("tail -n 2 exact match", strcmp(buf, "only\ntwo\n") == 0);
 
   /* tail -c bytes */
-  char *a3[] = { "/bin/tail", "-c", "4", "/tmp/tb_tail2", NULL };
+  char *a3[] = { "/bin/tail", "-c", "4", "/mnt/tmp/tb_tail2", NULL };
   run_capture(a3, buf, sizeof(buf));
   result("tail -c 4: last 4 bytes", strcmp(buf, "two\n") == 0);
 
-  unlink("/tmp/tb_tail2");
+  unlink("/mnt/tmp/tb_tail2");
 }
 
 /* -----------------------------------------------------------------------
@@ -749,7 +749,7 @@ static void test_df(void) {
   result("df output has 'Filesystem' header", strstr(buf, "Filesystem") != NULL);
   result("df output has 'Use%'", strstr(buf, "Use%") != NULL);
 
-  char *a2[] = { "/bin/df", "/tmp", NULL };
+  char *a2[] = { "/bin/df", "/mnt/tmp", NULL };
   s = run_capture(a2, buf, sizeof(buf));
   result("df /tmp exits 0", child_ok(s));
 }
@@ -796,10 +796,10 @@ static void test_test_extra(void) {
   result("test -e missing exits 1", WIFEXITED(s) && WEXITSTATUS(s) == 1);
 
   /* -s: file with content */
-  write_file("/tmp/tb_test_s", "data");
-  char *t4[] = { "/bin/test", "-s", "/tmp/tb_test_s", NULL };
+  write_file("/mnt/tmp/tb_test_s", "data");
+  char *t4[] = { "/bin/test", "-s", "/mnt/tmp/tb_test_s", NULL };
   result("test -s non-empty file", child_ok(run_exit(t4)));
-  unlink("/tmp/tb_test_s");
+  unlink("/mnt/tmp/tb_test_s");
 
   /* -z and -n */
   char *t5[] = { "/bin/test", "-z", "", NULL };
@@ -836,52 +836,52 @@ static void test_new_options(void) {
   char buf[512];
 
   /* ls -a shows dot files */
-  write_file("/tmp/.tb_hidden", "x");
-  char *a1[] = { "/bin/ls", "-a", "/tmp", NULL };
+  write_file("/mnt/tmp/.tb_hidden", "x");
+  char *a1[] = { "/bin/ls", "-a", "/mnt/tmp", NULL };
   run_capture(a1, buf, sizeof(buf));
   result("ls -a shows dotfiles", strstr(buf, ".tb_hidden") != NULL);
   /* ls without -a hides dot files */
-  char *a2[] = { "/bin/ls", "/tmp", NULL };
+  char *a2[] = { "/bin/ls", "/mnt/tmp", NULL };
   run_capture(a2, buf, sizeof(buf));
   result("ls without -a hides dotfiles", strstr(buf, ".tb_hidden") == NULL);
-  unlink("/tmp/.tb_hidden");
+  unlink("/mnt/tmp/.tb_hidden");
 
   /* wc -l counts only lines */
-  write_file("/tmp/tb_wc_opt", "a\nb\nc\n");
-  char *w1[] = { "/bin/wc", "-l", "/tmp/tb_wc_opt", NULL };
+  write_file("/mnt/tmp/tb_wc_opt", "a\nb\nc\n");
+  char *w1[] = { "/bin/wc", "-l", "/mnt/tmp/tb_wc_opt", NULL };
   run_capture(w1, buf, sizeof(buf));
   int lines = 0, words = 0, bytes = 0;
   sscanf(buf, "%d", &lines);
   result("wc -l: only line count", lines == 3);
 
   /* wc -w counts only words */
-  char *w2[] = { "/bin/wc", "-w", "/tmp/tb_wc_opt", NULL };
+  char *w2[] = { "/bin/wc", "-w", "/mnt/tmp/tb_wc_opt", NULL };
   run_capture(w2, buf, sizeof(buf));
   sscanf(buf, "%d", &words);
   result("wc -w: only word count", words == 3);
 
   /* wc -c counts only bytes */
-  char *w3[] = { "/bin/wc", "-c", "/tmp/tb_wc_opt", NULL };
+  char *w3[] = { "/bin/wc", "-c", "/mnt/tmp/tb_wc_opt", NULL };
   run_capture(w3, buf, sizeof(buf));
   sscanf(buf, "%d", &bytes);
   result("wc -c: only byte count", bytes == 6);
 
   /* wc -lc shows two columns */
-  char *w4[] = { "/bin/wc", "-lc", "/tmp/tb_wc_opt", NULL };
+  char *w4[] = { "/bin/wc", "-lc", "/mnt/tmp/tb_wc_opt", NULL };
   run_capture(w4, buf, sizeof(buf));
   int a = 0, b2 = 0;
   int matched = sscanf(buf, "%d %d", &a, &b2);
   result("wc -lc: two columns", matched == 2 && a == 3 && b2 == 6);
-  unlink("/tmp/tb_wc_opt");
+  unlink("/mnt/tmp/tb_wc_opt");
 
   /* rm -r removes directory tree */
-  char *m1[] = { "/bin/mkdir", "-p", "/tmp/tb_rmr/sub", NULL };
+  char *m1[] = { "/bin/mkdir", "-p", "/mnt/tmp/tb_rmr/sub", NULL };
   run_exit(m1);
-  write_file("/tmp/tb_rmr/f1", "x");
-  write_file("/tmp/tb_rmr/sub/f2", "y");
-  char *r1[] = { "/bin/rm", "-r", "/tmp/tb_rmr", NULL };
+  write_file("/mnt/tmp/tb_rmr/f1", "x");
+  write_file("/mnt/tmp/tb_rmr/sub/f2", "y");
+  char *r1[] = { "/bin/rm", "-r", "/mnt/tmp/tb_rmr", NULL };
   result("rm -r exits 0", child_ok(run_exit(r1)));
-  result("rm -r: tree gone", stat("/tmp/tb_rmr", &(struct stat){}) != 0);
+  result("rm -r: tree gone", stat("/mnt/tmp/tb_rmr", &(struct stat){}) != 0);
 
   /* sleep basic sanity */
   char *s1[] = { "/bin/sleep", "0", NULL };
@@ -895,32 +895,32 @@ static void test_head(void) {
   printf("Test: head\n");
   char buf[256];
 
-  write_file("/tmp/tb_head", "line1\nline2\nline3\nline4\nline5\n");
+  write_file("/mnt/tmp/tb_head", "line1\nline2\nline3\nline4\nline5\n");
 
   /* default 10 lines returns whole 5-line file */
-  char *a1[] = { "/bin/head", "/tmp/tb_head", NULL };
+  char *a1[] = { "/bin/head", "/mnt/tmp/tb_head", NULL };
   run_capture(a1, buf, sizeof(buf));
   result("head default: returns all lines when fewer than 10",
          strcmp(buf, "line1\nline2\nline3\nline4\nline5\n") == 0);
 
   /* -n 3 returns first 3 */
-  char *a2[] = { "/bin/head", "-n", "3", "/tmp/tb_head", NULL };
+  char *a2[] = { "/bin/head", "-n", "3", "/mnt/tmp/tb_head", NULL };
   run_capture(a2, buf, sizeof(buf));
   result("head -n 3: first 3 lines", strcmp(buf, "line1\nline2\nline3\n") == 0);
 
   /* -n 1 returns first line */
-  char *a3[] = { "/bin/head", "-n", "1", "/tmp/tb_head", NULL };
+  char *a3[] = { "/bin/head", "-n", "1", "/mnt/tmp/tb_head", NULL };
   run_capture(a3, buf, sizeof(buf));
   result("head -n 1: first line only", strcmp(buf, "line1\n") == 0);
 
   /* -n more than file returns whole file */
-  char *a4[] = { "/bin/head", "-n", "20", "/tmp/tb_head", NULL };
+  char *a4[] = { "/bin/head", "-n", "20", "/mnt/tmp/tb_head", NULL };
   run_capture(a4, buf, sizeof(buf));
   result("head -n 20 on 5-line file: returns all",
          strcmp(buf, "line1\nline2\nline3\nline4\nline5\n") == 0);
 
   /* shorthand -2 */
-  char *a5[] = { "/bin/head", "-2", "/tmp/tb_head", NULL };
+  char *a5[] = { "/bin/head", "-2", "/mnt/tmp/tb_head", NULL };
   run_capture(a5, buf, sizeof(buf));
   result("head -2 shorthand: first 2 lines", strcmp(buf, "line1\nline2\n") == 0);
 
@@ -953,15 +953,15 @@ static void test_head(void) {
   result("head missing file exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
 
   /* multiple files shows headers */
-  write_file("/tmp/tb_head2", "x\ny\n");
-  char *a7[] = { "/bin/head", "-n", "1", "/tmp/tb_head", "/tmp/tb_head2", NULL };
+  write_file("/mnt/tmp/tb_head2", "x\ny\n");
+  char *a7[] = { "/bin/head", "-n", "1", "/mnt/tmp/tb_head", "/mnt/tmp/tb_head2", NULL };
   run_capture(a7, buf, sizeof(buf));
   result("head multiple files shows ==> headers", strstr(buf, "==>") != NULL);
   result("head multiple files: first file content", strstr(buf, "line1") != NULL);
   result("head multiple files: second file content", strstr(buf, "x") != NULL);
-  unlink("/tmp/tb_head2");
+  unlink("/mnt/tmp/tb_head2");
 
-  unlink("/tmp/tb_head");
+  unlink("/mnt/tmp/tb_head");
 }
 
 /* -----------------------------------------------------------------------
@@ -1239,34 +1239,34 @@ static void test_rm_force(void) {
   printf("Test: rm -f / -rf\n");
 
   /* rm -f on nonexistent file exits 0 */
-  char *a1[] = { "/bin/rm", "-f", "/tmp/no_such_file_rmf_xyz", NULL };
+  char *a1[] = { "/bin/rm", "-f", "/mnt/tmp/no_such_file_rmf_xyz", NULL };
   result("rm -f nonexistent exits 0", child_ok(run_exit(a1)));
 
   /* rm -rf on nonexistent dir exits 0 */
-  char *a2[] = { "/bin/rm", "-rf", "/tmp/no_such_dir_rmrf_xyz", NULL };
+  char *a2[] = { "/bin/rm", "-rf", "/mnt/tmp/no_such_dir_rmrf_xyz", NULL };
   result("rm -rf nonexistent exits 0", child_ok(run_exit(a2)));
 
   /* rm -rf removes nested tree */
-  char *m1[] = { "/bin/mkdir", "-p", "/tmp/tb_rmrf/a/b", NULL };
+  char *m1[] = { "/bin/mkdir", "-p", "/mnt/tmp/tb_rmrf/a/b", NULL };
   run_exit(m1);
-  write_file("/tmp/tb_rmrf/a/f1", "x");
-  write_file("/tmp/tb_rmrf/a/b/f2", "y");
-  char *a3[] = { "/bin/rm", "-rf", "/tmp/tb_rmrf", NULL };
+  write_file("/mnt/tmp/tb_rmrf/a/f1", "x");
+  write_file("/mnt/tmp/tb_rmrf/a/b/f2", "y");
+  char *a3[] = { "/bin/rm", "-rf", "/mnt/tmp/tb_rmrf", NULL };
   result("rm -rf nested tree exits 0", child_ok(run_exit(a3)));
-  result("rm -rf: tree gone", stat("/tmp/tb_rmrf", &(struct stat){}) != 0);
+  result("rm -rf: tree gone", stat("/mnt/tmp/tb_rmrf", &(struct stat){}) != 0);
 
   /* rm -f on existing file removes it */
-  write_file("/tmp/tb_rmf_file", "data");
-  char *a4[] = { "/bin/rm", "-f", "/tmp/tb_rmf_file", NULL };
+  write_file("/mnt/tmp/tb_rmf_file", "data");
+  char *a4[] = { "/bin/rm", "-f", "/mnt/tmp/tb_rmf_file", NULL };
   result("rm -f existing file exits 0", child_ok(run_exit(a4)));
-  result("rm -f: file gone", stat("/tmp/tb_rmf_file", &(struct stat){}) != 0);
+  result("rm -f: file gone", stat("/mnt/tmp/tb_rmf_file", &(struct stat){}) != 0);
 
   /* rm -rf on empty dir */
-  char *m2[] = { "/bin/mkdir", "/tmp/tb_rmrf_empty", NULL };
+  char *m2[] = { "/bin/mkdir", "/mnt/tmp/tb_rmrf_empty", NULL };
   run_exit(m2);
-  char *a5[] = { "/bin/rm", "-rf", "/tmp/tb_rmrf_empty", NULL };
+  char *a5[] = { "/bin/rm", "-rf", "/mnt/tmp/tb_rmrf_empty", NULL };
   result("rm -rf empty dir exits 0", child_ok(run_exit(a5)));
-  result("rm -rf: empty dir gone", stat("/tmp/tb_rmrf_empty", &(struct stat){}) != 0);
+  result("rm -rf: empty dir gone", stat("/mnt/tmp/tb_rmrf_empty", &(struct stat){}) != 0);
 }
 
 /* -----------------------------------------------------------------------
@@ -1277,27 +1277,27 @@ static void test_cp_recursive(void) {
   char buf[256];
 
   /* cp -r a directory tree */
-  char *m1[] = { "/bin/mkdir", "-p", "/tmp/tb_cpr_src/sub", NULL };
+  char *m1[] = { "/bin/mkdir", "-p", "/mnt/tmp/tb_cpr_src/sub", NULL };
   run_exit(m1);
-  write_file("/tmp/tb_cpr_src/f1", "file1\n");
-  write_file("/tmp/tb_cpr_src/sub/f2", "file2\n");
+  write_file("/mnt/tmp/tb_cpr_src/f1", "file1\n");
+  write_file("/mnt/tmp/tb_cpr_src/sub/f2", "file2\n");
 
-  char *a1[] = { "/bin/cp", "-r", "/tmp/tb_cpr_src", "/tmp/tb_cpr_dst", NULL };
+  char *a1[] = { "/bin/cp", "-r", "/mnt/tmp/tb_cpr_src", "/mnt/tmp/tb_cpr_dst", NULL };
   result("cp -r exits 0", child_ok(run_exit(a1)));
 
   struct stat st;
-  result("cp -r: dst dir exists", stat("/tmp/tb_cpr_dst", &st) == 0 && S_ISDIR(st.st_mode));
-  result("cp -r: file copied", stat("/tmp/tb_cpr_dst/f1", &st) == 0);
-  read_file("/tmp/tb_cpr_dst/f1", buf, sizeof(buf));
+  result("cp -r: dst dir exists", stat("/mnt/tmp/tb_cpr_dst", &st) == 0 && S_ISDIR(st.st_mode));
+  result("cp -r: file copied", stat("/mnt/tmp/tb_cpr_dst/f1", &st) == 0);
+  read_file("/mnt/tmp/tb_cpr_dst/f1", buf, sizeof(buf));
   result("cp -r: file content preserved", strcmp(buf, "file1\n") == 0);
-  result("cp -r: subdir exists", stat("/tmp/tb_cpr_dst/sub", &st) == 0 && S_ISDIR(st.st_mode));
-  result("cp -r: nested file copied", stat("/tmp/tb_cpr_dst/sub/f2", &st) == 0);
-  read_file("/tmp/tb_cpr_dst/sub/f2", buf, sizeof(buf));
+  result("cp -r: subdir exists", stat("/mnt/tmp/tb_cpr_dst/sub", &st) == 0 && S_ISDIR(st.st_mode));
+  result("cp -r: nested file copied", stat("/mnt/tmp/tb_cpr_dst/sub/f2", &st) == 0);
+  read_file("/mnt/tmp/tb_cpr_dst/sub/f2", buf, sizeof(buf));
   result("cp -r: nested file content", strcmp(buf, "file2\n") == 0);
 
   /* cleanup */
-  char *r1[] = { "/bin/rm", "-rf", "/tmp/tb_cpr_src", NULL };
-  char *r2[] = { "/bin/rm", "-rf", "/tmp/tb_cpr_dst", NULL };
+  char *r1[] = { "/bin/rm", "-rf", "/mnt/tmp/tb_cpr_src", NULL };
+  char *r2[] = { "/bin/rm", "-rf", "/mnt/tmp/tb_cpr_dst", NULL };
   run_exit(r1); run_exit(r2);
 }
 
@@ -1309,20 +1309,20 @@ static void test_mv_dir(void) {
   char buf[256];
 
   /* mv a directory */
-  char *m1[] = { "/bin/mkdir", "/tmp/tb_mvd_src", NULL };
+  char *m1[] = { "/bin/mkdir", "/mnt/tmp/tb_mvd_src", NULL };
   run_exit(m1);
-  write_file("/tmp/tb_mvd_src/file", "content\n");
+  write_file("/mnt/tmp/tb_mvd_src/file", "content\n");
 
-  char *a1[] = { "/bin/mv", "/tmp/tb_mvd_src", "/tmp/tb_mvd_dst", NULL };
+  char *a1[] = { "/bin/mv", "/mnt/tmp/tb_mvd_src", "/mnt/tmp/tb_mvd_dst", NULL };
   result("mv dir exits 0", child_ok(run_exit(a1)));
 
   struct stat st;
-  result("mv dir: src gone", stat("/tmp/tb_mvd_src", &st) != 0);
-  result("mv dir: dst exists", stat("/tmp/tb_mvd_dst", &st) == 0 && S_ISDIR(st.st_mode));
-  read_file("/tmp/tb_mvd_dst/file", buf, sizeof(buf));
+  result("mv dir: src gone", stat("/mnt/tmp/tb_mvd_src", &st) != 0);
+  result("mv dir: dst exists", stat("/mnt/tmp/tb_mvd_dst", &st) == 0 && S_ISDIR(st.st_mode));
+  read_file("/mnt/tmp/tb_mvd_dst/file", buf, sizeof(buf));
   result("mv dir: file content preserved", strcmp(buf, "content\n") == 0);
 
-  char *r1[] = { "/bin/rm", "-rf", "/tmp/tb_mvd_dst", NULL };
+  char *r1[] = { "/bin/rm", "-rf", "/mnt/tmp/tb_mvd_dst", NULL };
   run_exit(r1);
 }
 
@@ -1334,21 +1334,21 @@ static void test_wc_edge(void) {
   char buf[128];
 
   /* empty file */
-  write_file("/tmp/tb_wc_empty", "");
-  char *a1[] = { "/bin/wc", "/tmp/tb_wc_empty", NULL };
+  write_file("/mnt/tmp/tb_wc_empty", "");
+  char *a1[] = { "/bin/wc", "/mnt/tmp/tb_wc_empty", NULL };
   run_capture(a1, buf, sizeof(buf));
   long l, w, b;
   int m = sscanf(buf, "%ld %ld %ld", &l, &w, &b);
   result("wc empty file: 0 lines 0 words 0 bytes", m == 3 && l == 0 && w == 0 && b == 0);
-  unlink("/tmp/tb_wc_empty");
+  unlink("/mnt/tmp/tb_wc_empty");
 
   /* single word no trailing newline */
-  write_file("/tmp/tb_wc_noln", "word");
-  char *a2[] = { "/bin/wc", "/tmp/tb_wc_noln", NULL };
+  write_file("/mnt/tmp/tb_wc_noln", "word");
+  char *a2[] = { "/bin/wc", "/mnt/tmp/tb_wc_noln", NULL };
   run_capture(a2, buf, sizeof(buf));
   m = sscanf(buf, "%ld %ld %ld", &l, &w, &b);
   result("wc no-newline: 0 lines 1 word 4 bytes", m == 3 && l == 0 && w == 1 && b == 4);
-  unlink("/tmp/tb_wc_noln");
+  unlink("/mnt/tmp/tb_wc_noln");
 }
 
 /* -----------------------------------------------------------------------
@@ -1357,36 +1357,36 @@ static void test_wc_edge(void) {
 static void test_chmod_extra(void) {
   printf("Test: chmod (extra)\n");
 
-  write_file("/tmp/tb_chmod2", "data");
+  write_file("/mnt/tmp/tb_chmod2", "data");
 
   /* chmod 000 clears all bits */
-  char *a1[] = { "/bin/chmod", "000", "/tmp/tb_chmod2", NULL };
+  char *a1[] = { "/bin/chmod", "000", "/mnt/tmp/tb_chmod2", NULL };
   result("chmod 000 exits 0", child_ok(run_exit(a1)));
   struct stat st;
-  stat("/tmp/tb_chmod2", &st);
+  stat("/mnt/tmp/tb_chmod2", &st);
   result("chmod 000: no permission bits", (st.st_mode & 0777) == 0);
 
   /* chmod 777 sets all bits */
-  char *a2[] = { "/bin/chmod", "777", "/tmp/tb_chmod2", NULL };
+  char *a2[] = { "/bin/chmod", "777", "/mnt/tmp/tb_chmod2", NULL };
   result("chmod 777 exits 0", child_ok(run_exit(a2)));
-  stat("/tmp/tb_chmod2", &st);
+  stat("/mnt/tmp/tb_chmod2", &st);
   result("chmod 777: all bits set", (st.st_mode & 0777) == 0777);
 
   /* chmod 400 read-only owner */
-  char *a3[] = { "/bin/chmod", "400", "/tmp/tb_chmod2", NULL };
+  char *a3[] = { "/bin/chmod", "400", "/mnt/tmp/tb_chmod2", NULL };
   result("chmod 400 exits 0", child_ok(run_exit(a3)));
-  stat("/tmp/tb_chmod2", &st);
+  stat("/mnt/tmp/tb_chmod2", &st);
   result("chmod 400: owner read only", (st.st_mode & 0777) == 0400);
 
   /* chmod on nonexistent exits non-zero */
-  char *a4[] = { "/bin/chmod", "755", "/tmp/no_such_chmod_xyz", NULL };
+  char *a4[] = { "/bin/chmod", "755", "/mnt/tmp/no_such_chmod_xyz", NULL };
   int s = run_exit(a4);
   result("chmod nonexistent exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
 
   /* chmod 644 to restore for unlink */
-  char *a5[] = { "/bin/chmod", "644", "/tmp/tb_chmod2", NULL };
+  char *a5[] = { "/bin/chmod", "644", "/mnt/tmp/tb_chmod2", NULL };
   run_exit(a5);
-  unlink("/tmp/tb_chmod2");
+  unlink("/mnt/tmp/tb_chmod2");
 }
 
 /* -----------------------------------------------------------------------
@@ -1420,11 +1420,11 @@ static void test_cat_extra(void) {
   result("cat - reads stdin", strcmp(buf, "dash stdin\n") == 0);
 
   /* cat empty file outputs nothing */
-  write_file("/tmp/tb_cat_empty", "");
-  char *a1[] = { "/bin/cat", "/tmp/tb_cat_empty", NULL };
+  write_file("/mnt/tmp/tb_cat_empty", "");
+  char *a1[] = { "/bin/cat", "/mnt/tmp/tb_cat_empty", NULL };
   run_capture(a1, buf, sizeof(buf));
   result("cat empty file outputs nothing", strcmp(buf, "") == 0);
-  unlink("/tmp/tb_cat_empty");
+  unlink("/mnt/tmp/tb_cat_empty");
 }
 
 /* -----------------------------------------------------------------------
@@ -1435,32 +1435,32 @@ static void test_ls_extra(void) {
   char buf[1024];
 
   /* ls single file prints its name */
-  write_file("/tmp/tb_ls_single", "x");
-  char *a1[] = { "/bin/ls", "/tmp/tb_ls_single", NULL };
+  write_file("/mnt/tmp/tb_ls_single", "x");
+  char *a1[] = { "/bin/ls", "/mnt/tmp/tb_ls_single", NULL };
   run_capture(a1, buf, sizeof(buf));
   /* strip newline */
   size_t len = strlen(buf);
   if (len && buf[len-1] == '\n') buf[len-1] = '\0';
-  result("ls single file prints path", strcmp(buf, "/tmp/tb_ls_single") == 0);
+  result("ls single file prints path", strcmp(buf, "/mnt/tmp/tb_ls_single") == 0);
 
   /* ls -l single file shows permissions */
-  char *a2[] = { "/bin/ls", "-l", "/tmp/tb_ls_single", NULL };
+  char *a2[] = { "/bin/ls", "-l", "/mnt/tmp/tb_ls_single", NULL };
   run_capture(a2, buf, sizeof(buf));
   result("ls -l single file: starts with -", buf[0] == '-');
   result("ls -l single file: shows name", strstr(buf, "tb_ls_single") != NULL);
-  unlink("/tmp/tb_ls_single");
+  unlink("/mnt/tmp/tb_ls_single");
 
   /* ls on nonexistent exits 1 */
-  char *a3[] = { "/bin/ls", "/tmp/no_such_ls_xyz", NULL };
+  char *a3[] = { "/bin/ls", "/mnt/tmp/no_such_ls_xyz", NULL };
   int s = run_exit(a3);
   result("ls nonexistent exits 1", WIFEXITED(s) && WEXITSTATUS(s) == 1);
 
   /* ls multiple paths: one valid one invalid — exits nonzero */
-  write_file("/tmp/tb_ls_multi", "x");
-  char *a4[] = { "/bin/ls", "/tmp/tb_ls_multi", "/tmp/no_such_ls_xyz", NULL };
+  write_file("/mnt/tmp/tb_ls_multi", "x");
+  char *a4[] = { "/bin/ls", "/mnt/tmp/tb_ls_multi", "/mnt/tmp/no_such_ls_xyz", NULL };
   s = run_exit(a4);
   result("ls mixed paths exits non-zero", WIFEXITED(s) && WEXITSTATUS(s) != 0);
-  unlink("/tmp/tb_ls_multi");
+  unlink("/mnt/tmp/tb_ls_multi");
 }
 
 int main(void) {
