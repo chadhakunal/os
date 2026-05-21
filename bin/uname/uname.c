@@ -1,18 +1,5 @@
 #include <stdio.h>
 #include <string.h>
-#include <unistd.h>
-
-struct utsname {
-  char sysname[65];
-  char nodename[65];
-  char release[65];
-  char version[65];
-  char machine[65];
-};
-
-static int do_uname(struct utsname *u) {
-  return (int)syscall1(160, (long)u);
-}
 
 int main(int argc, char **argv) {
   int flag_s = 0, flag_n = 0, flag_r = 0, flag_v = 0, flag_m = 0, flag_a = 0;
@@ -37,32 +24,17 @@ int main(int argc, char **argv) {
     }
   }
 
-  /* default: -s */
   if (!flag_s && !flag_n && !flag_r && !flag_v && !flag_m && !flag_a)
     flag_s = 1;
 
-  struct utsname u;
-  if (do_uname(&u) < 0) {
-    /* fallback to static strings if syscall fails */
-    strncpy(u.sysname,  "sbunix",  64);
-    strncpy(u.nodename, "sbunix",  64);
-    strncpy(u.release,  "0.1.0",   64);
-    strncpy(u.version,  "#1",      64);
-    strncpy(u.machine,  "riscv64", 64);
-  }
-
   int first = 1;
-#define PRINT(field) do { \
-    if (!first) putchar(' '); \
-    fputs(field, stdout); \
-    first = 0; \
-  } while (0)
+#define PRINT(s) do { if (!first) putchar(' '); fputs(s, stdout); first = 0; } while (0)
 
-  if (flag_a || flag_s) PRINT(u.sysname);
-  if (flag_a || flag_n) PRINT(u.nodename);
-  if (flag_a || flag_r) PRINT(u.release);
-  if (flag_a || flag_v) PRINT(u.version);
-  if (flag_a || flag_m) PRINT(u.machine);
+  if (flag_a || flag_s) PRINT("sbunix");
+  if (flag_a || flag_n) PRINT("sbunix");
+  if (flag_a || flag_r) PRINT("0.1.0");
+  if (flag_a || flag_v) PRINT("#1");
+  if (flag_a || flag_m) PRINT("riscv64");
   putchar('\n');
 
   return 0;
