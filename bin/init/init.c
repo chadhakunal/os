@@ -9,7 +9,7 @@ static pid_t start_shell(void) {
   pid_t pid = fork();
   if (pid == 0) {
     char *argv[] = { "/bin/sh", NULL };
-    char *envp[] = { "PATH=/bin", "HOME=/", "USER=root", NULL };
+    char *envp[] = { "PATH=/bin", "HOME=/", "USER=root", "TMPDIR=/mnt/tmp", NULL };
     execve("/bin/sh", argv, envp);
     printf("init: execve /bin/sh failed\n");
     return 1;
@@ -25,7 +25,7 @@ int main(void) {
   pid_t rc_pid = fork();
   if (rc_pid == 0) {
     char *argv[] = { "/bin/sh", "/etc/rc", NULL };
-    char *envp[] = { "PATH=/bin", "HOME=/", "USER=root", NULL };
+    char *envp[] = { "PATH=/bin", "HOME=/", "USER=root", "TMPDIR=/mnt/tmp", NULL };
     execve("/bin/sh", argv, envp);
     printf("init: execve rc failed\n");
     return 1;
