@@ -373,6 +373,23 @@ static int builtin_test(int argc, char *argv[]) {
       int ok = (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
       return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
     }
+    if (strcmp(op, "-r") == 0) {
+      struct stat st;
+      if (stat(arg, &st) != 0) return negate ? 0 : 1;
+      int ok = (st.st_mode & (S_IRUSR | S_IRGRP | S_IROTH)) != 0;
+      return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
+    }
+    if (strcmp(op, "-w") == 0) {
+      struct stat st;
+      if (stat(arg, &st) != 0) return negate ? 0 : 1;
+      int ok = (st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)) != 0;
+      return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
+    }
+    if (strcmp(op, "-s") == 0) {
+      struct stat st;
+      int ok = stat(arg, &st) == 0 && st.st_size > 0;
+      return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
+    }
     if (strcmp(op, "-f") == 0) {
       struct stat st;
       int ok = stat(arg, &st) == 0 && S_ISREG(st.st_mode);
@@ -1024,20 +1041,39 @@ static void expand_args(const char *input, char *output, size_t output_size) {
       continue;
     }
 
-    /* ${VAR} — braced variable */
+    /* ${VAR}, ${VAR:-default}, ${VAR:+alt} — braced variable */
     if (input[in_pos] == '{') {
       in_pos++;
       char varname[MAX_VAR_NAME];
       size_t vlen = 0;
-      while (input[in_pos] && input[in_pos] != '}' && vlen < MAX_VAR_NAME - 1)
+      while (input[in_pos] && input[in_pos] != '}' &&
+             input[in_pos] != ':' && vlen < MAX_VAR_NAME - 1)
         varname[vlen++] = input[in_pos++];
       varname[vlen] = '\0';
+      char modifier = 0;
+      char defval[256];
+      defval[0] = '\0';
+      if (input[in_pos] == ':' && (input[in_pos+1] == '-' || input[in_pos+1] == '+')) {
+        modifier = input[in_pos+1];
+        in_pos += 2;
+        size_t dlen = 0;
+        while (input[in_pos] && input[in_pos] != '}' && dlen < sizeof(defval) - 1)
+          defval[dlen++] = input[in_pos++];
+        defval[dlen] = '\0';
+      }
       if (input[in_pos] == '}') in_pos++;
       const char *val = shell_var_get(varname);
       if (!val) val = getenv(varname);
-      if (val)
-        for (size_t k = 0; val[k] && out_pos < output_size - 1; k++)
-          output[out_pos++] = val[k];
+      const char *emit = NULL;
+      if (modifier == '-')
+        emit = (val && val[0]) ? val : defval;
+      else if (modifier == '+')
+        emit = (val && val[0]) ? defval : NULL;
+      else
+        emit = val;
+      if (emit)
+        for (size_t k = 0; emit[k] && out_pos < output_size - 1; k++)
+          output[out_pos++] = emit[k];
       continue;
     }
 
