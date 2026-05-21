@@ -47,10 +47,8 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
     struct dentry_t *parent_dentry;
     int parent_ret = vfs_resolve_path_at(parent_path, start, &parent_dentry,
                                          VFS_RESOLVE_FOLLOW_ALL);
-    if (parent_ret < 0) {
-      debugk("open: O_CREAT: parent path '%s' not found\n", parent_path);
+    if (parent_ret < 0)
       return parent_ret;
-    }
 
     struct vnode_t *parent_vnode = parent_dentry->vnode->mounted_vnode
                                    ? parent_dentry->vnode->mounted_vnode
@@ -63,14 +61,10 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
 
     struct dentry_t *new_dentry;
     int ret = vfs_create(name, parent_vnode, &new_dentry, create_mode);
-    if (ret == -EEXIST && !(flags & O_EXCL)) {
-      /* File already exists and O_EXCL not set — open the existing file. */
+    if (ret == -EEXIST && !(flags & O_EXCL))
       goto open_existing;
-    }
-    if (ret < 0) {
-      debugk("open: O_CREAT: vfs_create('%s') failed: %d\n", name, ret);
+    if (ret < 0)
       return ret;
-    }
 
     if (new_dentry != NULL) {
       new_dentry->parent = parent_dentry;
@@ -94,13 +88,9 @@ DEFINE_SYSCALL4(openat, int, dirfd, const char *, user_path, uint64_t, flags, ui
 open_existing:;
   struct file_t *file;
   int ret = vfs_open_at(path, start, flags, &file);
-  if (ret != 0) {
-    if (ret != -ENOENT)
-      debugk("open: vfs_open('%s') failed: %d\n", path, ret);
+  if (ret != 0)
     return ret;
-  }
 
-  // Handle O_TRUNC: truncate file to 0 length
   if (flags & O_TRUNC) {
     vfs_truncate(file->vnode, 0);
     file->offset = 0;

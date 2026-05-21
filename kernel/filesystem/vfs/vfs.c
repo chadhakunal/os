@@ -175,7 +175,7 @@ int64_t vfs_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
   }
 
   if (file->pipe != NULL)
-    return pipe_read(file->pipe, buffer, size);
+    return pipe_read(file->pipe, buffer, size, !!(file->flags & O_NONBLOCK));
 
   if (IS_DIR(file->vnode->permission_mode))
     return -EISDIR;
@@ -212,7 +212,6 @@ short vfs_poll(struct file_t *file, short events) {
 }
 
 int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
-  debugk("vfs_write: file=%p, offset=%lu, size=%lu\n", file, offset, size);
   if (file == NULL)
     panic("vfs_write: file is null");
 
@@ -228,10 +227,7 @@ int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
   if (file->file_ops == NULL || file->file_ops->write == NULL)
     panic("vfs_write: no write path available\n");
 
-  debugk("vfs_write: calling file_ops->write\n");
-  int64_t result = file->file_ops->write(file, offset, buffer, size);
-  debugk("vfs_write: returning %lld\n", result);
-  return result;
+  return file->file_ops->write(file, offset, buffer, size);
 }
 
 static int64_t vfs_open_dentry(struct dentry_t *dentry, int flags, struct file_t **file) {

@@ -18,6 +18,9 @@ void vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id)
   vnode->owner_gid = 0;
   vnode->permission_mode = 0;
   vnode->size = 0;
+  vnode->mtime = 0;
+  vnode->mounted_vnode = NULL;
+  vnode->address_space = NULL;
   vnode->children_dentries.next = &vnode->children_dentries;
   vnode->children_dentries.prev = &vnode->children_dentries;
   vnode->fs_private_vnode = NULL;

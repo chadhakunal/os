@@ -47,6 +47,7 @@ static bool handle_default_signal_action(int sig) {
     case SIGFPE:
     case SIGBUS:
     case SIGPIPE:
+    case SIGTRAP:
       debugk("signal: terminating process %llu due to signal %d\n", current_task->pid, sig);
       task_cleanup(SIGNAL_EXIT_STATUS(sig));
       debugk("signal: task_cleanup done, state=%d, calling schedule\n", current_task->state);
@@ -131,9 +132,23 @@ void send_signal(struct task_t *task, int sig) {
   if (task->state == TASK_BLOCKED) {
     if (!sig_in_set(&task->signal_state.blocked, sig) ||
         task->wait_reason == WAIT_SIGNAL) {
-      if (sig == SIGCHLD)
-        debugk("[SIGCHLD] unblocking PID %llu\n", task->pid);
-      unblock_task(task);
+      /* Don't wake a blocked task for a signal whose effective disposition
+       * is SIG_IGN or SIG_DFL-discard (SIGCHLD, SIGCONT, SIGURG, SIGWINCH).
+       * Those signals don't interrupt syscalls — only signals that will
+       * actually be delivered to userspace or terminate the process do. */
+      struct sigaction_t *act = task->signal_state.actions[sig];
+      int is_ign = (act == (struct sigaction_t *)SIG_IGNORE);
+      int is_dfl_discard = (act == NULL || act == (struct sigaction_t *)SIG_DEFAULT_HANDLER) &&
+                           (sig == SIGCHLD || sig == SIGCONT ||
+                            sig == SIGURG  || sig == SIGWINCH);
+      if (!is_ign && !is_dfl_discard) {
+        if (sig == SIGCHLD)
+          debugk("[SIGCHLD] unblocking PID %llu\n", task->pid);
+        unblock_task(task);
+      } else if (task->wait_reason == WAIT_CHILD) {
+        /* waitpid() must still wake for SIGCHLD even with default action. */
+        unblock_task(task);
+      }
     }
   } else if (task->state == TASK_STOPPED && sig == SIGKILL) {
     /* SIGKILL is the one signal that must wake even a stopped task. */

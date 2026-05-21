@@ -4,8 +4,8 @@
 #include <stdlib.h>
 
 static void usage(void) {
-  printf("Usage: ln [-s] <target> <linkname>\n");
-  printf("  -s  create a symbolic link instead of a hard link\n");
+  fprintf(stderr, "Usage: ln [-s] <target> <linkname>\n");
+  fprintf(stderr, "  -s  create a symbolic link instead of a hard link\n");
 }
 
 int main(int argc, char **argv) {
@@ -29,13 +29,13 @@ int main(int argc, char **argv) {
   if (symlink_flag) {
     ret = symlink(target, linkname);
     if (ret < 0) {
-      printf("ln: failed to create symlink '%s' -> '%s'\n", linkname, target);
+      fprintf(stderr, "ln: failed to create symlink '%s' -> '%s'\n", linkname, target);
       return 1;
     }
   } else {
     ret = link(target, linkname);
     if (ret < 0) {
-      printf("ln: failed to create hard link '%s' -> '%s'\n", linkname, target);
+      fprintf(stderr, "ln: failed to create hard link '%s' -> '%s'\n", linkname, target);
       return 1;
     }
   }

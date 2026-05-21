@@ -187,10 +187,30 @@ int64_t vfs_dup2(struct files_table_t *file_table, int oldfd, int newfd) {
   }
 
   int local_fd = newfd - base_fd;
-  target->files[local_fd] = src;
   target->used_file_bitmap |= (1 << local_fd);
   target->close_on_exec_bitmap &= ~(1U << local_fd);
-  src->refcount++;
+
+  if (src->pipe != NULL) {
+    /* Give the new fd its own file_t so each close independently adjusts
+     * the pipe's writer/reader count — same approach as copy_file_table. */
+    struct file_t *dup_file = file_t_alloc();
+    dup_file->vnode          = NULL;
+    dup_file->dentry         = NULL;
+    dup_file->file_ops       = NULL;
+    dup_file->offset         = 0;
+    dup_file->refcount       = 1;
+    dup_file->flags          = src->flags;
+    dup_file->pipe           = src->pipe;
+    dup_file->pipe_write_end = src->pipe_write_end;
+    if (src->pipe_write_end)
+      src->pipe->writer_count++;
+    else
+      src->pipe->reader_count++;
+    target->files[local_fd] = dup_file;
+  } else {
+    target->files[local_fd] = src;
+    src->refcount++;
+  }
 
   return newfd;
 }

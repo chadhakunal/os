@@ -178,4 +178,8 @@ int alloc_fd(struct files_table_t *file_table, struct file_t *file);
 void clear_vmas(struct task_t *task);
 void close_all_files(struct task_t *task);
 
+/* Kill the current process with SIGKILL on OOM.
+ * Panics if the current process is PID 1. Never returns. */
+void oom_kill_current(void);
+
 #endif

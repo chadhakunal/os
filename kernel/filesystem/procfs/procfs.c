@@ -139,44 +139,185 @@ static int64_t proc_pid_status_read(struct file_t *file, uint64_t offset,
 static struct file_ops_t proc_pid_status_fops;
 
 /* -------------------------------------------------------------------------
+ * /proc/<pid>/fd/<n> — proxy read/write through the underlying file_t.
+ * fs_private_vnode encodes (pid << 16) | fd_number.
+ * ---------------------------------------------------------------------- */
+static struct file_ops_t proc_fd_entry_fops;
+static struct vnode_ops_t proc_fd_dir_ops;
+
+static int64_t proc_fd_entry_read(struct file_t *file, uint64_t offset,
+                                   void *buf, uint64_t size) {
+  uint64_t encoded = (uint64_t)file->vnode->fs_private_vnode;
+  uint64_t pid     = encoded >> 16;
+  int      fd      = (int)(encoded & 0xffff);
+
+  struct task_t *task = find_task_by_pid(pid);
+  if (!task) return -ENOENT;
+
+  struct file_t *target = find_file(&task->file_table, fd);
+  if (!target || !target->file_ops || !target->file_ops->read)
+    return -EBADF;
+
+  return target->file_ops->read(target, offset, buf, size);
+}
+
+static int64_t proc_fd_entry_write(struct file_t *file, uint64_t offset,
+                                    void *buf, uint64_t size) {
+  uint64_t encoded = (uint64_t)file->vnode->fs_private_vnode;
+  uint64_t pid     = encoded >> 16;
+  int      fd      = (int)(encoded & 0xffff);
+
+  struct task_t *task = find_task_by_pid(pid);
+  if (!task) return -ENOENT;
+
+  struct file_t *target = find_file(&task->file_table, fd);
+  if (!target || !target->file_ops || !target->file_ops->write)
+    return -EBADF;
+
+  return target->file_ops->write(target, offset, buf, size);
+}
+
+/* Build a dentry for /proc/<pid>/fd/<n>. */
+static struct dentry_t *proc_make_fd_dentry(struct superblock_t *sb,
+                                             uint64_t pid, int fd,
+                                             struct file_t *target) {
+  struct vnode_t *vnode = vnode_t_alloc();
+  vfs_init_vnode(vnode, sb, 0);
+
+  /* Mirror the underlying file's permissions. */
+  uint32_t mode = S_IFREG;
+  if (target->file_ops && target->file_ops->read)  mode |= 0444;
+  if (target->file_ops && target->file_ops->write) mode |= 0222;
+  vnode->permission_mode  = mode;
+  vnode->file_ops         = &proc_fd_entry_fops;
+  vnode->fs_private_vnode = (void *)((pid << 16) | (uint64_t)fd);
+
+  /* Name is the decimal fd number. */
+  char fd_str[12];
+  int i = 0, j = 0;
+  char rev[12];
+  int tmp = fd;
+  if (tmp == 0) { rev[j++] = '0'; }
+  else { while (tmp > 0) { rev[j++] = '0' + (tmp % 10); tmp /= 10; } }
+  while (j > 0) fd_str[i++] = rev[--j];
+  fd_str[i] = '\0';
+
+  struct dentry_t *d = dentry_t_alloc();
+  strncpy(d->name, fd_str, sizeof(d->name) - 1);
+  d->vnode  = vnode;
+  d->parent = NULL;
+  return d;
+}
+
+static int64_t procfs_fd_readdir(struct vnode_t *dir, uint32_t index,
+                                  struct dentry_t **out) {
+  uint64_t pid = (uint64_t)dir->fs_private_vnode;
+  struct task_t *task = find_task_by_pid(pid);
+  if (!task) { *out = NULL; return -ENOENT; }
+
+  uint32_t count = 0;
+  int base_fd = 0;
+  list_for_each(&task->file_table.files_list, pos) {
+    struct files_list_t *fl = container_of(pos, struct files_list_t, files_list);
+    for (int i = 0; i < 32; i++) {
+      if (fl->used_file_bitmap & (1U << i)) {
+        if (count == index) {
+          int fd = base_fd + i;
+          *out = proc_make_fd_dentry(dir->superblock, pid, fd, fl->files[i]);
+          return 0;
+        }
+        count++;
+      }
+    }
+    base_fd += 32;
+  }
+  *out = NULL;
+  return -1;
+}
+
+static int64_t procfs_fd_lookup(const char *name, struct vnode_t *parent,
+                                 struct dentry_t **out) {
+  uint64_t pid = (uint64_t)parent->fs_private_vnode;
+  struct task_t *task = find_task_by_pid(pid);
+  if (!task) { *out = NULL; return -ENOENT; }
+
+  /* Parse name as decimal fd number. */
+  int fd = 0;
+  for (const char *p = name; *p; p++) {
+    if (*p < '0' || *p > '9') { *out = NULL; return -ENOENT; }
+    fd = fd * 10 + (*p - '0');
+  }
+
+  struct file_t *target = find_file(&task->file_table, fd);
+  if (!target) { *out = NULL; return -ENOENT; }
+
+  *out = proc_make_fd_dentry(parent->superblock, pid, fd, target);
+  return 0;
+}
+
+/* Build /proc/<pid>/fd directory dentry. */
+static struct dentry_t *proc_make_fd_dir_dentry(struct superblock_t *sb,
+                                                  uint64_t pid) {
+  struct vnode_t *vnode = vnode_t_alloc();
+  vfs_init_vnode(vnode, sb, 0);
+  vnode->permission_mode  = S_IFDIR | READ_EXECUTE_PERM;
+  vnode->vnode_ops        = &proc_fd_dir_ops;
+  vnode->fs_private_vnode = (void *)pid;
+
+  struct dentry_t *d = dentry_t_alloc();
+  strncpy(d->name, "fd", sizeof(d->name) - 1);
+  d->vnode  = vnode;
+  d->parent = NULL;
+  return d;
+}
+
+/* -------------------------------------------------------------------------
  * /proc/<pid>/ directory ops
  * ---------------------------------------------------------------------- */
 static struct vnode_ops_t proc_pid_dir_ops;
 
 static int64_t procfs_pid_readdir(struct vnode_t *dir, uint32_t index,
                                   struct dentry_t **out) {
-  if (index == 0) {
-    struct vnode_t *vnode = vnode_t_alloc();
-    vfs_init_vnode(vnode, dir->superblock, 0);
-    vnode->permission_mode = S_IFREG | READ_EXECUTE_PERM;
-    vnode->file_ops        = &proc_pid_status_fops;
-    vnode->fs_private_vnode = dir->fs_private_vnode;
-
-    struct dentry_t *d = dentry_t_alloc();
-    strncpy(d->name, "status", sizeof(d->name) - 1);
-    d->vnode  = vnode;
-    d->parent = NULL;
-    *out = d;
-    return 0;
+  uint64_t pid = (uint64_t)dir->fs_private_vnode;
+  switch (index) {
+    case 0: {
+      struct vnode_t *vnode = vnode_t_alloc();
+      vfs_init_vnode(vnode, dir->superblock, 0);
+      vnode->permission_mode  = S_IFREG | READ_EXECUTE_PERM;
+      vnode->file_ops         = &proc_pid_status_fops;
+      vnode->fs_private_vnode = dir->fs_private_vnode;
+      struct dentry_t *d = dentry_t_alloc();
+      strncpy(d->name, "status", sizeof(d->name) - 1);
+      d->vnode = vnode; d->parent = NULL;
+      *out = d;
+      return 0;
+    }
+    case 1:
+      *out = proc_make_fd_dir_dentry(dir->superblock, pid);
+      return 0;
+    default:
+      *out = NULL;
+      return -1;
   }
-  *out = NULL;
-  return -1;
 }
 
 static int64_t procfs_pid_lookup(const char *name, struct vnode_t *parent,
                                  struct dentry_t **out) {
+  uint64_t pid = (uint64_t)parent->fs_private_vnode;
   if (strncmp(name, "status") == 0) {
     struct vnode_t *vnode = vnode_t_alloc();
     vfs_init_vnode(vnode, parent->superblock, 0);
     vnode->permission_mode  = S_IFREG | READ_EXECUTE_PERM;
     vnode->file_ops         = &proc_pid_status_fops;
     vnode->fs_private_vnode = parent->fs_private_vnode;
-
     struct dentry_t *d = dentry_t_alloc();
     strncpy(d->name, "status", sizeof(d->name) - 1);
-    d->vnode  = vnode;
-    d->parent = NULL;
+    d->vnode = vnode; d->parent = NULL;
     *out = d;
+    return 0;
+  }
+  if (strncmp(name, "fd") == 0) {
+    *out = proc_make_fd_dir_dentry(parent->superblock, pid);
     return 0;
   }
   *out = NULL;
@@ -308,6 +449,10 @@ struct superblock_t *procfs_mount(void) {
   proc_pid_status_fops.read   = proc_pid_status_read;
   proc_pid_dir_ops.readdir    = procfs_pid_readdir;
   proc_pid_dir_ops.lookup     = procfs_pid_lookup;
+  proc_fd_entry_fops.read     = proc_fd_entry_read;
+  proc_fd_entry_fops.write    = proc_fd_entry_write;
+  proc_fd_dir_ops.readdir     = procfs_fd_readdir;
+  proc_fd_dir_ops.lookup      = procfs_fd_lookup;
 
   struct superblock_t *sb = superblock_t_alloc();
   sb->flags             = SB_NODENTRY_CACHE;

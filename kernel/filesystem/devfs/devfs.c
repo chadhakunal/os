@@ -5,24 +5,55 @@
 #include "kernel/filesystem/mode.h"
 #include "lib/list.h"
 #include "lib/string.h"
+#include "errno.h"
 
-static int64_t vda_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
+int64_t null_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
+  (void)file; (void)offset; (void)buffer; (void)size;
+  return 0; /* always EOF */
+}
+
+int64_t null_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
+  (void)file; (void)offset; (void)buffer;
+  return (int64_t)size; /* discard */
+}
+
+static struct file_ops_t null_file_ops;
+
+int64_t vda_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   uint64_t sector = offset / SECTOR_BLOCK_SIZE;
   uint32_t num_sectors = (size + SECTOR_BLOCK_SIZE - 1) / SECTOR_BLOCK_SIZE;
   return virtio_blk_read(sector, buffer, num_sectors) == 0 ? (int64_t)size : -1;
 }
 
-static int64_t vda_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
+int64_t vda_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   uint64_t sector = offset / SECTOR_BLOCK_SIZE;
   uint32_t num_sectors = (size + SECTOR_BLOCK_SIZE - 1) / SECTOR_BLOCK_SIZE;
   return virtio_blk_write(sector, buffer, num_sectors) == 0 ? (int64_t)size : -1;
 }
 
-static struct file_ops_t vda_file_ops = {
-  .read  = vda_read,
-  .write = vda_write,
-  .ioctl = NULL,
-};
+static struct file_ops_t vda_file_ops;
+
+static int64_t devfs_lookup(const char *name, struct vnode_t *dir, struct dentry_t **out) {
+  list_for_each(&dir->children_dentries, pos) {
+    struct dentry_t *d = container_of(pos, struct dentry_t, sibling_dentry);
+    if (strncmp(d->name, name) == 0) {
+      *out = d;
+      return 0;
+    }
+  }
+  *out = NULL;
+  return -ENOENT;
+}
+
+static int64_t devfs_create(const char *name, struct vnode_t *dir,
+                             struct dentry_t **out, uint32_t mode) {
+  (void)mode;
+  /* devfs entries are fixed — existing name → EEXIST, new name → EPERM */
+  if (devfs_lookup(name, dir, out) == 0)
+    return -EEXIST;
+  *out = NULL;
+  return -EPERM;
+}
 
 static int64_t devfs_readdir(struct vnode_t *dir, uint32_t index, struct dentry_t **out) {
   uint32_t i = 0;
@@ -69,14 +100,38 @@ struct vnode_t *build_devfs(struct superblock_t *superblock) {
 
   list_append(&root_vnode->children_dentries, &vda_dentry->sibling_dentry);
 
+  struct vnode_t *null_vnode = vnode_t_alloc();
+  vfs_init_vnode(null_vnode, superblock, id++);
+  null_vnode->permission_mode = RW_PERM | S_IFCHR;
+  null_vnode->file_ops = &null_file_ops;
+
+  struct dentry_t *null_dentry = dentry_t_alloc();
+  strncpy(null_dentry->name, "null", 256);
+  null_dentry->vnode = null_vnode;
+  null_dentry->parent = NULL;
+
+  list_append(&root_vnode->children_dentries, &null_dentry->sibling_dentry);
+
   return root_vnode;
 }
 
 struct superblock_t *devfs_mount() {
+  /* Initialize ops at runtime so function pointers use the higher-half
+   * virtual addresses, not the boot-time physical link addresses. */
+  null_file_ops.read  = null_read;
+  null_file_ops.write = null_write;
+  null_file_ops.ioctl = NULL;
+
+  vda_file_ops.read  = vda_read;
+  vda_file_ops.write = vda_write;
+  vda_file_ops.ioctl = NULL;
+
   struct superblock_t *superblock = superblock_t_alloc();
   // devfs doesn't use superblock file_ops (devices override per-vnode)
   superblock->file_ops.read = NULL;
   superblock->file_ops.write = NULL;
+  superblock->vnode_ops.lookup  = devfs_lookup;
+  superblock->vnode_ops.create  = devfs_create;
   superblock->vnode_ops.readdir = devfs_readdir;
 
   superblock->root_vnode = build_devfs(superblock);

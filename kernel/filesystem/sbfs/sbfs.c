@@ -458,6 +458,7 @@ int64_t sbfs_readdir(struct vnode_t *dir, uint32_t index, struct dentry_t **out)
     sbfs_dirent_t *de = (sbfs_dirent_t *)buf;
     for (uint32_t j = 0; j < dents; j++) {
       if (de[j].inode_num == 0) continue;
+      if (de[j].name[0] == '\0') continue;
       if (count == index) {
         struct dentry_t *dentry = dentry_t_alloc();
         strncpy(dentry->name, de[j].name, sizeof(dentry->name) - 1);
@@ -528,6 +529,17 @@ int64_t sbfs_mkdir(const char *name, struct vnode_t *parent_dir, struct dentry_t
   inode->mode   = SBFS_MODE_DIR;
   inode->nlinks = 1;
   inode->mtime  = (uint32_t)rtc_read_time_sec();
+
+  /* Allocate and zero-initialize the first data block so readdir sees no
+   * stale entries from previously freed blocks. */
+  int64_t blk = sbfs_alloc_block(sb);
+  if (blk >= 0) {
+    uint8_t zero[SECTOR_BLOCK_SIZE];
+    memset(zero, 0, sizeof(zero));
+    inode->direct_blocks[0] = (uint32_t)blk;
+    sbfs_write_data_block(sb, (uint32_t)blk, zero);
+  }
+
   debugk("[sbfs_mkdir] flushing inode %lld\n", ino);
   sbfs_flush_inode(sb, (uint32_t)ino);
 

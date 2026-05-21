@@ -4,19 +4,20 @@
 #include <dirent.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #define BUF_SIZE 4096
 
 static int copy_file(const char *src, const char *dst) {
   int src_fd = open(src, O_RDONLY);
   if (src_fd < 0) {
-    printf("cp: cannot open '%s'\n", src);
+    fprintf(stderr, "cp: cannot open '%s'\n", src);
     return 1;
   }
 
-  int dst_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC);
+  int dst_fd = open(dst, O_WRONLY | O_CREAT | O_TRUNC, 0644);
   if (dst_fd < 0) {
-    printf("cp: cannot create '%s'\n", dst);
+    fprintf(stderr, "cp: cannot create '%s'\n", dst);
     close(src_fd);
     return 1;
   }
@@ -28,7 +29,7 @@ static int copy_file(const char *src, const char *dst) {
     while (written < n) {
       ssize_t w = write(dst_fd, buf + written, n - written);
       if (w <= 0) {
-        printf("cp: write error on '%s'\n", dst);
+        fprintf(stderr, "cp: write error on '%s'\n", dst);
         close(src_fd);
         close(dst_fd);
         return 1;
@@ -50,7 +51,7 @@ static int copy_dir(const char *src, const char *dst) {
     /* If it already exists that's fine, otherwise fail. */
     int fd = open(dst, O_RDONLY);
     if (fd < 0) {
-      printf("cp: cannot create directory '%s'\n", dst);
+      fprintf(stderr, "cp: cannot create directory '%s'\n", dst);
       return 1;
     }
     close(fd);
@@ -58,44 +59,35 @@ static int copy_dir(const char *src, const char *dst) {
 
   int dir_fd = open(src, O_RDONLY);
   if (dir_fd < 0) {
-    printf("cp: cannot open directory '%s'\n", src);
+    fprintf(stderr, "cp: cannot open directory '%s'\n", src);
     return 1;
   }
 
-  struct dirent entries[64];
-  int n = getdents(dir_fd, entries, sizeof(entries));
-  close(dir_fd);
-
-  if (n < 0) {
-    printf("cp: cannot read directory '%s'\n", src);
-    return 1;
-  }
-
-  int num = n / sizeof(struct dirent);
   int ret = 0;
-  for (int i = 0; i < num; i++) {
-    const char *name = entries[i].d_name;
-    if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0)
-      continue;
+  struct dirent entries[64];
+  int n;
+  while ((n = getdents(dir_fd, entries, 64)) > 0) {
+    for (int i = 0; i < n; i++) {
+      const char *name = entries[i].d_name;
+      if (name[0] == '\0') continue;
+      if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
 
-    char src_child[512], dst_child[512];
-    snprintf(src_child, sizeof(src_child), "%s/%s", src, name);
-    snprintf(dst_child, sizeof(dst_child), "%s/%s", dst, name);
+      char src_child[512], dst_child[512];
+      snprintf(src_child, sizeof(src_child), "%s/%s", src, name);
+      snprintf(dst_child, sizeof(dst_child), "%s/%s", dst, name);
 
-    if (copy_recursive(src_child, dst_child) != 0)
-      ret = 1;
+      if (copy_recursive(src_child, dst_child) != 0)
+        ret = 1;
+    }
   }
+  close(dir_fd);
   return ret;
 }
 
 static int is_dir(const char *path) {
-  int fd = open(path, O_RDONLY);
-  if (fd < 0) return 0;
-  /* Try getdents — succeeds for directories, not for files. */
-  struct dirent de;
-  int n = getdents(fd, &de, sizeof(de));
-  close(fd);
-  return (n >= 0);
+  struct stat st;
+  if (stat(path, &st) < 0) return 0;
+  return S_ISDIR(st.st_mode);
 }
 
 static int copy_recursive(const char *src, const char *dst) {
@@ -114,7 +106,7 @@ int main(int argc, char **argv) {
   }
 
   if (argc - optind < 2) {
-    printf("Usage: cp [-r] <src> <dst>\n");
+    fprintf(stderr, "Usage: cp [-r] <src> <dst>\n");
     return 1;
   }
 

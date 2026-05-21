@@ -29,7 +29,7 @@ DEFINE_SYSCALL2(munmap, size_t, addr, size_t, len)
         uint64_t pte = get_pte(current_task->mm_struct.root_satp, va);
         if (pte & PTE_VALID) {
           void *phys_page = (void *)PTE_DECODE(pte);
-          free_page(phys_page);
+          page_decref(phys_page);
         }
       }
       unmap_pages(current_task->mm_struct.root_satp, vma->start_addr, vma->end_addr);

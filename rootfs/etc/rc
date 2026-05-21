@@ -1,4 +1,9 @@
 #!/bin/sh
+mkdir -p /tmp
+mkdir -p /mnt
+chmod 1777 /tmp
+chmod 755 /mnt
+
 echo "========================================="
 echo "  System Initialization Script"
 echo "========================================="
@@ -9,50 +14,74 @@ echo "Arguments: $2 $3 $4"
 echo ""
 
 if [ -x /bin/test_syscalls ]; then
-echo "Running test_syscalls..."
-/bin/test_syscalls
+  echo "Running test_syscalls..."
+  /bin/test_syscalls
 else
-echo "Skipping test_syscalls (/bin/test_syscalls not installed)"
+  echo "Skipping test_syscalls (/bin/test_syscalls not installed)"
 fi
 
 echo ""
 if [ -x /bin/test_shell ]; then
-echo "Running test_shell..."
-/bin/test_shell
+  echo "Running test_shell..."
+  /bin/test_shell
 else
-echo "Skipping test_shell (/bin/test_shell not installed)"
+  echo "Skipping test_shell (/bin/test_shell not installed)"
 fi
 
 echo ""
 if [ -x /bin/test_signals ]; then
-echo "Running test_signals..."
-/bin/test_signals
+  echo "Running test_signals..."
+  /bin/test_signals
 else
-echo "Skipping test_signals (/bin/test_signals not installed)"
+  echo "Skipping test_signals (/bin/test_signals not installed)"
 fi
 
 echo ""
 if [ -x /bin/test_rlimit ]; then
-echo "Running test_rlimit..."
-/bin/test_rlimit
+  echo "Running test_rlimit..."
+  /bin/test_rlimit
 else
-echo "Skipping test_rlimit (/bin/test_rlimit not installed)"
+  echo "Skipping test_rlimit (/bin/test_rlimit not installed)"
 fi
 
 echo ""
 if [ -x /bin/stacktest ]; then
-echo "Running stacktest..."
-/bin/stacktest
+  echo "Running stacktest..."
+  /bin/stacktest
 else
-echo "Skipping stacktest (/bin/stacktest not installed)"
+  echo "Skipping stacktest (/bin/stacktest not installed)"
 fi
 
 echo ""
 if [ -x /bin/stacktest2 ]; then
-echo "Running stacktest2..."
-/bin/stacktest2
+  echo "Running stacktest2..."
+  /bin/stacktest2
 else
-echo "Skipping stacktest2 (/bin/stacktest2 not installed)"
+  echo "Skipping stacktest2 (/bin/stacktest2 not installed)"
+fi
+
+echo ""
+if [ -x /bin/test_oom ]; then
+  echo "Running test_oom..."
+  /bin/test_oom
+else
+  echo "Skipping test_oom (/bin/test_oom not installed)"
+fi
+
+echo ""
+if [ -x /bin/test_oom_vs_enomem ]; then
+  echo "Running test_oom_vs_enomem..."
+  /bin/test_oom_vs_enomem
+else
+  echo "Skipping test_oom_vs_enomem (/bin/test_oom_vs_enomem not installed)"
+fi
+
+echo ""
+if [ -x /bin/test_oom_stress ]; then
+  echo "Running test_oom_stress..."
+  /bin/test_oom_stress
+else
+  echo "Skipping test_oom_stress (/bin/test_oom_stress not installed)"
 fi
 
 echo ""

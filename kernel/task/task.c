@@ -332,8 +332,14 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
   if (eager) {
     for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
       void *phys_page = get_zero_page(false);
-      if (phys_page == NULL) {
-        panic("anon_memory_map: failed to allocate zero page\n");
+      if (!phys_page) {
+        phys_page = get_page(false);
+        if (phys_page)
+          memset(PHYS_TO_VIRT(phys_page), 0, DEFAULT_PAGE_SIZE);
+      }
+      if (!phys_page) {
+        oom_kill_current();
+        return -ENOMEM;
       }
 
       // Convert VM flags to PTE flags
@@ -376,27 +382,24 @@ struct vma_t *copy_vma(struct vma_t *vma, struct task_t *old_task, struct task_t
       map_page(new_task->mm_struct.root_satp, va, (uint64_t)old_phys_page, pte_flags);
     }
   } else {
-    // Anonymous VMA: copy pages
+    // Anonymous VMA: COW — share pages read-only, copy on first write
     for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
       uint64_t old_pte = get_pte(old_task->mm_struct.root_satp, va);
 
       if (!(old_pte & PTE_VALID)) {
-        continue;
+        continue; // Unmapped lazy page; both processes fault independently
       }
 
-      void *new_phys_page = get_page(false);
-      if (!new_phys_page) {
-        panic("copy_vma: failed to allocate page");
-      }
+      void *phys_page = (void *)PTE_DECODE(old_pte);
+      page_incref(phys_page); // Shared between parent and child
 
-      void *old_phys_page = (void *)PTE_DECODE(old_pte);
+      // Demote parent PTE: clear PTE_W, set PTE_COW
+      uint64_t demoted_pte = (old_pte & ~PTE_W) | PTE_COW;
+      set_pte(old_task->mm_struct.root_satp, va, demoted_pte);
 
-      void *old_virt = PHYS_TO_VIRT(old_phys_page);
-      void *new_virt = PHYS_TO_VIRT(new_phys_page);
-      memcpy(new_virt, old_virt, DEFAULT_PAGE_SIZE);
-
-      uint64_t pte_flags = old_pte & (PTE_R | PTE_W | PTE_X | PTE_U);
-      map_page(new_task->mm_struct.root_satp, va, (uint64_t)new_phys_page, pte_flags);
+      // Map child with same demoted flags (no PTE_W, PTE_COW set)
+      uint64_t child_flags = (old_pte & (PTE_R | PTE_X | PTE_U)) | PTE_COW;
+      map_page(new_task->mm_struct.root_satp, va, (uint64_t)phys_page, child_flags);
     }
   }
 
@@ -411,6 +414,8 @@ void copy_mm(struct task_t *old_task, struct task_t *new_task) {
     list_append(&new_task->mm_struct.vma_list, &new_vma->sibling_vma);
   }
   new_task->mm_struct.entry_addr = old_task->mm_struct.entry_addr;
+  // Flush parent's TLB: parent PTEs were demoted (PTE_W cleared) for COW
+  asm volatile("sfence.vma zero, zero" ::: "memory");
 }
 
 void copy_file_table(struct files_table_t *old_table, struct files_table_t *new_table) {
@@ -525,6 +530,15 @@ void reap_zombie(struct task_t *zombie) {
 
   // Free the task structure
   task_t_free(zombie);
+}
+
+void oom_kill_current(void) {
+  printk("OOM: killing PID %llu\n", current_task->pid);
+  if (current_task->pid == 1)
+    panic("OOM: init (PID 1) ran out of memory");
+  send_signal(current_task, SIGKILL);
+  /* Return normally — the trap handler will deliver SIGKILL before
+   * returning to userspace via check_and_deliver_signals. */
 }
 
 void task_cleanup(int exit_status) {
@@ -752,16 +766,22 @@ void clear_vmas(struct task_t *task) {
         uint64_t pte = get_pte(task->mm_struct.root_satp, va);
         if (pte & PTE_VALID) {
           void *phys_page = (void *)PTE_DECODE(pte);
-          debugk("  Freeing anonymous page at va=%llx, phys=%p\n", va, phys_page);
-          free_page(phys_page);
+          debugk("  Releasing anonymous page at va=%llx, phys=%p\n", va, phys_page);
+          page_decref(phys_page); // Frees only when last reference drops
         }
         unmap_page(task->mm_struct.root_satp, va);
       }
     } else {
       debugk("clear_vmas: file-backed VMA [%llx-%llx], vnode refcount before=%llu\n",
              vma->start_addr, vma->end_addr, vma->backing_file->refcount);
-      vfs_address_space_drop_ref(vma->start_addr, vma->end_addr, vma->offset, vma->backing_file->address_space);
-      unmap_pages(task->mm_struct.root_satp, vma->start_addr, vma->end_addr);
+      for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
+        uint64_t pte = get_pte(task->mm_struct.root_satp, va);
+        if (pte & PTE_VALID) {
+          uint64_t file_offset = vma->offset + (va - vma->start_addr);
+          vfs_address_space_drop_ref(va, va + DEFAULT_PAGE_SIZE, file_offset, vma->backing_file->address_space);
+          unmap_page(task->mm_struct.root_satp, va);
+        }
+      }
       vma->backing_file->refcount--;
       debugk("  vnode refcount after=%llu\n", vma->backing_file->refcount);
     }

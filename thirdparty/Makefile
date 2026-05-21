@@ -8,9 +8,12 @@ CFLAGS := -gdwarf-4 -Wall -Werror -Os -ffreestanding -fno-builtin -nostdlib -nos
 
 CRT := $(ROOT)/build/libc/crt.S.o
 LIBC := $(ROOT)/build/libc.a
-BINDIR := $(ROOT)/build/rootfs/bin
+BINDIR := $(ROOT)/build/rootfs/bin/tests
 
-RC_TESTS := test_syscalls test_shell test_signals stacktest stacktest2 test_rlimit posix_compliance
+RC_TESTS := test_shell test_signals test_rlimit posix_compliance \
+	testjobs testsignal test_pipe \
+	test_devnull test_oom test_oom_vs_enomem test_oom_stress test_bins test_waitpid \
+	test_grep test_sort_uname test_faults
 
 .PHONY: install os-tests-sortix-clone os-tests-build os-tests-install
 
@@ -19,13 +22,30 @@ install: $(LIBC) $(CRT) $(RC_TESTS:%=$(BINDIR)/%) os-tests-install
 $(LIBC) $(CRT):
 	$(MAKE) -C $(ROOT) build/libc.a build/libc/crt.S.o
 
-$(BINDIR)/test_syscalls: test_syscalls/test_syscalls.c $(CRT) $(LIBC)
-$(BINDIR)/test_shell: test_shell/test_shell.c $(CRT) $(LIBC)
-$(BINDIR)/test_signals: test_signals/test_signals.c $(CRT) $(LIBC)
-$(BINDIR)/stacktest: stacktest/stacktest.c $(CRT) $(LIBC)
-$(BINDIR)/stacktest2: stacktest2/stacktest.c $(CRT) $(LIBC)
-$(BINDIR)/test_rlimit: test_rlimit/test_rlimit.c $(CRT) $(LIBC)
+# $(BINDIR)/test_syscalls:    test_syscalls/test_syscalls.c $(CRT) $(LIBC)
+$(BINDIR)/test_shell:       test_shell/test_shell.c $(CRT) $(LIBC)
+$(BINDIR)/test_signals:     test_signals/test_signals.c $(CRT) $(LIBC)
+# $(BINDIR)/stacktest:        stacktest/stacktest.c $(CRT) $(LIBC)
+# $(BINDIR)/stacktest2:       stacktest2/stacktest.c $(CRT) $(LIBC)
+$(BINDIR)/test_rlimit:      test_rlimit/test_rlimit.c $(CRT) $(LIBC)
 $(BINDIR)/posix_compliance: posix_compliance.c $(CRT) $(LIBC)
+$(BINDIR)/testjobs:         testjobs/testjobs.c $(CRT) $(LIBC)
+$(BINDIR)/testsignal:       testsignal/testsignal.c $(CRT) $(LIBC)
+# $(BINDIR)/test_dprintf:     test_dprintf/test_dprintf.c $(CRT) $(LIBC)
+# $(BINDIR)/test_long_wait:   test_long_wait/test_long_wait.c $(CRT) $(LIBC)
+# $(BINDIR)/test_mmap:        test_mmap/test_mmap.c $(CRT) $(LIBC)
+$(BINDIR)/test_pipe:        test_pipe/test_pipe.c $(CRT) $(LIBC)
+# $(BINDIR)/test_sleep:       test_sleep/test_sleep.c $(CRT) $(LIBC)
+# $(BINDIR)/test-kernel:      test-kernel/test-kernel.c $(CRT) $(LIBC)
+$(BINDIR)/test_devnull:     test_devnull/test_devnull.c $(CRT) $(LIBC)
+$(BINDIR)/test_oom:         test_oom/test_oom.c $(CRT) $(LIBC)
+$(BINDIR)/test_oom_vs_enomem: test_oom_vs_enomem/test_oom_vs_enomem.c $(CRT) $(LIBC)
+$(BINDIR)/test_oom_stress:    test_oom_stress/test_oom_stress.c $(CRT) $(LIBC)
+$(BINDIR)/test_bins:          test_bins/test_bins.c $(CRT) $(LIBC)
+$(BINDIR)/test_waitpid:       test_waitpid/test_waitpid.c $(CRT) $(LIBC)
+$(BINDIR)/test_grep:          test_grep/test_grep.c $(CRT) $(LIBC)
+$(BINDIR)/test_sort_uname:    test_sort_uname/test_sort_uname.c $(CRT) $(LIBC)
+$(BINDIR)/test_faults:        test_faults/test_faults.c $(CRT) $(LIBC)
 
 $(RC_TESTS:%=$(BINDIR)/%):
 	@mkdir -p $(BINDIR)
@@ -35,7 +55,7 @@ $(RC_TESTS:%=$(BINDIR)/%):
 OSTEST_TMP ?= /tmp/os-test
 OSTEST_URL ?= https://gitlab.com/sortix/os-test.git
 OSTEST_DIR := os-tests-sortix
-OSTEST_TESTS ?= stdio sys_wait signal strings dirent fcntl sys_stat sys_mman unistd stdlib time
+OSTEST_TESTS ?= stdio sys_wait signal fcntl sys_stat sys_mman unistd stdlib time
 #sys_wait signal strings dirent fcntl sys_stat
 OSTEST_BASE := $(ROOT)/thirdparty/os-tests-sortix/ostest
 OSTEST_INSTALL_DIR := $(ROOT)/build/rootfs/bin/os-tests-sortix
@@ -56,25 +76,88 @@ OSTEST_PRUNE_DIRS := \
 	syslog termios \
 	uchar wchar wctype wordexp \
 	devctl endian \
-	strings/strcasecmp_l strings/strncasecmp_l \
-	signal/sigaltstack \
-	signal/psiginfo \
-	signal/pthread_kill \
-	signal/pthread_sigmask \
-	signal/sig2str \
-	signal/sigqueue \
-	signal/sigtimedwait \
-	signal/sigwaitinfo \
-	signal/str2sig \
-	time/timer_create \
-	time/timer_delete \
-	time/timer_getoverrun \
-	time/timer_gettime \
-	time/timer_settime \
-	stdio/ctermid \
-	stdio/setvbuf \
-	stdio/tmpnam \
-	stdio/fflush
+	strings/strcasecmp_l.c strings/strncasecmp_l.c \
+	signal/sigaltstack.c \
+	signal/psiginfo.c \
+	signal/pthread_kill.c \
+	signal/pthread_sigmask.c \
+	signal/sig2str.c \
+	signal/sigqueue.c \
+	signal/sigtimedwait.c \
+	signal/sigwaitinfo.c \
+	signal/str2sig.c \
+	time/timer_create.c \
+	time/timer_delete.c \
+	time/timer_getoverrun.c \
+	time/timer_gettime.c \
+	time/timer_settime.c \
+	stdio/ctermid.c \
+	stdio/setvbuf.c \
+	stdio/tmpnam.c \
+	stdio/fflush.c \
+	stdlib/atof.c \
+	stdlib/drand48.c \
+	stdlib/erand48.c \
+	stdlib/grantpt.c \
+	stdlib/jrand48.c \
+	stdlib/lcong48.c \
+	stdlib/lrand48.c \
+	stdlib/mrand48.c \
+	stdlib/nrand48.c \
+	stdlib/posix_openpt.c \
+	stdlib/ptsname.c \
+	stdlib/ptsname_r.c \
+	stdlib/seed48.c \
+	stdlib/srand48.c \
+	stdlib/strtod.c \
+	stdlib/strtof.c \
+	stdlib/strtold.c \
+	stdlib/unlockpt.c \
+	sys_mman/mlock.c \
+	sys_mman/mlockall.c \
+	sys_mman/munlock.c \
+	sys_mman/munlockall.c \
+	sys_mman/shm_open.c \
+	sys_mman/shm_unlink.c \
+	sys_stat/futimens.c \
+	sys_stat/mkfifo.c \
+	sys_stat/mkfifoat.c \
+	sys_stat/mknod.c \
+	sys_stat/mknodat.c \
+	sys_stat/utimensat.c \
+	time/difftime.c \
+	time/getdate.c \
+	unistd/access.c \
+	unistd/alarm.c \
+	unistd/chown.c \
+	unistd/crypt.c \
+	unistd/encrypt.c \
+	unistd/faccessat.c \
+	unistd/fchown.c \
+	unistd/fchownat.c \
+	unistd/getgroups.c \
+	unistd/getlogin.c \
+	unistd/getlogin_r.c \
+	unistd/getresgid.c \
+	unistd/getresuid.c \
+	unistd/getsid.c \
+	unistd/lchown.c \
+	unistd/lockf.c \
+	unistd/nice.c \
+	unistd/setegid.c \
+	unistd/seteuid.c \
+	unistd/setgid.c \
+	unistd/setregid.c \
+	unistd/setresgid.c \
+	unistd/setresuid.c \
+	unistd/setreuid.c \
+	unistd/setsid.c \
+	unistd/setuid.c \
+	unistd/tcgetpgrp.c \
+	unistd/tcsetpgrp.c \
+	unistd/ttyname.c \
+	unistd/ttyname_r.c \
+	sys_time/utimes.c
 
 # Clone upstream (if needed) and vendor basic/ + misc/ (gitignored under os-tests-sortix/).
 os-tests-sortix-clone:

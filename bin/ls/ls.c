@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 /* Build a "drwxrwxrwx" mode string from a stat st_mode. */
 static void fmt_mode(unsigned int mode, char out[11]) {
@@ -67,17 +68,46 @@ static void fmt_time(unsigned long long sec, char out[17]) {
   out[16] = '\0';
 }
 
-static void list_dir(const char *path, int long_fmt) {
+static void print_long(const char *path, const char *name) {
+  struct stat st;
+  if (stat(path, &st) < 0) {
+    printf("%s\n", name);
+    return;
+  }
+  char modestr[11];
+  fmt_mode(st.st_mode, modestr);
+  char timestr[17];
+  fmt_time(st.st_mtime, timestr);
+  printf("%s %3u %8llu  %s  %s\n",
+         modestr,
+         (unsigned int)st.st_nlink,
+         (unsigned long long)st.st_size,
+         timestr,
+         name);
+}
+
+static int list_file(const char *path, const char *name, int long_fmt) {
+  if (!long_fmt) {
+    printf("%s\n", name);
+    return 0;
+  }
+  print_long(path, name);
+  return 0;
+}
+
+static int list_dir(const char *path, int long_fmt, int show_all) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
-    printf("ls: cannot open '%s'\n", path);
-    return;
+    fprintf(stderr, "ls: cannot open '%s'\n", path);
+    return 1;
   }
 
   struct dirent buf[32];
   int n;
   while ((n = getdents(fd, buf, 32)) > 0) {
     for (int i = 0; i < n; i++) {
+      if (buf[i].d_name[0] == '\0') continue;
+      if (!show_all && buf[i].d_name[0] == '.') continue;
       if (!long_fmt) {
         printf("%s\n", buf[i].d_name);
         continue;
@@ -95,46 +125,51 @@ static void list_dir(const char *path, int long_fmt) {
       if (full[plen - 1] != '/') full[plen++] = '/';
       memcpy(full + plen, buf[i].d_name, nlen + 1);
 
-      struct stat st;
-      if (stat(full, &st) < 0) {
-        /* Fall back to name-only if stat fails. */
-        printf("%s\n", buf[i].d_name);
-        continue;
-      }
-
-      char modestr[11];
-      fmt_mode(st.st_mode, modestr);
-
-      char timestr[17];
-      fmt_time(st.st_mtime, timestr);
-
-      /* Format: mode  nlinks  size  mtime  name */
-      printf("%s %3u %8llu  %s  %s\n",
-             modestr,
-             (unsigned int)st.st_nlink,
-             (unsigned long long)st.st_size,
-             timestr,
-             buf[i].d_name);
+      print_long(full, buf[i].d_name);
     }
   }
 
   close(fd);
+  return 0;
+}
+
+static int list_path(const char *path, int long_fmt, int show_all) {
+  struct stat st;
+  if (stat(path, &st) < 0) {
+    fprintf(stderr, "ls: cannot access '%s'\n", path);
+    return 1;
+  }
+  if (S_ISDIR(st.st_mode))
+    return list_dir(path, long_fmt, show_all);
+  return list_file(path, path, long_fmt);
 }
 
 int main(int argc, char **argv) {
   int long_fmt = 0;
-  const char *path = ".";
+  int show_all = 0;
+  int ret = 0;
+  int nfiles = 0;
 
+  const char *paths[16];
   for (int i = 1; i < argc; i++) {
     if (argv[i][0] == '-') {
       for (int j = 1; argv[i][j]; j++) {
         if (argv[i][j] == 'l') long_fmt = 1;
+        if (argv[i][j] == 'a') show_all = 1;
       }
     } else {
-      path = argv[i];
+      if (nfiles < 16) paths[nfiles++] = argv[i];
     }
   }
 
-  list_dir(path, long_fmt);
-  return 0;
+  if (nfiles == 0) {
+    ret = list_dir(".", long_fmt, show_all);
+  } else {
+    for (int i = 0; i < nfiles; i++) {
+      if (list_path(paths[i], long_fmt, show_all) != 0)
+        ret = 1;
+    }
+  }
+
+  return ret;
 }

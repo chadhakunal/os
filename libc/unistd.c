@@ -272,7 +272,9 @@ long pathconf(const char *path, int name) {
 }
 
 int mkdir(const char *path, unsigned int mode) {
-  return syscall3(SYS_mkdirat, AT_FDCWD, path, mode);
+  long ret = syscall3(SYS_mkdirat, AT_FDCWD, path, mode);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
 }
 
 int unlink(const char *path) {
@@ -448,7 +450,9 @@ int nanosleep(const struct timespec *req, struct timespec *rem) {
 }
 
 int mkdirat(int dirfd, const char *path, unsigned int mode) {
-  return syscall3(SYS_mkdirat, dirfd, path, mode);
+  long ret = syscall3(SYS_mkdirat, dirfd, path, mode);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
 }
 
 int unlinkat(int dirfd, const char *path, int flags) {

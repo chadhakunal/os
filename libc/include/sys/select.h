@@ -1,6 +1,7 @@
 #pragma once
 
 #include <sys/types.h>
+#include <sys/time.h>
 #include <signal.h>
 #include <time.h>
 
@@ -21,11 +22,6 @@ typedef struct {
 #define FD_SET(d, s)    ((s)->fds_bits[__FD_ELT(d)] |=  __FD_MASK(d))
 #define FD_CLR(d, s)    ((s)->fds_bits[__FD_ELT(d)] &= ~__FD_MASK(d))
 #define FD_ISSET(d, s)  (!!((s)->fds_bits[__FD_ELT(d)] & __FD_MASK(d)))
-
-struct timeval {
-  long tv_sec;
-  long tv_usec;
-};
 
 int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds,
            struct timeval *timeout);

@@ -3,12 +3,14 @@
 #include "kernel/task/task.h"
 #include "kernel/task/signal.h"
 #include "kernel/memory/page_tables.h"
+#include "kernel/memory/page_allocator.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "arch/riscv64/trap.h"
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/task/elf_loader.h"
 #include "lib/printk/printk.h"
 #include "kernel/panic.h"
+#include "lib/string.h"
 
 
 static uint64_t vma_to_pte_flags(uint64_t vm_flags) {
@@ -43,6 +45,35 @@ static void send_sigsegv_and_abort_syscall(void) {
   debugk("Returning to user PC=0x%llx SP=0x%llx\n",
          current_task->tf.sepc, current_task->tf.sp);
   trap_return(&current_task->tf);
+}
+
+static void handle_cow_fault(uint64_t fault_addr, uint64_t faulting_pte) {
+  uint64_t aligned = PAGE_ALIGN_DOWN(fault_addr);
+  void *old_phys = (void *)PTE_DECODE(faulting_pte);
+
+  void *new_phys;
+  if (page_get_refcount(old_phys) == 1) {
+    // Last owner — reclaim in place, no copy needed
+    new_phys = old_phys;
+  } else {
+    // Shared — allocate a private copy
+    new_phys = get_page(false);
+    if (!new_phys)
+      oom_kill_current();
+    memcpy(PHYS_TO_VIRT(new_phys), PHYS_TO_VIRT(old_phys), DEFAULT_PAGE_SIZE);
+    page_decref(old_phys); // Release our share of the old page
+  }
+
+  // Restore PTE_W, clear PTE_COW, keep other permission flags
+  uint64_t new_pte = PTE_ADDR(new_phys) | PTE_VALID |
+                     (faulting_pte & (PTE_R | PTE_X | PTE_U | PTE_A)) |
+                     PTE_W | PTE_D;
+  set_pte(current_task->mm_struct.root_satp, aligned, new_pte);
+
+  asm volatile("sfence.vma %0, zero" :: "r"(aligned) : "memory");
+
+  debugk("cow_fault: pid=%llu va=%llx old_phys=%p new_phys=%p\n",
+         current_task->pid, aligned, old_phys, new_phys);
 }
 
 int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *tf) {
@@ -108,6 +139,11 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
 
   uint64_t pte = get_pte(current_task->mm_struct.root_satp, fault_addr);
   if (pte & PTE_VALID) {
+    if (scause == 15 && (pte & PTE_COW)) {
+      // Store fault on a COW page — break the sharing
+      handle_cow_fault(fault_addr, pte);
+      return 0;
+    }
     debugk("Page already mapped but permission fault, sending SIGSEGV\n");
     send_sigsegv_and_abort_syscall();
     return -1;
@@ -116,11 +152,19 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
   void *phys_page;
   if (vma->backing_file) {
     size_t offset = vma->offset + (PAGE_ALIGN_DOWN(fault_addr) - vma->start_addr);
-    debugk("File-backed page fault, offset=0x%llx\n", offset);
     phys_page = vfs_get_page(vma->backing_file, offset, VFS_PAGE_REF);
   } else {
-    debugk("Anonymous page fault\n");
     phys_page = get_zero_page(false);
+    if (!phys_page) {
+      phys_page = get_page(false);
+      if (phys_page)
+        memset(PHYS_TO_VIRT(phys_page), 0, DEFAULT_PAGE_SIZE);
+    }
+  }
+
+  if (!phys_page) {
+    oom_kill_current();
+    return -1;
   }
 
   uint64_t pte_flags = vma_to_pte_flags(vma->vm_flags);

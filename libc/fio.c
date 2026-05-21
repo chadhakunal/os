@@ -168,14 +168,6 @@ FILE *fopen(const char *path, const char *mode) {
 
 FILE *freopen(const char *path, const char *mode, FILE *stream) {
   if (!stream) return NULL;
-  _flush(stream);
-  if (!stream->memonly && stream->fd >= 0)
-    close(stream->fd);
-  stream->fd     = -1;
-  stream->eof    = 0;
-  stream->err    = 0;
-  stream->memonly = 0;
-  stream->wbuf_len = 0;
 
   int flags;
   if (mode[0] == 'r')
@@ -185,9 +177,23 @@ FILE *freopen(const char *path, const char *mode, FILE *stream) {
   else
     flags = O_WRONLY | O_CREAT | O_APPEND | (mode[1] == '+' ? O_RDWR : 0);
 
+  /* Open first — don't touch the stream until we know it succeeded */
   int fd = open(path, flags, 0666);
   if (fd < 0) return NULL;
-  stream->fd = fd;
+
+  _flush(stream);
+  stream->eof      = 0;
+  stream->err      = 0;
+  stream->memonly  = 0;
+  stream->wbuf_len = 0;
+
+  if (stream->fd >= 0 && fd != stream->fd) {
+    /* Transplant onto the existing fd number (musl-style: dup2 + close tmp) */
+    dup2(fd, stream->fd);
+    close(fd);
+  } else {
+    stream->fd = fd;
+  }
   return stream;
 }
 
@@ -255,7 +261,7 @@ int fgetc(FILE *stream) {
   }
   unsigned char c;
   ssize_t n;
-  do { n = read(stream->fd, &c, 1); } while (n == -EINTR);
+  do { n = read(stream->fd, &c, 1); } while (n < 0 && errno == EINTR);
   if (n <= 0) { if (n == 0) stream->eof = 1; else stream->err = 1; return EOF; }
   return (unsigned char)c;
 }
@@ -332,7 +338,7 @@ size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     return r / size;
   }
   ssize_t n;
-  do { n = read(stream->fd, ptr, total); } while (n == -EINTR);
+  do { n = read(stream->fd, ptr, total); } while (n < 0 && errno == EINTR);
   if (n <= 0) { if (n == 0) stream->eof = 1; else stream->err = 1; return 0; }
   return (size_t)n / size;
 }
@@ -597,7 +603,9 @@ int pclose(FILE *f) {
   f->popen_pid = -1;
   fclose(f);
   int status = 0;
-  if (waitpid(pid, &status, 0) < 0) return -1;
+  pid_t r;
+  do { r = waitpid(pid, &status, 0); } while (r < 0 && errno == EINTR);
+  if (r < 0) return -1;
   return status;
 }
 

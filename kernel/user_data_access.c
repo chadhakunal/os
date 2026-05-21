@@ -41,9 +41,8 @@ int copy_to_user(void *user_dest, const void *kernel_src, size_t n) {
 }
 
 int copy_from_user(void *kernel_dest, const void *user_src, size_t n) {
-  if (!is_user_address((uint64_t)user_src, n)) {
+  if (!is_user_address((uint64_t)user_src, n))
     return -1;
-  }
 
   uint64_t old_sstatus;
   asm volatile("csrr %0, sstatus" : "=r"(old_sstatus));
