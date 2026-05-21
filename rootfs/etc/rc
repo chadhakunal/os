@@ -1,8 +1,8 @@
 #!/bin/sh
-mkdir -p /tmp
-mkdir -p /mnt
-chmod 1777 /tmp
-chmod 755 /mnt
+# /mnt is the writable block-device filesystem, mounted by the kernel at boot.
+# /tmp lives on /mnt so it persists across reboots.
+mkdir -p /mnt/tmp
+chmod 1777 /mnt/tmp
 
 echo "========================================="
 echo "  System Initialization Script"

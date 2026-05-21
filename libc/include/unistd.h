@@ -107,6 +107,8 @@ int truncate(const char *path, off_t length);
 int ftruncate(int fd, off_t length);
 int reboot(int cmd);
 int statfs(const char *path, struct statfs *buf);
+int mount(const char *source, const char *target, const char *fstype,
+          unsigned long flags, const void *data);
 long fpathconf(int fd, int name);
 long pathconf(const char *path, int name);
 long sysconf(int name);

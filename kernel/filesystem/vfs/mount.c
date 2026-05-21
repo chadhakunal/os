@@ -77,65 +77,98 @@ static void add_mount_stub(struct superblock_t *alloc_sb,
 //   }
 // }
 
+/*
+ * Graft a filesystem's root vnode onto the VFS tree at `path`.
+ * The target directory must already exist in the tree.
+ * This is what the mount(2) syscall calls after resolving the superblock.
+ */
+int32_t vfs_mount_at(const char *path, struct superblock_t *superblock) {
+  struct dentry_t *target = NULL;
+  int32_t ret = vfs_resolve_path(path, &target);
+  if (ret < 0)
+    return ret;
+
+  struct vnode_t *mount_pt = target->vnode->mounted_vnode
+                             ? target->vnode->mounted_vnode
+                             : target->vnode;
+  if (!IS_DIR(mount_pt->permission_mode))
+    return -ENOTDIR;
+
+  /* Make the new root's dentry self-referential so ".." stops here. */
+  superblock->root_dentry->parent = superblock->root_dentry;
+
+  /* Redirect the mount-point vnode to the new filesystem's root. */
+  target->vnode->mounted_vnode = superblock->root_vnode;
+
+  struct mount_t *mount = mount_t_alloc();
+  strncpy(mount->root_path, path, 256);
+  mount->superblock = superblock;
+  list_append(&mount_list, &mount->sibling_mount);
+
+  return 0;
+}
+
+/* The one sbfs superblock; sys_mount hands it to vfs_mount_at(). */
+static struct superblock_t *g_sbfs_sb = NULL;
+
+struct superblock_t *vfs_get_sbfs(void) {
+  return g_sbfs_sb;
+}
+
 void vfs_init() {
   mount_list.next = &mount_list;
   mount_list.prev = &mount_list;
 
-  /* Always build the tarfs tree — it holds /bin and /etc content. */
-  struct superblock_t *tarfs_sb = tarfs_mount((void *)_tarfs_start, (uint64_t)(_tarfs_end - _tarfs_start));
+  /*
+   * tarfs is always the root — read-only, holds /bin and /etc.
+   */
+  struct superblock_t *tarfs_sb = tarfs_mount((void *)_tarfs_start,
+                                              (uint64_t)(_tarfs_end - _tarfs_start));
 
   base_mount = mount_t_alloc();
   base_mount->root_path[0] = '/';
   base_mount->root_path[1] = '\0';
+  base_mount->superblock   = tarfs_sb;
   list_append(&mount_list, &base_mount->sibling_mount);
 
-  /* Try to bring up the disk. */
-  struct superblock_t *sbfs_sb = sbfs_mount();
-
-  if (sbfs_sb == NULL) {
-    /*
-     * Fallback: no disk available — tarfs stays as root, same as before.
-     * Wire dev and proc stubs directly into the tarfs tree.
-     */
-    printk("vfs: sbfs unavailable, using tarfs as root\n");
-    base_mount->superblock = tarfs_sb;
-
-    add_mount_stub(tarfs_sb, tarfs_sb->root_vnode, tarfs_sb->root_dentry,
-                   "dev", devfs_mount()->root_vnode);
-    add_mount_stub(tarfs_sb, tarfs_sb->root_vnode, tarfs_sb->root_dentry,
-                   "proc", procfs_mount()->root_vnode);
-    return;
-  }
-
-  /*
-   * Normal path: sbfs is the root filesystem.
-   * Make the sbfs root dentry self-referential so that vfs_dentry_get_path
-   * recognises it as the root (same convention as tarfs uses).
-   */
-  sbfs_sb->root_dentry->parent = sbfs_sb->root_dentry;
-  base_mount->superblock = sbfs_sb;
-
-  /* Find the tarfs bin/ and etc/ vnodes to graft them onto the sbfs root. */
-  struct vnode_t *tarfs_bin = NULL;
-  struct vnode_t *tarfs_etc = NULL;
-  list_for_each(&tarfs_sb->root_vnode->children_dentries, pos) {
-    struct dentry_t *d = container_of(pos, struct dentry_t, sibling_dentry);
-    if (strncmp(d->name, "bin") == 0) tarfs_bin = d->vnode;
-    if (strncmp(d->name, "etc") == 0) tarfs_etc = d->vnode;
-  }
-
-  struct vnode_t *root  = sbfs_sb->root_vnode;
-  struct dentry_t *root_de = sbfs_sb->root_dentry;
-
-  if (tarfs_bin) add_mount_stub(tarfs_sb, root, root_de, "bin", tarfs_bin);
-  if (tarfs_etc) add_mount_stub(tarfs_sb, root, root_de, "etc", tarfs_etc);
+  struct vnode_t  *root    = tarfs_sb->root_vnode;
+  struct dentry_t *root_de = tarfs_sb->root_dentry;
 
   add_mount_stub(tarfs_sb, root, root_de, "dev",  devfs_mount()->root_vnode);
   add_mount_stub(tarfs_sb, root, root_de, "proc", procfs_mount()->root_vnode);
 
-  // vfs_ensure_tmp_dir(root, root_de);
+  /* Pre-create the /mnt stub so userspace can see it even before mount(2). */
+  struct vnode_t *mnt_stub = tarfs_alloc_vnode(tarfs_sb);
+  mnt_stub->permission_mode = S_IFDIR | 0755;
 
-  printk("vfs: sbfs at /, bin/etc from tarfs, dev/proc virtual\n");
+  struct dentry_t *mnt_de = dentry_t_alloc();
+  strncpy(mnt_de->name, "mnt", 256);
+  mnt_de->vnode  = mnt_stub;
+  mnt_de->parent = root_de;
+  list_append(&root->children_dentries, &mnt_de->sibling_dentry);
+
+  /* Try to bring up the block device. */
+  struct superblock_t *sbfs_sb = sbfs_mount();
+  if (sbfs_sb == NULL) {
+    printk("vfs: sbfs unavailable, /mnt is empty\n");
+    return;
+  }
+
+  g_sbfs_sb = sbfs_sb;
+
+  /*
+   * Wire sbfs at /mnt now so the kernel itself and any early-boot code
+   * can use /mnt without waiting for a userspace mount(2) call.
+   */
+  sbfs_sb->root_dentry->parent = sbfs_sb->root_dentry;
+  mnt_stub->mounted_vnode = sbfs_sb->root_vnode;
+
+  struct mount_t *mnt_mount = mount_t_alloc();
+  strncpy(mnt_mount->root_path, "/mnt", 256);
+  mnt_mount->superblock = sbfs_sb;
+  list_append(&mount_list, &mnt_mount->sibling_mount);
+
+  printk("vfs: tarfs at /, sbfs at /mnt, dev/proc virtual\n");
 }
 
 /* Flush all dirty page-cache pages in one vnode. */

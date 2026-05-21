@@ -367,6 +367,12 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_clock_gettime(tf);
       break;
 
+    case SYS_mount:
+      debugk("syscall: mount(source=%llx, target=%llx, fstype=%llx, flags=%llu, data=%llx)\n",
+             tf->a0, tf->a1, tf->a2, tf->a3, tf->a4);
+      ret = sys_mount(tf);
+      break;
+
     default:
       debugk("syscall: unknown syscall %llu\n", syscall_num);
       tf->a0 = -1; // ENOSYS

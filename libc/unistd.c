@@ -495,6 +495,16 @@ int statfs(const char *path, struct statfs *buf) {
   return syscall2(SYS_statfs, path, buf);
 }
 
+int mount(const char *source, const char *target, const char *fstype,
+          unsigned long flags, const void *data) {
+  long ret = syscall5(SYS_mount, source, target, fstype, flags, data);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return 0;
+}
+
 int pipe(int pipefd[2]) {
   long ret = syscall2(SYS_pipe2, pipefd, 0);
   if (ret < 0) {

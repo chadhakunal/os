@@ -77,6 +77,7 @@
 #define SYS_sethostname      161
 #define SYS_getrandom        278
 #define SYS_clock_gettime    113
+#define SYS_mount            40
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -149,5 +150,6 @@ int64_t sys_sethostname(struct trap_frame *tf);
 int64_t sys_getrandom(struct trap_frame *tf);
 void    getrandom_init(void);
 int64_t sys_clock_gettime(struct trap_frame *tf);
+int64_t sys_mount(struct trap_frame *tf);
 
 #endif

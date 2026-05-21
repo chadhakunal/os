@@ -216,6 +216,8 @@ DEFINE_POOL(file_t, struct file_t)
 /* Init / mount */
 void    vfs_init(void);
 int32_t vfs_mount(char *path, struct superblock_t *superblock);
+int32_t vfs_mount_at(const char *path, struct superblock_t *superblock);
+struct superblock_t *vfs_get_sbfs(void);
 void    vfs_sync_all(void); /* flush all dirty pages across all mounted filesystems */
 
 /* Vnode / dentry helpers */
