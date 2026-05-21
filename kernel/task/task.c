@@ -332,8 +332,11 @@ int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
   if (eager) {
     for (size_t va = vaddr_aligned; va < vaddr_end; va += DEFAULT_PAGE_SIZE) {
       void *phys_page = get_zero_page(false);
-      if (!phys_page)
+      if (!phys_page) {
         phys_page = get_page(false);
+        if (phys_page)
+          memset(PHYS_TO_VIRT(phys_page), 0, DEFAULT_PAGE_SIZE);
+      }
       if (!phys_page) {
         oom_kill_current();
         return -ENOMEM;

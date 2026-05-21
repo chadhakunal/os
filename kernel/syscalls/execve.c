@@ -170,7 +170,6 @@ static int64_t execve_run(struct dentry_t *dentry, struct execve_args_t *args) {
       sp + sizeof(uint64_t) + (argc + 1) * sizeof(uint64_t);
 
   current_task->tf.gp = 0;
-  current_task->tf.gp = 0;
   current_task->tf.s0 = 0;
   current_task->tf.s1 = 0;
   current_task->tf.s2 = 0;

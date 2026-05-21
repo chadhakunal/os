@@ -157,8 +157,11 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
   } else {
     debugk("Anonymous page fault\n");
     phys_page = get_zero_page(false);
-    if (!phys_page)
+    if (!phys_page) {
       phys_page = get_page(false);
+      if (phys_page)
+        memset(PHYS_TO_VIRT(phys_page), 0, DEFAULT_PAGE_SIZE);
+    }
   }
 
   if (!phys_page) {
