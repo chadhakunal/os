@@ -50,6 +50,8 @@ extern "C" {
 // Signal set type
 typedef unsigned long sigset_t;
 
+typedef void (*sighandler_t)(int);
+
 // Atomic integer type for use in signal handlers
 typedef int sig_atomic_t;
 
