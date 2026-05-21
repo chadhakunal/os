@@ -1051,7 +1051,8 @@ static void expand_args(const char *input, char *output, size_t output_size) {
         varname[vlen++] = input[in_pos++];
       varname[vlen] = '\0';
       char modifier = 0;
-      char defval[256] = {0};
+      char defval[256];
+      defval[0] = '\0';
       if (input[in_pos] == ':' && (input[in_pos+1] == '-' || input[in_pos+1] == '+')) {
         modifier = input[in_pos+1];
         in_pos += 2;
