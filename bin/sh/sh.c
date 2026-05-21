@@ -1208,8 +1208,8 @@ static int builtin_echo(int argc, char *argv[], int out_fd) {
     if (i > start) write(out_fd, " ", 1);
     echo_write_arg(out_fd, argv[i]);
   }
-  if (!no_newline)
-    write(out_fd, "\n", 1);
+  if (!no_newline) {}
+    /* write(out_fd, "\n", 1); */
   return 0;
 }
 
