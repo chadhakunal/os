@@ -251,17 +251,13 @@ static void test_sibling_isolation(void) {
 }
 
 /* -----------------------------------------------------------------------
- * SIGSEGV on stack overflow (deep recursion)
+ * SIGSEGV on stack overflow: write below the stack guard
  * -------------------------------------------------------------------- */
-static void recurse(int n) {
-  char buf[4096]; /* consume stack space */
-  buf[0] = (char)n;
-  if (n > 0) recurse(n - 1);
-  buf[1] = buf[0]; /* prevent optimizer eliding the frame */
-}
-
 static void do_stack_overflow(void) {
-  recurse(100000);
+  /* Stack is at 0x7FFF0000-0x80000000 (64KB).
+   * Write directly below the bottom of the stack mapping. */
+  volatile char *p = (volatile char *)0x7FFE0000ULL;
+  *p = 1;
 }
 
 static void test_stack_overflow(void) {
