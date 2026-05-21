@@ -1765,13 +1765,17 @@ int parse_and_exec(char *buf) {
 int main(int argc, char **argv, char **envp) {
   // Handle -c option: sh -c "command string"
   if (argc >= 3 && strcmp(argv[1], "-c") == 0) {
+    write(2, "A\n", 2);
     script_argv = argv;
     script_argc = argc;
 
     char line[1024];
     strncpy(line, argv[2], sizeof(line) - 1);
     line[sizeof(line) - 1] = '\0';
-    return run_command_line(line);
+    write(2, "B\n", 2);
+    int ret = run_command_line(line);
+    write(2, "C\n", 2);
+    return ret;
   }
 
   // If a script file is provided as argv[1], execute it and exit
