@@ -13,7 +13,8 @@ BINDIR := $(ROOT)/build/rootfs/bin/tests
 # Core tests always built. Set TESTS=1 to also build extra tests and os-tests.
 RC_TESTS_CORE := test_shell test_signals test_rlimit \
 	testjobs testsignal test_pipe \
-	test_devnull test_oom test_oom_vs_enomem test_oom_stress test_waitpid
+	test_devnull test_oom test_oom_vs_enomem test_oom_stress test_waitpid \
+	test_repl
 
 RC_TESTS_EXTRA := posix_compliance test_bins \
 	test_grep test_sort_uname test_faults test_mount
@@ -58,6 +59,7 @@ $(BINDIR)/test_grep:          test_grep/test_grep.c $(CRT) $(LIBC)
 $(BINDIR)/test_sort_uname:    test_sort_uname/test_sort_uname.c $(CRT) $(LIBC)
 $(BINDIR)/test_faults:        test_faults/test_faults.c $(CRT) $(LIBC)
 $(BINDIR)/test_mount:         test_mount/test_mount.c $(CRT) $(LIBC)
+$(BINDIR)/test_repl:          test_repl/test_repl.c $(CRT) $(LIBC)
 
 $(RC_TESTS:%=$(BINDIR)/%):
 	@mkdir -p $(BINDIR)
