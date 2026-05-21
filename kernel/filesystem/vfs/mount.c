@@ -86,8 +86,10 @@ static void add_mount_stub(struct superblock_t *alloc_sb,
 int32_t vfs_mount_at(const char *path, struct superblock_t *superblock) {
   struct dentry_t *target = NULL;
   int32_t ret = vfs_resolve_path(path, &target);
-  if (ret < 0)
+  if (ret < 0) {
+    printk("vfs_mount_at: path '%s' not found (ret=%d) — ensure the directory exists in tarfs\n", path, ret);
     return ret;
+  }
 
   struct vnode_t *mount_pt = target->vnode->mounted_vnode
                              ? target->vnode->mounted_vnode
@@ -138,7 +140,25 @@ void vfs_init() {
   add_mount_stub(tarfs_sb, root, root_de, "dev",  devfs_mount()->root_vnode);
   add_mount_stub(tarfs_sb, root, root_de, "proc", procfs_mount()->root_vnode);
 
-  /* /mnt comes from the tarfs image (rootfs/mnt/). Try to bring up the block device. */
+  /* Ensure /mnt exists as a traversable stub regardless of the tarfs image contents. */
+  {
+    bool mnt_found = false;
+    list_for_each(&root->children_dentries, pos) {
+      struct dentry_t *d = container_of(pos, struct dentry_t, sibling_dentry);
+      if (strncmp(d->name, "mnt") == 0) { mnt_found = true; break; }
+    }
+    if (!mnt_found) {
+      struct vnode_t *mnt_stub = tarfs_alloc_vnode(tarfs_sb);
+      mnt_stub->permission_mode = S_IFDIR | 0755;
+      struct dentry_t *mnt_de = dentry_t_alloc();
+      strncpy(mnt_de->name, "mnt", 256);
+      mnt_de->vnode  = mnt_stub;
+      mnt_de->parent = root_de;
+      list_append(&root->children_dentries, &mnt_de->sibling_dentry);
+    }
+  }
+
+  /* Try to bring up the block device. */
   struct superblock_t *sbfs_sb = sbfs_mount();
   if (sbfs_sb == NULL) {
     printk("vfs: sbfs unavailable, /mnt is empty\n");
