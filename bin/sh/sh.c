@@ -373,23 +373,6 @@ static int builtin_test(int argc, char *argv[]) {
       int ok = (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0;
       return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
     }
-    if (strcmp(op, "-r") == 0) {
-      struct stat st;
-      if (stat(arg, &st) != 0) return negate ? 0 : 1;
-      int ok = (st.st_mode & (S_IRUSR | S_IRGRP | S_IROTH)) != 0;
-      return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
-    }
-    if (strcmp(op, "-w") == 0) {
-      struct stat st;
-      if (stat(arg, &st) != 0) return negate ? 0 : 1;
-      int ok = (st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)) != 0;
-      return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
-    }
-    if (strcmp(op, "-s") == 0) {
-      struct stat st;
-      int ok = stat(arg, &st) == 0 && st.st_size > 0;
-      return negate ? (ok ? 1 : 0) : (ok ? 0 : 1);
-    }
     if (strcmp(op, "-f") == 0) {
       struct stat st;
       int ok = stat(arg, &st) == 0 && S_ISREG(st.st_mode);
