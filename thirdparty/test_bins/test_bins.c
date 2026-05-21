@@ -1465,6 +1465,11 @@ static void test_ls_extra(void) {
 
 int main(void) {
   printf("=== bin tests ===\n");
+
+  /* Ensure /mnt is mounted — may already be mounted by rc, ignore error. */
+  mount("", "/mnt", "sbfs", 0, NULL);
+  mkdir("/mnt/tmp", 0777);
+
   test_echo();
   test_echo_extra();
   test_true_false();
