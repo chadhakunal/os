@@ -774,8 +774,14 @@ void clear_vmas(struct task_t *task) {
     } else {
       debugk("clear_vmas: file-backed VMA [%llx-%llx], vnode refcount before=%llu\n",
              vma->start_addr, vma->end_addr, vma->backing_file->refcount);
-      vfs_address_space_drop_ref(vma->start_addr, vma->end_addr, vma->offset, vma->backing_file->address_space);
-      unmap_pages(task->mm_struct.root_satp, vma->start_addr, vma->end_addr);
+      for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
+        uint64_t pte = get_pte(task->mm_struct.root_satp, va);
+        if (pte & PTE_VALID) {
+          uint64_t file_offset = vma->offset + (va - vma->start_addr);
+          vfs_address_space_drop_ref(va, va + DEFAULT_PAGE_SIZE, file_offset, vma->backing_file->address_space);
+          unmap_page(task->mm_struct.root_satp, va);
+        }
+      }
       vma->backing_file->refcount--;
       debugk("  vnode refcount after=%llu\n", vma->backing_file->refcount);
     }

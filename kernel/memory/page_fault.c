@@ -152,10 +152,10 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
   void *phys_page;
   if (vma->backing_file) {
     size_t offset = vma->offset + (PAGE_ALIGN_DOWN(fault_addr) - vma->start_addr);
-    debugk("File-backed page fault, offset=0x%llx\n", offset);
+    printk("page_fault: file-backed pid=%llu addr=%llx offset=%llx\n", current_task->pid, fault_addr, offset);
     phys_page = vfs_get_page(vma->backing_file, offset, VFS_PAGE_REF);
   } else {
-    debugk("Anonymous page fault\n");
+    printk("page_fault: anon pid=%llu addr=%llx\n", current_task->pid, fault_addr);
     phys_page = get_zero_page(false);
     if (!phys_page) {
       phys_page = get_page(false);
