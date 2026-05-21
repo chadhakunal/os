@@ -2,6 +2,7 @@
 mount "" /mnt sbfs
 mkdir -p /mnt/tmp
 chmod 1777 /mnt/tmp
+export TMPDIR=/mnt/tmp
 
 echo "========================================="
 echo "  System Initialization Script"
