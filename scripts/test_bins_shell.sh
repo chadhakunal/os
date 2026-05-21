@@ -11,30 +11,34 @@ echo "=== Test: bin utils (shell) ==="
 
 wait_for_prompt
 
+# Ensure /mnt is mounted and /mnt/tmp exists (rc may have done this; ignore errors).
+send "mount \"\" /mnt sbfs ; mkdir -p /mnt/tmp"
+wait_for_prompt
+
 # -------------------------------------------------------------------------
 # cat
 # -------------------------------------------------------------------------
 echo "--- cat ---"
 
-send "echo hello > /tmp/tb_cat1 && echo world > /tmp/tb_cat2"
+send "echo hello > /mnt/tmp/tb_cat1 && echo world > /mnt/tmp/tb_cat2"
 wait_for_prompt
 
-OUT=$(run_cmd "cat /tmp/tb_cat1")
+OUT=$(run_cmd "cat /mnt/tmp/tb_cat1")
 result "cat file content"                  "$(contains "$OUT" "hello")"
 
-OUT=$(run_cmd "cat /tmp/tb_cat1 /tmp/tb_cat2")
+OUT=$(run_cmd "cat /mnt/tmp/tb_cat1 /mnt/tmp/tb_cat2")
 result "cat two files concatenates"        "$([ "$(contains "$OUT" "hello")" = "1" ] && [ "$(contains "$OUT" "world")" = "1" ] && echo 1 || echo 0)"
 
-OUT=$(run_cmd_exitcode "cat /tmp/tb_cat1 /tmp/no_such_cat ; echo exitcode=\$?")
+OUT=$(run_cmd_exitcode "cat /mnt/tmp/tb_cat1 /mnt/tmp/no_such_cat ; echo exitcode=\$?")
 result "cat missing file exits nonzero"    "$(contains "$OUT" "exitcode=1")"
 
 OUT=$(run_cmd "echo piped | cat")
 result "cat reads from pipe"               "$(contains "$OUT" "piped")"
 
-OUT=$(run_cmd "cat /tmp/tb_cat1 | cat | cat")
+OUT=$(run_cmd "cat /mnt/tmp/tb_cat1 | cat | cat")
 result "cat chained three times"           "$(contains "$OUT" "hello")"
 
-send "rm -f /tmp/tb_cat1 /tmp/tb_cat2"
+send "rm -f /mnt/tmp/tb_cat1 /mnt/tmp/tb_cat2"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -81,9 +85,9 @@ result "printf format reuse"               "$([ "$(contains "$OUT" "1")" = "1" ]
 OUT=$(run_cmd "printf 'hello\n' | cat")
 result "printf output pipeable"            "$(contains "$OUT" "hello")"
 
-OUT=$(run_cmd "printf 'data\n' > /tmp/tb_printf_out && cat /tmp/tb_printf_out")
+OUT=$(run_cmd "printf 'data\n' > /mnt/tmp/tb_printf_out && cat /mnt/tmp/tb_printf_out")
 result "printf redirect to file"           "$(contains "$OUT" "data")"
-send "rm -f /tmp/tb_printf_out"
+send "rm -f /mnt/tmp/tb_printf_out"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -91,25 +95,25 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 echo "--- wc ---"
 
-send "printf 'a\nb\nc\n' > /tmp/tb_wc"
+send "printf 'a\nb\nc\n' > /mnt/tmp/tb_wc"
 wait_for_prompt
 
-OUT=$(run_cmd "wc -l /tmp/tb_wc")
+OUT=$(run_cmd "wc -l /mnt/tmp/tb_wc")
 result "wc -l counts lines"               "$(contains "$OUT" "3")"
 
-OUT=$(run_cmd "wc -w /tmp/tb_wc")
+OUT=$(run_cmd "wc -w /mnt/tmp/tb_wc")
 result "wc -w counts words"               "$(contains "$OUT" "3")"
 
-OUT=$(run_cmd "wc -c /tmp/tb_wc")
+OUT=$(run_cmd "wc -c /mnt/tmp/tb_wc")
 result "wc -c counts bytes"               "$(contains "$OUT" "6")"
 
-OUT=$(run_cmd "cat /tmp/tb_wc | wc -l")
+OUT=$(run_cmd "cat /mnt/tmp/tb_wc | wc -l")
 result "wc -l via pipe"                   "$(contains "$OUT" "3")"
 
 OUT=$(run_cmd "echo one two three | wc -w")
 result "echo | wc -w"                     "$(contains "$OUT" "3")"
 
-send "rm -f /tmp/tb_wc"
+send "rm -f /mnt/tmp/tb_wc"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -117,22 +121,22 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 echo "--- head / tail ---"
 
-send "printf 'l1\nl2\nl3\nl4\nl5\n' > /tmp/tb_ht"
+send "printf 'l1\nl2\nl3\nl4\nl5\n' > /mnt/tmp/tb_ht"
 wait_for_prompt
 
-OUT=$(run_cmd "head -n 2 /tmp/tb_ht")
+OUT=$(run_cmd "head -n 2 /mnt/tmp/tb_ht")
 result "head -n 2 first 2 lines"          "$([ "$(contains "$OUT" "l1")" = "1" ] && [ "$(contains "$OUT" "l2")" = "1" ] && [ "$(contains "$OUT" "l3")" = "0" ] && echo 1 || echo 0)"
 
-OUT=$(run_cmd "tail -n 2 /tmp/tb_ht")
+OUT=$(run_cmd "tail -n 2 /mnt/tmp/tb_ht")
 result "tail -n 2 last 2 lines"           "$([ "$(contains "$OUT" "l4")" = "1" ] && [ "$(contains "$OUT" "l5")" = "1" ] && [ "$(contains "$OUT" "l3")" = "0" ] && echo 1 || echo 0)"
 
-OUT=$(run_cmd "cat /tmp/tb_ht | head -n 1")
+OUT=$(run_cmd "cat /mnt/tmp/tb_ht | head -n 1")
 result "head via pipe"                    "$(contains "$OUT" "l1")"
 
-OUT=$(run_cmd "cat /tmp/tb_ht | tail -n 1")
+OUT=$(run_cmd "cat /mnt/tmp/tb_ht | tail -n 1")
 result "tail via pipe"                    "$(contains "$OUT" "l5")"
 
-send "rm -f /tmp/tb_ht"
+send "rm -f /mnt/tmp/tb_ht"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -141,17 +145,17 @@ wait_for_prompt
 GREP_CHECK=$(run_cmd "which grep")
 if [ "$(contains "$GREP_CHECK" "/bin/grep")" = "1" ]; then
   echo "--- grep ---"
-  send "printf 'apple\nbanana\ncherry\n' > /tmp/tb_grep"
+  send "printf 'apple\nbanana\ncherry\n' > /mnt/tmp/tb_grep"
   wait_for_prompt
-  OUT=$(run_cmd "grep banana /tmp/tb_grep")
+  OUT=$(run_cmd "grep banana /mnt/tmp/tb_grep")
   result "grep finds matching line"         "$(contains "$OUT" "banana")"
-  OUT=$(run_cmd "grep apple /tmp/tb_grep")
+  OUT=$(run_cmd "grep apple /mnt/tmp/tb_grep")
   result "grep does not print non-match"    "$([ "$(contains "$OUT" "banana")" = "0" ] && echo 1 || echo 0)"
-  OUT=$(run_cmd_exitcode "grep nomatch /tmp/tb_grep ; echo exitcode=\$?")
+  OUT=$(run_cmd_exitcode "grep nomatch /mnt/tmp/tb_grep ; echo exitcode=\$?")
   result "grep no match exits 1"            "$(contains "$OUT" "exitcode=1")"
-  OUT=$(run_cmd "cat /tmp/tb_grep | grep cherry")
+  OUT=$(run_cmd "cat /mnt/tmp/tb_grep | grep cherry")
   result "grep via pipe"                    "$(contains "$OUT" "cherry")"
-  send "rm -f /tmp/tb_grep"
+  send "rm -f /mnt/tmp/tb_grep"
   wait_for_prompt
 else
   echo "--- grep not found, skipping ---"
@@ -162,35 +166,35 @@ fi
 # -------------------------------------------------------------------------
 echo "--- touch / mkdir / rmdir / rm ---"
 
-OUT=$(run_cmd_exitcode "touch /tmp/tb_touch_sh && echo ok=\$?")
+OUT=$(run_cmd_exitcode "touch /mnt/tmp/tb_touch_sh && echo ok=\$?")
 result "touch creates file"                "$(contains "$OUT" "ok=0")"
 
-OUT=$(run_cmd_exitcode "test -f /tmp/tb_touch_sh && echo exists")
+OUT=$(run_cmd_exitcode "test -f /mnt/tmp/tb_touch_sh && echo exists")
 result "touched file exists"               "$(contains "$OUT" "exists")"
 
-OUT=$(run_cmd_exitcode "rm /tmp/tb_touch_sh && echo ok=\$?")
+OUT=$(run_cmd_exitcode "rm /mnt/tmp/tb_touch_sh && echo ok=\$?")
 result "rm removes file"                   "$(contains "$OUT" "ok=0")"
 
-OUT=$(run_cmd_exitcode "test -f /tmp/tb_touch_sh ; echo exitcode=\$?")
+OUT=$(run_cmd_exitcode "test -f /mnt/tmp/tb_touch_sh ; echo exitcode=\$?")
 result "file gone after rm"                "$(contains "$OUT" "exitcode=1")"
 
-OUT=$(run_cmd_exitcode "mkdir /tmp/tb_mkdir_sh && echo ok=\$?")
+OUT=$(run_cmd_exitcode "mkdir /mnt/tmp/tb_mkdir_sh && echo ok=\$?")
 result "mkdir creates dir"                 "$(contains "$OUT" "ok=0")"
 
-OUT=$(run_cmd_exitcode "test -d /tmp/tb_mkdir_sh && echo isdir")
+OUT=$(run_cmd_exitcode "test -d /mnt/tmp/tb_mkdir_sh && echo isdir")
 result "mkdir: is directory"               "$(contains "$OUT" "isdir")"
 
-OUT=$(run_cmd_exitcode "rmdir /tmp/tb_mkdir_sh && echo ok=\$?")
+OUT=$(run_cmd_exitcode "rmdir /mnt/tmp/tb_mkdir_sh && echo ok=\$?")
 result "rmdir removes empty dir"           "$(contains "$OUT" "ok=0")"
 
-OUT=$(run_cmd_exitcode "rm -rf /tmp/no_such_rmrf_sh ; echo exitcode=\$?")
+OUT=$(run_cmd_exitcode "rm -rf /mnt/tmp/no_such_rmrf_sh ; echo exitcode=\$?")
 result "rm -rf nonexistent exits 0"        "$(contains "$OUT" "exitcode=0")"
 
-send "mkdir -p /tmp/tb_rmrf_sh/a/b && touch /tmp/tb_rmrf_sh/a/b/f"
+send "mkdir -p /mnt/tmp/tb_rmrf_sh/a/b && touch /mnt/tmp/tb_rmrf_sh/a/b/f"
 wait_for_prompt
-OUT=$(run_cmd_exitcode "rm -rf /tmp/tb_rmrf_sh && echo ok=\$?")
+OUT=$(run_cmd_exitcode "rm -rf /mnt/tmp/tb_rmrf_sh && echo ok=\$?")
 result "rm -rf nested tree"                "$(contains "$OUT" "ok=0")"
-OUT=$(run_cmd_exitcode "test -d /tmp/tb_rmrf_sh ; echo exitcode=\$?")
+OUT=$(run_cmd_exitcode "test -d /mnt/tmp/tb_rmrf_sh ; echo exitcode=\$?")
 result "rm -rf: tree gone"                 "$(contains "$OUT" "exitcode=1")"
 
 # -------------------------------------------------------------------------
@@ -198,34 +202,34 @@ result "rm -rf: tree gone"                 "$(contains "$OUT" "exitcode=1")"
 # -------------------------------------------------------------------------
 echo "--- cp / mv ---"
 
-send "echo cpdata > /tmp/tb_cp_src_sh"
+send "echo cpdata > /mnt/tmp/tb_cp_src_sh"
 wait_for_prompt
 
-OUT=$(run_cmd_exitcode "cp /tmp/tb_cp_src_sh /tmp/tb_cp_dst_sh && echo ok=\$?")
+OUT=$(run_cmd_exitcode "cp /mnt/tmp/tb_cp_src_sh /mnt/tmp/tb_cp_dst_sh && echo ok=\$?")
 result "cp exits 0"                        "$(contains "$OUT" "ok=0")"
 
-OUT=$(run_cmd "cat /tmp/tb_cp_dst_sh")
+OUT=$(run_cmd "cat /mnt/tmp/tb_cp_dst_sh")
 result "cp content preserved"              "$(contains "$OUT" "cpdata")"
 
-OUT=$(run_cmd_exitcode "cp /tmp/no_such_cp ; echo exitcode=\$?")
+OUT=$(run_cmd_exitcode "cp /mnt/tmp/no_such_cp ; echo exitcode=\$?")
 result "cp missing src exits nonzero"      "$(contains "$OUT" "exitcode=1")"
 
-send "rm -f /tmp/tb_cp_src_sh /tmp/tb_cp_dst_sh"
+send "rm -f /mnt/tmp/tb_cp_src_sh /mnt/tmp/tb_cp_dst_sh"
 wait_for_prompt
 
-send "echo mvdata > /tmp/tb_mv_src_sh"
+send "echo mvdata > /mnt/tmp/tb_mv_src_sh"
 wait_for_prompt
 
-OUT=$(run_cmd_exitcode "mv /tmp/tb_mv_src_sh /tmp/tb_mv_dst_sh && echo ok=\$?")
+OUT=$(run_cmd_exitcode "mv /mnt/tmp/tb_mv_src_sh /mnt/tmp/tb_mv_dst_sh && echo ok=\$?")
 result "mv exits 0"                        "$(contains "$OUT" "ok=0")"
 
-OUT=$(run_cmd_exitcode "test -f /tmp/tb_mv_src_sh ; echo exitcode=\$?")
+OUT=$(run_cmd_exitcode "test -f /mnt/tmp/tb_mv_src_sh ; echo exitcode=\$?")
 result "mv: src gone"                      "$(contains "$OUT" "exitcode=1")"
 
-OUT=$(run_cmd "cat /tmp/tb_mv_dst_sh")
+OUT=$(run_cmd "cat /mnt/tmp/tb_mv_dst_sh")
 result "mv: content at dst"               "$(contains "$OUT" "mvdata")"
 
-send "rm -f /tmp/tb_mv_dst_sh"
+send "rm -f /mnt/tmp/tb_mv_dst_sh"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -233,22 +237,22 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 echo "--- chmod ---"
 
-send "touch /tmp/tb_chmod_sh"
+send "touch /mnt/tmp/tb_chmod_sh"
 wait_for_prompt
 
-OUT=$(run_cmd_exitcode "chmod 755 /tmp/tb_chmod_sh && echo ok=\$?")
+OUT=$(run_cmd_exitcode "chmod 755 /mnt/tmp/tb_chmod_sh && echo ok=\$?")
 result "chmod exits 0"                     "$(contains "$OUT" "ok=0")"
 
-OUT=$(run_cmd "ls -l /tmp/tb_chmod_sh")
+OUT=$(run_cmd "ls -l /mnt/tmp/tb_chmod_sh")
 result "chmod 755: exec bits in ls -l"     "$(contains "$OUT" "x")"
 
-OUT=$(run_cmd_exitcode "chmod 644 /tmp/tb_chmod_sh && echo ok=\$?")
+OUT=$(run_cmd_exitcode "chmod 644 /mnt/tmp/tb_chmod_sh && echo ok=\$?")
 result "chmod 644 exits 0"                 "$(contains "$OUT" "ok=0")"
 
-OUT=$(run_cmd "ls -l /tmp/tb_chmod_sh")
+OUT=$(run_cmd "ls -l /mnt/tmp/tb_chmod_sh")
 result "chmod 644: no exec in ls -l"       "$([ "$(matches "$OUT" '^-rw')" = "1" ] && echo 1 || echo 0)"
 
-send "rm -f /tmp/tb_chmod_sh"
+send "rm -f /mnt/tmp/tb_chmod_sh"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -331,7 +335,7 @@ echo "--- df ---"
 OUT=$(run_cmd "df")
 result "df shows filesystem header"        "$(contains "$OUT" "Filesystem")"
 
-OUT=$(run_cmd "df /tmp")
+OUT=$(run_cmd "df /mnt/tmp")
 result "df /tmp exits ok"                  "$(contains "$OUT" "Use%")"
 
 # -------------------------------------------------------------------------
@@ -339,19 +343,19 @@ result "df /tmp exits ok"                  "$(contains "$OUT" "Use%")"
 # -------------------------------------------------------------------------
 echo "--- pipe chains ---"
 
-send "printf 'dog\ncat\nbird\ncat\n' > /tmp/tb_pipe_sh"
+send "printf 'dog\ncat\nbird\ncat\n' > /mnt/tmp/tb_pipe_sh"
 wait_for_prompt
 
-OUT=$(run_cmd "cat /tmp/tb_pipe_sh | wc -l")
+OUT=$(run_cmd "cat /mnt/tmp/tb_pipe_sh | wc -l")
 result "cat | wc -l"                       "$(contains "$OUT" "4")"
 
-OUT=$(run_cmd "head -n 2 /tmp/tb_pipe_sh | wc -l")
+OUT=$(run_cmd "head -n 2 /mnt/tmp/tb_pipe_sh | wc -l")
 result "head | wc -l"                      "$(contains "$OUT" "2")"
 
-OUT=$(run_cmd "tail -n 1 /tmp/tb_pipe_sh | cat")
+OUT=$(run_cmd "tail -n 1 /mnt/tmp/tb_pipe_sh | cat")
 result "tail | cat"                        "$(contains "$OUT" "cat")"
 
-send "rm -f /tmp/tb_pipe_sh"
+send "rm -f /mnt/tmp/tb_pipe_sh"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -359,13 +363,13 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 echo "--- redirect chains ---"
 
-OUT=$(run_cmd "echo lineA > /tmp/tb_redir_sh && echo lineB >> /tmp/tb_redir_sh && cat /tmp/tb_redir_sh")
+OUT=$(run_cmd "echo lineA > /mnt/tmp/tb_redir_sh && echo lineB >> /mnt/tmp/tb_redir_sh && cat /mnt/tmp/tb_redir_sh")
 result "> then >> appends correctly"       "$([ "$(contains "$OUT" "lineA")" = "1" ] && [ "$(contains "$OUT" "lineB")" = "1" ] && echo 1 || echo 0)"
 
-OUT=$(run_cmd "wc -l < /tmp/tb_redir_sh")
+OUT=$(run_cmd "wc -l < /mnt/tmp/tb_redir_sh")
 result "wc -l with stdin redirect"        "$(contains "$OUT" "2")"
 
-send "rm -f /tmp/tb_redir_sh"
+send "rm -f /mnt/tmp/tb_redir_sh"
 wait_for_prompt
 
 print_summary

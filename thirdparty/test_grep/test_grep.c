@@ -453,6 +453,8 @@ static void test_count_multi_file(void) {
 }
 
 int main(void) {
+  mount("", "/mnt", "sbfs", 0, NULL);
+  mkdir("/mnt/tmp", 0777);
   printf("=== grep tests ===\n");
   test_basic_match();
   test_file_match();

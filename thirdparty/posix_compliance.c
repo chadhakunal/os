@@ -416,6 +416,8 @@ static void test_filesystem(void) {
  * main
  * ====================================================================== */
 int main(void) {
+    mount("", "/mnt", "sbfs", 0, NULL);
+    mkdir("/mnt/tmp", 0777);
     printf("=== posix_compliance diagnostic ===\n\n");
 
     printf("-- 1. sys/time.h --\n");       test_sys_time();

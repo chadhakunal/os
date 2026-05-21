@@ -72,8 +72,8 @@ if test "$V200" = "$S200"; then echo "PASS: 200char var"; else echo "FAIL: 200ch
 
 # Write 256-char string to file and read back
 S256="${S128}${S128}"
-echo "$S256" > /tmp/big_str
-RB=$(cat /tmp/big_str)
+echo "$S256" > /mnt/tmp/big_str
+RB=$(cat /mnt/tmp/big_str)
 if test "$RB" = "$S256"; then echo "PASS: 256char file roundtrip"; else echo "FAIL: 256char file roundtrip"; fi
 
 # =========================================================
@@ -101,9 +101,9 @@ B=$(echo "${A}_ext")
 if test "$B" = "base_ext"; then echo "PASS: chained subst"; else echo "FAIL: chained subst got '$B'"; fi
 
 # pwd subst
-cd /tmp
+cd /mnt/tmp
 R=$(pwd)
-if test "$R" = "/tmp"; then echo "PASS: pwd subst"; else echo "FAIL: pwd subst got '$R'"; fi
+if test "$R" = "/mnt/tmp"; then echo "PASS: pwd subst"; else echo "FAIL: pwd subst got '$R'"; fi
 cd /
 
 R=$(pwd)
@@ -145,40 +145,40 @@ if test "$?" = "0"; then echo "PASS: pipe exit last"; else echo "FAIL: pipe exit
 echo "--- 6. redirects ---"
 
 # Write and read back
-echo "testdata" > /tmp/redir_t
-R=$(cat /tmp/redir_t)
+echo "testdata" > /mnt/tmp/redir_t
+R=$(cat /mnt/tmp/redir_t)
 if test "$R" = "testdata"; then echo "PASS: write+read"; else echo "FAIL: write+read got '$R'"; fi
 
 # Overwrite
-echo "first" > /tmp/redir_t
-echo "second" > /tmp/redir_t
-R=$(cat /tmp/redir_t)
+echo "first" > /mnt/tmp/redir_t
+echo "second" > /mnt/tmp/redir_t
+R=$(cat /mnt/tmp/redir_t)
 if test "$R" = "second"; then echo "PASS: overwrite"; else echo "FAIL: overwrite got '$R'"; fi
 
 # Append — check line count via wc not multiline compare
-echo "line1" > /tmp/redir_a
-echo "line2" >> /tmp/redir_a
-echo "line3" >> /tmp/redir_a
-R=$(cat /tmp/redir_a)
+echo "line1" > /mnt/tmp/redir_a
+echo "line2" >> /mnt/tmp/redir_a
+echo "line3" >> /mnt/tmp/redir_a
+R=$(cat /mnt/tmp/redir_a)
 echo "PASS: append wrote (check manually: $R)"
 
 # New file created with correct content (the bug we fixed)
-echo "newfile_content" > /tmp/brand_new
-R=$(cat /tmp/brand_new)
+echo "newfile_content" > /mnt/tmp/brand_new
+R=$(cat /mnt/tmp/brand_new)
 if test "$R" = "newfile_content"; then echo "PASS: new file create+read"; else echo "FAIL: new file create+read got '$R'"; fi
 
 # Rapid create/read cycles - 20 different files
 echo "rapid file cycles:"
 for N in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
 do
-  echo "val_$N" > /tmp/rapid_$N
-  R=$(cat /tmp/rapid_$N)
+  echo "val_$N" > /mnt/tmp/rapid_$N
+  R=$(cat /mnt/tmp/rapid_$N)
   if test "$R" = "val_$N"; then echo "  PASS: rapid $N"; else echo "  FAIL: rapid $N got '$R'"; fi
 done
 
 # Stderr redirect
-ls /no_such_file_xyz 2> /tmp/stderr_t
-R=$(cat /tmp/stderr_t)
+ls /no_such_file_xyz 2> /mnt/tmp/stderr_t
+R=$(cat /mnt/tmp/stderr_t)
 if test "$R" = "ls: cannot open '/no_such_file_xyz'"; then echo "PASS: stderr redirect"; else echo "FAIL: stderr redirect got '$R'"; fi
 
 # =========================================================
@@ -221,11 +221,11 @@ done
 if test "$LAST" = "z"; then echo "PASS: for last val"; else echo "FAIL: for last val got '$LAST'"; fi
 
 # Loop over files (glob)
-echo "fa" > /tmp/fl_a
-echo "fb" > /tmp/fl_b
-echo "fc" > /tmp/fl_c
+echo "fa" > /mnt/tmp/fl_a
+echo "fb" > /mnt/tmp/fl_b
+echo "fc" > /mnt/tmp/fl_c
 COUNT=0
-for F in /tmp/fl_*
+for F in /mnt/tmp/fl_*
 do
   COUNT=found
 done
@@ -234,11 +234,11 @@ if test "$COUNT" = "found"; then echo "PASS: for glob"; else echo "FAIL: for glo
 # Loop with subst inside
 for N in 1 2 3 4 5
 do
-  echo "$N" > /tmp/fls_$N
+  echo "$N" > /mnt/tmp/fls_$N
 done
 for N in 1 2 3 4 5
 do
-  V=$(cat /tmp/fls_$N)
+  V=$(cat /mnt/tmp/fls_$N)
   if test "$V" = "$N"; then echo "PASS: for+subst $N"; else echo "FAIL: for+subst $N got '$V'"; fi
 done
 
@@ -289,10 +289,10 @@ if test -n "x"; then echo "PASS: -n nonempty"; else echo "FAIL: -n nonempty"; fi
 if test -z "x"; then echo "FAIL: -z nonempty"; else echo "PASS: -z nonempty else"; fi
 
 # -f -d
-echo "x" > /tmp/test_f
-if test -f /tmp/test_f; then echo "PASS: -f file"; else echo "FAIL: -f file"; fi
-if test -d /tmp; then echo "PASS: -d dir"; else echo "FAIL: -d dir"; fi
-if test -f /tmp; then echo "FAIL: -f on dir"; else echo "PASS: -f on dir else"; fi
+echo "x" > /mnt/tmp/test_f
+if test -f /mnt/tmp/test_f; then echo "PASS: -f file"; else echo "FAIL: -f file"; fi
+if test -d /mnt/tmp; then echo "PASS: -d dir"; else echo "FAIL: -d dir"; fi
+if test -f /mnt/tmp; then echo "FAIL: -f on dir"; else echo "PASS: -f on dir else"; fi
 
 # =========================================================
 # 10. SHELL VAR STORE CAPACITY (64 vars)
@@ -329,28 +329,28 @@ if test "$R" = "$S480"; then echo "PASS: subst ~480char"; else echo "FAIL: subst
 # =========================================================
 echo "--- 12. source nesting ---"
 
-echo "echo PASS: deeptest" > /tmp/src3
-echo "source /tmp/src3" > /tmp/src2
-echo "source /tmp/src2" > /tmp/src1
-echo "source /tmp/src1" > /tmp/src0
-source /tmp/src0
+echo "echo PASS: deeptest" > /mnt/tmp/src3
+echo "source /mnt/tmp/src3" > /mnt/tmp/src2
+echo "source /mnt/tmp/src2" > /mnt/tmp/src1
+echo "source /mnt/tmp/src1" > /mnt/tmp/src0
+source /mnt/tmp/src0
 
 # Source with variable side effects
-echo "SRCVAR=from_source" > /tmp/src_var
-source /tmp/src_var
+echo "SRCVAR=from_source" > /mnt/tmp/src_var
+source /mnt/tmp/src_var
 if test "$SRCVAR" = "from_source"; then echo "PASS: source var"; else echo "FAIL: source var '$SRCVAR'"; fi
 
 # Rapid source calls — write files first, then source
-echo "echo PASS: rapid1" > /tmp/rsrc1
-echo "echo PASS: rapid2" > /tmp/rsrc2
-echo "echo PASS: rapid3" > /tmp/rsrc3
-echo "echo PASS: rapid4" > /tmp/rsrc4
-echo "echo PASS: rapid5" > /tmp/rsrc5
-source /tmp/rsrc1
-source /tmp/rsrc2
-source /tmp/rsrc3
-source /tmp/rsrc4
-source /tmp/rsrc5
+echo "echo PASS: rapid1" > /mnt/tmp/rsrc1
+echo "echo PASS: rapid2" > /mnt/tmp/rsrc2
+echo "echo PASS: rapid3" > /mnt/tmp/rsrc3
+echo "echo PASS: rapid4" > /mnt/tmp/rsrc4
+echo "echo PASS: rapid5" > /mnt/tmp/rsrc5
+source /mnt/tmp/rsrc1
+source /mnt/tmp/rsrc2
+source /mnt/tmp/rsrc3
+source /mnt/tmp/rsrc4
+source /mnt/tmp/rsrc5
 
 # =========================================================
 # 13. GLOB EDGE CASES
@@ -358,17 +358,17 @@ source /tmp/rsrc5
 echo "--- 13. glob ---"
 
 # No match = literal pattern returned (POSIX behavior)
-for F in /tmp/no_match_xyz_*
+for F in /mnt/tmp/no_match_xyz_*
 do
-  if test "$F" = "/tmp/no_match_xyz_*"; then echo "PASS: glob nomatch literal"; else echo "FAIL: glob nomatch got '$F'"; fi
+  if test "$F" = "/mnt/tmp/no_match_xyz_*"; then echo "PASS: glob nomatch literal"; else echo "FAIL: glob nomatch got '$F'"; fi
 done
 
 # Match multiple
-echo "x" > /tmp/gm_1
-echo "x" > /tmp/gm_2
-echo "x" > /tmp/gm_3
+echo "x" > /mnt/tmp/gm_1
+echo "x" > /mnt/tmp/gm_2
+echo "x" > /mnt/tmp/gm_3
 COUNT=0
-for F in /tmp/gm_*
+for F in /mnt/tmp/gm_*
 do
   COUNT=found
 done
@@ -382,7 +382,7 @@ echo "--- 14. backtick ---"
 R=`echo hello`
 if test "$R" = "hello"; then echo "PASS: backtick basic"; else echo "FAIL: backtick '$R'"; fi
 
-R=`cat /tmp/redir_t`
+R=`cat /mnt/tmp/redir_t`
 if test "$R" = "second"; then echo "PASS: backtick cat"; else echo "FAIL: backtick cat '$R'"; fi
 
 # =========================================================
@@ -428,8 +428,8 @@ echo "--- 17. fd pressure ---"
 # Open and close many files in sequence (not simultaneously - kernel limit is 32)
 for N in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
 do
-  echo "fd_$N" > /tmp/fd_$N
-  R=$(cat /tmp/fd_$N)
+  echo "fd_$N" > /mnt/tmp/fd_$N
+  R=$(cat /mnt/tmp/fd_$N)
   if test "$R" = "fd_$N"; then echo "PASS: fd seq $N"; else echo "FAIL: fd seq $N got '$R'"; fi
 done
 
@@ -441,8 +441,8 @@ echo "--- 18. stderr/stdout ---"
 ls /no_exist_1 2>/dev/null
 if test "$?" = "1"; then echo "PASS: stderr suppressed status"; else echo "FAIL: stderr suppressed status '$?'"; fi
 
-ls /no_exist_2 2>/tmp/se_out
-R=$(cat /tmp/se_out)
+ls /no_exist_2 2>/mnt/tmp/se_out
+R=$(cat /mnt/tmp/se_out)
 if test "$R" = "ls: cannot open '/no_exist_2'"; then echo "PASS: stderr to file"; else echo "FAIL: stderr to file '$R'"; fi
 
 # =========================================================
@@ -463,8 +463,8 @@ echo "--- 20. mixed load ---"
 
 for N in a b c d e f g h i j k l m n o p q r s t
 do
-  echo "data_$N" > /tmp/mix_$N
-  V=$(cat /tmp/mix_$N)
+  echo "data_$N" > /mnt/tmp/mix_$N
+  V=$(cat /mnt/tmp/mix_$N)
   if test "$V" = "data_$N"; then echo "PASS: mix $N"; else echo "FAIL: mix $N got '$V'"; fi
 done
 

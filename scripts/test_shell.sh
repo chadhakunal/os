@@ -9,22 +9,25 @@ echo "=== Test: shell features ==="
 
 wait_for_prompt
 
+send "mount \"\" /mnt sbfs ; mkdir -p /mnt/tmp"
+wait_for_prompt
+
 # -------------------------------------------------------------------------
 # Redirection
 # -------------------------------------------------------------------------
 echo "--- redirection ---"
 
-OUT=$(run_cmd "echo hello > /tmp/sh_redir && cat /tmp/sh_redir")
+OUT=$(run_cmd "echo hello > /mnt/tmp/sh_redir && cat /mnt/tmp/sh_redir")
 result "stdout redirect > creates file"    "$(contains "$OUT" "hello")"
 
-OUT=$(run_cmd "echo line2 >> /tmp/sh_redir && cat /tmp/sh_redir")
+OUT=$(run_cmd "echo line2 >> /mnt/tmp/sh_redir && cat /mnt/tmp/sh_redir")
 result "stdout append >> appends"          "$(contains "$OUT" "hello")"
 result "stdout append >> keeps original"   "$(contains "$OUT" "line2")"
 
-OUT=$(run_cmd_exitcode "cat /tmp/sh_missing_xyz 2>/dev/null ; echo exitcode=\$?")
+OUT=$(run_cmd_exitcode "cat /mnt/tmp/sh_missing_xyz 2>/dev/null ; echo exitcode=\$?")
 result "stderr redirect 2>/dev/null hides error" "$(contains "$OUT" "exitcode=1")"
 
-send "rm -f /tmp/sh_redir"
+send "rm -f /mnt/tmp/sh_redir"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -55,7 +58,7 @@ result "\$? after true is 0"              "$(contains "$OUT" "exitcode=0")"
 OUT=$(run_cmd_exitcode "false ; echo exitcode=\$?")
 result "\$? after false is 1"             "$(contains "$OUT" "exitcode=1")"
 
-OUT=$(run_cmd_exitcode "ls /tmp/no_such_sh_xyz ; echo exitcode=\$?")
+OUT=$(run_cmd_exitcode "ls /mnt/tmp/no_such_sh_xyz ; echo exitcode=\$?")
 result "\$? after failing ls is nonzero"  "$(contains "$OUT" "exitcode=1")"
 
 OUT=$(run_cmd_exitcode "echo hi ; echo exitcode=\$?")
@@ -128,10 +131,10 @@ result "double-quote preserves spaces"     "$(contains "$OUT" "has  two  spaces"
 # -------------------------------------------------------------------------
 echo "--- cd / pwd ---"
 
-send "cd /tmp"
+send "cd /mnt/tmp"
 wait_for_prompt
 OUT=$(run_cmd "pwd")
-result "cd /tmp then pwd shows /tmp"       "$(contains "$OUT" "/tmp")"
+result "cd /tmp then pwd shows /tmp"       "$(contains "$OUT" "/mnt/tmp")"
 
 send "cd /"
 wait_for_prompt
@@ -217,7 +220,7 @@ result "if test -f missing file"           "$(contains "$OUT" "good")"
 # -------------------------------------------------------------------------
 # Cleanup
 # -------------------------------------------------------------------------
-send "rm -f /tmp/sh_redir /tmp/sh_missing_xyz"
+send "rm -f /mnt/tmp/sh_redir /mnt/tmp/sh_missing_xyz"
 wait_for_prompt
 
 print_summary

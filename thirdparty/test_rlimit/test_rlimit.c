@@ -234,6 +234,8 @@ restore_sig:
 }
 
 int main(void) {
+  mount("", "/mnt", "sbfs", 0, NULL);
+  mkdir("/mnt/tmp", 0777);
   printf("=== RLIMIT tests ===\n\n");
 
   if (!require_rlimit_syscalls()) {

@@ -29,8 +29,8 @@ echo "5. after unset: '$TMPVAR'"
 
 # 6. read builtin
 echo "6. read test (sending via echo pipe):"
-echo "hello from read" > /tmp/read_input
-read LINE < /tmp/read_input
+echo "hello from read" > /mnt/tmp/read_input
+read LINE < /mnt/tmp/read_input
 echo "   read got: $LINE"
 
 # 7. $# and $@
@@ -50,8 +50,8 @@ echo "hello pipe world" | cat
 
 # 11. Stderr redirect
 echo "11. stderr to file:"
-ls /nonexistent 2> /tmp/err_out
-cat /tmp/err_out
+ls /nonexistent 2> /mnt/tmp/err_out
+cat /mnt/tmp/err_out
 
 # 12. 2>&1
 echo "12. stderr to stdout:"
@@ -65,19 +65,19 @@ do
 done
 
 # 14. cd changes cwd in sourced file
-cd /tmp
+cd /mnt/tmp
 echo "14. cwd after cd: $(pwd)"
 cd /
 
 # 15. Nested source
-echo "echo 15. nested source works" > /tmp/nested_src
-source /tmp/nested_src
+echo "echo 15. nested source works" > /mnt/tmp/nested_src
+source /mnt/tmp/nested_src
 
 # 16. Append redirect
 echo "16. append redirect:"
-echo "line1" > /tmp/append_test
-echo "line2" >> /tmp/append_test
-cat /tmp/append_test
+echo "line1" > /mnt/tmp/append_test
+echo "line2" >> /mnt/tmp/append_test
+cat /mnt/tmp/append_test
 
 # 17. Multiple var expansion in one line
 A=one
@@ -120,10 +120,10 @@ else
 fi
 
 # 24. Glob expansion
-echo "24. glob /tmp/*:"
-echo "gfile1" > /tmp/gfile1
-echo "gfile2" > /tmp/gfile2
-for F in /tmp/gfile*
+echo "24. glob /mnt/tmp/*:"
+echo "gfile1" > /mnt/tmp/gfile1
+echo "gfile2" > /mnt/tmp/gfile2
+for F in /mnt/tmp/gfile*
 do
   echo "   $F"
 done

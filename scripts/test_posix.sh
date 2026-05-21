@@ -10,6 +10,9 @@ echo "=== Test: POSIX compliance ==="
 
 wait_for_prompt
 
+send "mount \"\" /mnt sbfs ; mkdir -p /mnt/tmp"
+wait_for_prompt
+
 # -------------------------------------------------------------------------
 # File system hierarchy
 # -------------------------------------------------------------------------
@@ -24,7 +27,7 @@ result "/bin exists and is a directory"        "$(contains "$OUT" "ok")"
 OUT=$(run_cmd_exitcode "test -d /etc && echo ok")
 result "/etc exists and is a directory"        "$(contains "$OUT" "ok")"
 
-OUT=$(run_cmd_exitcode "test -d /tmp && echo ok")
+OUT=$(run_cmd_exitcode "test -d /mnt/tmp && echo ok")
 result "/tmp exists and is a directory"        "$(contains "$OUT" "ok")"
 
 OUT=$(run_cmd_exitcode "test -d /dev && echo ok")
@@ -52,22 +55,22 @@ result "/dev/null always reads empty"          "$(equals "$OUT" "")"
 # -------------------------------------------------------------------------
 echo "--- file permissions ---"
 
-send "touch /tmp/posix_perm_test"
+send "touch /mnt/tmp/posix_perm_test"
 wait_for_prompt
 
-OUT=$(run_cmd_exitcode "chmod 000 /tmp/posix_perm_test && test ! -r /tmp/posix_perm_test && echo ok")
+OUT=$(run_cmd_exitcode "chmod 000 /mnt/tmp/posix_perm_test && test ! -r /mnt/tmp/posix_perm_test && echo ok")
 result "chmod 000 removes read permission"     "$(contains "$OUT" "ok")"
 
-OUT=$(run_cmd_exitcode "chmod 644 /tmp/posix_perm_test && test -r /tmp/posix_perm_test && echo ok")
+OUT=$(run_cmd_exitcode "chmod 644 /mnt/tmp/posix_perm_test && test -r /mnt/tmp/posix_perm_test && echo ok")
 result "chmod 644 grants read permission"      "$(contains "$OUT" "ok")"
 
-OUT=$(run_cmd_exitcode "chmod 755 /tmp/posix_perm_test && test -x /tmp/posix_perm_test && echo ok")
+OUT=$(run_cmd_exitcode "chmod 755 /mnt/tmp/posix_perm_test && test -x /mnt/tmp/posix_perm_test && echo ok")
 result "chmod 755 grants execute permission"   "$(contains "$OUT" "ok")"
 
-OUT=$(run_cmd_exitcode "chmod 444 /tmp/posix_perm_test && test -w /tmp/posix_perm_test ; echo exitcode=\$?")
+OUT=$(run_cmd_exitcode "chmod 444 /mnt/tmp/posix_perm_test && test -w /mnt/tmp/posix_perm_test ; echo exitcode=\$?")
 result "chmod 444 removes write permission"    "$(contains "$OUT" "exitcode=1")"
 
-send "chmod 644 /tmp/posix_perm_test && rm -f /tmp/posix_perm_test"
+send "chmod 644 /mnt/tmp/posix_perm_test && rm -f /mnt/tmp/posix_perm_test"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -75,25 +78,25 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 echo "--- file creation / deletion ---"
 
-OUT=$(run_cmd_exitcode "touch /tmp/posix_touch1 && test -f /tmp/posix_touch1 && echo ok")
+OUT=$(run_cmd_exitcode "touch /mnt/tmp/posix_touch1 && test -f /mnt/tmp/posix_touch1 && echo ok")
 result "touch creates regular file"            "$(contains "$OUT" "ok")"
 
-OUT=$(run_cmd_exitcode "rm /tmp/posix_touch1 && test ! -e /tmp/posix_touch1 && echo ok")
+OUT=$(run_cmd_exitcode "rm /mnt/tmp/posix_touch1 && test ! -e /mnt/tmp/posix_touch1 && echo ok")
 result "rm removes file"                       "$(contains "$OUT" "ok")"
 
-OUT=$(run_cmd_exitcode "mkdir /tmp/posix_dir1 && test -d /tmp/posix_dir1 && echo ok")
+OUT=$(run_cmd_exitcode "mkdir /mnt/tmp/posix_dir1 && test -d /mnt/tmp/posix_dir1 && echo ok")
 result "mkdir creates directory"               "$(contains "$OUT" "ok")"
 
-OUT=$(run_cmd_exitcode "rmdir /tmp/posix_dir1 && test ! -e /tmp/posix_dir1 && echo ok")
+OUT=$(run_cmd_exitcode "rmdir /mnt/tmp/posix_dir1 && test ! -e /mnt/tmp/posix_dir1 && echo ok")
 result "rmdir removes empty directory"         "$(contains "$OUT" "ok")"
 
-OUT=$(run_cmd_exitcode "rmdir /tmp/posix_no_such_dir ; echo exitcode=\$?")
+OUT=$(run_cmd_exitcode "rmdir /mnt/tmp/posix_no_such_dir ; echo exitcode=\$?")
 result "rmdir nonexistent exits nonzero"       "$(contains "$OUT" "exitcode=1")"
 
-OUT=$(run_cmd_exitcode "mkdir -p /tmp/posix_nest/a/b/c && test -d /tmp/posix_nest/a/b/c && echo ok")
+OUT=$(run_cmd_exitcode "mkdir -p /mnt/tmp/posix_nest/a/b/c && test -d /mnt/tmp/posix_nest/a/b/c && echo ok")
 result "mkdir -p creates nested directories"   "$(contains "$OUT" "ok")"
 
-send "rm -rf /tmp/posix_nest"
+send "rm -rf /mnt/tmp/posix_nest"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -101,32 +104,32 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 echo "--- symbolic links ---"
 
-send "echo linkdata > /tmp/posix_link_target"
+send "echo linkdata > /mnt/tmp/posix_link_target"
 wait_for_prompt
 
-OUT=$(run_cmd_exitcode "ln -s /tmp/posix_link_target /tmp/posix_link && test -L /tmp/posix_link && echo ok")
+OUT=$(run_cmd_exitcode "ln -s /mnt/tmp/posix_link_target /mnt/tmp/posix_link && test -L /mnt/tmp/posix_link && echo ok")
 result "ln -s creates symlink"                 "$(contains "$OUT" "ok")"
 
-OUT=$(run_cmd "cat /tmp/posix_link")
+OUT=$(run_cmd "cat /mnt/tmp/posix_link")
 result "reading symlink reads target"          "$(contains "$OUT" "linkdata")"
 
-OUT=$(run_cmd "readlink /tmp/posix_link")
-result "readlink returns link target"          "$(contains "$OUT" "/tmp/posix_link_target")"
+OUT=$(run_cmd "readlink /mnt/tmp/posix_link")
+result "readlink returns link target"          "$(contains "$OUT" "/mnt/tmp/posix_link_target")"
 
-OUT=$(run_cmd_exitcode "test -f /tmp/posix_link && echo ok")
+OUT=$(run_cmd_exitcode "test -f /mnt/tmp/posix_link && echo ok")
 result "test -f follows symlink to regular file" "$(contains "$OUT" "ok")"
 
-send "rm -f /tmp/posix_link /tmp/posix_link_target"
+send "rm -f /mnt/tmp/posix_link /mnt/tmp/posix_link_target"
 wait_for_prompt
 
 # dangling symlink
-OUT=$(run_cmd_exitcode "ln -s /tmp/posix_no_target /tmp/posix_dangling && test -L /tmp/posix_dangling && echo ok")
+OUT=$(run_cmd_exitcode "ln -s /mnt/tmp/posix_no_target /mnt/tmp/posix_dangling && test -L /mnt/tmp/posix_dangling && echo ok")
 result "dangling symlink: -L is true"          "$(contains "$OUT" "ok")"
 
-OUT=$(run_cmd_exitcode "test -e /tmp/posix_dangling ; echo exitcode=\$?")
+OUT=$(run_cmd_exitcode "test -e /mnt/tmp/posix_dangling ; echo exitcode=\$?")
 result "dangling symlink: -e is false"         "$(contains "$OUT" "exitcode=1")"
 
-send "rm -f /tmp/posix_dangling"
+send "rm -f /mnt/tmp/posix_dangling"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -134,19 +137,19 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 echo "--- hard links ---"
 
-send "echo harddata > /tmp/posix_hard_src"
+send "echo harddata > /mnt/tmp/posix_hard_src"
 wait_for_prompt
 
-OUT=$(run_cmd_exitcode "ln /tmp/posix_hard_src /tmp/posix_hard_dst && echo ok")
+OUT=$(run_cmd_exitcode "ln /mnt/tmp/posix_hard_src /mnt/tmp/posix_hard_dst && echo ok")
 result "ln creates hard link"                  "$(contains "$OUT" "ok")"
 
-OUT=$(run_cmd "cat /tmp/posix_hard_dst")
+OUT=$(run_cmd "cat /mnt/tmp/posix_hard_dst")
 result "hard link has same content"            "$(contains "$OUT" "harddata")"
 
-OUT=$(run_cmd_exitcode "echo newdata > /tmp/posix_hard_src && cat /tmp/posix_hard_dst")
+OUT=$(run_cmd_exitcode "echo newdata > /mnt/tmp/posix_hard_src && cat /mnt/tmp/posix_hard_dst")
 result "write to src visible via hard link"    "$(contains "$OUT" "newdata")"
 
-send "rm -f /tmp/posix_hard_src /tmp/posix_hard_dst"
+send "rm -f /mnt/tmp/posix_hard_src /mnt/tmp/posix_hard_dst"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -154,19 +157,19 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 echo "--- I/O redirection ---"
 
-OUT=$(run_cmd "echo posix_out > /tmp/posix_redir && cat /tmp/posix_redir")
+OUT=$(run_cmd "echo posix_out > /mnt/tmp/posix_redir && cat /mnt/tmp/posix_redir")
 result "> truncates and writes"                "$(contains "$OUT" "posix_out")"
 
-OUT=$(run_cmd "echo line1 > /tmp/posix_append && echo line2 >> /tmp/posix_append && wc -l < /tmp/posix_append")
+OUT=$(run_cmd "echo line1 > /mnt/tmp/posix_append && echo line2 >> /mnt/tmp/posix_append && wc -l < /mnt/tmp/posix_append")
 result ">> appends; file has 2 lines"          "$(contains "$OUT" "2")"
 
-OUT=$(run_cmd "wc -c < /tmp/posix_append")
+OUT=$(run_cmd "wc -c < /mnt/tmp/posix_append")
 result "< redirects stdin from file"           "$(contains "$OUT" "12")"
 
-OUT=$(run_cmd "echo heredoc_line > /tmp/posix_redir2 && cat < /tmp/posix_redir2")
+OUT=$(run_cmd "echo heredoc_line > /mnt/tmp/posix_redir2 && cat < /mnt/tmp/posix_redir2")
 result "stdin redirect reads file content"     "$(contains "$OUT" "heredoc_line")"
 
-send "rm -f /tmp/posix_redir /tmp/posix_redir2 /tmp/posix_append"
+send "rm -f /mnt/tmp/posix_redir /mnt/tmp/posix_redir2 /mnt/tmp/posix_append"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -390,13 +393,13 @@ result "/bin/printf is executable"             "$(contains "$OUT" "ok")"
 # -------------------------------------------------------------------------
 echo "--- /tmp writability ---"
 
-OUT=$(run_cmd_exitcode "touch /tmp/posix_write_test && echo ok")
+OUT=$(run_cmd_exitcode "touch /mnt/tmp/posix_write_test && echo ok")
 result "/tmp is writable"                      "$(contains "$OUT" "ok")"
 
-OUT=$(run_cmd_exitcode "mkdir /tmp/posix_mkdir_test && echo ok")
+OUT=$(run_cmd_exitcode "mkdir /mnt/tmp/posix_mkdir_test && echo ok")
 result "/tmp allows directory creation"        "$(contains "$OUT" "ok")"
 
-send "rm -f /tmp/posix_write_test && rmdir /tmp/posix_mkdir_test"
+send "rm -f /mnt/tmp/posix_write_test && rmdir /mnt/tmp/posix_mkdir_test"
 wait_for_prompt
 
 # -------------------------------------------------------------------------
@@ -413,7 +416,7 @@ result "wait PID returns job exit status"      "$(contains "$OUT" "s=0")"
 # -------------------------------------------------------------------------
 # Cleanup
 # -------------------------------------------------------------------------
-send "rm -rf /tmp/posix_*"
+send "rm -rf /mnt/tmp/posix_*"
 wait_for_prompt
 
 print_summary
