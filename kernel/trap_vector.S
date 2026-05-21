@@ -27,6 +27,11 @@ trap_from_user:
   csrr t0, sscratch
   sd t0, 128(tp)
   sd gp, 136(tp)
+  # Restore kernel gp so kernel code can use gp-relative addressing
+  .option push
+  .option norelax
+  la gp, __global_pointer$
+  .option pop
   # Note: We don't save tp itself - it always points to current_task
   sd t0, 152(tp)     # Save t0 (we're using it as scratch)
   sd t1, 160(tp)
