@@ -1041,39 +1041,20 @@ static void expand_args(const char *input, char *output, size_t output_size) {
       continue;
     }
 
-    /* ${VAR}, ${VAR:-default}, ${VAR:+alt} — braced variable */
+    /* ${VAR} — braced variable */
     if (input[in_pos] == '{') {
       in_pos++;
       char varname[MAX_VAR_NAME];
       size_t vlen = 0;
-      while (input[in_pos] && input[in_pos] != '}' &&
-             input[in_pos] != ':' && vlen < MAX_VAR_NAME - 1)
+      while (input[in_pos] && input[in_pos] != '}' && vlen < MAX_VAR_NAME - 1)
         varname[vlen++] = input[in_pos++];
       varname[vlen] = '\0';
-      char modifier = 0;
-      char defval[256];
-      defval[0] = '\0';
-      if (input[in_pos] == ':' && (input[in_pos+1] == '-' || input[in_pos+1] == '+')) {
-        modifier = input[in_pos+1];
-        in_pos += 2;
-        size_t dlen = 0;
-        while (input[in_pos] && input[in_pos] != '}' && dlen < sizeof(defval) - 1)
-          defval[dlen++] = input[in_pos++];
-        defval[dlen] = '\0';
-      }
       if (input[in_pos] == '}') in_pos++;
       const char *val = shell_var_get(varname);
       if (!val) val = getenv(varname);
-      const char *emit = NULL;
-      if (modifier == '-')
-        emit = (val && val[0]) ? val : defval;
-      else if (modifier == '+')
-        emit = (val && val[0]) ? defval : NULL;
-      else
-        emit = val;
-      if (emit)
-        for (size_t k = 0; emit[k] && out_pos < output_size - 1; k++)
-          output[out_pos++] = emit[k];
+      if (val)
+        for (size_t k = 0; val[k] && out_pos < output_size - 1; k++)
+          output[out_pos++] = val[k];
       continue;
     }
 
