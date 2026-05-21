@@ -38,7 +38,15 @@ static int grep_fd(int fd, const char *name) {
                 line[linelen] = '\0';
                 lineno++;
 
+                /* strip trailing newline before matching so $ anchors work */
+                int matchlen = linelen;
+                if (matchlen > 0 && line[matchlen - 1] == '\n')
+                    line[--matchlen] = '\0';
+
                 int m = (regexec(&re, line, 0, NULL, 0) == REG_OK);
+
+                /* restore newline for printing */
+                if (matchlen < linelen) line[matchlen] = '\n';
                 if (flag_v) m = !m;
 
                 if (m) {
