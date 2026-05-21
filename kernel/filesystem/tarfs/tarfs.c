@@ -60,6 +60,17 @@ struct vnode_t *tarfs_alloc_vnode(struct superblock_t *superblock) {
   return vnode;
 }
 
+static int64_t tarfs_statfs(struct superblock_t *sb, struct vfs_statfs *buf) {
+  (void)sb;
+  buf->f_bsize  = 4096;
+  buf->f_blocks = 0;
+  buf->f_bfree  = 0;
+  buf->f_bavail = 0;
+  buf->f_files  = 0;
+  buf->f_ffree  = 0;
+  return 0;
+}
+
 struct superblock_t *tarfs_mount(void *data, uint64_t size) {
   struct superblock_t *superblock = superblock_t_alloc();
   superblock->private_data = (void *)tarfs_superblock_t_alloc();
@@ -67,7 +78,7 @@ struct superblock_t *tarfs_mount(void *data, uint64_t size) {
   superblock->vnode_ops.lookup = tarfs_vnode_lookup;
   superblock->vnode_ops.readdir = tarfs_readdir;
   superblock->address_space_ops.fill_page = tarfs_fill_page;
-  // tarfs uses address_space_ops for file I/O, so file_ops are NULL
+  superblock->superblock_ops.statfs = tarfs_statfs;
   superblock->file_ops.read = NULL;
   superblock->file_ops.write = NULL;
 
