@@ -3,7 +3,7 @@
 #include <string.h>
 
 int main(int argc, char **argv) {
-  const char *path = (argc >= 2) ? argv[1] : "/";
+  const char *path = (argc >= 2) ? argv[1] : "/mnt";
 
   struct statfs st;
   if (statfs(path, &st) < 0) {
