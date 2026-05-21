@@ -16,8 +16,9 @@
 typedef uint16_t reclen_t;
 
 struct dirent {
-  uint32_t d_ino;
-  char     d_name[256];
+  uint32_t      d_ino;
+  unsigned char d_type;
+  char          d_name[256];
 };
 
 struct posix_dent {
