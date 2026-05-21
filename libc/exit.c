@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #define ATEXIT_MAX 32
 static void (*atexit_funcs[ATEXIT_MAX])(void);
