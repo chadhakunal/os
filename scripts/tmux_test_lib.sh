@@ -8,7 +8,9 @@ POLL=0.3
 
 passed=0
 failed=0
-_seq=0
+# Seed _seq with a timestamp-based offset so sentinels don't collide with
+# previous runs that are still in the tmux scrollback buffer.
+_seq=$(( ($(date +%s) % 9000) * 100 ))
 
 send() {
   tmux send-keys -t "$PANE" "$1" Enter
