@@ -7,6 +7,7 @@
 #include "lib/list.h"
 #include "lib/string.h"
 #include "lib/printk/printk.h"
+#include "errno.h"
 
 struct mount_t *base_mount = NULL;
 struct list_node mount_list;
