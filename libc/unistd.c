@@ -505,6 +505,15 @@ int mount(const char *source, const char *target, const char *fstype,
   return 0;
 }
 
+int umount(const char *target) {
+  long ret = syscall2(SYS_umount2, target, 0);
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return 0;
+}
+
 int pipe(int pipefd[2]) {
   long ret = syscall2(SYS_pipe2, pipefd, 0);
   if (ret < 0) {

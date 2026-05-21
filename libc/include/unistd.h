@@ -109,6 +109,7 @@ int reboot(int cmd);
 int statfs(const char *path, struct statfs *buf);
 int mount(const char *source, const char *target, const char *fstype,
           unsigned long flags, const void *data);
+int umount(const char *target);
 long fpathconf(int fd, int name);
 long pathconf(const char *path, int name);
 long sysconf(int name);

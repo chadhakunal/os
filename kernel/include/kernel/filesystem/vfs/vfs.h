@@ -220,6 +220,8 @@ int32_t vfs_mount_at(const char *path, struct superblock_t *superblock);
 struct superblock_t *vfs_get_sbfs(void);
 void    vfs_sync_all(void); /* flush all dirty pages across all mounted filesystems */
 
+extern struct list_node mount_list;
+
 /* Vnode / dentry helpers */
 void    vfs_init_vnode(struct vnode_t *vnode, struct superblock_t *sb, uint32_t id);
 void    vfs_print_vnode(struct vnode_t *vnode);

@@ -70,6 +70,7 @@
 #define SYS_getrandom        278
 #define SYS_clock_gettime    113
 #define SYS_mount            40
+#define SYS_umount2          39
 
 #define syscall0(n) ({ \
   register long _a0 asm("a0"); \
