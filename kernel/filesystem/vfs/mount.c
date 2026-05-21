@@ -157,19 +157,7 @@ void vfs_init() {
 
   g_sbfs_sb = sbfs_sb;
 
-  /*
-   * Wire sbfs at /mnt now so the kernel itself and any early-boot code
-   * can use /mnt without waiting for a userspace mount(2) call.
-   */
-  sbfs_sb->root_dentry->parent = sbfs_sb->root_dentry;
-  mnt_stub->mounted_vnode = sbfs_sb->root_vnode;
-
-  struct mount_t *mnt_mount = mount_t_alloc();
-  strncpy(mnt_mount->root_path, "/mnt", 256);
-  mnt_mount->superblock = sbfs_sb;
-  list_append(&mount_list, &mnt_mount->sibling_mount);
-
-  printk("vfs: tarfs at /, sbfs at /mnt, dev/proc virtual\n");
+  printk("vfs: tarfs at /, sbfs ready (userspace mounts at /mnt)\n");
 }
 
 /* Flush all dirty page-cache pages in one vnode. */

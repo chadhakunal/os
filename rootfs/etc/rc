@@ -1,6 +1,5 @@
 #!/bin/sh
-# /mnt is the writable block-device filesystem, mounted by the kernel at boot.
-# /tmp lives on /mnt so it persists across reboots.
+mount "" /mnt sbfs
 mkdir -p /mnt/tmp
 chmod 1777 /mnt/tmp
 
