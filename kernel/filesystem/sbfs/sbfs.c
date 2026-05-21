@@ -892,14 +892,9 @@ int64_t sbfs_write_page(struct vnode_t *vnode, size_t offset, void *phys_page) {
     sbfs_write_data_block(sb, inode->direct_blocks[fb], virt + i * sb->block_size);
   }
 
-  /* Persist the new file size. vnode->size is updated by vfs_vnode_write *after*
-   * write_page returns, so we derive the minimum new size from the page we just
-   * wrote and take the max against the current on-disk size. */
-  size_t new_size = offset + (size_t)bpp * sb->block_size;
-  if (new_size > (size_t)SBFS_DIRECT_BLOCKS * sb->block_size)
-    new_size = (size_t)SBFS_DIRECT_BLOCKS * sb->block_size;
-  if (new_size > inode->size) {
-    inode->size  = new_size;
+  /* Persist the actual file size from the vnode (authoritative). */
+  if (vnode->size != inode->size) {
+    inode->size  = (uint32_t)vnode->size;
     inode->mtime = (uint32_t)rtc_read_time_sec();
     inode_dirty  = true;
   }
