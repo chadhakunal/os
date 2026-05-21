@@ -506,9 +506,11 @@ static int run_command_line(char *line) {
     if (*p == '\0') break;
     char *start = p;
     int in_q = 0;
+    char q_char = 0;
     int next_sep = 0;
     while (*p) {
-      if (*p == '"') { in_q = !in_q; p++; continue; }
+      if (!in_q && (*p == '"' || *p == '\'')) { in_q = 1; q_char = *p; p++; continue; }
+      if (in_q && *p == q_char) { in_q = 0; q_char = 0; p++; continue; }
       if (!in_q) {
         if (*p == ';') { next_sep = 0; break; }
         if (*p == '&' && *(p+1) == '&') { next_sep = 1; break; }
@@ -555,8 +557,10 @@ static int run_command_line(char *line) {
     char *q = gl_expanded;
     segs[nseg++] = q;
     int in_quote = 0;
+    char q_char2 = 0;
     for (; *q; q++) {
-      if (*q == '"') { in_quote = !in_quote; continue; }
+      if (!in_quote && (*q == '"' || *q == '\'')) { in_quote = 1; q_char2 = *q; continue; }
+      if (in_quote && *q == q_char2) { in_quote = 0; q_char2 = 0; continue; }
       if (!in_quote && *q == '|' && *(q+1) != '|') {
         *q = '\0';
         trim_line(segs[nseg - 1]);
@@ -956,9 +960,21 @@ static void expand_glob(const char *input, char *output, size_t output_size) {
 static void expand_args(const char *input, char *output, size_t output_size) {
   size_t in_pos = 0;
   size_t out_pos = 0;
+  int in_single_quote = 0;
 
   while (input[in_pos] != '\0' && out_pos < output_size - 1) {
-    if (input[in_pos] != '$') {
+    if (input[in_pos] == '\'' && !in_single_quote) {
+      /* Enter single-quote mode: pass the quote through so the tokenizer sees it. */
+      in_single_quote = 1;
+      output[out_pos++] = input[in_pos++];
+      continue;
+    }
+    if (input[in_pos] == '\'' && in_single_quote) {
+      in_single_quote = 0;
+      output[out_pos++] = input[in_pos++];
+      continue;
+    }
+    if (input[in_pos] != '$' || in_single_quote) {
       output[out_pos++] = input[in_pos++];
       continue;
     }
@@ -1378,11 +1394,17 @@ int parse_and_exec(char *buf) {
     while (buf[i] == ' ') i++;
     if (buf[i] == '\0') break;
     if (buf[i] == '"') {
-      /* Quoted token: strip the surrounding quotes, treat contents as one arg. */
+      /* Double-quoted token: strip quotes, treat contents as one arg. */
       i++; /* skip opening quote */
       argv[argc++] = (char *)&buf[i];
       while (buf[i] != '"' && buf[i] != '\0') i++;
       if (buf[i] == '"') { ((char *)buf)[i] = '\0'; i++; }
+    } else if (buf[i] == '\'') {
+      /* Single-quoted token: strip quotes, contents are literal. */
+      i++; /* skip opening quote */
+      argv[argc++] = (char *)&buf[i];
+      while (buf[i] != '\'' && buf[i] != '\0') i++;
+      if (buf[i] == '\'') { ((char *)buf)[i] = '\0'; i++; }
     } else {
       argv[argc++] = (char *)&buf[i];
       while (buf[i] != ' ' && buf[i] != '\0') i++;
