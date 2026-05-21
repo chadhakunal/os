@@ -10,14 +10,25 @@ CRT := $(ROOT)/build/libc/crt.S.o
 LIBC := $(ROOT)/build/libc.a
 BINDIR := $(ROOT)/build/rootfs/bin/tests
 
-RC_TESTS := test_shell test_signals test_rlimit posix_compliance \
+# Core tests always built. Set TESTS=1 to also build extra tests and os-tests.
+RC_TESTS_CORE := test_shell test_signals test_rlimit \
 	testjobs testsignal test_pipe \
-	test_devnull test_oom test_oom_vs_enomem test_oom_stress test_bins test_waitpid \
+	test_devnull test_oom test_oom_vs_enomem test_oom_stress test_waitpid
+
+RC_TESTS_EXTRA := posix_compliance test_bins \
 	test_grep test_sort_uname test_faults test_mount
+
+ifeq ($(TESTS),1)
+RC_TESTS := $(RC_TESTS_CORE) $(RC_TESTS_EXTRA)
+OSTEST_TARGET := os-tests-install
+else
+RC_TESTS := $(RC_TESTS_CORE)
+OSTEST_TARGET :=
+endif
 
 .PHONY: install os-tests-sortix-clone os-tests-build os-tests-install
 
-install: $(LIBC) $(CRT) $(RC_TESTS:%=$(BINDIR)/%) os-tests-install
+install: $(LIBC) $(CRT) $(RC_TESTS:%=$(BINDIR)/%) $(OSTEST_TARGET)
 
 $(LIBC) $(CRT):
 	$(MAKE) -C $(ROOT) build/libc.a build/libc/crt.S.o
