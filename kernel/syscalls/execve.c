@@ -169,6 +169,12 @@ static int64_t execve_run(struct dentry_t *dentry, struct execve_args_t *args) {
   current_task->tf.a2 =
       sp + sizeof(uint64_t) + (argc + 1) * sizeof(uint64_t);
 
+  current_task->tf.ra = 0;
+  current_task->tf.gp = 0;
+  current_task->tf.tp = 0;
+  current_task->tf.t0 = 0;
+  current_task->tf.t1 = 0;
+  current_task->tf.t2 = 0;
   current_task->tf.s0 = 0;
   current_task->tf.s1 = 0;
   current_task->tf.s2 = 0;
@@ -181,6 +187,11 @@ static int64_t execve_run(struct dentry_t *dentry, struct execve_args_t *args) {
   current_task->tf.s9 = 0;
   current_task->tf.s10 = 0;
   current_task->tf.s11 = 0;
+  current_task->tf.a3 = 0;
+  current_task->tf.a4 = 0;
+  current_task->tf.a5 = 0;
+  current_task->tf.a6 = 0;
+  current_task->tf.a7 = 0;
 
   extern void trap_return(struct trap_frame *tf);
   trap_return(&current_task->tf);
