@@ -38,6 +38,12 @@ struct stat {
   uint32_t st_nlink;
   uint64_t st_size;
   uint64_t st_mtime;
+  /* Stub fields — kernel does not populate these */
+  dev_t    st_dev;
+  uid_t    st_uid;
+  gid_t    st_gid;
+  uint64_t st_atime;
+  uint64_t st_ctime;
 };
 
 int stat(const char *path, struct stat *buf);
