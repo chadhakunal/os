@@ -20,8 +20,6 @@ DEFINE_SYSCALL1(exit, int, status)
   task_cleanup(wait_status);
   schedule();
 
-  printk("exit: ERROR - schedule() returned for PID %llu state=%d!\n",
-         current_task->pid, current_task->state);
   panic("exit: returned from schedule()!");
   return 0;
 }

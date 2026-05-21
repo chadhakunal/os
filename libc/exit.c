@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <stdio.h>
-#include <unistd.h>
 
 #define ATEXIT_MAX 32
 static void (*atexit_funcs[ATEXIT_MAX])(void);
@@ -35,12 +34,9 @@ void abort(void) {
 }
 
 void exit(int status) {
-  write(2, "exit:atexit\n", 12);
   for (int i = atexit_count - 1; i >= 0; i--)
     atexit_funcs[i]();
-  write(2, "exit:fflush\n", 12);
   fflush(NULL);
-  write(2, "exit:done\n", 10);
   syscall1(SYS_exit, status);
   while (1);
 }
