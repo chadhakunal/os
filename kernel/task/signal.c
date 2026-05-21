@@ -47,6 +47,7 @@ static bool handle_default_signal_action(int sig) {
     case SIGFPE:
     case SIGBUS:
     case SIGPIPE:
+    case SIGTRAP:
       debugk("signal: terminating process %llu due to signal %d\n", current_task->pid, sig);
       task_cleanup(SIGNAL_EXIT_STATUS(sig));
       debugk("signal: task_cleanup done, state=%d, calling schedule\n", current_task->state);

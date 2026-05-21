@@ -10,6 +10,7 @@
 #include "kernel/memory/page_fault.h"
 #include "kernel/time/timer.h"
 #include "kernel/drivers/plic.h"
+#include "kernel/task/signal.h"
 
 void trap_handler(struct trap_frame *tf) {
   uint64_t cause_code = tf->scause & 0x7FFFFFFFFFFFFFFF;
@@ -59,44 +60,59 @@ void trap_handler(struct trap_frame *tf) {
     }
   } else {
     switch (cause_code) {
-      case 0:
-        printk("Instruction address misaligned at PC=0x%llx\n", tf->sepc);
-        break;
-      case 1:
-        printk("Instruction access fault at PC=0x%llx\n", tf->sepc);
-        break;
-      case 2:
-        printk("Illegal instruction at PC=0x%llx, instruction=0x%llx\n", tf->sepc, tf->stval);
-        printk("PID=%llu, SP=0x%llx, RA=0x%llx\n", current_task->pid, tf->sp, tf->ra);
-        break;
-      case 3:
-        printk("Breakpoint\n");
-        break;
-      case 4:  printk("Load address misaligned\n"); break;
-      case 5:  printk("Load access fault\n"); break;
-      case 6:  printk("Store address misaligned\n"); break;
-      case 7:  printk("Store access fault\n"); break;
       case 8:
         debugk("Syscall from %llu\n", current_task->pid);
         handle_syscall(tf);
         trap_return(&current_task->tf);
-        break;
-      case 9:
-        printk("Environment call from S-mode\n");
-        break;
+        return;
       case 12:
       case 13:
       case 15:
         handle_page_fault(tf->stval, cause_code, tf);
         if (tf->sstatus & SSTATUS_SPP) {
-          return; // kernel-mode fault (e.g. copy_to/from_user): trap_vector restores kernel context from stack
+          return; /* kernel-mode fault: trap_vector restores kernel context */
         }
         trap_return(&current_task->tf);
-        break;
+        return;
       default:
-        printk("Unknown exception: %llu\n", cause_code);
         break;
     }
+
+    /* All remaining exceptions: kill the task if user-mode, panic if kernel. */
+    if (tf->sstatus & SSTATUS_SPP) {
+      panic("Kernel exception: cause=%llu sepc=0x%llx stval=0x%llx",
+            cause_code, tf->sepc, tf->stval);
+    }
+
+    int sig;
+    switch (cause_code) {
+      case 0:  /* instruction address misaligned */
+      case 4:  /* load address misaligned */
+      case 6:  /* store address misaligned */
+        sig = SIGBUS;
+        break;
+      case 1:  /* instruction access fault */
+      case 5:  /* load access fault */
+      case 7:  /* store access fault */
+        sig = SIGSEGV;
+        break;
+      case 2:  /* illegal instruction */
+        sig = SIGILL;
+        break;
+      case 3:  /* breakpoint */
+        sig = SIGTRAP;
+        break;
+      case 9:  /* environment call from U-mode (shouldn't reach here, but just in case) */
+      default:
+        sig = SIGKILL;
+        break;
+    }
+
+    printk("pid %llu: signal %d (cause=%llu sepc=0x%llx stval=0x%llx)\n",
+           current_task->pid, sig, cause_code, tf->sepc, tf->stval);
+    send_signal(current_task, sig);
+    trap_return(&current_task->tf);
+    return;
   }
 
   panic("Unhandled trap");
