@@ -68,6 +68,7 @@ void trap_handler(struct trap_frame *tf) {
       case 2:
         printk("Illegal instruction at PC=0x%llx, instruction=0x%llx\n", tf->sepc, tf->stval);
         printk("PID=%llu, SP=0x%llx, RA=0x%llx\n", current_task->pid, tf->sp, tf->ra);
+        printk("  gp=0x%llx a0=0x%llx a1=0x%llx\n", tf->gp, tf->a0, tf->a1);
         break;
       case 3:
         printk("Breakpoint\n");
