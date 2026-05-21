@@ -20,9 +20,6 @@ static int child_ok(int status) {
   return WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
 
-static int child_exit(int status) {
-  return WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-}
 
 static int run_capture(char *const argv[], char *buf, size_t bufsz) {
   int out_fds[2];
