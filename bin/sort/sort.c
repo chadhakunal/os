@@ -7,7 +7,6 @@
 static int flag_r = 0;
 static int flag_n = 0;
 static int flag_u = 0;
-static int key    = 0; /* 1-based field for -k, 0 = whole line */
 
 #define MAX_LINES 16384
 #define MAX_LINE  1024
@@ -16,40 +15,29 @@ static char  line_buf[MAX_LINES][MAX_LINE];
 static char *lines[MAX_LINES];
 static int   nlines = 0;
 
-static const char *get_key(const char *line) {
-  if (key == 0) return line;
-  int k = key;
-  const char *p = line;
-  /* skip leading whitespace */
-  while (*p == ' ' || *p == '\t') p++;
-  while (--k > 0) {
-    /* skip non-whitespace (current field) */
-    while (*p && *p != ' ' && *p != '\t' && *p != '\n') p++;
-    /* skip whitespace between fields */
-    while (*p == ' ' || *p == '\t') p++;
-  }
-  return p;
+static int line_cmp(const char *a, const char *b) {
+  int r = flag_n ? (atol(a) > atol(b)) - (atol(a) < atol(b))
+                 : strcmp(a, b);
+  return flag_r ? -r : r;
 }
 
-static int cmp(const void *a, const void *b) {
-  const char *ka = get_key(*(const char **)a);
-  const char *kb = get_key(*(const char **)b);
-  int r;
-  if (flag_n) {
-    long va = atol(ka);
-    long vb = atol(kb);
-    r = (va > vb) - (va < vb);
-  } else {
-    r = strcmp(ka, kb);
+static void do_sort(void) {
+  for (int i = 1; i < nlines; i++) {
+    char *key = lines[i];
+    int j = i - 1;
+    while (j >= 0 && line_cmp(lines[j], key) > 0) {
+      lines[j + 1] = lines[j];
+      j--;
+    }
+    lines[j + 1] = key;
   }
-  return flag_r ? -r : r;
 }
 
 static int read_lines(int fd) {
   char buf[4096];
-  int  partial = 0;
   char line[MAX_LINE];
   int  linelen = 0;
+  int  partial = 0;
   ssize_t n;
 
   while ((n = read(fd, buf, sizeof(buf))) > 0) {
@@ -73,7 +61,6 @@ static int read_lines(int fd) {
       }
     }
   }
-  /* last line without trailing newline */
   if (partial && linelen > 0) {
     line[linelen++] = '\n';
     line[linelen]   = '\0';
@@ -95,16 +82,6 @@ int main(int argc, char **argv) {
       case 'r': flag_r = 1; break;
       case 'n': flag_n = 1; break;
       case 'u': flag_u = 1; break;
-      case 'k':
-        if (argv[i][j + 1]) {
-          key = atoi(&argv[i][j + 1]);
-          j += strlen(&argv[i][j + 1]);
-        } else if (i + 1 < argc) {
-          key = atoi(argv[++i]);
-          j = strlen(argv[i]) - 1; /* end inner loop */
-        }
-        if (key < 1) key = 1;
-        break;
       default:
         fprintf(stderr, "sort: unknown flag -%c\n", argv[i][j]);
         return 2;
@@ -128,16 +105,12 @@ int main(int argc, char **argv) {
     }
   }
 
-  qsort(lines, nlines, sizeof(char *), cmp);
+  do_sort();
 
   const char *prev = NULL;
   for (int j = 0; j < nlines; j++) {
-    if (flag_u && prev != NULL) {
-      const char *ka = get_key(prev);
-      const char *kb = get_key(lines[j]);
-      int eq = flag_n ? (atol(ka) == atol(kb)) : (strcmp(ka, kb) == 0);
-      if (eq) continue;
-    }
+    if (flag_u && prev != NULL && strcmp(lines[j], prev) == 0)
+      continue;
     fputs(lines[j], stdout);
     prev = lines[j];
   }

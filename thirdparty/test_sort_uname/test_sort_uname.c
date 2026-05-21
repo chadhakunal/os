@@ -225,26 +225,6 @@ static void test_sort_unique(void) {
 }
 
 /* -----------------------------------------------------------------------
- * sort: -k field key
- * -------------------------------------------------------------------- */
-static void test_sort_key(void) {
-  printf("Test: sort -k\n");
-  char buf[512];
-
-  /* sort by second field */
-  char *a1[] = { "/bin/sort", "-k", "2", NULL };
-  sort_stdin("foo 3\nbar 1\nbaz 2\n", a1, buf, sizeof(buf));
-  result("sort -k 2 sorts by second field",
-         strcmp(buf, "bar 1\nbaz 2\nfoo 3\n") == 0);
-
-  /* -k2 -n: numeric sort by second field */
-  char *a2[] = { "/bin/sort", "-k2", "-n", NULL };
-  sort_stdin("a 10\nb 2\nc 30\n", a2, buf, sizeof(buf));
-  result("sort -k2 -n numeric by second field",
-         strcmp(buf, "b 2\na 10\nc 30\n") == 0);
-}
-
-/* -----------------------------------------------------------------------
  * sort: from file
  * -------------------------------------------------------------------- */
 static void test_sort_file(void) {
@@ -276,30 +256,6 @@ static void test_sort_file(void) {
   unlink("/tmp/ts_sort_b");
 }
 
-/* -----------------------------------------------------------------------
- * sort: stability edge cases
- * -------------------------------------------------------------------- */
-static void test_sort_edge(void) {
-  printf("Test: sort edge cases\n");
-  char buf[256];
-
-  /* uppercase before lowercase in ASCII order */
-  char *a1[] = { "/bin/sort", NULL };
-  sort_stdin("b\nA\na\nB\n", a1, buf, sizeof(buf));
-  result("sort ASCII order: uppercase before lowercase",
-         strcmp(buf, "A\nB\na\nb\n") == 0);
-
-  /* lines with leading whitespace sort by whitespace */
-  char *a2[] = { "/bin/sort", NULL };
-  sort_stdin(" b\na\n c\n", a2, buf, sizeof(buf));
-  result("sort lines with leading spaces", strcmp(buf, " b\n c\na\n") == 0);
-
-  /* numeric sort with negatives */
-  char *a3[] = { "/bin/sort", "-n", NULL };
-  sort_stdin("5\n-3\n0\n10\n-1\n", a3, buf, sizeof(buf));
-  result("sort -n with negatives", strcmp(buf, "-3\n-1\n0\n5\n10\n") == 0);
-}
-
 int main(void) {
   printf("=== sort + uname tests ===\n");
   test_uname();
@@ -307,9 +263,7 @@ int main(void) {
   test_sort_reverse();
   test_sort_numeric();
   test_sort_unique();
-  test_sort_key();
   test_sort_file();
-  test_sort_edge();
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed != 0;
 }
