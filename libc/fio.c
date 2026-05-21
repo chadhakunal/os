@@ -203,7 +203,7 @@ FILE *fdopen(int fd, const char *mode) {
 }
 
 FILE *tmpfile(void) {
-  char path[] = "/tmp/os-tmpfile-XXXXXX";
+  char path[] = "/mnt/tmp/os-tmpfile-XXXXXX";
   int fd = mkstemp(path);
   if (fd < 0) return NULL;
   unlink(path);
@@ -626,7 +626,7 @@ int remove(const char *path) {
 
 static char tmpnam_buf[L_tmpnam];
 char *tmpnam(char *s) {
-  const char *name = "/tmp/tmp000000";
+  const char *name = "/mnt/tmp/tmp000000";
   char *dst = s ? s : tmpnam_buf;
   int i = 0; while ((dst[i] = name[i])) i++;
   return dst;

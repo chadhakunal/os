@@ -52,6 +52,11 @@ DEFINE_SYSCALL3(mkdirat, int, dirfd, const char *, user_path, uint32_t, mode) {
                                  ? parent_dentry->vnode->mounted_vnode
                                  : parent_dentry->vnode;
 
+  /* Check if the target already exists before hitting the filesystem. */
+  struct dentry_t *existing = NULL;
+  if (vfs_lookup(name, parent_dentry, &existing) == 0 && existing != NULL)
+    return -EEXIST;
+
   struct dentry_t *new_dentry;
   int64_t ret = vfs_mkdir(name, parent_vnode, &new_dentry);
   if (ret < 0)

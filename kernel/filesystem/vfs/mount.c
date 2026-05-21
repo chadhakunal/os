@@ -138,17 +138,7 @@ void vfs_init() {
   add_mount_stub(tarfs_sb, root, root_de, "dev",  devfs_mount()->root_vnode);
   add_mount_stub(tarfs_sb, root, root_de, "proc", procfs_mount()->root_vnode);
 
-  /* Pre-create the /mnt stub so userspace can see it even before mount(2). */
-  struct vnode_t *mnt_stub = tarfs_alloc_vnode(tarfs_sb);
-  mnt_stub->permission_mode = S_IFDIR | 0755;
-
-  struct dentry_t *mnt_de = dentry_t_alloc();
-  strncpy(mnt_de->name, "mnt", 256);
-  mnt_de->vnode  = mnt_stub;
-  mnt_de->parent = root_de;
-  list_append(&root->children_dentries, &mnt_de->sibling_dentry);
-
-  /* Try to bring up the block device. */
+  /* /mnt comes from the tarfs image (rootfs/mnt/). Try to bring up the block device. */
   struct superblock_t *sbfs_sb = sbfs_mount();
   if (sbfs_sb == NULL) {
     printk("vfs: sbfs unavailable, /mnt is empty\n");
