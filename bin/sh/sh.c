@@ -1301,6 +1301,7 @@ static int builtin_fg(int argc, char *argv[]) {
   job_remove(pid);
 
   printf("%s\n", cmd);
+  ioctl(0, TCSCANON, (void *)0);
   tcsetpgrp(0, pid);
   kill(-pid, SIGCONT);
 
