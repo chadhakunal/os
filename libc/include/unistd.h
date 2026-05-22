@@ -14,6 +14,11 @@ void _exit(int status);
 #define RB_POWER_OFF  0
 #define RB_AUTOBOOT   1
 
+#define F_OK 0
+#define X_OK 1
+#define W_OK 2
+#define R_OK 4
+
 #define SEEK_SET 0
 #define SEEK_CUR 1
 #define SEEK_END 2
@@ -123,6 +128,8 @@ long gethostid(void);
 void swab(const void *from, void *to, ssize_t n);
 int fdatasync(int fd);
 int isatty(int fd);
+int access(const char *path, int mode);
+int faccessat(int dirfd, const char *path, int mode, int flags);
 void sync(void);
 ssize_t pread(int fd, void *buf, size_t count, off_t offset);
 ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset);

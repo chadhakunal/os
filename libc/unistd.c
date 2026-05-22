@@ -392,6 +392,16 @@ ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset) {
   return (ssize_t)ret;
 }
 
+int faccessat(int dirfd, const char *path, int mode, int flags) {
+  long ret = syscall4(SYS_faccessat, dirfd, path, mode, flags);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
+}
+
+int access(const char *path, int mode) {
+  return faccessat(AT_FDCWD, path, mode, 0);
+}
+
 int isatty(int fd) {
   pid_t pgid;
   if (ioctl(fd, 0x540F /* TIOCGPGRP */, &pgid) == 0) return 1;

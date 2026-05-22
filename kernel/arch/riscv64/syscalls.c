@@ -378,6 +378,12 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_umount2(tf);
       break;
 
+    case SYS_faccessat:
+      debugk("syscall: faccessat(dirfd=%lld, path=%llx, mode=%lld, flags=%lld)\n",
+             (int64_t)tf->a0, tf->a1, (int64_t)tf->a2, (int64_t)tf->a3);
+      ret = sys_faccessat(tf);
+      break;
+
     default:
       debugk("syscall: unknown syscall %llu\n", syscall_num);
       tf->a0 = -1; // ENOSYS
