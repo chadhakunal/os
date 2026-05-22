@@ -21,6 +21,9 @@ int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t si
                        & ~current_task->signal_state.blocked;
     if (pending)
       return -EINTR;
+    /* Woken by SIGCONT or spuriously but no data yet — tell the caller to retry. */
+    if (!tty_driver.buffer_ready)
+      return -EINTR;
   }
 
   uint64_t bytes_to_copy = tty_driver.tty_line_buffer_size < size
