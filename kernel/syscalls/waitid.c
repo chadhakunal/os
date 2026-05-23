@@ -13,16 +13,20 @@
 #define P_PID  1
 #define P_PGID 2
 
-/* Kernel-side siginfo_t (matches libc layout) */
+/*
+ * Kernel-side siginfo_t — must match libc signal.h siginfo_t exactly.
+ * pid_t is int (32-bit), so si_pid is uint32_t here to avoid the 4-byte
+ * alignment gap that uint64_t would introduce after si_code.
+ */
 struct kern_siginfo {
   int      si_signo;
   int      si_errno;
   int      si_code;
-  uint64_t si_pid;
+  uint32_t si_pid;    /* pid_t = int */
   int      si_uid;
   int      si_status;
   void    *si_addr;
-  uint64_t si_value[2]; /* union sigval padding */
+  uint64_t si_value;  /* union sigval: max(int, ptr) = 8 bytes on rv64 */
 };
 
 #define CLD_EXITED   1
@@ -42,7 +46,7 @@ DEFINE_SYSCALL4(waitid, int, idtype, uint64_t, id, struct kern_siginfo *, user_i
     if (zombie) {
       struct kern_siginfo info = {0};
       info.si_signo  = 17; /* SIGCHLD */
-      info.si_pid    = zombie->pid;
+      info.si_pid    = (uint32_t)zombie->pid;
       info.si_uid    = 0;
 
       int exit_status = zombie->exit_status;
