@@ -69,22 +69,28 @@ int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size, bool nonbl
 
     copy_to_user(&dst[copied], &byte, 1);
     copied++;
+
+    /* Wake a blocked writer as soon as the first space opens. */
+    if (pipe->len == PIPE_BUF_SIZE - 1) {
+      wake_up(&pipe->wait_queue);
+      wake_up_poll(&pipe->poll_queue);
+    }
   }
 
-  /* Wake any writer blocked on a full buffer, and any poll waiters. */
+  /* Final wake for any remaining waiters. */
   wake_up(&pipe->wait_queue);
   wake_up_poll(&pipe->poll_queue);
 
   return (int64_t)copied;
 }
 
-int64_t pipe_write(struct pipe_t *pipe, const void *kernel_buf, uint64_t size) {
+int64_t pipe_write(struct pipe_t *pipe, const void *user_buf, uint64_t size) {
   if (pipe->reader_count == 0) {
     send_signal(current_task, SIGPIPE);
     return -EPIPE;
   }
 
-  const uint8_t *src = (const uint8_t *)kernel_buf;
+  const uint8_t *src = (const uint8_t *)user_buf;
   uint64_t written = 0;
 
   while (written < size) {
@@ -103,13 +109,21 @@ int64_t pipe_write(struct pipe_t *pipe, const void *kernel_buf, uint64_t size) {
         return written > 0 ? (int64_t)written : -EINTR;
     }
 
-    pipe->buf[pipe->write_pos] = src[written];
+    uint8_t byte;
+    copy_from_user(&byte, &src[written], 1);
+    pipe->buf[pipe->write_pos] = byte;
     pipe->write_pos = (pipe->write_pos + 1) % PIPE_BUF_SIZE;
     pipe->len++;
     written++;
+
+    /* Wake a blocked reader as soon as the first byte lands. */
+    if (pipe->len == 1) {
+      wake_up(&pipe->wait_queue);
+      wake_up_poll(&pipe->poll_queue);
+    }
   }
 
-  /* Wake any reader blocked waiting for data, and any poll waiters. */
+  /* Final wake in case the reader is polling and missed the mid-write wakeup. */
   wake_up(&pipe->wait_queue);
   wake_up_poll(&pipe->poll_queue);
 

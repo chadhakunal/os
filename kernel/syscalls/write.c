@@ -23,12 +23,6 @@ DEFINE_SYSCALL3(write, int, fd, const void *, buf, size_t, count) {
     return -1;
   }
 
-  if (count > SSIZE_MAX) {
-    debugk("write syscall: count clamped from %llu to %d\n", (uint64_t)count,
-           SSIZE_MAX);
-    count = SSIZE_MAX;
-  }
-
   struct file_t *file = find_file(&current_task->file_table, fd);
   debugk("[write] pid=%llu fd=%d file=%p vnode=%p file_ops=%p\n",
          current_task->pid, fd, file,
@@ -45,17 +39,28 @@ DEFINE_SYSCALL3(write, int, fd, const void *, buf, size_t, count) {
     return -EBADF;
   }
 
+  /* Pipe writes: pass the user pointer directly — pipe_write calls
+   * copy_from_user byte-by-byte so there's no size limit. */
+  if (file->pipe != NULL) {
+    int64_t bytes_written = vfs_write(file, 0, (void *)buf, count);
+    debugk("write syscall: pipe returning %lld\n", bytes_written);
+    return bytes_written;
+  }
+
+  if (count > SSIZE_MAX) {
+    debugk("write syscall: count clamped from %llu to %d\n", (uint64_t)count,
+           SSIZE_MAX);
+    count = SSIZE_MAX;
+  }
+
   debugk("write syscall: allocating page\n");
-  // Allocate kernel buffer for safe user data access
   void *phys_page = get_page(false);
   if (!phys_page)
     return -ENOMEM;
 
-  // Convert physical address to virtual address for kernel access
   char *kernel_buf = (char *)PHYS_TO_VIRT(phys_page);
   debugk("write syscall: kernel_buf=%p, calling copy_from_user\n", kernel_buf);
 
-  // Safely copy from user space to kernel buffer
   if (copy_from_user(kernel_buf, buf, count) != 0) {
     debugk("write syscall: copy_from_user failed\n");
     free_page(phys_page);
@@ -64,17 +69,13 @@ DEFINE_SYSCALL3(write, int, fd, const void *, buf, size_t, count) {
 
   debugk("write syscall: calling vfs_write\n");
 
-  // Determine write offset
   uint64_t write_offset = file->offset;
 
-  // Handle O_APPEND: always write at end of file
   if (file->flags & O_APPEND) {
-    // Get file size from vnode
     if (file->vnode) {
       write_offset = file->vnode->size;
-      debugk(
-          "write syscall: O_APPEND mode, writing at offset %llu (file size)\n",
-          write_offset);
+      debugk("write syscall: O_APPEND mode, writing at offset %llu (file size)\n",
+             write_offset);
     }
   }
 
@@ -89,18 +90,13 @@ DEFINE_SYSCALL3(write, int, fd, const void *, buf, size_t, count) {
     }
   }
 
-  // Write from kernel buffer
   int64_t bytes_written = vfs_write(file, write_offset, kernel_buf, count);
 
-  debugk("write syscall: vfs_write returned %lld, freeing page\n",
-         bytes_written);
+  debugk("write syscall: vfs_write returned %lld, freeing page\n", bytes_written);
   free_page(phys_page);
 
-  if (bytes_written > 0) {
-    // Update offset for next write (even in append mode, offset tracks
-    // position)
+  if (bytes_written > 0)
     file->offset = write_offset + bytes_written;
-  }
 
   debugk("write syscall: returning %lld\n", bytes_written);
   return bytes_written;
