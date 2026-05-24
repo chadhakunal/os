@@ -20,8 +20,7 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 echo "--- cat ---"
 
-send "echo hello > /mnt/tmp/tb_cat1 && echo world > /mnt/tmp/tb_cat2"
-wait_for_prompt
+run_cmd "echo hello > /mnt/tmp/tb_cat1 && echo world > /mnt/tmp/tb_cat2" > /dev/null
 
 OUT=$(run_cmd "cat /mnt/tmp/tb_cat1")
 result "cat file content"                  "$(contains "$OUT" "hello")"
@@ -95,8 +94,7 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 echo "--- wc ---"
 
-send "printf 'a\nb\nc\n' > /mnt/tmp/tb_wc"
-wait_for_prompt
+run_cmd "printf 'a\nb\nc\n' > /mnt/tmp/tb_wc" > /dev/null
 
 OUT=$(run_cmd "wc -l /mnt/tmp/tb_wc")
 result "wc -l counts lines"               "$(contains "$OUT" "3")"
@@ -121,8 +119,7 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 echo "--- head / tail ---"
 
-send "printf 'l1\nl2\nl3\nl4\nl5\n' > /mnt/tmp/tb_ht"
-wait_for_prompt
+run_cmd "printf 'l1\nl2\nl3\nl4\nl5\n' > /mnt/tmp/tb_ht" > /dev/null
 
 OUT=$(run_cmd "head -n 2 /mnt/tmp/tb_ht")
 result "head -n 2 first 2 lines"          "$([ "$(contains "$OUT" "l1")" = "1" ] && [ "$(contains "$OUT" "l2")" = "1" ] && [ "$(contains "$OUT" "l3")" = "0" ] && echo 1 || echo 0)"
@@ -145,8 +142,7 @@ wait_for_prompt
 GREP_CHECK=$(run_cmd "which grep")
 if [ "$(contains "$GREP_CHECK" "/bin/grep")" = "1" ]; then
   echo "--- grep ---"
-  send "printf 'apple\nbanana\ncherry\n' > /mnt/tmp/tb_grep"
-  wait_for_prompt
+  run_cmd "printf 'apple\nbanana\ncherry\n' > /mnt/tmp/tb_grep" > /dev/null
   OUT=$(run_cmd "grep banana /mnt/tmp/tb_grep")
   result "grep finds matching line"         "$(contains "$OUT" "banana")"
   OUT=$(run_cmd "grep apple /mnt/tmp/tb_grep")
@@ -202,8 +198,7 @@ result "rm -rf: tree gone"                 "$(contains "$OUT" "exitcode=1")"
 # -------------------------------------------------------------------------
 echo "--- cp / mv ---"
 
-send "echo cpdata > /mnt/tmp/tb_cp_src_sh"
-wait_for_prompt
+run_cmd "echo cpdata > /mnt/tmp/tb_cp_src_sh" > /dev/null
 
 OUT=$(run_cmd_exitcode "cp /mnt/tmp/tb_cp_src_sh /mnt/tmp/tb_cp_dst_sh && echo ok=\$?")
 result "cp exits 0"                        "$(contains "$OUT" "ok=0")"
@@ -217,8 +212,7 @@ result "cp missing src exits nonzero"      "$(contains "$OUT" "exitcode=1")"
 send "rm -f /mnt/tmp/tb_cp_src_sh /mnt/tmp/tb_cp_dst_sh"
 wait_for_prompt
 
-send "echo mvdata > /mnt/tmp/tb_mv_src_sh"
-wait_for_prompt
+run_cmd "echo mvdata > /mnt/tmp/tb_mv_src_sh" > /dev/null
 
 OUT=$(run_cmd_exitcode "mv /mnt/tmp/tb_mv_src_sh /mnt/tmp/tb_mv_dst_sh && echo ok=\$?")
 result "mv exits 0"                        "$(contains "$OUT" "ok=0")"
@@ -343,8 +337,7 @@ result "df /tmp exits ok"                  "$(contains "$OUT" "Use%")"
 # -------------------------------------------------------------------------
 echo "--- pipe chains ---"
 
-send "printf 'dog\ncat\nbird\ncat\n' > /mnt/tmp/tb_pipe_sh"
-wait_for_prompt
+run_cmd "printf 'dog\ncat\nbird\ncat\n' > /mnt/tmp/tb_pipe_sh" > /dev/null
 
 OUT=$(run_cmd "cat /mnt/tmp/tb_pipe_sh | wc -l")
 result "cat | wc -l"                       "$(contains "$OUT" "4")"
