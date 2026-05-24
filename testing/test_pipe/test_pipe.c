@@ -423,6 +423,66 @@ static void test_nonblock_read_eagain(void) {
 }
 
 /* -----------------------------------------------------------------------
+ * 14. Single large write — one write() larger than the pipe buffer
+ *
+ * Before the fix, the writer filled the buffer, blocked waiting for space,
+ * but the reader was never woken mid-write so both sides deadlocked.
+ * The writer must block until the reader drains enough space, and the
+ * reader must see every byte in order.
+ * -------------------------------------------------------------------- */
+static void test_single_large_write(void) {
+  printf("Test: single large write (> pipe buffer)\n");
+
+  /* 3× PIPE_BUF_SIZE so the writer must block and be woken at least twice. */
+  const int DATA_SIZE = 6144;
+  const int READ_CHUNK = 512;
+
+  char *wbuf = malloc(DATA_SIZE);
+  char *rbuf = malloc(DATA_SIZE);
+  /* Known pattern: prime modulus avoids power-of-2 aliasing in misread data. */
+  for (int i = 0; i < DATA_SIZE; i++)
+    wbuf[i] = (char)(i % 251);
+
+  int fds[2];
+  pipe(fds);
+
+  /* Child issues a single write() of the full DATA_SIZE bytes. */
+  pid_t pid = fork();
+  if (pid == 0) {
+    close(fds[0]);
+    ssize_t n = write(fds[1], wbuf, DATA_SIZE);
+    close(fds[1]);
+    _exit(n == DATA_SIZE ? 0 : 1);
+  }
+  close(fds[1]);
+
+  /* Parent reads in small chunks — must make steady progress
+   * waking the blocked writer each time space opens. */
+  int total = 0;
+  ssize_t n;
+  while (total < DATA_SIZE &&
+         (n = read(fds[0], rbuf + total, READ_CHUNK)) > 0)
+    total += n;
+  close(fds[0]);
+
+  int status;
+  waitpid(pid, &status, 0);
+
+  result("single large write: writer exits 0",
+         WIFEXITED(status) && WEXITSTATUS(status) == 0);
+  result("single large write: all bytes received",
+         total == DATA_SIZE);
+
+  int data_ok = 1;
+  for (int i = 0; i < DATA_SIZE && data_ok; i++)
+    if (rbuf[i] != wbuf[i]) data_ok = 0;
+  result("single large write: data integrity", data_ok);
+
+  free(wbuf);
+  free(rbuf);
+}
+
+/* -----------------------------------------------------------------------
  * main
  * -------------------------------------------------------------------- */
 int main(void) {
@@ -441,6 +501,7 @@ int main(void) {
   test_dup_partial_close();
   test_wrong_end_io();
   test_nonblock_read_eagain();
+  test_single_large_write();
 
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed != 0;
