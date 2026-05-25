@@ -57,12 +57,14 @@ int64_t tty_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
 int tty_ioctl(struct file_t *file, unsigned long request, void *arg) {
   switch (request) {
     case TIOCGPGRP: {
-      copy_to_user(arg, &tty_driver.foreground_pgid, sizeof(uint64_t));
+      uint32_t pgid32 = (uint32_t)tty_driver.foreground_pgid;
+      copy_to_user(arg, &pgid32, sizeof(uint32_t));
       return 0;
     }
     case TIOCSPGRP: {
-      uint64_t pgid;
-      copy_from_user(&pgid, arg, sizeof(uint64_t));
+      uint32_t pgid32 = 0;
+      copy_from_user(&pgid32, arg, sizeof(uint32_t));
+      uint64_t pgid = (uint64_t)pgid32;
       debugk("[TTY] Setting foreground PGID to %llu\n", pgid);
       if (pgid != tty_driver.foreground_pgid) {
         tty_reset_buffer();

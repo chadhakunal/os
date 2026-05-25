@@ -39,7 +39,7 @@ result "Ctrl-C on foreground cat (blocked read): \$? is 130" \
   "$(contains "$OUT" "exitcode=130")"
 
 # -------------------------------------------------------------------------
-# SIGKILL on background sleep via $! — wait must report 137 (128 + SIGKILL)
+# SIGKILL on background sleep — wait must report 137 (128 + SIGKILL)
 # -------------------------------------------------------------------------
 echo "--- kill -9 background sleep ---"
 

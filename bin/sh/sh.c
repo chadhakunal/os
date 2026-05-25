@@ -542,6 +542,8 @@ static int run_command_line(char *line) {
         if (*p == ';') { next_sep = 0; break; }
         if (*p == '&' && *(p+1) == '&') { next_sep = 1; break; }
         if (*p == '|' && *(p+1) == '|') { next_sep = 2; break; }
+        /* bare & — end of a background command; treat like ; */
+        if (*p == '&' && *(p+1) != '&') { next_sep = 3; break; }
       }
       p++;
     }
@@ -549,10 +551,20 @@ static int run_command_line(char *line) {
     /* advance past the separator */
     if (*p == ';') p++;
     else if ((*p == '&' || *p == '|') && *(p+1) == *p) p += 2;
+    else if (*p == '&') p++; /* bare & */
     if (len >= 1024) len = 1023;
     memcpy(stmts[nstmts], start, len);
     stmts[nstmts][len] = '\0';
     trim_line(stmts[nstmts]);
+    /* bare & separator: append & so parse_and_exec backgrounds this command */
+    if (next_sep == 3) {
+      size_t slen = strlen(stmts[nstmts]);
+      if (slen + 3 < 1024) {
+        stmts[nstmts][slen]   = ' ';
+        stmts[nstmts][slen+1] = '&';
+        stmts[nstmts][slen+2] = '\0';
+      }
+    }
     if (stmts[nstmts][0] != '\0') {
       sep[nstmts] = next_sep;
       nstmts++;
