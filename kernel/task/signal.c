@@ -150,15 +150,32 @@ void send_signal(struct task_t *task, int sig) {
         unblock_task(task);
       }
     }
-  } else if (task->state == TASK_STOPPED && sig == SIGKILL) {
-    /* SIGKILL is the one signal that must wake even a stopped task. */
-    task->stopped_sig = 0;
-    task->stop_reported = 0;
-    task->state = TASK_READY;
-    task->wait_reason = WAIT_NONE;
-    task->runtime = 0;
-    list_remove(&task->scheduler_list);
-    list_append(scheduler.expired_list, &task->scheduler_list);
+  } else if (task->state == TASK_STOPPED) {
+    /* Any signal with a fatal default action must wake a stopped task so it
+     * can be delivered. SIGKILL is unconditional; for others, only wake if
+     * the disposition is not SIG_IGN and not a custom handler that could
+     * legitimately be deferred — we wake for all non-ignored fatal signals. */
+    struct sigaction_t *act = task->signal_state.actions[sig];
+    int is_ign = (act == (struct sigaction_t *)SIG_IGNORE);
+    int is_fatal_default = (act == NULL || act == (struct sigaction_t *)SIG_DEFAULT_HANDLER) &&
+                           (sig == SIGKILL || sig == SIGTERM || sig == SIGHUP  ||
+                            sig == SIGINT  || sig == SIGQUIT || sig == SIGPIPE ||
+                            sig == SIGUSR1 || sig == SIGUSR2 || sig == SIGALRM ||
+                            sig == SIGABRT || sig == SIGFPE  || sig == SIGILL  ||
+                            sig == SIGSEGV || sig == SIGBUS  || sig == SIGTRAP ||
+                            sig == SIGXCPU || sig == SIGXFSZ || sig == SIGSYS);
+    int has_custom_handler = (act != NULL &&
+                              act != (struct sigaction_t *)SIG_DEFAULT_HANDLER &&
+                              act != (struct sigaction_t *)SIG_IGNORE);
+    if (!is_ign && (is_fatal_default || has_custom_handler)) {
+      task->stopped_sig = 0;
+      task->stop_reported = 0;
+      task->state = TASK_READY;
+      task->wait_reason = WAIT_NONE;
+      task->runtime = 0;
+      list_remove(&task->scheduler_list);
+      list_append(scheduler.expired_list, &task->scheduler_list);
+    }
   }
 }
 
