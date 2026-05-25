@@ -288,6 +288,14 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_getpgid(tf);
       break;
 
+    case SYS_getsid:
+      ret = sys_getsid(tf);
+      break;
+
+    case SYS_setsid:
+      ret = sys_setsid(tf);
+      break;
+
     case SYS_waitid:
       ret = sys_waitid(tf);
       break;

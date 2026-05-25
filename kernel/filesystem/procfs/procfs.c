@@ -109,10 +109,24 @@ static const char *task_state_str(enum task_state state) {
     case TASK_RUNNING:    return "R (running)";
     case TASK_READY:      return "R (ready)";
     case TASK_BLOCKED:    return "S (sleeping)";
+    case TASK_STOPPED:    return "T (stopped)";
     case TASK_ZOMBIE:     return "Z (zombie)";
     case TASK_TERMINATED: return "X (dead)";
     default:              return "? (unknown)";
   }
+}
+
+static size_t buf_puthex64(char *buf, size_t cap, size_t pos, uint64_t n) {
+  static const char hex[] = "0123456789abcdef";
+  char tmp[16];
+  for (int i = 15; i >= 0; i--) {
+    tmp[i] = hex[n & 0xf];
+    n >>= 4;
+  }
+  for (int i = 0; i < 16 && pos < cap - 1; i++)
+    buf[pos++] = tmp[i];
+  buf[pos] = '\0';
+  return pos;
 }
 
 static int64_t proc_pid_status_read(struct file_t *file, uint64_t offset,
@@ -122,16 +136,24 @@ static int64_t proc_pid_status_read(struct file_t *file, uint64_t offset,
   if (task == NULL)
     return -ENOENT;
 
-  char tmp[256];
+  char tmp[512];
   size_t pos = 0;
-  pos = buf_puts(tmp, sizeof(tmp), pos, "Pid:\t");
+  pos = buf_puts(tmp, sizeof(tmp), pos, "Name:\t");
+  pos = buf_puts(tmp, sizeof(tmp), pos, task->comm);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nPid:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->pid);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nPPid:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->ppid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nPgrp:\t");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->pgid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nSession:\t");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->sid);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nState:\t");
   pos = buf_puts(tmp, sizeof(tmp), pos, task_state_str(task->state));
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nUid:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->uid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nSigBlk:\t");
+  pos = buf_puthex64(tmp, sizeof(tmp), pos, task->signal_state.blocked);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\n");
   return copy_slice(buf, size, tmp, pos, offset);
 }

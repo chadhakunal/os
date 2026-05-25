@@ -96,6 +96,8 @@ struct task_t {
   uint64_t max_runtime; // max runtime a task can run before being moved to expired
 
   uint64_t pgid;
+  uint64_t sid;
+  char comm[16]; /* executable name, up to 15 chars + NUL */
   int exit_status;
   enum wait_reason wait_reason;
   int64_t wait_pid;

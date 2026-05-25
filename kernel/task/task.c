@@ -110,8 +110,10 @@ struct task_t *task_init() {
   task->pid = 1;
   task->ppid = 0;  // Init's parent is kernel (PID 0 / idle)
   task->pgid = 1;  // Init is its own process group leader
+  task->sid  = 1;  // Init starts a new session
   task->uid = 0;
   task->state = TASK_READY;
+  strncpy(task->comm, "init", 15);
 
   // Initialize page table with kernel mappings copied from root
   task->mm_struct.root_satp = init_new_page_table();
@@ -164,10 +166,12 @@ void idle_loop(void) {
 void create_idle_task(void) {
   idle_task = task_t_alloc();
   idle_task->pid = 0;
-  idle_task->ppid = 0; 
+  idle_task->ppid = 0;
   idle_task->pgid = 0;
+  idle_task->sid  = 0;
   idle_task->uid = 0;
   idle_task->state = TASK_RUNNING;
+  strncpy(idle_task->comm, "[idle]", 15);
 
   idle_task->mm_struct.root_satp = init_new_page_table();
 
@@ -618,8 +622,10 @@ uint64_t fork_off() {
   new_task->ppid = current_task->pid;
   new_task->pid = ++latest_pid;
   new_task->pgid = current_task->pgid;  // Inherit process group from parent
+  new_task->sid  = current_task->sid;   // Inherit session from parent
   new_task->uid = current_task->uid;
   new_task->cwd = current_task->cwd;
+  strncpy(new_task->comm, current_task->comm, 15);
 
   new_task->mm_struct.root_satp = init_new_page_table();
   new_task->mm_struct.vma_list.next = &new_task->mm_struct.vma_list;
