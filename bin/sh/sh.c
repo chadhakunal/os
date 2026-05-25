@@ -58,11 +58,16 @@ static void job_remove(pid_t pid) {
 /* Reap finished background jobs, printing Done notices to stderr. */
 static void jobs_reap(void) {
   for (int i = 0; i < njobs; i++) {
-    if (jobs[i].stopped) continue;
     int st = 0;
-    pid_t r = waitpid(jobs[i].pid, &st, WNOHANG);
-    if (r > 0) {
-      fprintf(stderr, "[%d]+ Done    %s\n", jobs[i].id, jobs[i].cmd);
+    pid_t r = waitpid(jobs[i].pid, &st, WNOHANG | WUNTRACED);
+    if (r <= 0) continue;
+    if (WIFSTOPPED(st)) {
+      jobs[i].stopped = 1;
+    } else {
+      if (jobs[i].stopped)
+        fprintf(stderr, "[%d]+ Killed  %s\n", jobs[i].id, jobs[i].cmd);
+      else
+        fprintf(stderr, "[%d]+ Done    %s\n", jobs[i].id, jobs[i].cmd);
       jobs[i] = jobs[--njobs];
       i--;
     }
