@@ -423,7 +423,48 @@ static void test_nonblock_read_eagain(void) {
 }
 
 /* -----------------------------------------------------------------------
- * 14. Single large write — one write() larger than the pipe buffer
+ * 14. lseek on a pipe — must fail with ESPIPE, pipe stays usable
+ * -------------------------------------------------------------------- */
+static void test_lseek_espipe(void) {
+  printf("Test: lseek on pipe returns ESPIPE\n");
+  int fds[2];
+  pipe(fds);
+
+  /* All three whence values must each fail with ESPIPE. */
+  errno = 0;
+  off_t r0 = lseek(fds[0], 0, SEEK_SET);
+  result("lseek SEEK_SET on read end returns -1",  r0 == (off_t)-1);
+  result("lseek SEEK_SET on read end sets ESPIPE", errno == ESPIPE);
+
+  errno = 0;
+  off_t r1 = lseek(fds[0], 0, SEEK_CUR);
+  result("lseek SEEK_CUR on read end returns -1",  r1 == (off_t)-1);
+  result("lseek SEEK_CUR on read end sets ESPIPE", errno == ESPIPE);
+
+  errno = 0;
+  off_t r2 = lseek(fds[0], 0, SEEK_END);
+  result("lseek SEEK_END on read end returns -1",  r2 == (off_t)-1);
+  result("lseek SEEK_END on read end sets ESPIPE", errno == ESPIPE);
+
+  errno = 0;
+  off_t r3 = lseek(fds[1], 0, SEEK_SET);
+  result("lseek SEEK_SET on write end returns -1",  r3 == (off_t)-1);
+  result("lseek SEEK_SET on write end sets ESPIPE", errno == ESPIPE);
+
+  /* Pipe must remain fully usable after the failed seeks. */
+  ssize_t wn = write(fds[1], "ok", 2);
+  char buf[4] = {0};
+  ssize_t rn = read(fds[0], buf, sizeof(buf));
+  result("pipe still writable after lseek failure", wn == 2);
+  result("pipe still readable after lseek failure",
+         rn == 2 && buf[0] == 'o' && buf[1] == 'k');
+
+  close(fds[0]);
+  close(fds[1]);
+}
+
+/* -----------------------------------------------------------------------
+ * 15. Single large write — one write() larger than the pipe buffer
  *
  * Before the fix, the writer filled the buffer, blocked waiting for space,
  * but the reader was never woken mid-write so both sides deadlocked.
