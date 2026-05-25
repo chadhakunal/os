@@ -15,14 +15,21 @@ wait_for_prompt
 # -------------------------------------------------------------------------
 echo "--- Ctrl-C kills foreground sleep ---"
 
+# Capture $? immediately after Ctrl-C by piggybacking it onto the same
+# command that gets the prompt back — before any sentinel echo can reset it.
 tmux send-keys -t "$PANE" "sleep 100" Enter
 sleep 0.3
 tmux send-keys -t "$PANE" C-c
 wait_for_prompt
-
-OUT=$(run_cmd_exitcode "echo exitcode=\$?")
+# Send the exit-status capture as the very next command, before run_cmd's
+# sentinel echo would clobber $?.
+_seq=$(( _seq + 1 ))
+_end="__END_${_seq}__"
+send "echo sigkill_exit=\$? $_end"
+wait_for_prompt
+OUT=$(tmux capture-pane -t "$PANE" -p -S - | grep "sigkill_exit=")
 result "Ctrl-C on foreground sleep: \$? is 130" \
-  "$(contains "$OUT" "exitcode=130")"
+  "$(contains "$OUT" "sigkill_exit=130")"
 
 # -------------------------------------------------------------------------
 # Ctrl-C kills foreground process blocked reading from a pipe with no writer
@@ -33,10 +40,13 @@ tmux send-keys -t "$PANE" "cat" Enter
 sleep 0.3
 tmux send-keys -t "$PANE" C-c
 wait_for_prompt
-
-OUT=$(run_cmd_exitcode "echo exitcode=\$?")
+_seq=$(( _seq + 1 ))
+_end="__END_${_seq}__"
+send "echo sigkill_exit=\$? $_end"
+wait_for_prompt
+OUT=$(tmux capture-pane -t "$PANE" -p -S - | grep "sigkill_exit=")
 result "Ctrl-C on foreground cat (blocked read): \$? is 130" \
-  "$(contains "$OUT" "exitcode=130")"
+  "$(contains "$OUT" "sigkill_exit=130")"
 
 # -------------------------------------------------------------------------
 # SIGKILL on background sleep — wait must report 137 (128 + SIGKILL)
