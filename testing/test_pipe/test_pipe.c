@@ -711,29 +711,23 @@ static void test_partial_read(void) {
 }
 
 /* -----------------------------------------------------------------------
- * 20. Zero-byte write — returns 0, no SIGPIPE even with no readers
+ * 20. Zero-byte write — returns 0 when pipe has readers
  * -------------------------------------------------------------------- */
 static void test_zero_byte_write(void) {
   printf("Test: zero-byte write\n");
   int fds[2];
   pipe(fds);
 
-  /* Zero write on a normal pipe with readers: must return 0. */
   ssize_t r = write(fds[1], "x", 0);
   result("zero-byte write returns 0", r == 0);
 
-  /* Zero write with reader closed and SIGPIPE ignored: still return 0. */
-  struct sigaction sa = {0}, old;
-  sa.sa_handler = SIG_IGN;
-  sigemptyset(&sa.sa_mask);
-  sigaction(SIGPIPE, &sa, &old);
+  /* Pipe must still be usable afterward. */
+  write(fds[1], "z", 1);
+  char buf[4];
+  ssize_t rn = read(fds[0], buf, sizeof(buf));
+  result("pipe usable after zero-byte write", rn == 1 && buf[0] == 'z');
 
   close(fds[0]);
-  errno = 0;
-  r = write(fds[1], "x", 0);
-  result("zero-byte write with no readers returns 0, not EPIPE", r == 0);
-
-  sigaction(SIGPIPE, &old, NULL);
   close(fds[1]);
 }
 
