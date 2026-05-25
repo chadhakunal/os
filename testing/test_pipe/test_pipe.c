@@ -542,6 +542,7 @@ int main(void) {
   test_dup_partial_close();
   test_wrong_end_io();
   test_nonblock_read_eagain();
+  test_lseek_espipe();
   test_single_large_write();
 
   printf("\n%d passed, %d failed\n", passed, failed);
