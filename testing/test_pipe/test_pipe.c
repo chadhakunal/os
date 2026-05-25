@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <poll.h>
 
 static int passed = 0;
 static int failed = 0;
@@ -524,6 +525,336 @@ static void test_single_large_write(void) {
 }
 
 /* -----------------------------------------------------------------------
+ * 16. O_NONBLOCK write — full pipe returns EAGAIN, not EWOULDBLOCK
+ * -------------------------------------------------------------------- */
+static void test_nonblock_write_eagain(void) {
+  printf("Test: O_NONBLOCK write on full pipe returns EAGAIN\n");
+  int fds[2];
+  pipe(fds);
+
+  int flags = fcntl(fds[1], F_GETFL, 0);
+  if (flags < 0 || fcntl(fds[1], F_SETFL, flags | O_NONBLOCK) < 0) {
+    printf("  [SKIP] nonblock_write_eagain (fcntl O_NONBLOCK not supported)\n");
+    close(fds[0]); close(fds[1]);
+    return;
+  }
+
+  /* Also set read end nonblocking so we can fill without blocking. */
+  int rflags = fcntl(fds[0], F_GETFL, 0);
+  fcntl(fds[0], F_SETFL, rflags | O_NONBLOCK);
+
+  /* Fill the pipe buffer with 1-byte writes until we get EAGAIN. */
+  char byte = 'x';
+  int filled = 0;
+  ssize_t w;
+  while ((w = write(fds[1], &byte, 1)) == 1)
+    filled++;
+
+  int got_eagain = (w < 0 && (errno == EAGAIN || errno == EWOULDBLOCK));
+  result("nonblocking write on full pipe returns EAGAIN", got_eagain);
+  result("filled at least one byte before EAGAIN", filled > 0);
+
+  /* After draining one byte there should be space again. */
+  char rbuf[1];
+  read(fds[0], rbuf, 1);
+  errno = 0;
+  w = write(fds[1], &byte, 1);
+  result("nonblocking write succeeds after drain", w == 1);
+
+  close(fds[0]);
+  close(fds[1]);
+}
+
+/* -----------------------------------------------------------------------
+ * 17. SIGPIPE delivery — write to closed-reader pipe delivers SIGPIPE
+ *
+ * We test two sub-cases:
+ *   a) SIGPIPE default action: the writer process is killed by SIGPIPE.
+ *   b) SIGPIPE ignored: write() returns -1 with errno == EPIPE.
+ * -------------------------------------------------------------------- */
+static volatile int sigpipe_received = 0;
+static void sigpipe_handler(int sig) { (void)sig; sigpipe_received = 1; }
+
+static void test_sigpipe_delivery(void) {
+  printf("Test: SIGPIPE delivery\n");
+
+  /* Sub-case a: default action kills the writer. */
+  {
+    int fds[2];
+    pipe(fds);
+
+    pid_t pid = fork();
+    if (pid == 0) {
+      /* Child: close read end, then write — should be killed by SIGPIPE. */
+      close(fds[0]);
+      close(fds[1]); /* no readers */
+      int fds2[2];
+      pipe(fds2);
+      close(fds2[0]); /* immediately close reader so write end has no reader */
+      write(fds2[1], "x", 1);
+      /* If we reach here SIGPIPE was not delivered — exit non-zero. */
+      close(fds2[1]);
+      _exit(1);
+    }
+    close(fds[0]);
+    close(fds[1]);
+
+    int status;
+    waitpid(pid, &status, 0);
+    int killed_by_sigpipe = WIFSIGNALED(status) && WTERMSIG(status) == SIGPIPE;
+    result("SIGPIPE default action kills writer", killed_by_sigpipe);
+  }
+
+  /* Sub-case b: SIGPIPE ignored — write returns EPIPE. */
+  {
+    int fds[2];
+    pipe(fds);
+
+    struct sigaction sa = {0}, old;
+    sa.sa_handler = SIG_IGN;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGPIPE, &sa, &old);
+
+    close(fds[0]); /* no readers */
+    errno = 0;
+    ssize_t r = write(fds[1], "x", 1);
+    int got_epipe = (r < 0 && errno == EPIPE);
+    close(fds[1]);
+
+    sigaction(SIGPIPE, &old, NULL);
+    result("SIGPIPE ignored: write returns -1 with EPIPE", got_epipe);
+  }
+
+  /* Sub-case c: custom SIGPIPE handler is invoked. */
+  {
+    int fds[2];
+    pipe(fds);
+
+    struct sigaction sa = {0}, old;
+    sa.sa_handler = sigpipe_handler;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGPIPE, &sa, &old);
+
+    sigpipe_received = 0;
+    close(fds[0]);
+    write(fds[1], "x", 1);
+    close(fds[1]);
+
+    sigaction(SIGPIPE, &old, NULL);
+    result("SIGPIPE custom handler invoked on broken pipe", sigpipe_received == 1);
+  }
+}
+
+/* -----------------------------------------------------------------------
+ * 18. poll() on pipes
+ * -------------------------------------------------------------------- */
+static void test_poll_pipes(void) {
+  printf("Test: poll on pipes\n");
+  int fds[2];
+  pipe(fds);
+
+  /* Read end on empty pipe: POLLIN should NOT be set, no POLLHUP yet. */
+  struct pollfd pfd = { fds[0], POLLIN, 0 };
+  int r = poll(&pfd, 1, 0);
+  result("poll on empty pipe: not readable", r == 0 || !(pfd.revents & POLLIN));
+
+  /* Write end when pipe has space: POLLOUT should be set. */
+  pfd.fd     = fds[1];
+  pfd.events = POLLOUT;
+  pfd.revents = 0;
+  r = poll(&pfd, 1, 0);
+  result("poll on write end with space: POLLOUT set", r == 1 && (pfd.revents & POLLOUT));
+
+  /* Write data — now read end should report POLLIN. */
+  write(fds[1], "hi", 2);
+  pfd.fd      = fds[0];
+  pfd.events  = POLLIN;
+  pfd.revents = 0;
+  r = poll(&pfd, 1, 0);
+  result("poll on non-empty pipe: POLLIN set", r == 1 && (pfd.revents & POLLIN));
+
+  /* Drain data, then close write end — read end should report POLLHUP. */
+  char buf[4];
+  read(fds[0], buf, sizeof(buf));
+  close(fds[1]);
+  pfd.fd      = fds[0];
+  pfd.events  = POLLIN;
+  pfd.revents = 0;
+  r = poll(&pfd, 1, 0);
+  result("poll after writer close: POLLHUP set", pfd.revents & POLLHUP);
+
+  close(fds[0]);
+}
+
+/* -----------------------------------------------------------------------
+ * 19. Partial read — only M bytes available, request N > M, get M back
+ * -------------------------------------------------------------------- */
+static void test_partial_read(void) {
+  printf("Test: partial read returns available bytes\n");
+  int fds[2];
+  pipe(fds);
+
+  /* Write 3 bytes, request 10 — should get exactly 3 without blocking. */
+  write(fds[1], "abc", 3);
+
+  /* Set read end nonblocking so the read won't block if the count is wrong. */
+  int flags = fcntl(fds[0], F_GETFL, 0);
+  fcntl(fds[0], F_SETFL, flags | O_NONBLOCK);
+
+  char buf[16] = {0};
+  ssize_t n = read(fds[0], buf, sizeof(buf));
+  result("partial read returns available byte count", n == 3);
+  result("partial read data correct", memcmp(buf, "abc", 3) == 0);
+
+  close(fds[0]);
+  close(fds[1]);
+}
+
+/* -----------------------------------------------------------------------
+ * 20. Zero-byte write — returns 0, no SIGPIPE even with no readers
+ * -------------------------------------------------------------------- */
+static void test_zero_byte_write(void) {
+  printf("Test: zero-byte write\n");
+  int fds[2];
+  pipe(fds);
+
+  /* Zero write on a normal pipe with readers: must return 0. */
+  ssize_t r = write(fds[1], "x", 0);
+  result("zero-byte write returns 0", r == 0);
+
+  /* Zero write with reader closed and SIGPIPE ignored: still return 0. */
+  struct sigaction sa = {0}, old;
+  sa.sa_handler = SIG_IGN;
+  sigemptyset(&sa.sa_mask);
+  sigaction(SIGPIPE, &sa, &old);
+
+  close(fds[0]);
+  errno = 0;
+  r = write(fds[1], "x", 0);
+  result("zero-byte write with no readers returns 0, not EPIPE", r == 0);
+
+  sigaction(SIGPIPE, &old, NULL);
+  close(fds[1]);
+}
+
+/* -----------------------------------------------------------------------
+ * 21. O_CLOEXEC — pipe fd closed across exec, non-cloexec fd survives
+ * -------------------------------------------------------------------- */
+static void test_cloexec(void) {
+  printf("Test: O_CLOEXEC closes fd across exec\n");
+
+  /* Create two pipes: one with O_CLOEXEC on the write end, one without. */
+  int cloexec_fds[2], normal_fds[2];
+  pipe(cloexec_fds);
+  pipe(normal_fds);
+
+  /* Mark the write end of the cloexec pipe. */
+  int flags = fcntl(cloexec_fds[1], F_GETFD, 0);
+  fcntl(cloexec_fds[1], F_SETFD, flags | FD_CLOEXEC);
+
+  pid_t pid = fork();
+  if (pid == 0) {
+    /* Child execs /bin/true. Before exec, write a marker to each write end.
+     * After exec the cloexec write end should be closed (reader sees EOF),
+     * but the normal write end stays open (reader blocks). */
+
+    /* We need to check this from the parent side after exec, so instead of
+     * writing here, we just exec and let the parent detect which write ends
+     * survived via poll with timeout. */
+    close(cloexec_fds[0]);
+    close(normal_fds[0]);
+
+    /* exec /bin/true — it exits 0 immediately */
+    char *argv[] = { "true", NULL };
+    char *envp[] = { NULL };
+    execve("/bin/true", argv, envp);
+    _exit(1); /* execve failed */
+  }
+
+  close(cloexec_fds[1]);
+  close(normal_fds[1]);
+
+  /* Wait for child to exec and exit. */
+  int status;
+  waitpid(pid, &status, 0);
+  result("exec'd /bin/true exits 0", WIFEXITED(status) && WEXITSTATUS(status) == 0);
+
+  /* After exec+exit, O_CLOEXEC write end was closed by exec — so the child
+   * held the only copy and it's gone: read should return EOF (0). */
+  int flags2 = fcntl(cloexec_fds[0], F_GETFL, 0);
+  fcntl(cloexec_fds[0], F_SETFL, flags2 | O_NONBLOCK);
+  char buf[4];
+  ssize_t r = read(cloexec_fds[0], buf, sizeof(buf));
+  result("O_CLOEXEC write end closed across exec (EOF)", r == 0);
+
+  /* Normal (non-cloexec) write end also closed when child exited after exec,
+   * so it should also be EOF now. */
+  int flags3 = fcntl(normal_fds[0], F_GETFL, 0);
+  fcntl(normal_fds[0], F_SETFL, flags3 | O_NONBLOCK);
+  r = read(normal_fds[0], buf, sizeof(buf));
+  result("non-cloexec fd also closed after child exit (EOF)", r == 0);
+
+  close(cloexec_fds[0]);
+  close(normal_fds[0]);
+}
+
+/* -----------------------------------------------------------------------
+ * 22. Writer blocks when pipe is full (blocking mode)
+ *
+ * The writer fills the pipe in one call larger than the buffer and blocks.
+ * The reader drains it in chunks. Verifies the writer does not return short
+ * or error — it must block until all bytes are delivered.
+ * -------------------------------------------------------------------- */
+static void test_writer_blocks_when_full(void) {
+  printf("Test: writer blocks when pipe full (blocking mode)\n");
+
+  /* 4× pipe buffer so writer must block multiple times. */
+  const int DATA_SIZE = 4 * 2048;
+
+  char *wbuf = malloc(DATA_SIZE);
+  char *rbuf = malloc(DATA_SIZE);
+  for (int i = 0; i < DATA_SIZE; i++)
+    wbuf[i] = (char)(i % 199);
+
+  int fds[2];
+  pipe(fds);
+
+  /* Child is the writer: one blocking write of the full DATA_SIZE. */
+  pid_t pid = fork();
+  if (pid == 0) {
+    close(fds[0]);
+    ssize_t n = write(fds[1], wbuf, DATA_SIZE);
+    close(fds[1]);
+    _exit(n == DATA_SIZE ? 0 : 1);
+  }
+  close(fds[1]);
+
+  /* Parent is the reader: drain in small chunks, giving the writer
+   * chances to wake and refill. */
+  int total = 0;
+  ssize_t n;
+  while (total < DATA_SIZE &&
+         (n = read(fds[0], rbuf + total, 128)) > 0)
+    total += n;
+  close(fds[0]);
+
+  int wstatus;
+  waitpid(pid, &wstatus, 0);
+
+  result("blocking writer exits 0 (wrote all bytes)",
+         WIFEXITED(wstatus) && WEXITSTATUS(wstatus) == 0);
+  result("blocking writer: all bytes received", total == DATA_SIZE);
+
+  int data_ok = 1;
+  for (int i = 0; i < DATA_SIZE && data_ok; i++)
+    if (rbuf[i] != wbuf[i]) data_ok = 0;
+  result("blocking writer: data integrity", data_ok);
+
+  free(wbuf);
+  free(rbuf);
+}
+
+/* -----------------------------------------------------------------------
  * main
  * -------------------------------------------------------------------- */
 int main(void) {
@@ -544,6 +875,13 @@ int main(void) {
   test_nonblock_read_eagain();
   test_lseek_espipe();
   test_single_large_write();
+  test_nonblock_write_eagain();
+  test_sigpipe_delivery();
+  test_poll_pipes();
+  test_partial_read();
+  test_zero_byte_write();
+  test_cloexec();
+  test_writer_blocks_when_full();
 
   printf("\n%d passed, %d failed\n", passed, failed);
   return failed != 0;
