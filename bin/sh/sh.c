@@ -294,6 +294,16 @@ static int script_argc = 0;
 
 // Last command exit status — exposed as $?
 static int last_exit_status = 0;
+// PID of last background job — exposed as $!
+static pid_t last_bg_pid = 0;
+
+/* Convert a waitpid status word to a shell exit code.
+ * Signal-killed: 128 + signo. Normal exit: exit code. */
+static int wait_status_to_exit(int st) {
+  if (WIFSIGNALED(st))
+    return 128 + WTERMSIG(st);
+  return WEXITSTATUS(st);
+}
 
 /* -------------------------------------------------------------------------
  * Shell variable store (NAME=value, not exported to env unless export used)
@@ -1030,6 +1040,16 @@ static void expand_args(const char *input, char *output, size_t output_size) {
       continue;
     }
 
+    /* $! — PID of last background job */
+    if (input[in_pos] == '!') {
+      in_pos++;
+      char num[12];
+      snprintf(num, sizeof(num), "%d", (int)last_bg_pid);
+      for (size_t k = 0; num[k] && out_pos < output_size - 1; k++)
+        output[out_pos++] = num[k];
+      continue;
+    }
+
     /* $0-$9 — positional arguments */
     if (input[in_pos] >= '0' && input[in_pos] <= '9') {
       int arg_num = input[in_pos++] - '0';
@@ -1687,7 +1707,7 @@ int parse_and_exec(char *buf) {
       int st = 0;
       waitpid(target, &st, 0);
       job_remove(target);
-      return WEXITSTATUS(st);
+      return wait_status_to_exit(st);
     }
     /* wait for all known background jobs (not stopped ones) */
     int ret = 0;
@@ -1695,7 +1715,7 @@ int parse_and_exec(char *buf) {
       if (jobs[wi].stopped) continue;
       int st = 0;
       waitpid(jobs[wi].pid, &st, 0);
-      ret = WEXITSTATUS(st);
+      ret = wait_status_to_exit(st);
       jobs[wi] = jobs[--njobs];
       wi--;
     }
@@ -1765,6 +1785,7 @@ int parse_and_exec(char *buf) {
 
     if (run_background) {
       job_add(pid, command_buf, 0);
+      last_bg_pid = pid;
       printf("[%d] %d\n", jobs[njobs-1].id, pid);
       ioctl(0, TCSRAW, (void *)0);
       return 0;
@@ -1787,7 +1808,7 @@ int parse_and_exec(char *buf) {
     kill(-pid, SIGHUP);
     tcsetpgrp(0, getpid());
     ioctl(0, TCSRAW, (void *)0);
-    return WEXITSTATUS(status);
+    return wait_status_to_exit(status);
   }
 
   printf("sh: fork failed\n");
