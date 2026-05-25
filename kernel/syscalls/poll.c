@@ -1,6 +1,5 @@
 #include "arch/riscv64/syscalls/syscall_macros.h"
 #include "arch/riscv64/syscalls/syscalls.h"
-#include "arch/riscv64/trap.h"
 #include "kernel/filesystem/poll.h"
 #include "kernel/filesystem/vfs/vfs.h"
 #include "kernel/filesystem/pipefs/pipe.h"
@@ -101,48 +100,26 @@ int64_t do_poll(struct pollfd *kpfds, nfds_t nfds, int timeout_ms,
       return 0;
     }
 
-    /* Check for pending signals before sleeping */
-    sigset_t pending = current_task->signal_state.pending
-                       & ~current_task->signal_state.blocked;
-    if (pending) {
-      if (saved_mask)
-        current_task->sigsuspend_active = 1;
-      return -EINTR;
-    }
-
-    /* Mark blocked before adding to queues so any concurrent wake sees it. */
-    current_task->wait_reason = WAIT_IO;
-    current_task->state       = TASK_BLOCKED;
-
-    /* Add ourselves to every relevant pipe poll_queue */
+    /* Add ourselves to every relevant pipe poll_queue before blocking,
+     * then re-scan to catch wakes that fired between the first scan and
+     * us joining the queues. */
     poll_add_waiters(kpfds, nfds, waiters);
 
-    /* Re-scan now that we're on the queues — a wake may have fired between
-     * the first scan and us joining the queues. */
     int already_ready = poll_scan(kpfds, nfds);
     if (already_ready > 0) {
       poll_remove_waiters(waiters, nfds);
-      current_task->state = TASK_RUNNING;
       if (saved_mask)
         current_task->signal_state.blocked = current_task->sigsuspend_saved_mask;
       return already_ready;
     }
 
-    schedule();
+    /* task_block handles pre-sleep signal check, sets state=BLOCKED, calls
+     * schedule(), re-enables SUM, and checks for signals after waking. */
+    bool ok = task_block(WAIT_IO);
 
-    /* Re-enable SUM after returning from scheduler */
-    asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
-
-    /* Remove ourselves from all wait queues before re-scanning */
     poll_remove_waiters(waiters, nfds);
 
-    /* Check if a signal woke us */
-    pending = current_task->signal_state.pending
-              & ~current_task->signal_state.blocked;
-    if (pending) {
-      /* Leave new (unblocked) mask in place so signal is delivered on
-       * return to userspace. Set sigsuspend_active so check_and_deliver_signals
-       * restores the original mask after the handler runs. */
+    if (!ok) {
       if (saved_mask)
         current_task->sigsuspend_active = 1;
       return -EINTR;

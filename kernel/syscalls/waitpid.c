@@ -74,25 +74,20 @@ DEFINE_SYSCALL3(waitpid, int64_t, pid, int *, wstatus, int, options)
     if (options & WNOHANG)
       return 0;
 
-    current_task->wait_reason = WAIT_CHILD;
-    current_task->wait_pid    = specific_pid;
-    current_task->state       = TASK_BLOCKED;
-    schedule();
-
-    asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
-
+    current_task->wait_pid = specific_pid;
+    /* task_block handles pre-sleep signal check, sets state=BLOCKED, calls
+     * schedule(), re-enables SUM, and checks for signals after waking.
+     * SIGCHLD wakes waitpid but is not itself interrupting — clear it first
+     * so task_block's post-wake check only fires for real interrupting signals. */
     struct sigaction_t *chld_act = current_task->signal_state.actions[SIGCHLD];
     int has_custom_chld = (chld_act != NULL &&
                            chld_act != (struct sigaction_t *)SIG_DEFAULT_HANDLER &&
                            chld_act != (struct sigaction_t *)SIG_IGNORE);
+    if (!task_block(WAIT_CHILD))
+      return -EINTR;
     debugk("[SIGCHLD] waitpid woke: pending=%llx action=%p custom=%d\n",
            current_task->signal_state.pending, chld_act, has_custom_chld);
     if (!has_custom_chld)
       current_task->signal_state.pending &= ~(1ULL << (SIGCHLD - 1));
-
-    sigset_t pending_unblocked = current_task->signal_state.pending
-                                 & ~current_task->signal_state.blocked;
-    if (pending_unblocked)
-      return -EINTR;
   }
 }

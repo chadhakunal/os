@@ -1,6 +1,5 @@
 #define DEBUG 0
 #include "arch/riscv64/syscalls/syscall_macros.h"
-#include "arch/riscv64/trap.h"
 #include "kernel/task/task.h"
 #include "kernel/task/signal.h"
 #include "kernel/task/schedule.h"
@@ -28,13 +27,10 @@ DEFINE_SYSCALL2(rt_sigsuspend, const sigset_t *, user_mask, size_t, sigsetsize)
   current_task->sigsuspend_active = 1;
   current_task->sigsuspend_saved_mask = saved_blocked;
 
-  /* Only block if no signal is already pending and unblocked under the new mask */
-  if (!(current_task->signal_state.pending & ~mask)) {
-    current_task->wait_reason = WAIT_SIGNAL;
-    current_task->state = TASK_BLOCKED;
-    schedule();
-    asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
-  }
+  /* Block until a signal arrives (task_block's pre-sleep check handles the
+   * race where a signal arrived before we set state=BLOCKED). */
+  if (!(current_task->signal_state.pending & ~mask))
+    task_block(WAIT_SIGNAL);
 
   return -EINTR;
 }

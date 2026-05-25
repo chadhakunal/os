@@ -1,6 +1,5 @@
 #define DEBUG 0
 #include "arch/riscv64/syscalls/syscall_macros.h"
-#include "arch/riscv64/trap.h"
 #include "kernel/task/task.h"
 #include "kernel/task/signal.h"
 #include "kernel/task/schedule.h"
@@ -32,10 +31,9 @@ DEFINE_SYSCALL4(rt_sigtimedwait, const sigset_t *, user_set, void *, user_info,
       }
     }
 
-    /* No matching signal yet — block until something arrives */
-    current_task->wait_reason = WAIT_SIGNAL;
-    current_task->state = TASK_BLOCKED;
-    schedule();
-    asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
+    /* No matching signal yet — block until something arrives.
+     * Ignore task_block's return value: we want to loop and consume
+     * the signal ourselves rather than return -EINTR. */
+    task_block(WAIT_SIGNAL);
   }
 }

@@ -213,9 +213,11 @@ static int virtio_blk_submit(uint32_t type, uint64_t sector, void *buf, uint32_t
     else
         list_append(&disk_request_queue, &req->list);
 
-    /* Block until poll() wakes us. */
-    current_task->state = TASK_BLOCKED;
+    /* Block until virtio_blk_poll() wakes us. Once submitted to hardware we
+     * cannot cancel the in-flight request, so we must wait for completion
+     * regardless of signals — task_block is not used here intentionally. */
     current_task->wait_reason = WAIT_IO;
+    current_task->state       = TASK_BLOCKED;
     schedule();
 
     int result = req->result;

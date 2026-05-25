@@ -28,17 +28,8 @@ DEFINE_SYSCALL2(nanosleep, const struct timespec *, req, struct timespec *, rem)
   }
 
   current_task->sleep_until = virtual_time.os_ticks + ticks;
-  current_task->wait_reason = WAIT_SLEEP;
-  current_task->state       = TASK_BLOCKED;
 
-  schedule();
-
-  asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
-
-  /* If a signal woke us before the deadline, return -EINTR. */
-  sigset_t pending_unblocked = current_task->signal_state.pending
-                               & ~current_task->signal_state.blocked;
-  if (pending_unblocked) {
+  if (!task_block(WAIT_SLEEP)) {
     if (rem) { rem->tv_sec = 0; rem->tv_nsec = 0; }
     return -EINTR;
   }

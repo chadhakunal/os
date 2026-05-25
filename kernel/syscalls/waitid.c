@@ -1,6 +1,5 @@
 #define DEBUG 0
 #include "arch/riscv64/syscalls/syscall_macros.h"
-#include "arch/riscv64/trap.h"
 #include "kernel/task/task.h"
 #include "kernel/task/schedule.h"
 #include "kernel/task/signal.h"
@@ -69,18 +68,12 @@ DEFINE_SYSCALL4(waitid, int, idtype, uint64_t, id, struct kern_siginfo *, user_i
     if (!has_alive_children(current_task, specific_pid, pgid))
       return -ECHILD;
 
-    current_task->wait_reason = WAIT_CHILD;
-    current_task->wait_pid    = (idtype == P_PID) ? (int64_t)id : -1;
-    current_task->state       = TASK_BLOCKED;
-    schedule();
-
-    asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
-
-    /* SIGCHLD wakes waitid but doesn't interrupt it — clear it and loop. */
+    current_task->wait_pid = (idtype == P_PID) ? (int64_t)id : -1;
+    /* task_block handles pre-sleep signal check, sets state=BLOCKED, calls
+     * schedule(), re-enables SUM, and checks for signals after waking.
+     * SIGCHLD wakes waitid but is not itself interrupting — clear it first. */
     current_task->signal_state.pending &= ~(1ULL << (SIGCHLD - 1));
-    sigset_t pending_unblocked = current_task->signal_state.pending
-                                 & ~current_task->signal_state.blocked;
-    if (pending_unblocked)
+    if (!task_block(WAIT_CHILD))
       return -EINTR;
   }
 }

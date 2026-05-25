@@ -19,26 +19,6 @@ struct pipe_t *pipe_create(void) {
   return p;
 }
 
-/* Returns true if any pending+unblocked signal will actually interrupt the
- * syscall — i.e., it has a custom handler or a terminating default action.
- * Signals whose default action is to be discarded (SIGCHLD, SIGCONT, SIGURG,
- * SIGWINCH) are excluded because send_signal() never wakes WAIT_IO tasks for
- * them; they accumulate in pending but must not cause -EINTR. */
-static bool has_interrupting_signal(struct signal_state_t *s) {
-  sigset_t pending = s->pending & ~s->blocked;
-  for (int sig = 1; sig < NUM_SIGS; sig++) {
-    if (!sig_in_set(&pending, sig))
-      continue;
-    struct sigaction_t *act = s->actions[sig];
-    bool is_ign = (act == (struct sigaction_t *)SIG_IGNORE);
-    bool is_dfl_discard =
-        (act == NULL || act == (struct sigaction_t *)SIG_DEFAULT_HANDLER) &&
-        (sig == SIGCHLD || sig == SIGCONT || sig == SIGURG || sig == SIGWINCH);
-    if (!is_ign && !is_dfl_discard)
-      return true;
-  }
-  return false;
-}
 
 int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size, bool nonblock) {
   uint8_t *dst = (uint8_t *)user_buf;
@@ -53,12 +33,10 @@ int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size, bool nonbl
       return -EAGAIN;
 
     list_append(&pipe->wait_queue, &current_task->wait_list);
-    current_task->wait_reason = WAIT_IO;
-    current_task->state       = TASK_BLOCKED;
-    schedule();
-    asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
-    if (has_interrupting_signal(&current_task->signal_state))
+    if (!task_block(WAIT_IO)) {
+      list_remove(&current_task->wait_list);
       return -EINTR;
+    }
   }
 
   /* Copy whatever is available, up to size. */
@@ -104,12 +82,10 @@ int64_t pipe_write(struct pipe_t *pipe, const void *user_buf, uint64_t size, boo
         return written > 0 ? (int64_t)written : -EAGAIN;
 
       list_append(&pipe->wait_queue, &current_task->wait_list);
-      current_task->wait_reason = WAIT_IO;
-      current_task->state       = TASK_BLOCKED;
-      schedule();
-      asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
-      if (has_interrupting_signal(&current_task->signal_state))
+      if (!task_block(WAIT_IO)) {
+        list_remove(&current_task->wait_list);
         return written > 0 ? (int64_t)written : -EINTR;
+      }
     }
 
     uint8_t byte;

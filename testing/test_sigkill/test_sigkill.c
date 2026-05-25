@@ -97,10 +97,14 @@ static void test_sigkill_sleeping_child(void) {
 }
 
 /* -----------------------------------------------------------------------
- * Test 2: SIGKILL a child blocked reading from a pipe with no writer
+ * Test 2: SIGKILL a child blocked reading from a pipe
+ *
+ * Parent holds the write end open so child blocks in read().
+ * Parent sends SIGKILL, then the child must be terminated by the signal,
+ * not by EOF from the pipe.
  * ----------------------------------------------------------------------- */
 static void test_sigkill_blocked_reader(void) {
-    printf("\nTest: SIGKILL child blocked reading pipe (no writer)\n");
+    printf("\nTest: SIGKILL child blocked in pipe read\n");
 
     int sync[2]; /* parent waits for child to be ready */
     int data[2]; /* child blocks reading this */
@@ -124,7 +128,8 @@ static void test_sigkill_blocked_reader(void) {
 
     close(sync[1]);
     close(data[0]);
-    close(data[1]);
+    /* Keep data[1] open — parent is the sole writer, so writer_count stays 1
+     * and the child's read() truly blocks instead of getting immediate EOF. */
 
     char buf[1];
     read(sync[0], buf, 1);
@@ -134,6 +139,7 @@ static void test_sigkill_blocked_reader(void) {
     nanosleep(&tiny, 0);
 
     kill(child, SIGKILL);
+    close(data[1]); /* now safe to close — child is being killed */
 
     int status = 0;
     pid_t wpid = waitpid(child, &status, 0);

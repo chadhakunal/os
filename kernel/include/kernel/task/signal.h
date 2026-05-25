@@ -39,8 +39,10 @@
 
 #define NUM_SIGS 32  // Total number of signals
 
-// Exit status when killed by signal (standard UNIX convention)
-#define SIGNAL_EXIT_STATUS(sig) (128 + (sig))
+// Exit status when killed by signal: signal number in low 7 bits (POSIX waitpid encoding).
+// NOTE: 128+sig is a shell exit-code convention, NOT the waitpid status word encoding.
+// WTERMSIG(s) = s & 0x7f, WIFSIGNALED(s) = (WTERMSIG(s) > 0), WIFEXITED(s) = (WTERMSIG(s)==0).
+#define SIGNAL_EXIT_STATUS(sig) (sig)
 
 // Signal set type (64 bits to hold signal mask)
 typedef uint64_t sigset_t;

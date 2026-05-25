@@ -1,10 +1,12 @@
 #define DEBUG 0
 #include "kernel/task/schedule.h"
 #include "kernel/task/task.h"
+#include "kernel/task/signal.h"
 #include "kernel/filesystem/poll.h"
 #include "kernel/panic.h"
 #include "lib/list.h"
 #include "arch/riscv64/virtual_memory_init.h"
+#include "arch/riscv64/trap.h"
 
 #include "lib/printk/printk.h"
 
@@ -206,5 +208,49 @@ void fresh_task_jump(void) {
   // Jump to user space
   extern void trap_return(struct trap_frame *tf);
   trap_return(&current_task->tf);
+}
+
+/*
+ * Check whether a signal that would interrupt a blocking syscall is pending.
+ * This covers signals with custom handlers and signals whose default action
+ * terminates the process (SIGKILL, SIGTERM, etc.).  Signals whose default
+ * action is to discard (SIGCHLD, SIGCONT, SIGURG, SIGWINCH) are excluded
+ * because they must not cause -EINTR.
+ */
+static bool has_interrupting_signal_pending(void) {
+  sigset_t pending = current_task->signal_state.pending
+                     & ~current_task->signal_state.blocked;
+  for (int sig = 1; sig < NUM_SIGS; sig++) {
+    if (!(pending & (1ULL << (sig - 1))))
+      continue;
+    struct sigaction_t *act = current_task->signal_state.actions[sig];
+    bool is_ign = (act == (struct sigaction_t *)SIG_IGNORE);
+    bool is_dfl_discard =
+        (act == NULL || act == (struct sigaction_t *)SIG_DEFAULT_HANDLER) &&
+        (sig == SIGCHLD || sig == SIGCONT || sig == SIGURG || sig == SIGWINCH);
+    if (!is_ign && !is_dfl_discard)
+      return true;
+  }
+  return false;
+}
+
+bool task_block(enum wait_reason reason) {
+  /* Pre-sleep check: catch signals that arrived while we were still TASK_RUNNING.
+   * send_signal() can only call unblock_task() on a TASK_BLOCKED task; if a
+   * signal arrived before we set state=TASK_BLOCKED, it would be stuck until
+   * the next external wakeup (e.g. a 60-second sleep timer expiring). */
+  if (has_interrupting_signal_pending())
+    return false;
+
+  current_task->wait_reason = reason;
+  current_task->state       = TASK_BLOCKED;
+
+  schedule();
+
+  /* Re-enable supervisor access to user memory after returning from scheduler. */
+  asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
+
+  /* Post-wake check: a signal (e.g. SIGKILL) woke us early. */
+  return !has_interrupting_signal_pending();
 }
 

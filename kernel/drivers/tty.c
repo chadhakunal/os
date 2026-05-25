@@ -13,18 +13,11 @@
 int64_t tty_read(struct file_t *file, uint64_t offset, void *buffer, uint64_t size) {
   if (!tty_driver.buffer_ready) {
     list_append(&tty_driver.wait_queue, &current_task->wait_list);
-    current_task->state = TASK_BLOCKED;
-    current_task->wait_reason = WAIT_IO;
-    schedule();
-    asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
+    bool ok = task_block(WAIT_IO);
     /* Always remove from the wait queue on wake — whether woken by data,
-     * a signal, or SIGCONT resuming a stopped task. The node may still be
-     * linked if we were woken via TASK_STOPPED→TASK_READY (SIGCONT path)
-     * rather than via wake_up(), which would corrupt the list on re-entry. */
+     * a signal, or SIGCONT resuming a stopped task. */
     list_remove(&current_task->wait_list);
-    sigset_t pending = current_task->signal_state.pending
-                       & ~current_task->signal_state.blocked;
-    if (pending)
+    if (!ok)
       return -EINTR;
     /* Woken spuriously or by SIGCONT with no data — tell caller to retry. */
     if (!tty_driver.buffer_ready)
