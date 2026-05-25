@@ -56,6 +56,9 @@ int64_t vfs_file_lseek(struct files_table_t *file_table, int fd, int64_t offset,
     return -EBADF;
   }
 
+  if (file->pipe != NULL)
+    return -ESPIPE;
+
   int64_t new_offset;
 
   switch (whence) {

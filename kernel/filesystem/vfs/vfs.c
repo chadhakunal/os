@@ -216,7 +216,7 @@ int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
     panic("vfs_write: file is null");
 
   if (file->pipe != NULL)
-    return pipe_write(file->pipe, buffer, size);
+    return pipe_write(file->pipe, buffer, size, !!(file->flags & O_NONBLOCK));
 
   if (file->vnode->address_space != NULL &&
       file->vnode->address_space->address_space_ops != NULL &&

@@ -84,7 +84,7 @@ int64_t pipe_read(struct pipe_t *pipe, void *user_buf, uint64_t size, bool nonbl
   return (int64_t)copied;
 }
 
-int64_t pipe_write(struct pipe_t *pipe, const void *user_buf, uint64_t size) {
+int64_t pipe_write(struct pipe_t *pipe, const void *user_buf, uint64_t size, bool nonblock) {
   if (pipe->reader_count == 0) {
     send_signal(current_task, SIGPIPE);
     return -EPIPE;
@@ -99,6 +99,9 @@ int64_t pipe_write(struct pipe_t *pipe, const void *user_buf, uint64_t size) {
         send_signal(current_task, SIGPIPE);
         return written > 0 ? (int64_t)written : -EPIPE;
       }
+
+      if (nonblock)
+        return written > 0 ? (int64_t)written : -EAGAIN;
 
       list_append(&pipe->wait_queue, &current_task->wait_list);
       current_task->wait_reason = WAIT_IO;
