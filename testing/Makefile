@@ -14,7 +14,7 @@ BINDIR := $(ROOT)/build/rootfs/bin/tests
 RC_TESTS_CORE := test_shell test_signals test_rlimit \
 	testjobs testsignal test_pipe \
 	test_devnull test_oom test_oom_vs_enomem test_oom_stress test_waitpid \
-	test_repl test_access
+	test_repl test_access test_sigkill
 
 RC_TESTS_EXTRA := posix_compliance test_bins \
 	test_grep test_sort_uname test_faults test_mount
@@ -47,6 +47,7 @@ $(BINDIR)/testsignal:       testsignal/testsignal.c $(CRT) $(LIBC)
 # $(BINDIR)/test_long_wait:   test_long_wait/test_long_wait.c $(CRT) $(LIBC)
 # $(BINDIR)/test_mmap:        test_mmap/test_mmap.c $(CRT) $(LIBC)
 $(BINDIR)/test_pipe:        test_pipe/test_pipe.c $(CRT) $(LIBC)
+$(BINDIR)/test_sigkill:     test_sigkill/test_sigkill.c $(CRT) $(LIBC)
 # $(BINDIR)/test_sleep:       test_sleep/test_sleep.c $(CRT) $(LIBC)
 # $(BINDIR)/test-kernel:      test-kernel/test-kernel.c $(CRT) $(LIBC)
 $(BINDIR)/test_devnull:     test_devnull/test_devnull.c $(CRT) $(LIBC)
