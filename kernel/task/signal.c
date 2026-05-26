@@ -8,6 +8,7 @@
 #include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/user_data_access.h"
 #include "lib/printk/printk.h"
+#include "errno.h"
 
 struct signal_frame {
   struct trap_frame saved_tf;
