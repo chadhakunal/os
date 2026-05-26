@@ -62,12 +62,14 @@ struct vnode_t *tarfs_alloc_vnode(struct superblock_t *superblock) {
 
 static int64_t tarfs_statfs(struct superblock_t *sb, struct vfs_statfs *buf) {
   (void)sb;
-  buf->f_bsize  = 4096;
-  buf->f_blocks = 0;
-  buf->f_bfree  = 0;
-  buf->f_bavail = 0;
-  buf->f_files  = 0;
-  buf->f_ffree  = 0;
+  buf->f_bsize   = 4096;
+  buf->f_blocks  = 0;
+  buf->f_bfree   = 0;
+  buf->f_bavail  = 0;
+  buf->f_files   = 0;
+  buf->f_ffree   = 0;
+  buf->f_namelen = 255;
+  buf->f_frsize  = 4096;
   return 0;
 }
 

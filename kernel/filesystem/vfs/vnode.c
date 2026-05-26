@@ -237,10 +237,10 @@ int64_t vfs_truncate(struct vnode_t *vnode, uint64_t new_size) {
 
 int64_t vfs_statfs(struct vnode_t *vnode, struct vfs_statfs *buf) {
   if (vnode == NULL || buf == NULL)
-    return -1;
+    return -EINVAL;
   struct superblock_t *sb = vnode->superblock;
   if (sb == NULL || sb->superblock_ops.statfs == NULL)
-    return -1;
+    return -ENOSYS;
   return sb->superblock_ops.statfs(sb, buf);
 }
 
