@@ -22,7 +22,7 @@ void timer_handler(uint64_t hardware_clock_ticks, int from_user_mode) {
   uint64_t sp;
   asm volatile("mv %0, sp" : "=r"(sp));
   if (scheduler_ready &&
-      (sp < KERNEL_STACK_VIRTUAL_BASE || sp >= KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE)) {
+      (sp < KERNEL_STACK_VIRTUAL_BASE || sp > KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE)) {
     panic("timer_handler: Stack overflow! SP out of kernel stack range");
   }
 
