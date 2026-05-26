@@ -41,7 +41,9 @@ void timer_handler(uint64_t hardware_clock_ticks, int from_user_mode) {
   while (node != scheduler.blocked_list) {
     struct task_t *t = container_of(node, struct task_t, scheduler_list);
     node = node->next;
-    if (t->wait_reason == WAIT_SLEEP && virtual_time.os_ticks >= t->sleep_until)
+    if ((t->wait_reason == WAIT_SLEEP ||
+         (t->wait_reason == WAIT_SIGNAL && t->sleep_until != 0)) &&
+        virtual_time.os_ticks >= t->sleep_until)
       unblock_task(t);
   }
 

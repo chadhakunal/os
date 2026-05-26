@@ -60,6 +60,7 @@ DEFINE_SYSCALL4(rt_sigtimedwait, const sigset_t *, user_set, void *, user_info,
       for (int sig = 1; sig < NUM_SIGS; sig++) {
         if (sig_in_set(&pending, sig)) {
           delete_signal_from_set(&current_task->signal_state.pending, sig);
+          current_task->sleep_until = 0;
 
           if (user_info != NULL) {
             struct kernel_siginfo info = {0};
@@ -77,14 +78,11 @@ DEFINE_SYSCALL4(rt_sigtimedwait, const sigset_t *, user_set, void *, user_info,
     }
 
     /* Block until a signal arrives or the deadline passes.
-     * With a timeout, use WAIT_SLEEP so the timer wakes us at deadline.
-     * Without a timeout, use WAIT_SIGNAL so any signal wakes us. */
+     * Always use WAIT_SIGNAL so send_signal() wakes us even when the
+     * signal is in the blocked mask.  For the timeout case, also set
+     * sleep_until so the timer wakes us when the deadline expires. */
     current_task->restart_blocked = 1;
-    if (has_timeout) {
-      current_task->sleep_until = deadline;
-      task_block(WAIT_SLEEP);
-    } else {
-      task_block(WAIT_SIGNAL);
-    }
+    current_task->sleep_until = has_timeout ? deadline : 0;
+    task_block(WAIT_SIGNAL);
   }
 }
