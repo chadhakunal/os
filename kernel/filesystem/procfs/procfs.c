@@ -539,7 +539,7 @@ static int64_t proc_pid_maps_read(struct file_t *file, uint64_t offset,
   list_for_each(&task->mm_struct.vma_list, node) {
     struct vma_t *vma = container_of(node, struct vma_t, sibling_vma);
 
-    char line[80];
+    char line[256];
     size_t pos = 0;
     pos = buf_puthex64_nopad(line, sizeof(line), pos, vma->start_addr);
     if (pos < sizeof(line) - 1) line[pos++] = '-';

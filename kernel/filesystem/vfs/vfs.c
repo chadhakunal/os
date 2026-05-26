@@ -52,11 +52,15 @@ restart:;
     } else {
       struct dentry_t *next_dentry = NULL;
       debugk("[vfs_resolve] lookup '%s'\n", current_name);
+      struct dentry_t *parent_dentry = curr_dentry;
       ret = vfs_lookup(current_name, curr_dentry, &next_dentry);
       if (ret != 0) {
         debugk("vfs_resolve_path_at: lookup failed, returning %d\n", ret);
         return ret;
       }
+      /* Stamp parent so vfs_dentry_get_path can reconstruct the full path. */
+      if (next_dentry->parent == NULL)
+        next_dentry->parent = parent_dentry;
       curr_dentry = next_dentry;
       debugk("[vfs_resolve] found '%s' vnode=%p mode=0x%x\n",
              current_name,
