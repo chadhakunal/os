@@ -485,8 +485,10 @@ static int64_t proc_pid_limits_read(struct file_t *file, uint64_t offset,
   printk("[limits] B pos=%zu\n", pos);
 
   for (int i = 0; i < 10; i++) {
+    printk("[limits] i=%d name=%p\n", i, rlimit_names[i]);
     if (rlimit_names[i] == NULL) continue;
     struct rlimit *rl = &task->rlimits.limits[i];
+    printk("[limits] rl=%p cur=%llu max=%llu\n", rl, rl->rlim_cur, rl->rlim_max);
     size_t name_len = 0;
     for (const char *p = rlimit_names[i]; *p; p++) name_len++;
     pos = buf_puts(tmp, sizeof(tmp), pos, rlimit_names[i]);
