@@ -464,16 +464,51 @@ static int64_t proc_pid_limits_read(struct file_t *file, uint64_t offset,
   if (task == NULL)
     return -ENOENT;
 
-  static const char limits_out[] =
-    "Limit                     Soft Limit           Hard Limit\n"
-    "Max cpu time              0                    0\n"
-    "Max file size             unlimited            unlimited\n"
-    "Max data size             0                    0\n"
-    "Max stack size            8388608              unlimited\n"
-    "Max core file size        unlimited            unlimited\n"
-    "Max open files            32                   256\n"
-    "Max address space         unlimited            unlimited\n";
-  return copy_slice(buf, size, limits_out, sizeof(limits_out) - 1, offset);
+  static const struct { int idx; const char *name; } rows[] = {
+    { 0, "Max cpu time"       },
+    { 1, "Max file size"      },
+    { 2, "Max data size"      },
+    { 3, "Max stack size"     },
+    { 4, "Max core file size" },
+    { 7, "Max open files"     },
+    { 9, "Max address space"  },
+  };
+  static const int nrows = 7;
+
+  char tmp[1024];
+  char *p = tmp;
+  char *end = tmp + sizeof(tmp) - 1;
+
+#define EMIT(s) do { const char *_s=(s); while(*_s && p<end) *p++=*_s++; } while(0)
+#define EMITPAD(s, width) do { \
+    const char *_s=(s); int _n=0; \
+    while(*_s && p<end){*p++=*_s++;_n++;} \
+    while(_n<(width) && p<end){*p++=' ';_n++;} \
+  } while(0)
+#define EMITU64PAD(v, width) do { \
+    uint64_t _v=(v); char _b[20]; int _i=0; \
+    if(_v==0){_b[_i++]='0';}else{while(_v>0){_b[_i++]='0'+(int)(_v%10);_v/=10;}} \
+    int _n=0; \
+    while(_i>0 && p<end){*p++=_b[--_i];_n++;} \
+    while(_n<(width) && p<end){*p++=' ';_n++;} \
+  } while(0)
+
+  EMIT("Limit                     Soft Limit           Hard Limit\n");
+  for (int r = 0; r < nrows; r++) {
+    struct rlimit *rl = &task->rlimits.limits[rows[r].idx];
+    EMITPAD(rows[r].name, 26);
+    if (rl->rlim_cur == RLIM_INFINITY) { EMITPAD("unlimited", 21); }
+    else { EMITU64PAD(rl->rlim_cur, 21); }
+    if (rl->rlim_max == RLIM_INFINITY) { EMIT("unlimited"); }
+    else { EMITU64PAD(rl->rlim_max, 0); }
+    if (p < end) *p++ = '\n';
+  }
+#undef EMIT
+#undef EMITPAD
+#undef EMITU64PAD
+
+  *p = '\0';
+  return copy_slice(buf, size, tmp, (size_t)(p - tmp), offset);
 }
 
 static struct file_ops_t proc_pid_limits_fops;
