@@ -82,15 +82,21 @@ int sigwait(const sigset_t *set, int *sig) {
 }
 
 int sigwaitinfo(const sigset_t *set, siginfo_t *info) {
-  (void)set; (void)info;
-  errno = ENOSYS;
-  return -1;
+  long ret = syscall4(SYS_rt_sigtimedwait, set, info, NULL, sizeof(sigset_t));
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return (int)ret;
 }
 
 int sigtimedwait(const sigset_t *set, siginfo_t *info, const struct timespec *timeout) {
-  (void)set; (void)info; (void)timeout;
-  errno = ENOSYS;
-  return -1;
+  long ret = syscall4(SYS_rt_sigtimedwait, set, info, timeout, sizeof(sigset_t));
+  if (ret < 0) {
+    errno = (int)(-ret);
+    return -1;
+  }
+  return (int)ret;
 }
 
 int sigqueue(pid_t pid, int sig, union sigval value) {
