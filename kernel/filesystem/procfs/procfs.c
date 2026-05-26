@@ -216,18 +216,14 @@ static size_t buf_puthex64(char *buf, size_t cap, size_t pos, uint64_t n) {
 }
 
 static size_t buf_putoct(char *buf, size_t cap, size_t pos, uint32_t n) {
-  char tmp[12];
-  int i = 0;
-  if (n == 0) {
-    tmp[i++] = '0';
-  } else {
-    while (n > 0) {
-      tmp[i++] = '0' + (n & 7);
-      n >>= 3;
-    }
+  /* Linux emits Umask as 4 zero-padded octal digits, e.g. "0022". */
+  char tmp[4];
+  for (int i = 3; i >= 0; i--) {
+    tmp[i] = '0' + (n & 7);
+    n >>= 3;
   }
-  while (i > 0 && pos < cap - 1)
-    buf[pos++] = tmp[--i];
+  for (int i = 0; i < 4 && pos < cap - 1; i++)
+    buf[pos++] = tmp[i];
   buf[pos] = '\0';
   return pos;
 }
@@ -308,6 +304,10 @@ static int64_t proc_pid_status_read(struct file_t *file, uint64_t offset,
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->pid);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nNSpid:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->pid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nNSpgid:\t");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->pgid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nNSsid:\t");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->sid);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nPgrp:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->pgid);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nSid:\t");
