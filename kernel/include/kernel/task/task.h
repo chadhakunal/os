@@ -119,6 +119,12 @@ struct task_t {
 
   struct kernel_fault_recovery_t fault_recovery;
 
+  /* Saved syscall args for SA_RESTART: set before each syscall, used by
+   * check_and_deliver_signals to rewind the ecall if the handler has SA_RESTART. */
+  uint64_t restart_a0;  /* original a0 (first arg) */
+  uint64_t restart_a7;  /* syscall number */
+  int      in_syscall;  /* 1 while a restartable syscall is in progress */
+
   struct task_rlimits_t rlimits;
 
   uint32_t umask; /* permission mask applied on file/dir creation */
