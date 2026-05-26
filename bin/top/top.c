@@ -203,6 +203,27 @@ int main(void) {
     static struct proc_info procs[MAX_PROCS];
     int count;
 
+    write(2, "top: main start\n", 16);
+
+    DIR *d = opendir("/proc");
+    if (!d) { write(2, "top: opendir fail\n", 18); return 1; }
+    write(2, "top: opendir ok\n", 16);
+
+    struct dirent *e;
+    int n = 0;
+    while ((e = readdir(d)) != NULL && n < 5) {
+        write(2, "  ent: ", 7);
+        write(2, e->d_name, strlen(e->d_name));
+        write(2, "\n", 1);
+        n++;
+    }
+    closedir(d);
+
+    write(2, "top: calling render\n", 20);
+    count = 0;
+    render(procs, count);
+    write(2, "top: render returned\n", 21);
+
     while (1) {
         collect_procs(procs, &count);
         render(procs, count);
