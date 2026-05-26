@@ -142,9 +142,6 @@ static void parse_uptime(long *ticks) {
     if (p) *ticks = atol(p + 6);
 }
 
-static int cmp_pid(const void *a, const void *b) {
-    return ((struct proc_info *)a)->pid - ((struct proc_info *)b)->pid;
-}
 
 static void collect_procs(struct proc_info *procs, int *count) {
     *count = 0;
@@ -182,9 +179,8 @@ static void collect_procs(struct proc_info *procs, int *count) {
         write(2, "  count++\n", 10);
     }
     closedir(d);
-    write(2, "collect: before qsort\n", 22);
-    qsort(procs, (size_t)*count, sizeof(procs[0]), cmp_pid);
-    write(2, "collect: after qsort\n", 21);
+    write(2, "collect: done, count=", 21);
+    char cn[4]; cn[0] = '0' + *count; cn[1] = '\n'; write(2, cn, 2);
 }
 
 static void render(struct proc_info *procs, int count) {
