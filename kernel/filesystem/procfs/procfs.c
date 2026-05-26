@@ -115,9 +115,11 @@ static int64_t proc_mounts_read(struct file_t *file, uint64_t offset,
     struct mount_t *m = container_of(node, struct mount_t, sibling_mount);
     const char *path = m->root_path[0] ? m->root_path : "/";
     const char *fstype, *device;
-    if (strncmp(path, "/proc") == 0)     { fstype = "proc";     device = "proc"; }
-    else if (strncmp(path, "/dev") == 0) { fstype = "devtmpfs"; device = "devtmpfs"; }
-    else                                 { fstype = "tarfs";    device = "rootfs"; }
+    const char *opts;
+    if (strncmp(path, "/proc") == 0)     { fstype = "proc";   device = "proc";      opts = "ro,relatime"; }
+    else if (strncmp(path, "/dev") == 0) { fstype = "devfs";  device = "devfs";     opts = "rw,relatime"; }
+    else if (strncmp(path, "/mnt") == 0) { fstype = "rootfs"; device = "/dev/vda";  opts = "rw,relatime"; }
+    else                                 { fstype = "tarfs";  device = "memory";    opts = "ro,relatime"; }
     /* prefer the superblock's device name if set */
     if (m->superblock->device[0])
       device = m->superblock->device;
@@ -126,7 +128,9 @@ static int64_t proc_mounts_read(struct file_t *file, uint64_t offset,
     pos = buf_puts(tmp, sizeof(tmp), pos, path);
     pos = buf_puts(tmp, sizeof(tmp), pos, " ");
     pos = buf_puts(tmp, sizeof(tmp), pos, fstype);
-    pos = buf_puts(tmp, sizeof(tmp), pos, " rw,relatime 0 0\n");
+    pos = buf_puts(tmp, sizeof(tmp), pos, " ");
+    pos = buf_puts(tmp, sizeof(tmp), pos, opts);
+    pos = buf_puts(tmp, sizeof(tmp), pos, " 0 0\n");
   }
   return copy_slice(buf, size, tmp, pos, offset);
 }
