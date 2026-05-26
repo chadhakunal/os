@@ -479,8 +479,10 @@ static int64_t proc_pid_limits_read(struct file_t *file, uint64_t offset,
 
   char tmp[1024];
   size_t pos = 0;
+  printk("[limits] A pid=%llu\n", pid);
   pos = buf_puts(tmp, sizeof(tmp), pos,
     "Limit                     Soft Limit           Hard Limit\n");
+  printk("[limits] B pos=%zu\n", pos);
 
   for (int i = 0; i < 10; i++) {
     if (rlimit_names[i] == NULL) continue;
@@ -507,7 +509,7 @@ static int64_t proc_pid_limits_read(struct file_t *file, uint64_t offset,
     if (pos < sizeof(tmp) - 1) tmp[pos++] = '\n';
   }
   tmp[pos] = '\0';
-  printk("[limits] pos=%zu offset=%llu size=%llu\n", pos, offset, size);
+  printk("[limits] C pos=%zu\n", pos);
   return copy_slice(buf, size, tmp, pos, offset);
 }
 

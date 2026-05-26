@@ -233,10 +233,6 @@ int64_t vfs_write(struct file_t *file, uint64_t offset, void *buffer, uint64_t s
 static int64_t vfs_open_dentry(struct dentry_t *dentry, int flags, struct file_t **file) {
   if (dentry->vnode == NULL)
     return -ENOENT;
-  printk("[open_dentry] name=%s fops=%p fops->read=%p\n",
-         dentry->name,
-         dentry->vnode->file_ops,
-         dentry->vnode->file_ops ? dentry->vnode->file_ops->read : 0);
 
   struct vnode_t *vnode = dentry->vnode->mounted_vnode ? dentry->vnode->mounted_vnode
                                                        : dentry->vnode;
