@@ -104,6 +104,34 @@ static int64_t proc_meminfo_read(struct file_t *file, uint64_t offset,
 static struct file_ops_t proc_meminfo_fops;
 
 /* -------------------------------------------------------------------------
+ * /proc/mounts — currently mounted filesystems
+ * ---------------------------------------------------------------------- */
+static int64_t proc_mounts_read(struct file_t *file, uint64_t offset,
+                                void *buf, uint64_t size) {
+  (void)file;
+  char tmp[512];
+  size_t pos = 0;
+  list_for_each(&mount_list, node) {
+    struct mount_t *m = container_of(node, struct mount_t, sibling_mount);
+    const char *path = m->root_path[0] ? m->root_path : "/";
+    /* guess fs type from mount path */
+    const char *fstype = "unknown";
+    if (strncmp(path, "/proc", 5) == 0) fstype = "proc";
+    else if (strncmp(path, "/dev",  4) == 0) fstype = "devtmpfs";
+    else                                      fstype = "tarfs";
+    pos = buf_puts(tmp, sizeof(tmp), pos, fstype);
+    pos = buf_puts(tmp, sizeof(tmp), pos, " ");
+    pos = buf_puts(tmp, sizeof(tmp), pos, path);
+    pos = buf_puts(tmp, sizeof(tmp), pos, " ");
+    pos = buf_puts(tmp, sizeof(tmp), pos, fstype);
+    pos = buf_puts(tmp, sizeof(tmp), pos, " rw 0 0\n");
+  }
+  return copy_slice(buf, size, tmp, pos, offset);
+}
+
+static struct file_ops_t proc_mounts_fops;
+
+/* -------------------------------------------------------------------------
  * /proc/<pid>/status
  * ---------------------------------------------------------------------- */
 static const char *task_state_str(enum task_state state) {
@@ -304,6 +332,104 @@ static int64_t proc_pid_stat_read(struct file_t *file, uint64_t offset,
 }
 
 static struct file_ops_t proc_pid_stat_fops;
+
+/* -------------------------------------------------------------------------
+ * /proc/<pid>/comm — just the comm name
+ * ---------------------------------------------------------------------- */
+static int64_t proc_pid_comm_read(struct file_t *file, uint64_t offset,
+                                  void *buf, uint64_t size) {
+  uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
+  struct task_t *task = find_task_by_pid(pid);
+  if (task == NULL)
+    return -ENOENT;
+  char tmp[32];
+  size_t pos = 0;
+  pos = buf_puts(tmp, sizeof(tmp), pos, task->comm[0] ? task->comm : "?");
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\n");
+  return copy_slice(buf, size, tmp, pos, offset);
+}
+
+static struct file_ops_t proc_pid_comm_fops;
+
+/* -------------------------------------------------------------------------
+ * /proc/<pid>/statm — memory stats in pages
+ * Format: size resident shared text 0 data 0
+ * ---------------------------------------------------------------------- */
+static int64_t proc_pid_statm_read(struct file_t *file, uint64_t offset,
+                                   void *buf, uint64_t size) {
+  uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
+  struct task_t *task = find_task_by_pid(pid);
+  if (task == NULL)
+    return -ENOENT;
+
+  uint64_t vm_pages  = vm_size_kb(task) * 1024 / DEFAULT_PAGE_SIZE;
+  uint64_t rss_pages = vm_rss_kb(task)  * 1024 / DEFAULT_PAGE_SIZE;
+
+  char tmp[128];
+  size_t pos = 0;
+  pos = buf_putu64(tmp, sizeof(tmp), pos, vm_pages);   /* size */
+  pos = buf_puts(tmp, sizeof(tmp), pos, " ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, rss_pages);  /* resident */
+  pos = buf_puts(tmp, sizeof(tmp), pos, " 0 0 0 0 0\n");
+  return copy_slice(buf, size, tmp, pos, offset);
+}
+
+static struct file_ops_t proc_pid_statm_fops;
+
+/* -------------------------------------------------------------------------
+ * /proc/<pid>/limits — rlimit table
+ * ---------------------------------------------------------------------- */
+static int64_t proc_pid_limits_read(struct file_t *file, uint64_t offset,
+                                    void *buf, uint64_t size) {
+  uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
+  struct task_t *task = find_task_by_pid(pid);
+  if (task == NULL)
+    return -ENOENT;
+
+  static const char *rlimit_names[10] = {
+    "Max cpu time",       /* 0 RLIMIT_CPU    */
+    "Max file size",      /* 1 RLIMIT_FSIZE  */
+    "Max data size",      /* 2 RLIMIT_DATA   */
+    "Max stack size",     /* 3 RLIMIT_STACK  */
+    "Max core file size", /* 4 RLIMIT_CORE   */
+    NULL,                 /* 5 unused        */
+    NULL,                 /* 6 unused        */
+    "Max open files",     /* 7 RLIMIT_NOFILE */
+    NULL,                 /* 8 unused        */
+    "Max address space",  /* 9 RLIMIT_AS     */
+  };
+
+  char tmp[768];
+  size_t pos = 0;
+  pos = buf_puts(tmp, sizeof(tmp), pos,
+    "Limit                     Soft Limit           Hard Limit           Units\n");
+
+  for (int i = 0; i < 10; i++) {
+    if (rlimit_names[i] == NULL) continue;
+    struct rlimit *rl = &task->rlimits.limits[i];
+    pos = buf_puts(tmp, sizeof(tmp), pos, rlimit_names[i]);
+    /* pad to column 26 */
+    size_t name_len = 0;
+    for (const char *p = rlimit_names[i]; *p; p++) name_len++;
+    while (name_len++ < 26 && pos < sizeof(tmp) - 1) tmp[pos++] = ' ';
+    if (rl->rlim_cur == RLIM_INFINITY) {
+      pos = buf_puts(tmp, sizeof(tmp), pos, "unlimited            ");
+    } else {
+      pos = buf_putu64(tmp, sizeof(tmp), pos, rl->rlim_cur);
+      pos = buf_puts(tmp, sizeof(tmp), pos, "                     ");
+    }
+    if (rl->rlim_max == RLIM_INFINITY) {
+      pos = buf_puts(tmp, sizeof(tmp), pos, "unlimited            ");
+    } else {
+      pos = buf_putu64(tmp, sizeof(tmp), pos, rl->rlim_max);
+      pos = buf_puts(tmp, sizeof(tmp), pos, "                     ");
+    }
+    pos = buf_puts(tmp, sizeof(tmp), pos, "\n");
+  }
+  return copy_slice(buf, size, tmp, pos, offset);
+}
+
+static struct file_ops_t proc_pid_limits_fops;
 
 /* -------------------------------------------------------------------------
  * /proc/<pid>/maps — one line per VMA
@@ -533,9 +659,18 @@ static int64_t procfs_pid_readdir(struct vnode_t *dir, uint32_t index,
       *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_stat_fops, "stat");
       return 0;
     case 3:
-      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_maps_fops, "maps");
+      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_comm_fops, "comm");
       return 0;
     case 4:
+      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_statm_fops, "statm");
+      return 0;
+    case 5:
+      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_limits_fops, "limits");
+      return 0;
+    case 6:
+      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_maps_fops, "maps");
+      return 0;
+    case 7:
       *out = proc_make_fd_dir_dentry(dir->superblock, pid);
       return 0;
     default:
@@ -558,6 +693,18 @@ static int64_t procfs_pid_lookup(const char *name, struct vnode_t *parent,
   }
   if (strncmp(name, "stat") == 0) {
     *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_stat_fops, "stat");
+    return 0;
+  }
+  if (strncmp(name, "comm") == 0) {
+    *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_comm_fops, "comm");
+    return 0;
+  }
+  if (strncmp(name, "statm") == 0) {
+    *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_statm_fops, "statm");
+    return 0;
+  }
+  if (strncmp(name, "limits") == 0) {
+    *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_limits_fops, "limits");
     return 0;
   }
   if (strncmp(name, "maps") == 0) {
@@ -714,6 +861,10 @@ struct superblock_t *procfs_mount(void) {
   proc_pid_status_fops.read   = proc_pid_status_read;
   proc_pid_cmdline_fops.read  = proc_pid_cmdline_read;
   proc_pid_stat_fops.read     = proc_pid_stat_read;
+  proc_pid_comm_fops.read     = proc_pid_comm_read;
+  proc_pid_statm_fops.read    = proc_pid_statm_read;
+  proc_pid_limits_fops.read   = proc_pid_limits_read;
+  proc_mounts_fops.read       = proc_mounts_read;
   proc_pid_maps_fops.read     = proc_pid_maps_read;
   proc_pid_dir_ops.readdir    = procfs_pid_readdir;
   proc_pid_dir_ops.lookup     = procfs_pid_lookup;
@@ -735,7 +886,8 @@ struct superblock_t *procfs_mount(void) {
 
   proc_add_file(sb, root, &id, "uptime",  &proc_uptime_fops);
   proc_add_file(sb, root, &id, "meminfo", &proc_meminfo_fops);
-  proc_add_file(sb, root, &id, "kmsg",   &proc_kmsg_fops);
+  proc_add_file(sb, root, &id, "kmsg",    &proc_kmsg_fops);
+  proc_add_file(sb, root, &id, "mounts",  &proc_mounts_fops);
 
   struct dentry_t *root_dentry = dentry_t_alloc();
   strncpy(root_dentry->name, "proc", sizeof(root_dentry->name) - 1);
