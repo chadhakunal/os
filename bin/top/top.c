@@ -76,8 +76,11 @@ static void parse_statm(const char *pid_str, struct proc_info *p) {
     if (read_file(path, buf, sizeof(buf)) <= 0)
         return;
 
-    long vm_pages = 0, rss_pages = 0;
-    sscanf(buf, "%ld %ld", &vm_pages, &rss_pages);
+    char *s = buf;
+    long vm_pages  = atol(s);
+    while (*s && *s != ' ') s++;
+    while (*s == ' ') s++;
+    long rss_pages = atol(s);
     p->vmsize_kb = vm_pages * 4;
     p->vmrss_kb  = rss_pages * 4;
 }
@@ -200,8 +203,25 @@ int main(void) {
     struct proc_info procs[MAX_PROCS];
     int count;
 
+    fprintf(stderr, "top: starting\n");
+
+    DIR *test = opendir("/proc");
+    if (!test) {
+        fprintf(stderr, "top: cannot open /proc\n");
+        return 1;
+    }
+    fprintf(stderr, "top: /proc ok, entries:\n");
+    struct dirent *te;
+    int tn = 0;
+    while ((te = readdir(test)) != NULL && tn < 10) {
+        fprintf(stderr, "  [%s] numeric=%d\n", te->d_name, is_numeric(te->d_name));
+        tn++;
+    }
+    closedir(test);
+
     while (1) {
         collect_procs(procs, &count);
+        fprintf(stderr, "top: collect_procs count=%d\n", count);
         render(procs, count);
         struct timespec ts = { REFRESH_SEC, 0 };
         nanosleep(&ts, NULL);
