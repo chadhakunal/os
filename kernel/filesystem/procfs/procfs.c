@@ -111,9 +111,9 @@ static int64_t proc_meminfo_read(struct file_t *file, uint64_t offset,
   pos = buf_putu64(tmp, sizeof(tmp), pos, total_kb);
   pos = buf_puts(tmp, sizeof(tmp), pos, " kB\nMemFree:       ");
   pos = buf_putu64(tmp, sizeof(tmp), pos, free_kb);
-  pos = buf_puts(tmp, sizeof(tmp), pos, " kB\nMemUsed:       ");
-  pos = buf_putu64(tmp, sizeof(tmp), pos, used_kb);
-  pos = buf_puts(tmp, sizeof(tmp), pos, " kB\n");
+  pos = buf_puts(tmp, sizeof(tmp), pos, " kB\nMemAvailable:  ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, free_kb);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " kB\nBuffers:       0 kB\nCached:        0 kB\nSwapTotal:     0 kB\nSwapFree:      0 kB\n");
   return copy_slice(buf, size, tmp, pos, offset);
 }
 
