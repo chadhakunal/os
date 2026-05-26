@@ -460,7 +460,9 @@ static struct file_ops_t proc_pid_statm_fops;
 static int64_t proc_pid_limits_read(struct file_t *file, uint64_t offset,
                                     void *buf, uint64_t size) {
   uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
+  printk("[limits] pid=%llu offset=%llu size=%llu\n", pid, offset, size);
   struct task_t *task = find_task_by_pid(pid);
+  printk("[limits] task=%p\n", task);
   if (task == NULL)
     return -ENOENT;
 
