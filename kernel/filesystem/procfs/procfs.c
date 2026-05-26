@@ -584,47 +584,29 @@ static int64_t proc_pid_maps_read(struct file_t *file, uint64_t offset,
 static struct file_ops_t proc_pid_maps_fops;
 
 /* -------------------------------------------------------------------------
- * /proc/<pid>/cwd — current working directory path
+ * /proc/<pid>/cwd — symlink to the process current working directory
+ * /proc/<pid>/exe — symlink to the process executable
  * ---------------------------------------------------------------------- */
-static int64_t proc_pid_cwd_read(struct file_t *file, uint64_t offset,
-                                 void *buf, uint64_t size) {
-  uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
+static int64_t proc_pid_cwd_readlink(struct vnode_t *vnode, char *buf, size_t size) {
+  uint64_t pid = (uint64_t)vnode->fs_private_vnode;
   struct task_t *task = find_task_by_pid(pid);
   if (task == NULL)
     return -ENOENT;
-  char tmp[256];
-  int64_t ret = vfs_dentry_get_path(task->cwd, tmp, sizeof(tmp));
-  if (ret < 0)
-    return ret;
-  size_t len = 0;
-  while (tmp[len]) len++;
-  tmp[len++] = '\n';
-  return copy_slice(buf, size, tmp, len, offset);
+  return vfs_dentry_get_path(task->cwd, buf, size);
 }
 
-static struct file_ops_t proc_pid_cwd_fops;
-
-/* -------------------------------------------------------------------------
- * /proc/<pid>/exe — executable path (best-effort: argv[0] from cmdline)
- * ---------------------------------------------------------------------- */
-static int64_t proc_pid_exe_read(struct file_t *file, uint64_t offset,
-                                 void *buf, uint64_t size) {
-  uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
+static int64_t proc_pid_exe_readlink(struct vnode_t *vnode, char *buf, size_t size) {
+  uint64_t pid = (uint64_t)vnode->fs_private_vnode;
   struct task_t *task = find_task_by_pid(pid);
   if (task == NULL)
     return -ENOENT;
   if (task->exe_dentry == NULL)
-    return 0;
-  char tmp[256];
-  int64_t ret = vfs_dentry_get_path(task->exe_dentry, tmp, sizeof(tmp));
-  if (ret < 0)
-    return ret;
-  size_t len = 0;
-  while (tmp[len]) len++;
-  return copy_slice(buf, size, tmp, len, offset);
+    return -ENOENT;
+  return vfs_dentry_get_path(task->exe_dentry, buf, size);
 }
 
-static struct file_ops_t proc_pid_exe_fops;
+static struct vnode_ops_t proc_pid_cwd_ops;
+static struct vnode_ops_t proc_pid_exe_ops;
 
 /* -------------------------------------------------------------------------
  * /proc/<pid>/fd/<n> — proxy read/write through the underlying file_t.
@@ -779,6 +761,21 @@ static struct dentry_t *proc_make_pid_file(struct superblock_t *sb,
   return d;
 }
 
+static struct dentry_t *proc_make_pid_symlink(struct superblock_t *sb,
+                                               void *priv,
+                                               struct vnode_ops_t *vops,
+                                               const char *name) {
+  struct vnode_t *vnode = vnode_t_alloc();
+  vfs_init_vnode(vnode, sb, 0);
+  vnode->permission_mode  = S_IFLNK | 0777;
+  vnode->vnode_ops        = vops;
+  vnode->fs_private_vnode = priv;
+  struct dentry_t *d = dentry_t_alloc();
+  strncpy(d->name, name, sizeof(d->name) - 1);
+  d->vnode = vnode; d->parent = NULL;
+  return d;
+}
+
 static int64_t procfs_pid_readdir(struct vnode_t *dir, uint32_t index,
                                   struct dentry_t **out) {
   uint64_t pid = (uint64_t)dir->fs_private_vnode;
@@ -809,10 +806,10 @@ static int64_t procfs_pid_readdir(struct vnode_t *dir, uint32_t index,
       *out = proc_make_fd_dir_dentry(dir->superblock, pid);
       return 0;
     case 8:
-      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_cwd_fops, "cwd");
+      *out = proc_make_pid_symlink(dir->superblock, priv, &proc_pid_cwd_ops, "cwd");
       return 0;
     case 9:
-      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_exe_fops, "exe");
+      *out = proc_make_pid_symlink(dir->superblock, priv, &proc_pid_exe_ops, "exe");
       return 0;
     default:
       *out = NULL;
@@ -857,11 +854,11 @@ static int64_t procfs_pid_lookup(const char *name, struct vnode_t *parent,
     return 0;
   }
   if (strncmp(name, "cwd") == 0) {
-    *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_cwd_fops, "cwd");
+    *out = proc_make_pid_symlink(parent->superblock, priv, &proc_pid_cwd_ops, "cwd");
     return 0;
   }
   if (strncmp(name, "exe") == 0) {
-    *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_exe_fops, "exe");
+    *out = proc_make_pid_symlink(parent->superblock, priv, &proc_pid_exe_ops, "exe");
     return 0;
   }
   *out = NULL;
@@ -1019,8 +1016,8 @@ struct superblock_t *procfs_mount(void) {
   proc_mounts_fops.read       = proc_mounts_read;
   proc_stat_fops.read         = proc_stat_read;
   proc_pid_maps_fops.read     = proc_pid_maps_read;
-  proc_pid_cwd_fops.read      = proc_pid_cwd_read;
-  proc_pid_exe_fops.read      = proc_pid_exe_read;
+  proc_pid_cwd_ops.readlink   = proc_pid_cwd_readlink;
+  proc_pid_exe_ops.readlink   = proc_pid_exe_readlink;
   proc_pid_dir_ops.readdir    = procfs_pid_readdir;
   proc_pid_dir_ops.lookup     = procfs_pid_lookup;
   proc_fd_entry_fops.read     = proc_fd_entry_read;

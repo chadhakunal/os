@@ -120,14 +120,12 @@ result "status: PPid is numeric and >= 1"   "$(echo "$RPPID" | grep -qE '^[0-9]+
 # ------------------------------------------------------------------ #
 echo "--- /proc/self/exe"
 
-# exe is a regular file containing the path (no newline) — read with cat, strip prompt artifact
-OUT=$(run_cmd "cat /proc/self/exe ; echo")
-result "exe: non-empty"                     "$([ -n "$OUT" ] && echo 1 || echo 0)"
+OUT=$(run_cmd "readlink /proc/self/exe")
+result "exe: readlink non-empty"            "$([ -n "$OUT" ] && echo 1 || echo 0)"
 result "exe: starts with /"                 "$(matches "$OUT" '^/')"
 result "exe: contains /bin/"                "$(contains "$OUT" "/bin/")"
 
-# /proc/1/exe should be init
-OUT=$(run_cmd "cat /proc/1/exe ; echo")
+OUT=$(run_cmd "readlink /proc/1/exe")
 result "exe: /proc/1/exe non-empty"         "$([ -n "$OUT" ] && echo 1 || echo 0)"
 result "exe: /proc/1/exe starts with /"     "$(matches "$OUT" '^/')"
 result "exe: /proc/1/exe contains 'init'"   "$(contains "$OUT" "init")"
@@ -153,6 +151,12 @@ result "maps: /proc/1/maps has /bin/init"   "$(contains "$OUT" "/bin/init")"
 # ------------------------------------------------------------------ #
 # /proc/<pid>/cmdline                                                 #
 # ------------------------------------------------------------------ #
+echo "--- /proc/self/cwd"
+
+OUT=$(run_cmd "readlink /proc/self/cwd")
+result "cwd: readlink non-empty"            "$([ -n "$OUT" ] && echo 1 || echo 0)"
+result "cwd: starts with /"                 "$(matches "$OUT" '^/')"
+
 echo "--- /proc/self/cmdline"
 
 OUT=$(run_cmd "cat /proc/self/cmdline")
