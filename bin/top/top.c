@@ -161,6 +161,18 @@ static void collect_procs(struct proc_info *procs, int *count) {
         if (!num) continue;
         struct proc_info *p = &procs[*count];
         memset(p, 0, sizeof(*p));
+        char dbgpath[64]; char dbgbuf[256];
+        snprintf(dbgpath, sizeof(dbgpath), "/proc/%s/stat", ent->d_name);
+        int dbgfd = open(dbgpath, O_RDONLY);
+        write(2, "  open stat: fd=", 16);
+        char dbgn[4]; dbgn[0] = '0' + (dbgfd < 0 ? 0 : dbgfd); dbgn[1] = '\n'; dbgn[2] = 0;
+        write(2, dbgn, 2);
+        if (dbgfd >= 0) {
+            int dbgr = read(dbgfd, dbgbuf, sizeof(dbgbuf)-1);
+            dbgbuf[dbgr < 0 ? 0 : dbgr] = '\0';
+            write(2, "  content: [", 12); write(2, dbgbuf, strlen(dbgbuf)); write(2, "]\n", 2);
+            close(dbgfd);
+        }
         if (parse_stat(ent->d_name, p) < 0) {
             write(2, "  stat fail\n", 12); continue;
         }
