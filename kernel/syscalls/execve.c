@@ -99,6 +99,8 @@ static int64_t execve_run(struct dentry_t *dentry, struct execve_args_t *args) {
   current_task->signal_state.pending = 0;
   current_task->signal_handler_depth = 0;
 
+  current_task->exe_dentry = dentry;
+
   if (load_executable_dentry(current_task, args, dentry) != 0) {
     execve_args_t_free(args);
     return -ENOEXEC;

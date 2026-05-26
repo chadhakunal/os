@@ -47,6 +47,7 @@ struct vma_t {
   struct list_node sibling_vma;
   struct vnode_t *backing_file; // NULL if anonymous
   size_t offset; // File offset (in bytes, page-aligned)
+  char name[64];  // pathname for /proc/<pid>/maps; empty string for anonymous
 };
 
 struct mm_struct_t {
@@ -107,6 +108,7 @@ struct task_t {
   struct list_node wait_list;
   
   struct dentry_t *cwd;
+  struct dentry_t *exe_dentry; /* dentry of the executable image; NULL before first exec */
 
   uint64_t sleep_until; // os_ticks deadline for WAIT_SLEEP
   int stopped_sig;      /* signal that caused TASK_STOPPED (0 otherwise) */
@@ -180,7 +182,8 @@ struct dentry_t *task_dirfd_to_dentry(int dirfd);
 
 int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
                                 struct vnode_t *vnode, size_t offset,
-                                size_t size, uint64_t vm_flags, bool eager);
+                                size_t size, uint64_t vm_flags, bool eager,
+                                const char *name);
 
 int64_t anon_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
                         size_t size, uint64_t vm_flags, bool eager);

@@ -247,7 +247,8 @@ size_t find_free_vma(struct mm_struct_t *mm, size_t len) {
 
 int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
                                 struct vnode_t *vnode, size_t offset,
-                                size_t size, uint64_t vm_flags, bool eager) {
+                                size_t size, uint64_t vm_flags, bool eager,
+                                const char *name) {
   if (mm_struct == NULL || vnode == NULL || size == 0) {
     panic("file_backed_memory_map: invalid parameters\n");
   }
@@ -271,6 +272,12 @@ int64_t file_backed_memory_map(struct mm_struct_t *mm_struct, size_t vaddr,
   new_vma->backing_file = vnode;
   new_vma->offset = offset_aligned;
   new_vma->vm_flags = vm_flags;
+  if (name) {
+    strncpy(new_vma->name, name, sizeof(new_vma->name) - 1);
+    new_vma->name[sizeof(new_vma->name) - 1] = '\0';
+  } else {
+    new_vma->name[0] = '\0';
+  }
 
   vnode->refcount++;
 

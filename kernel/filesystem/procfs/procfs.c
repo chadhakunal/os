@@ -344,14 +344,7 @@ static int64_t proc_pid_cmdline_read(struct file_t *file, uint64_t offset,
     return 0;
   /* cmdline is NUL-separated argv; append a trailing newline for readability */
   size_t len = (size_t)task->cmdline_len;
-  int64_t n = copy_slice(buf, size, task->cmdline, len, offset);
-  if (n > 0 && offset + (uint64_t)n >= len) {
-    /* we're at the end — append newline if there's room */
-    char nl = '\n';
-    int64_t r = copy_slice((char *)buf + n, size - (uint64_t)n, &nl, 1, 0);
-    if (r > 0) n += r;
-  }
-  return n;
+  return copy_slice(buf, size, task->cmdline, len, offset);
 }
 
 static struct file_ops_t proc_pid_cmdline_fops;
@@ -517,17 +510,16 @@ static struct file_ops_t proc_pid_limits_fops;
  * /proc/<pid>/maps — one line per VMA
  * Format: start-end perms offset 00:00 0
  * ---------------------------------------------------------------------- */
+/* Emit address zero-padded to at least 8 hex digits, matching Linux maps format. */
 static size_t buf_puthex64_nopad(char *buf, size_t cap, size_t pos, uint64_t n) {
   static const char hex[] = "0123456789abcdef";
   char tmp[16];
-  int i = 0;
-  if (n == 0) {
-    tmp[i++] = '0';
-  } else {
-    while (n > 0) { tmp[i++] = hex[n & 0xf]; n >>= 4; }
-  }
-  while (i > 0 && pos < cap - 1)
-    buf[pos++] = tmp[--i];
+  int digits = 0;
+  uint64_t v = n;
+  do { tmp[digits++] = hex[v & 0xf]; v >>= 4; } while (v > 0);
+  while (digits < 8) tmp[digits++] = '0';  /* pad to 8 */
+  while (digits > 0 && pos < cap - 1)
+    buf[pos++] = tmp[--digits];
   buf[pos] = '\0';
   return pos;
 }
@@ -561,7 +553,16 @@ static int64_t proc_pid_maps_read(struct file_t *file, uint64_t offset,
       line[pos++] = ' ';
     }
     pos = buf_puthex64_nopad(line, sizeof(line), pos, vma->offset);
-    pos = buf_puts(line, sizeof(line), pos, " 00:00 0\n");
+    /* dev=00:00 inode=0; pad pathname to column 73 like Linux */
+    pos = buf_puts(line, sizeof(line), pos, " 00:00 0");
+    if (vma->name[0]) {
+      /* column 73 means 72 chars before the name; pad with spaces */
+      while (pos < 72 && pos < sizeof(line) - 1)
+        line[pos++] = ' ';
+      line[pos] = '\0';
+      pos = buf_puts(line, sizeof(line), pos, vma->name);
+    }
+    pos = buf_puts(line, sizeof(line), pos, "\n");
 
     /* Determine which bytes of this line fall within [offset, offset+size). */
     size_t line_end = global_pos + pos;
@@ -612,16 +613,14 @@ static int64_t proc_pid_exe_read(struct file_t *file, uint64_t offset,
   struct task_t *task = find_task_by_pid(pid);
   if (task == NULL)
     return -ENOENT;
-  if (task->cmdline_len == 0)
+  if (task->exe_dentry == NULL)
     return 0;
-  /* argv[0] is the first NUL-terminated string in cmdline */
+  char tmp[256];
+  int64_t ret = vfs_dentry_get_path(task->exe_dentry, tmp, sizeof(tmp));
+  if (ret < 0)
+    return ret;
   size_t len = 0;
-  while (len < (size_t)task->cmdline_len && task->cmdline[len])
-    len++;
-  char tmp[257];
-  if (len > 256) len = 256;
-  memcpy(tmp, task->cmdline, len);
-  tmp[len++] = '\n';
+  while (tmp[len]) len++;
   return copy_slice(buf, size, tmp, len, offset);
 }
 

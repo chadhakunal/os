@@ -32,6 +32,10 @@ int validate_elf(const char *path) {
 
 int load_elf_dentry(struct task_t *task, struct dentry_t *dentry) {
   int32_t ret;
+  char exe_path[256];
+  if (vfs_dentry_get_path(dentry, exe_path, sizeof(exe_path)) < 0)
+    exe_path[0] = '\0';
+
   // Read ELF header
   struct Elf64_Ehdr header;
   ret = vfs_vnode_read(dentry->vnode, &header, sizeof(header), 0);
@@ -118,7 +122,7 @@ int load_elf_dentry(struct task_t *task, struct dentry_t *dentry) {
         }
       } else {
         // No BSS - use lazy file-backed mapping (pages loaded on demand via page fault)
-        file_backed_memory_map(&task->mm_struct, program_header.p_vaddr, dentry->vnode, program_header.p_offset, program_header.p_filesz, vm_flags, false);
+        file_backed_memory_map(&task->mm_struct, program_header.p_vaddr, dentry->vnode, program_header.p_offset, program_header.p_filesz, vm_flags, false, exe_path);
       }
     }
   }

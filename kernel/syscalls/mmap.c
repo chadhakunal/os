@@ -42,8 +42,14 @@ DEFINE_SYSCALL6(mmap,
   } else {
     struct file_t *file = find_file(&current_task->file_table, fd);
     if (!file || !file->vnode) return -1;
+    char mmap_path[256];
+    if (file->dentry && vfs_dentry_get_path(file->dentry, mmap_path, sizeof(mmap_path)) < 0)
+      mmap_path[0] = '\0';
+    else if (!file->dentry)
+      mmap_path[0] = '\0';
     int64_t ret = file_backed_memory_map(&current_task->mm_struct, addr,
-                                         file->vnode, offset, len, vm_flags, false);
+                                         file->vnode, offset, len, vm_flags, false,
+                                         mmap_path[0] ? mmap_path : NULL);
     if (ret < 0) return -1;
     return (int64_t)addr;
   }
