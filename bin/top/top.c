@@ -11,9 +11,6 @@
 #define TERM_ROWS   24
 #define REFRESH_SEC 3
 
-/* Clear screen and move cursor to top-left (VT100). */
-#define CLEAR "\033[2J\033[H"
-
 struct proc_info {
     int   pid;
     int   ppid;
@@ -178,9 +175,7 @@ static void render(struct proc_info *procs, int count) {
     long up_m  = (uptime_sec % 3600) / 60;
     long up_s  = uptime_sec % 60;
 
-    write(1, CLEAR, sizeof(CLEAR) - 1);
-
-    printf("top - up %ld:%02ld:%02ld  tasks: %d\n", up_h, up_m, up_s, count);
+    printf("--- top - up %ld:%02ld:%02ld  tasks: %d ---\n", up_h, up_m, up_s, count);
     printf("MiB Mem: %6ld.0 total  %6ld.0 free  %6ld.0 used\n",
            total_kb / 1024, free_kb / 1024, used_kb / 1024);
     printf("\n");
