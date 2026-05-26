@@ -243,6 +243,82 @@ static int64_t proc_pid_status_read(struct file_t *file, uint64_t offset,
 static struct file_ops_t proc_pid_status_fops;
 
 /* -------------------------------------------------------------------------
+ * /proc/<pid>/cmdline — NUL-separated argv
+ * ---------------------------------------------------------------------- */
+static int64_t proc_pid_cmdline_read(struct file_t *file, uint64_t offset,
+                                     void *buf, uint64_t size) {
+  uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
+  struct task_t *task = find_task_by_pid(pid);
+  if (task == NULL)
+    return -ENOENT;
+  if (task->cmdline_len == 0)
+    return 0;
+  return copy_slice(buf, size, task->cmdline, (size_t)task->cmdline_len, offset);
+}
+
+static struct file_ops_t proc_pid_cmdline_fops;
+
+/* -------------------------------------------------------------------------
+ * /proc/<pid>/maps — one line per VMA
+ * Format: start-end perms offset 00:00 0
+ * ---------------------------------------------------------------------- */
+static size_t buf_puthex64_nopad(char *buf, size_t cap, size_t pos, uint64_t n) {
+  static const char hex[] = "0123456789abcdef";
+  char tmp[16];
+  int i = 0;
+  if (n == 0) {
+    tmp[i++] = '0';
+  } else {
+    while (n > 0) { tmp[i++] = hex[n & 0xf]; n >>= 4; }
+  }
+  while (i > 0 && pos < cap - 1)
+    buf[pos++] = tmp[--i];
+  buf[pos] = '\0';
+  return pos;
+}
+
+static int64_t proc_pid_maps_read(struct file_t *file, uint64_t offset,
+                                  void *buf, uint64_t size) {
+  uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
+  struct task_t *task = find_task_by_pid(pid);
+  if (task == NULL)
+    return -ENOENT;
+
+  /* Write directly into the caller's buffer one VMA at a time to avoid
+   * any large stack allocation. */
+  size_t written = 0;
+  list_for_each(&task->mm_struct.vma_list, node) {
+    struct vma_t *vma = container_of(node, struct vma_t, sibling_vma);
+
+    char line[80];
+    size_t pos = 0;
+    pos = buf_puthex64_nopad(line, sizeof(line), pos, vma->start_addr);
+    if (pos < sizeof(line) - 1) line[pos++] = '-';
+    pos = buf_puthex64_nopad(line, sizeof(line), pos, vma->end_addr);
+    if (pos < sizeof(line) - 1) line[pos++] = ' ';
+    if (pos + 5 < sizeof(line)) {
+      line[pos++] = (vma->vm_flags & VM_READ)   ? 'r' : '-';
+      line[pos++] = (vma->vm_flags & VM_WRITE)  ? 'w' : '-';
+      line[pos++] = (vma->vm_flags & VM_EXEC)   ? 'x' : '-';
+      line[pos++] = (vma->vm_flags & VM_SHARED) ? 's' : 'p';
+      line[pos++] = ' ';
+    }
+    pos = buf_puthex64_nopad(line, sizeof(line), pos, vma->offset);
+    pos = buf_puts(line, sizeof(line), pos, " 00:00 0\n");
+
+    int64_t n = copy_slice(buf, size, line, pos, offset > written ? offset - written : 0);
+    if (n > 0) {
+      buf = (char *)buf + n;
+      size -= (uint64_t)n;
+      written += (size_t)n;
+    }
+  }
+  return (int64_t)written;
+}
+
+static struct file_ops_t proc_pid_maps_fops;
+
+/* -------------------------------------------------------------------------
  * /proc/<pid>/fd/<n> — proxy read/write through the underlying file_t.
  * fs_private_vnode encodes (pid << 16) | fd_number.
  * ---------------------------------------------------------------------- */
@@ -380,23 +456,36 @@ static struct dentry_t *proc_make_fd_dir_dentry(struct superblock_t *sb,
  * ---------------------------------------------------------------------- */
 static struct vnode_ops_t proc_pid_dir_ops;
 
+static struct dentry_t *proc_make_pid_file(struct superblock_t *sb,
+                                            void *priv,
+                                            struct file_ops_t *fops,
+                                            const char *name) {
+  struct vnode_t *vnode = vnode_t_alloc();
+  vfs_init_vnode(vnode, sb, 0);
+  vnode->permission_mode  = S_IFREG | READ_EXECUTE_PERM;
+  vnode->file_ops         = fops;
+  vnode->fs_private_vnode = priv;
+  struct dentry_t *d = dentry_t_alloc();
+  strncpy(d->name, name, sizeof(d->name) - 1);
+  d->vnode = vnode; d->parent = NULL;
+  return d;
+}
+
 static int64_t procfs_pid_readdir(struct vnode_t *dir, uint32_t index,
                                   struct dentry_t **out) {
   uint64_t pid = (uint64_t)dir->fs_private_vnode;
+  void *priv = dir->fs_private_vnode;
   switch (index) {
-    case 0: {
-      struct vnode_t *vnode = vnode_t_alloc();
-      vfs_init_vnode(vnode, dir->superblock, 0);
-      vnode->permission_mode  = S_IFREG | READ_EXECUTE_PERM;
-      vnode->file_ops         = &proc_pid_status_fops;
-      vnode->fs_private_vnode = dir->fs_private_vnode;
-      struct dentry_t *d = dentry_t_alloc();
-      strncpy(d->name, "status", sizeof(d->name) - 1);
-      d->vnode = vnode; d->parent = NULL;
-      *out = d;
+    case 0:
+      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_status_fops, "status");
       return 0;
-    }
     case 1:
+      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_cmdline_fops, "cmdline");
+      return 0;
+    case 2:
+      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_maps_fops, "maps");
+      return 0;
+    case 3:
       *out = proc_make_fd_dir_dentry(dir->superblock, pid);
       return 0;
     default:
@@ -408,16 +497,17 @@ static int64_t procfs_pid_readdir(struct vnode_t *dir, uint32_t index,
 static int64_t procfs_pid_lookup(const char *name, struct vnode_t *parent,
                                  struct dentry_t **out) {
   uint64_t pid = (uint64_t)parent->fs_private_vnode;
+  void *priv = parent->fs_private_vnode;
   if (strncmp(name, "status") == 0) {
-    struct vnode_t *vnode = vnode_t_alloc();
-    vfs_init_vnode(vnode, parent->superblock, 0);
-    vnode->permission_mode  = S_IFREG | READ_EXECUTE_PERM;
-    vnode->file_ops         = &proc_pid_status_fops;
-    vnode->fs_private_vnode = parent->fs_private_vnode;
-    struct dentry_t *d = dentry_t_alloc();
-    strncpy(d->name, "status", sizeof(d->name) - 1);
-    d->vnode = vnode; d->parent = NULL;
-    *out = d;
+    *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_status_fops, "status");
+    return 0;
+  }
+  if (strncmp(name, "cmdline") == 0) {
+    *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_cmdline_fops, "cmdline");
+    return 0;
+  }
+  if (strncmp(name, "maps") == 0) {
+    *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_maps_fops, "maps");
     return 0;
   }
   if (strncmp(name, "fd") == 0) {
@@ -476,6 +566,15 @@ static int64_t procfs_root_readdir(struct vnode_t *dir, uint32_t index,
     i++;
   }
 
+  /* "self" entry. */
+  if (i == index) {
+    struct dentry_t *d = proc_make_pid_dentry(dir->superblock, current_task->pid);
+    strncpy(d->name, "self", sizeof(d->name) - 1);
+    *out = d;
+    return 0;
+  }
+  i++;
+
   /* Dynamic PID directories from the global task list. */
   list_for_each(&task_list, pos) {
     struct task_t *task = container_of(pos, struct task_t, task_list);
@@ -502,6 +601,14 @@ static int64_t procfs_root_lookup(const char *name, struct vnode_t *parent,
       *out = d;
       return 0;
     }
+  }
+
+  /* "self" resolves to the calling process's PID directory. */
+  if (strncmp(name, "self") == 0) {
+    struct dentry_t *d = proc_make_pid_dentry(parent->superblock, current_task->pid);
+    strncpy(d->name, "self", sizeof(d->name) - 1);
+    *out = d;
+    return 0;
   }
 
   /* Try parsing the name as a decimal PID. */
@@ -551,6 +658,8 @@ struct superblock_t *procfs_mount(void) {
   proc_uptime_fops.read       = proc_uptime_read;
   proc_meminfo_fops.read      = proc_meminfo_read;
   proc_pid_status_fops.read   = proc_pid_status_read;
+  proc_pid_cmdline_fops.read  = proc_pid_cmdline_read;
+  proc_pid_maps_fops.read     = proc_pid_maps_read;
   proc_pid_dir_ops.readdir    = procfs_pid_readdir;
   proc_pid_dir_ops.lookup     = procfs_pid_lookup;
   proc_fd_entry_fops.read     = proc_fd_entry_read;
