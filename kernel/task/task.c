@@ -626,6 +626,8 @@ uint64_t fork_off() {
   new_task->uid = current_task->uid;
   new_task->cwd = current_task->cwd;
   strncpy(new_task->comm, current_task->comm, 15);
+  memcpy(new_task->cmdline, current_task->cmdline, sizeof(new_task->cmdline));
+  new_task->cmdline_len = current_task->cmdline_len;
 
   new_task->mm_struct.root_satp = init_new_page_table();
   new_task->mm_struct.vma_list.next = &new_task->mm_struct.vma_list;
