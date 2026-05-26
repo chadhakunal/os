@@ -84,20 +84,14 @@ int handle_page_fault(uint64_t fault_addr, uint64_t scause, struct trap_frame *t
   // Check if this is a kernel page fault (supervisor mode accessing kernel memory)
   // Allow supervisor mode to fault on user memory (for syscalls accessing user buffers)
   if ((tf->sstatus & SSTATUS_SPP) && fault_addr >= END_USER_SPACE_ADDR) {
-    // Check if SP caused the fault (likely stack overflow into guard page)
-    if (fault_addr >= tf->sp - 256 && fault_addr <= tf->sp + 256) {
-      printk("KERNEL STACK OVERFLOW!\n");
-      printk("  Stack pointer accessed unmapped memory\n");
-      printk("  Fault address: 0x%llx\n", fault_addr);
-      printk("  SP: 0x%llx\n", tf->sp);
-      printk("  Kernel stack base: 0x%llx\n", KERNEL_STACK_VIRTUAL_BASE);
-      printk("  Kernel stack top: 0x%llx\n", KERNEL_STACK_VIRTUAL_BASE + KERNEL_STACK_SIZE);
-      printk("  PC (sepc): 0x%llx\n", tf->sepc);
-      printk("  RA: 0x%llx\n", tf->ra);
-      if (current_task) {
-        printk("  PID: %llu\n", current_task->pid);
-      }
-      panic("Kernel stack overflowed into unmapped guard page");
+    // Check if fault is in the guard page immediately below the kernel stack.
+    if (fault_addr >= KERNEL_STACK_VIRTUAL_BASE - DEFAULT_PAGE_SIZE &&
+        fault_addr <  KERNEL_STACK_VIRTUAL_BASE) {
+      printk("KERNEL STACK OVERFLOW: pid=%llu comm=%s\n",
+             current_task->pid, current_task->comm);
+      printk("  fault=0x%llx sp=0x%llx pc=0x%llx ra=0x%llx\n",
+             fault_addr, tf->sp, tf->sepc, tf->ra);
+      panic("kernel stack overflow");
     }
 
     printk("KERNEL PAGE FAULT DETAILS:\n");
