@@ -20,7 +20,7 @@ result "/proc lists meminfo"        "$(contains "$OUT" "meminfo")"
 result "/proc lists self"           "$(contains "$OUT" "self")"
 
 # Our own PID should appear
-PID=$(run_cmd "cat /proc/self/status" | grep '^Pid:' | tr -s ' \t' ' ' | cut -d' ' -f2)
+PID=$(run_cmd "cat /proc/self/status" | awk -F: '/^Pid:/{gsub(/[ \t]/,"",$2); print $2}')
 OUT=$(run_cmd "ls /proc")
 result "/proc lists own PID dir"    "$(contains "$OUT" "$PID")"
 
@@ -57,8 +57,8 @@ result "meminfo: contains MemAvailable"     "$(contains "$OUT" "MemAvailable")"
 result "meminfo: MemTotal ends with kB"     "$(matches "$OUT" 'MemTotal:.*kB')"
 result "meminfo: MemFree ends with kB"      "$(matches "$OUT" 'MemFree:.*kB')"
 
-TOTAL=$(echo "$OUT" | grep '^MemTotal:' | tr -s ' \t' ' ' | cut -d' ' -f2)
-FREE=$(echo  "$OUT" | grep '^MemFree:'  | tr -s ' \t' ' ' | cut -d' ' -f2)
+TOTAL=$(echo "$OUT" | awk -F: '/^MemTotal:/{gsub(/[ \t kB]/,"",$2); print $2+0}')
+FREE=$(echo  "$OUT" | awk -F: '/^MemFree:/{gsub(/[ \t kB]/,"",$2); print $2+0}')
 result "meminfo: MemTotal > 0"              "$([ "$TOTAL" -gt 0 ] 2>/dev/null && echo 1 || echo 0)"
 result "meminfo: MemFree >= 0"             "$([ "$FREE"  -ge 0 ] 2>/dev/null && echo 1 || echo 0)"
 result "meminfo: MemFree <= MemTotal"       "$([ "$FREE" -le "$TOTAL" ] 2>/dev/null && echo 1 || echo 0)"
@@ -86,21 +86,19 @@ result "status: VmSize ends with kB"        "$(matches "$OUT" 'VmSize:.*kB')"
 result "status: VmRSS ends with kB"         "$(matches "$OUT" 'VmRSS:.*kB')"
 result "status: Umask is 4 octal digits"    "$(matches "$OUT" 'Umask:[[:space:]]*[0-7][0-7][0-7][0-7]')"
 
-STATE=$(echo "$OUT" | grep '^State:' | tr -s ' \t' ' ' | cut -d' ' -f2)
+STATE=$(echo "$OUT" | awk -F: '/^State:/{gsub(/^[ \t]+/,"",$2); print substr($2,1,1)}')
 result "status: State is valid letter"      "$(echo "$STATE" | grep -qE '^[RSDTZ]$' && echo 1 || echo 0)"
 
-PGRP=$(echo "$OUT" | grep '^Pgrp:' | tr -s ' \t' ' ' | cut -d' ' -f2)
-SID=$(echo   "$OUT" | grep '^Sid:'  | tr -s ' \t' ' ' | cut -d' ' -f2)
-result "status: Pgrp >= 1"                  "$([ "$PGRP" -ge 1 ] 2>/dev/null && echo 1 || echo 0)"
-result "status: Sid >= 1"                   "$([ "$SID"  -ge 1 ] 2>/dev/null && echo 1 || echo 0)"
-
-THREADS=$(echo "$OUT" | grep '^Threads:' | tr -s ' \t' ' ' | cut -d' ' -f2)
+PGRP=$(echo    "$OUT" | awk -F: '/^Pgrp:/{gsub(/[ \t]/,"",$2); print $2}')
+SID=$(echo     "$OUT" | awk -F: '/^Sid:/{gsub(/[ \t]/,"",$2); print $2}')
+THREADS=$(echo "$OUT" | awk -F: '/^Threads:/{gsub(/[ \t]/,"",$2); print $2}')
+VMSIZE=$(echo  "$OUT" | awk -F: '/^VmSize:/{gsub(/[ \t kB]/,"",$2); print $2+0}')
+VMRSS=$(echo   "$OUT" | awk -F: '/^VmRSS:/{gsub(/[ \t kB]/,"",$2); print $2+0}')
+result "status: Pgrp >= 1"                  "$([ "$PGRP"    -ge 1 ] 2>/dev/null && echo 1 || echo 0)"
+result "status: Sid >= 1"                   "$([ "$SID"     -ge 1 ] 2>/dev/null && echo 1 || echo 0)"
 result "status: Threads >= 1"               "$([ "$THREADS" -ge 1 ] 2>/dev/null && echo 1 || echo 0)"
-
-VMSIZE=$(echo "$OUT" | grep '^VmSize:' | tr -s ' \t' ' ' | cut -d' ' -f2)
-VMRSS=$(echo  "$OUT" | grep '^VmRSS:'  | tr -s ' \t' ' ' | cut -d' ' -f2)
-result "status: VmSize > 0"                 "$([ "$VMSIZE" -gt 0 ] 2>/dev/null && echo 1 || echo 0)"
-result "status: VmRSS <= VmSize"            "$([ "$VMRSS" -le "$VMSIZE" ] 2>/dev/null && echo 1 || echo 0)"
+result "status: VmSize > 0"                 "$([ "$VMSIZE"  -gt 0 ] 2>/dev/null && echo 1 || echo 0)"
+result "status: VmRSS <= VmSize"            "$([ "$VMRSS"  -le "$VMSIZE" ] 2>/dev/null && echo 1 || echo 0)"
 
 # ------------------------------------------------------------------ #
 # /proc/<pid>/status — Pid/PPid match shell's values                 #
@@ -109,10 +107,9 @@ echo "--- /proc/self/status pid consistency"
 
 # cat itself: its Pid should match what the shell sees
 OUT=$(run_cmd "cat /proc/self/status")
-RPID=$(echo "$OUT" | grep '^Pid:'  | tr -s ' \t' ' ' | cut -d' ' -f2)
-result "status: Pid is numeric and > 0"     "$(echo "$RPID" | grep -qE '^[0-9]+$' && [ "$RPID" -gt 0 ] && echo 1 || echo 0)"
-
-RPPID=$(echo "$OUT" | grep '^PPid:' | tr -s ' \t' ' ' | cut -d' ' -f2)
+RPID=$(echo  "$OUT" | awk -F: '/^Pid:/{gsub(/[ \t]/,"",$2); print $2}')
+RPPID=$(echo "$OUT" | awk -F: '/^PPid:/{gsub(/[ \t]/,"",$2); print $2}')
+result "status: Pid is numeric and > 0"     "$(echo "$RPID"  | grep -qE '^[0-9]+$' && [ "$RPID"  -gt 0 ] && echo 1 || echo 0)"
 result "status: PPid is numeric and >= 1"   "$(echo "$RPPID" | grep -qE '^[0-9]+$' && [ "$RPPID" -ge 1 ] && echo 1 || echo 0)"
 
 # ------------------------------------------------------------------ #
