@@ -4,6 +4,7 @@
 #include "kernel/time/timer.h"
 #include "kernel/memory/memory_info.h"
 #include "kernel/memory/page_allocator.h"
+#include "kernel/memory/page_tables.h"
 #include "kernel/task/task.h"
 #include "lib/string.h"
 #include "lib/printk/printk.h"
@@ -129,6 +130,60 @@ static size_t buf_puthex64(char *buf, size_t cap, size_t pos, uint64_t n) {
   return pos;
 }
 
+static size_t buf_putoct(char *buf, size_t cap, size_t pos, uint32_t n) {
+  char tmp[12];
+  int i = 0;
+  if (n == 0) {
+    tmp[i++] = '0';
+  } else {
+    while (n > 0) {
+      tmp[i++] = '0' + (n & 7);
+      n >>= 3;
+    }
+  }
+  while (i > 0 && pos < cap - 1)
+    buf[pos++] = tmp[--i];
+  buf[pos] = '\0';
+  return pos;
+}
+
+/* Compute signal masks by walking the actions table. */
+static void sig_masks(struct signal_state_t *ss, sigset_t *ign, sigset_t *cgt) {
+  *ign = 0;
+  *cgt = 0;
+  for (int i = 1; i < NUM_SIGS; i++) {
+    struct sigaction_t *act = ss->actions[i];
+    if (act == (struct sigaction_t *)SIG_IGNORE)
+      *ign |= (1ULL << (i - 1));
+    else if (act != NULL && act != (struct sigaction_t *)SIG_DEFAULT_HANDLER)
+      *cgt |= (1ULL << (i - 1));
+  }
+}
+
+/* Virtual memory size: sum of all VMA spans in kB. */
+static uint64_t vm_size_kb(struct task_t *task) {
+  uint64_t bytes = 0;
+  list_for_each(&task->mm_struct.vma_list, pos) {
+    struct vma_t *vma = container_of(pos, struct vma_t, sibling_vma);
+    bytes += vma->end_addr - vma->start_addr;
+  }
+  return bytes / 1024;
+}
+
+/* Resident set size: count valid user-space PTEs in all VMAs. */
+static uint64_t vm_rss_kb(struct task_t *task) {
+  uint64_t pages = 0;
+  list_for_each(&task->mm_struct.vma_list, pos) {
+    struct vma_t *vma = container_of(pos, struct vma_t, sibling_vma);
+    for (uint64_t va = vma->start_addr; va < vma->end_addr; va += DEFAULT_PAGE_SIZE) {
+      uint64_t pte = get_pte(task->mm_struct.root_satp, va);
+      if (pte & PTE_VALID)
+        pages++;
+    }
+  }
+  return (pages * DEFAULT_PAGE_SIZE) / 1024;
+}
+
 static int64_t proc_pid_status_read(struct file_t *file, uint64_t offset,
                                     void *buf, uint64_t size) {
   uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
@@ -136,24 +191,50 @@ static int64_t proc_pid_status_read(struct file_t *file, uint64_t offset,
   if (task == NULL)
     return -ENOENT;
 
-  char tmp[512];
+  sigset_t sig_ign, sig_cgt;
+  sig_masks(&task->signal_state, &sig_ign, &sig_cgt);
+
+  char tmp[768];
   size_t pos = 0;
   pos = buf_puts(tmp, sizeof(tmp), pos, "Name:\t");
   pos = buf_puts(tmp, sizeof(tmp), pos, task->comm);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nState:\t");
+  pos = buf_puts(tmp, sizeof(tmp), pos, task_state_str(task->state));
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nTgid:\t");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->pid);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nPid:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->pid);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nPPid:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->ppid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nTracerPid:\t0");
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nUid:\t");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->uid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\t");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->uid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\t");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->uid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\t");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->uid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nGid:\t0\t0\t0\t0");
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nPgrp:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->pgid);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nSession:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->sid);
-  pos = buf_puts(tmp, sizeof(tmp), pos, "\nState:\t");
-  pos = buf_puts(tmp, sizeof(tmp), pos, task_state_str(task->state));
-  pos = buf_puts(tmp, sizeof(tmp), pos, "\nUid:\t");
-  pos = buf_putu64(tmp, sizeof(tmp), pos, task->uid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nThreads:\t1");
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nUmask:\t");
+  pos = buf_putoct(tmp, sizeof(tmp), pos, task->umask);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nVmSize:\t");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, vm_size_kb(task));
+  pos = buf_puts(tmp, sizeof(tmp), pos, " kB\nVmRSS:\t");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, vm_rss_kb(task));
+  pos = buf_puts(tmp, sizeof(tmp), pos, " kB\nSigPnd:\t");
+  pos = buf_puthex64(tmp, sizeof(tmp), pos, task->signal_state.pending);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nSigBlk:\t");
   pos = buf_puthex64(tmp, sizeof(tmp), pos, task->signal_state.blocked);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nSigIgn:\t");
+  pos = buf_puthex64(tmp, sizeof(tmp), pos, sig_ign);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nSigCgt:\t");
+  pos = buf_puthex64(tmp, sizeof(tmp), pos, sig_cgt);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\n");
   return copy_slice(buf, size, tmp, pos, offset);
 }
