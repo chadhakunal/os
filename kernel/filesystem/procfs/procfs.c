@@ -308,9 +308,9 @@ static int64_t proc_pid_status_read(struct file_t *file, uint64_t offset,
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->pid);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nNSpid:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->pid);
-  pos = buf_puts(tmp, sizeof(tmp), pos, "\nNSpgid:\t");
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nPgrp:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->pgid);
-  pos = buf_puts(tmp, sizeof(tmp), pos, "\nNSsid:\t");
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nSid:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->sid);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nThreads:\t1");
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nVmSize:\t");

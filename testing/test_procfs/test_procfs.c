@@ -304,6 +304,29 @@ static void test_status_state_field(void) {
     printf("    State field: '%s'\n", state_val);
 }
 
+static void test_status_pgrp_sid_fields(void) {
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/status", (int)getpid());
+
+    char buf[1024];
+    if (slurp(path, buf, sizeof(buf)) <= 0) {
+        result("status pgrp/sid: read", 0);
+        return;
+    }
+
+    /* Conventional labels used by procps and other userspace tools. */
+    result("status: 'Pgrp' field present (not NSpgid)", has_key(buf, "Pgrp"));
+    result("status: 'Sid' field present (not NSsid)",   has_key(buf, "Sid"));
+
+    long pgrp = extract_long(buf, "Pgrp");
+    long sid  = extract_long(buf, "Sid");
+
+    result("status: Pgrp >= 1", pgrp >= 1);
+    result("status: Sid >= 1",  sid  >= 1);
+
+    printf("    Pgrp=%ld  Sid=%ld\n", pgrp, sid);
+}
+
 static void test_status_uid_field(void) {
     char path[64];
     snprintf(path, sizeof(path), "/proc/%d/status", (int)getpid());
@@ -516,6 +539,7 @@ int main(void) {
     printf("\n/proc/<pid>/status:\n");
     test_self_status();
     test_status_state_field();
+    test_status_pgrp_sid_fields();
     test_status_uid_field();
     test_status_vm_fields();
 
