@@ -41,7 +41,6 @@ static int read_proc(const char *pid_str, struct proc_info *p) {
   p->rss_kb = 0;
   strncpy(p->cmd, "?", sizeof(p->cmd));
 
-  /* comm */
   snprintf(path, sizeof(path), "/proc/%s/comm", pid_str);
   if (read_file(path, buf, sizeof(buf)) > 0) {
     strncpy(p->cmd, buf, sizeof(p->cmd) - 1);
@@ -50,7 +49,6 @@ static int read_proc(const char *pid_str, struct proc_info *p) {
     if (len > 0 && p->cmd[len-1] == '\n') p->cmd[len-1] = '\0';
   }
 
-  /* stat: pid (comm) state ... */
   snprintf(path, sizeof(path), "/proc/%s/stat", pid_str);
   if (read_file(path, buf, sizeof(buf)) > 0) {
     char *end = strrchr(buf, ')');
@@ -61,7 +59,6 @@ static int read_proc(const char *pid_str, struct proc_info *p) {
     }
   }
 
-  /* statm: size_pages rss_pages ... */
   snprintf(path, sizeof(path), "/proc/%s/statm", pid_str);
   if (read_file(path, buf, sizeof(buf)) > 0) {
     long size_p = atol(buf);
@@ -97,42 +94,23 @@ static int cmp_pid(const void *a, const void *b) {
 int main(void) {
   struct proc_info procs[MAX_PROCS];
 
-  while (1) {
-    int nprocs = 0;
-    DIR *d = opendir("/proc");
-    if (d) {
-      struct dirent *ent;
-      while ((ent = readdir(d)) != NULL && nprocs < MAX_PROCS) {
-        if (is_numeric(ent->d_name))
-          if (read_proc(ent->d_name, &procs[nprocs]) == 0)
-            nprocs++;
-      }
-      closedir(d);
-    }
-    qsort(procs, nprocs, sizeof(procs[0]), cmp_pid);
-
-    long total_kb, free_kb, used_kb;
-    read_meminfo(&total_kb, &free_kb, &used_kb);
-
-    /* clear screen */
-    printf("\033[2J\033[H");
-
-    printf("SBUnix top\n");
-    printf("Tasks: %d  |  Mem: %ld kB total, %ld kB used, %ld kB free\n\n",
-           nprocs, total_kb, used_kb, free_kb);
-    printf("%6s  %5s  %8s  %8s  %s\n",
-           "PID", "STATE", "VSZ(kB)", "RSS(kB)", "CMD");
-    printf("------  -----  --------  --------  --------------------\n");
-
-    for (int i = 0; i < nprocs; i++)
-      printf("%6d  %5c  %8ld  %8ld  %s\n",
-             procs[i].pid, procs[i].state,
-             procs[i].vsz_kb, procs[i].rss_kb,
-             procs[i].cmd);
-
-    fflush(stdout);
-    sleep(2);
+  /* sanity check */
+  DIR *test = opendir("/proc");
+  if (!test) {
+    fprintf(stderr, "top: cannot open /proc\n");
+    return 1;
   }
+  fprintf(stderr, "top: /proc opened ok\n");
 
+  /* count entries */
+  int total = 0;
+  struct dirent *ent;
+  while ((ent = readdir(test)) != NULL) {
+    fprintf(stderr, "  entry: %s\n", ent->d_name);
+    total++;
+    if (total > 20) break;
+  }
+  closedir(test);
+  fprintf(stderr, "top: counted %d entries\n", total);
   return 0;
 }
