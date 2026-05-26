@@ -110,7 +110,7 @@ static int64_t proc_version_read(struct file_t *file, uint64_t offset,
                                  void *buf, uint64_t size) {
   (void)file;
   static const char ver[] =
-    "Linux version 5.15.0 (root@os) (gcc 12.0) #1 SMP\n";
+    "SBUnix version 1.0.0\n";
   return copy_slice(buf, size, ver, sizeof(ver) - 1, offset);
 }
 
