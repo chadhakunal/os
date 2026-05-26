@@ -104,28 +104,6 @@ static int64_t execve_run(struct dentry_t *dentry, struct execve_args_t *args) {
     return -ENOEXEC;
   }
 
-  /* Update comm to the basename of the new executable (max 15 chars). */
-  {
-    const char *base = args->pathname;
-    for (const char *p = args->pathname; *p; p++)
-      if (*p == '/') base = p + 1;
-    strncpy(current_task->comm, base, 15);
-    current_task->comm[15] = '\0';
-  }
-
-  /* Pack argv as NUL-separated strings into cmdline. */
-  {
-    int pos = 0;
-    for (int i = 0; i < args->argc; i++) {
-      const char *s = args->argv[i];
-      while (*s && pos < (int)sizeof(current_task->cmdline) - 1)
-        current_task->cmdline[pos++] = *s++;
-      if (pos < (int)sizeof(current_task->cmdline))
-        current_task->cmdline[pos++] = '\0';
-    }
-    current_task->cmdline_len = pos;
-  }
-
   void *sjp = get_signal_jump_point_page();
   if (sjp) {
     map_page(current_task->mm_struct.root_satp, SIGNAL_JUMP_POINT_ADDR,
