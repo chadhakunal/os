@@ -464,19 +464,6 @@ static int64_t proc_pid_limits_read(struct file_t *file, uint64_t offset,
   if (task == NULL)
     return -ENOENT;
 
-  static const char *rlimit_names[10] = {
-    "Max cpu time",       /* 0 RLIMIT_CPU    */
-    "Max file size",      /* 1 RLIMIT_FSIZE  */
-    "Max data size",      /* 2 RLIMIT_DATA   */
-    "Max stack size",     /* 3 RLIMIT_STACK  */
-    "Max core file size", /* 4 RLIMIT_CORE   */
-    NULL,                 /* 5 unused        */
-    NULL,                 /* 6 unused        */
-    "Max open files",     /* 7 RLIMIT_NOFILE */
-    NULL,                 /* 8 unused        */
-    "Max address space",  /* 9 RLIMIT_AS     */
-  };
-
   static const char limits_out[] =
     "Limit                     Soft Limit           Hard Limit\n"
     "Max cpu time              0                    0\n"
