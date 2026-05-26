@@ -460,9 +460,7 @@ static struct file_ops_t proc_pid_statm_fops;
 static int64_t proc_pid_limits_read(struct file_t *file, uint64_t offset,
                                     void *buf, uint64_t size) {
   uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
-  printk("[limits] pid=%llu offset=%llu size=%llu\n", pid, offset, size);
   struct task_t *task = find_task_by_pid(pid);
-  printk("[limits] task=%p\n", task);
   if (task == NULL)
     return -ENOENT;
 
@@ -509,6 +507,7 @@ static int64_t proc_pid_limits_read(struct file_t *file, uint64_t offset,
     if (pos < sizeof(tmp) - 1) tmp[pos++] = '\n';
   }
   tmp[pos] = '\0';
+  printk("[limits] pos=%zu offset=%llu size=%llu\n", pos, offset, size);
   return copy_slice(buf, size, tmp, pos, offset);
 }
 
@@ -927,9 +926,11 @@ static int64_t procfs_root_readdir(struct vnode_t *dir, uint32_t index,
   }
   i++;
 
-  /* Dynamic PID directories from the global task list. */
+  /* Dynamic PID directories from the global task list — skip dead tasks. */
   list_for_each(&task_list, pos) {
     struct task_t *task = container_of(pos, struct task_t, task_list);
+    if (task->state == TASK_TERMINATED)
+      continue;
     if (i == index) {
       *out = proc_make_pid_dentry(dir->superblock, task->pid);
       return 0;
