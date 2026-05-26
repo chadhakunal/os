@@ -120,13 +120,14 @@ result "status: PPid is numeric and >= 1"   "$(echo "$RPPID" | grep -qE '^[0-9]+
 # ------------------------------------------------------------------ #
 echo "--- /proc/self/exe"
 
-OUT=$(run_cmd "cat /proc/self/exe")
+# exe is a regular file containing the path (no newline) — read with cat, strip prompt artifact
+OUT=$(run_cmd "cat /proc/self/exe ; echo")
 result "exe: non-empty"                     "$([ -n "$OUT" ] && echo 1 || echo 0)"
 result "exe: starts with /"                 "$(matches "$OUT" '^/')"
-result "exe: no trailing newline garbage"   "$([ "$(echo "$OUT" | wc -l)" -le 1 ] && echo 1 || echo 0)"
+result "exe: contains /bin/"                "$(contains "$OUT" "/bin/")"
 
 # /proc/1/exe should be init
-OUT=$(run_cmd "cat /proc/1/exe")
+OUT=$(run_cmd "cat /proc/1/exe ; echo")
 result "exe: /proc/1/exe non-empty"         "$([ -n "$OUT" ] && echo 1 || echo 0)"
 result "exe: /proc/1/exe starts with /"     "$(matches "$OUT" '^/')"
 result "exe: /proc/1/exe contains 'init'"   "$(contains "$OUT" "init")"

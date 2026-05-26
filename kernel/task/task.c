@@ -209,6 +209,10 @@ void create_init_process() {
 
   if (load_elf(init_task, "/bin/init") != 0)
     panic("create_init_process: failed to load /bin/init");
+
+  struct dentry_t *init_dentry = NULL;
+  if (vfs_resolve_path("/bin/init", &init_dentry) == 0)
+    init_task->exe_dentry = init_dentry;
 }
 
 void start_init_process();
