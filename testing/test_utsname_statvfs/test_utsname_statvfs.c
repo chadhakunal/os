@@ -46,13 +46,35 @@ static void test_statvfs_root(void) {
     memset(&sv, 0, sizeof(sv));
 
     int ret = statvfs("/", &sv);
-    result("statvfs /: returns 0",         ret == 0);
-    result("statvfs /: f_bsize > 0",       sv.f_bsize > 0);
-    result("statvfs /: f_namemax > 0",     sv.f_namemax > 0);
+    result("statvfs /: returns 0",             ret == 0);
+    result("statvfs /: f_bsize > 0",           sv.f_bsize > 0);
+    result("statvfs /: f_namemax > 0",         sv.f_namemax > 0);
+    result("statvfs /: f_namemax reasonable",  sv.f_namemax >= 14 && sv.f_namemax <= 4096);
+    result("statvfs /: f_frsize > 0",          sv.f_frsize > 0);
+    result("statvfs /: f_bfree <= f_blocks",   sv.f_bfree <= sv.f_blocks);
+    result("statvfs /: f_bavail <= f_blocks",  sv.f_bavail <= sv.f_blocks);
 
-    printf("    bsize=%lu blocks=%lu bfree=%lu files=%lu namemax=%lu\n",
-           sv.f_bsize, (unsigned long)sv.f_blocks,
+    printf("    bsize=%lu frsize=%lu blocks=%lu bfree=%lu files=%lu namemax=%lu\n",
+           sv.f_bsize, sv.f_frsize, (unsigned long)sv.f_blocks,
            (unsigned long)sv.f_bfree, (unsigned long)sv.f_files,
+           sv.f_namemax);
+}
+
+static void test_statvfs_mnt(void) {
+    struct statvfs sv;
+    memset(&sv, 0, sizeof(sv));
+
+    int ret = statvfs("/mnt", &sv);
+    result("statvfs /mnt: returns 0",            ret == 0);
+    result("statvfs /mnt: f_bsize > 0",          ret == 0 && sv.f_bsize > 0);
+    result("statvfs /mnt: f_namemax reasonable",
+           ret == 0 && sv.f_namemax >= 14 && sv.f_namemax <= 4096);
+    result("statvfs /mnt: f_blocks > 0",         ret == 0 && sv.f_blocks > 0);
+    result("statvfs /mnt: f_bfree <= f_blocks",  ret == 0 && sv.f_bfree <= sv.f_blocks);
+
+    printf("    bsize=%lu blocks=%lu bfree=%lu bavail=%lu namemax=%lu\n",
+           sv.f_bsize, (unsigned long)sv.f_blocks,
+           (unsigned long)sv.f_bfree, (unsigned long)sv.f_bavail,
            sv.f_namemax);
 }
 
@@ -89,6 +111,7 @@ int main(void) {
 
     printf("\nstatvfs:\n");
     test_statvfs_root();
+    test_statvfs_mnt();
     test_statvfs_proc();
     test_statvfs_bad_path();
     test_statvfs_null();
