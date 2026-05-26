@@ -52,9 +52,6 @@ DEFINE_SYSCALL4(rt_sigtimedwait, const sigset_t *, user_set, void *, user_info,
 
   sigset_t pending;
   while (1) {
-    if (has_timeout && virtual_time.os_ticks >= deadline)
-      return -EAGAIN;
-
     pending = current_task->signal_state.pending & set;
     if (pending) {
       for (int sig = 1; sig < NUM_SIGS; sig++) {
@@ -76,6 +73,10 @@ DEFINE_SYSCALL4(rt_sigtimedwait, const sigset_t *, user_set, void *, user_info,
         }
       }
     }
+
+    /* No matching signal — check deadline before blocking. */
+    if (has_timeout && virtual_time.os_ticks >= deadline)
+      return -EAGAIN;
 
     /* Block until a signal arrives or the deadline passes.
      * Always use WAIT_SIGNAL so send_signal() wakes us even when the
