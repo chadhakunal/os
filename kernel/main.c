@@ -30,11 +30,6 @@
 void kmain(void *dtb_ptr) {
   (void)dtb_ptr;
   printk("Kernel Started...\n");
-  struct task_t _t;
-  printk("sizeof(task_t)=%llu pid_off=%llu satp_off=%llu\n",
-         (uint64_t)sizeof(struct task_t),
-         (uint64_t)((char*)&_t.pid - (char*)&_t),
-         (uint64_t)((char*)&_t.mm_struct.root_satp - (char*)&_t));
   init_memory_info();
   print_memory_info();
   init_page_allocator();
