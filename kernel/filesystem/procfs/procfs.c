@@ -197,7 +197,9 @@ static int64_t proc_pid_status_read(struct file_t *file, uint64_t offset,
 
   char tmp[768];
   size_t pos = 0;
-  pos = buf_puts(tmp, sizeof(tmp), pos, "Name:\t?\nState:\t");
+  pos = buf_puts(tmp, sizeof(tmp), pos, "Name:\t");
+  pos = buf_puts(tmp, sizeof(tmp), pos, task->comm);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nState:\t");
   pos = buf_puts(tmp, sizeof(tmp), pos, task_state_str(task->state));
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nTgid:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->pid);
@@ -217,7 +219,8 @@ static int64_t proc_pid_status_read(struct file_t *file, uint64_t offset,
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nGid:\t0\t0\t0\t0");
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nPgrp:\t");
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->pgid);
-  pos = buf_puts(tmp, sizeof(tmp), pos, "\nSession:\t0");
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\nSession:\t");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->sid);
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nThreads:\t1");
   pos = buf_puts(tmp, sizeof(tmp), pos, "\nUmask:\t");
   pos = buf_putoct(tmp, sizeof(tmp), pos, task->umask);
@@ -248,7 +251,9 @@ static int64_t proc_pid_cmdline_read(struct file_t *file, uint64_t offset,
   struct task_t *task = find_task_by_pid(pid);
   if (task == NULL)
     return -ENOENT;
-  return 0;
+  if (task->cmdline_len == 0)
+    return 0;
+  return copy_slice(buf, size, task->cmdline, (size_t)task->cmdline_len, offset);
 }
 
 static struct file_ops_t proc_pid_cmdline_fops;

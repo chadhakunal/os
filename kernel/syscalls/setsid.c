@@ -7,6 +7,7 @@ DEFINE_SYSCALL0(setsid)
   if (current_task->pid == current_task->pgid)
     return -EPERM;
 
+  current_task->sid  = current_task->pid;
   current_task->pgid = current_task->pid;
-  return (int64_t)current_task->pid;
+  return (int64_t)current_task->sid;
 }
