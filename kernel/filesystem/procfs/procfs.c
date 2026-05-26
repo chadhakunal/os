@@ -259,6 +259,53 @@ static int64_t proc_pid_cmdline_read(struct file_t *file, uint64_t offset,
 static struct file_ops_t proc_pid_cmdline_fops;
 
 /* -------------------------------------------------------------------------
+ * /proc/<pid>/stat — single-line process status for ps(1)
+ * Format: pid (comm) state ppid pgrp session 0 0 0 0 0 0 0 0 0 0 0 0 0 0 starttime ...
+ * ---------------------------------------------------------------------- */
+static int64_t proc_pid_stat_read(struct file_t *file, uint64_t offset,
+                                  void *buf, uint64_t size) {
+  uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
+  struct task_t *task = find_task_by_pid(pid);
+  if (task == NULL)
+    return -ENOENT;
+
+  /* State character */
+  char state_ch;
+  switch (task->state) {
+    case TASK_RUNNING:
+    case TASK_READY:      state_ch = 'R'; break;
+    case TASK_BLOCKED:    state_ch = 'S'; break;
+    case TASK_STOPPED:    state_ch = 'T'; break;
+    case TASK_ZOMBIE:     state_ch = 'Z'; break;
+    default:              state_ch = 'X'; break;
+  }
+
+  char tmp[256];
+  size_t pos = 0;
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->pid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " (");
+  pos = buf_puts(tmp, sizeof(tmp), pos, task->comm[0] ? task->comm : "?");
+  pos = buf_puts(tmp, sizeof(tmp), pos, ") ");
+  if (pos < sizeof(tmp) - 1) tmp[pos++] = state_ch;
+  pos = buf_puts(tmp, sizeof(tmp), pos, " ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->ppid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->pgid);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->sid);
+  /* tty_nr=0 tpgid=0 flags=0 minflt=0 cminflt=0 majflt=0 cmajflt=0 */
+  pos = buf_puts(tmp, sizeof(tmp), pos, " 0 0 0 0 0 0 0");
+  /* utime=0 stime=0 cutime=0 cstime=0 priority=0 nice=0 num_threads=1 */
+  pos = buf_puts(tmp, sizeof(tmp), pos, " 0 0 0 0 0 0 1");
+  /* itrealvalue=0 starttime=0 vsize=0 rss=0 */
+  pos = buf_puts(tmp, sizeof(tmp), pos, " 0 0 0 0\n");
+  tmp[pos] = '\0';
+  return copy_slice(buf, size, tmp, pos, offset);
+}
+
+static struct file_ops_t proc_pid_stat_fops;
+
+/* -------------------------------------------------------------------------
  * /proc/<pid>/maps — one line per VMA
  * Format: start-end perms offset 00:00 0
  * ---------------------------------------------------------------------- */
@@ -483,9 +530,12 @@ static int64_t procfs_pid_readdir(struct vnode_t *dir, uint32_t index,
       *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_cmdline_fops, "cmdline");
       return 0;
     case 2:
-      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_maps_fops, "maps");
+      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_stat_fops, "stat");
       return 0;
     case 3:
+      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_maps_fops, "maps");
+      return 0;
+    case 4:
       *out = proc_make_fd_dir_dentry(dir->superblock, pid);
       return 0;
     default:
@@ -504,6 +554,10 @@ static int64_t procfs_pid_lookup(const char *name, struct vnode_t *parent,
   }
   if (strncmp(name, "cmdline") == 0) {
     *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_cmdline_fops, "cmdline");
+    return 0;
+  }
+  if (strncmp(name, "stat") == 0) {
+    *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_stat_fops, "stat");
     return 0;
   }
   if (strncmp(name, "maps") == 0) {
@@ -659,6 +713,7 @@ struct superblock_t *procfs_mount(void) {
   proc_meminfo_fops.read      = proc_meminfo_read;
   proc_pid_status_fops.read   = proc_pid_status_read;
   proc_pid_cmdline_fops.read  = proc_pid_cmdline_read;
+  proc_pid_stat_fops.read     = proc_pid_stat_read;
   proc_pid_maps_fops.read     = proc_pid_maps_read;
   proc_pid_dir_ops.readdir    = procfs_pid_readdir;
   proc_pid_dir_ops.lookup     = procfs_pid_lookup;
