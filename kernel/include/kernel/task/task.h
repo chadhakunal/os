@@ -98,6 +98,8 @@ struct task_t {
   uint64_t pgid;
   uint64_t sid;
   char comm[16]; /* executable name, up to 15 chars + NUL */
+  char cmdline[256];
+  int  cmdline_len;
   int exit_status;
   enum wait_reason wait_reason;
   int64_t wait_pid;
