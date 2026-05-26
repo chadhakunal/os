@@ -99,7 +99,27 @@ static void test_proc_dir(void) {
 /* /proc/uptime                                                        */
 /* ------------------------------------------------------------------ */
 
-/* Parse the integer seconds portion before the first '.' or ' '. */
+/*
+ * Parse Linux uptime format: "SECS.CS IDLE_SECS.CS\n"
+ * Returns whole seconds in *secs and centiseconds (0-99) in *cs.
+ * Returns 1 on success, 0 on failure.
+ */
+static int parse_uptime(const char *buf, long *secs, long *cs,
+                         long *idle_secs, long *idle_cs) {
+    char *p;
+    *secs = strtol(buf, &p, 10);
+    if (*p != '.') return 0;
+    p++;
+    *cs = strtol(p, &p, 10);
+    if (*p != ' ' && *p != '\t') return 0;
+    while (*p == ' ' || *p == '\t') p++;
+    *idle_secs = strtol(p, &p, 10);
+    if (*p != '.') return 0;
+    p++;
+    *idle_cs = strtol(p, NULL, 10);
+    return 1;
+}
+
 static long parse_uptime_secs(const char *buf) {
     return strtol(buf, NULL, 10);
 }
@@ -110,26 +130,23 @@ static void test_uptime(void) {
     result("open/read /proc/uptime succeeds", n > 0);
     if (n <= 0) return;
 
-    /* Linux format: "<uptime_seconds>.<centiseconds> <idle_seconds>.<centiseconds>\n"
-     * Parse the integer seconds of each field without floating-point. */
-    char *end;
-    long up = strtol(buf, &end, 10);
-    /* skip optional fractional part */
-    if (*end == '.') { end++; while (*end >= '0' && *end <= '9') end++; }
-    while (*end == ' ' || *end == '\t') end++;
-    int has_second = (*end >= '0' && *end <= '9');
-    long idle = has_second ? strtol(end, NULL, 10) : -1;
+    long up_s, up_cs, idle_s, idle_cs;
+    int ok = parse_uptime(buf, &up_s, &up_cs, &idle_s, &idle_cs);
+    result("uptime: parses as 'SECS.CS IDLE_SECS.CS'", ok);
+    if (!ok) return;
 
-    result("uptime: two numeric fields present", has_second);
-    result("uptime: uptime value >= 0",          up >= 0);
-    result("uptime: idle value >= 0",            idle >= 0);
+    result("uptime: uptime seconds >= 0",         up_s >= 0);
+    result("uptime: uptime centiseconds 0-99",    up_cs >= 0 && up_cs <= 99);
+    result("uptime: idle seconds >= 0",           idle_s >= 0);
+    result("uptime: idle centiseconds 0-99",      idle_cs >= 0 && idle_cs <= 99);
+    result("uptime: ends with newline",           buf[n - 1] == '\n');
 
-    /* Must end with a newline. */
-    result("uptime: ends with newline", buf[n - 1] == '\n');
+    /* Print what we parsed so failures are easy to diagnose. */
+    printf("    uptime=%ld.%02ld idle=%ld.%02ld\n",
+           up_s, up_cs, idle_s, idle_cs);
 }
 
 static void test_uptime_sequential_reads(void) {
-    /* Two consecutive opens should both succeed and return fresh content. */
     char buf1[256], buf2[256];
     int n1 = slurp("/proc/uptime", buf1, sizeof(buf1));
     int n2 = slurp("/proc/uptime", buf2, sizeof(buf2));
@@ -143,6 +160,31 @@ static void test_uptime_sequential_reads(void) {
 /* ------------------------------------------------------------------ */
 /* /proc/meminfo                                                       */
 /* ------------------------------------------------------------------ */
+
+/*
+ * On Linux each meminfo line looks like:
+ *   MemTotal:       131072 kB
+ * Return 1 if the line for `key` ends with the " kB" unit.
+ */
+static int meminfo_line_has_kb(const char *text, const char *key) {
+    const char *p = text;
+    size_t klen = strlen(key);
+    while (p && *p) {
+        if (strncmp(p, key, klen) == 0) {
+            const char *nl = strchr(p, '\n');
+            size_t line_len = nl ? (size_t)(nl - p) : strlen(p);
+            /* Look for " kB" ending before newline. */
+            if (line_len >= 3) {
+                const char *tail = p + line_len - 3;
+                return strncmp(tail, " kB", 3) == 0;
+            }
+            return 0;
+        }
+        p = strchr(p, '\n');
+        if (p) p++;
+    }
+    return 0;
+}
 
 static void test_meminfo(void) {
     char buf[1024];
@@ -162,13 +204,45 @@ static void test_meminfo(void) {
     result("meminfo: MemFree >= 0",         free >= 0);
     result("meminfo: MemFree <= MemTotal",  free <= total);
 
-    /* Linux reports in kB. */
+    /* Linux convention: values are in kB. */
+    result("meminfo: MemTotal line ends with 'kB'", meminfo_line_has_kb(buf, "MemTotal"));
+    result("meminfo: MemFree line ends with 'kB'",  meminfo_line_has_kb(buf, "MemFree"));
+
+    /* Sanity: 128MB machine => MemTotal should be ~131072 kB. */
+    result("meminfo: MemTotal looks like real RAM (> 1024 kB)", total > 1024);
+
     result("meminfo: ends with newline", buf[n - 1] == '\n');
+
+    printf("    MemTotal=%ld kB  MemFree=%ld kB\n", total, free);
 }
 
 /* ------------------------------------------------------------------ */
 /* /proc/<pid>/status for our own process                              */
 /* ------------------------------------------------------------------ */
+
+/*
+ * Copy the value string after "key:\t" (or "key: ") on a line into `out`.
+ * Returns 1 on success, 0 if key not found.
+ */
+static int extract_str(const char *text, const char *key, char *out, size_t outsz) {
+    const char *p = text;
+    size_t klen = strlen(key);
+    while (p && *p) {
+        if (strncmp(p, key, klen) == 0 && p[klen] == ':') {
+            const char *v = p + klen + 1;
+            while (*v == ' ' || *v == '\t') v++;
+            const char *nl = strchr(v, '\n');
+            size_t vlen = nl ? (size_t)(nl - v) : strlen(v);
+            if (vlen >= outsz) vlen = outsz - 1;
+            strncpy(out, v, vlen);
+            out[vlen] = '\0';
+            return 1;
+        }
+        p = strchr(p, '\n');
+        if (p) p++;
+    }
+    return 0;
+}
 
 static void test_self_status(void) {
     pid_t pid = getpid();
@@ -191,8 +265,15 @@ static void test_self_status(void) {
 
     result("status: Pid matches getpid()",   reported_pid  == (long)pid);
     result("status: PPid matches getppid()", reported_ppid == (long)ppid);
+    result("status: Pid > 0",               reported_pid > 0);
+    result("status: PPid >= 1",             reported_ppid >= 1);
 
     result("status: ends with newline", buf[n - 1] == '\n');
+
+    /* Print the full status so manual inspection is easy. */
+    printf("    --- /proc/%d/status ---\n", (int)pid);
+    printf("%s", buf);
+    printf("    ---\n");
 }
 
 static void test_status_state_field(void) {
@@ -205,23 +286,45 @@ static void test_status_state_field(void) {
         return;
     }
 
-    /* Find "State:" line and check the value is a known Linux single letter. */
-    const char *p = buf;
-    int found = 0;
-    while (p && *p) {
-        if (strncmp(p, "State:", 6) == 0) {
-            /* skip "State:" and whitespace */
-            const char *v = p + 6;
-            while (*v == ' ' || *v == '\t') v++;
-            /* R=running S=sleeping D=disk-sleep T=stopped Z=zombie */
-            found = (*v == 'R' || *v == 'S' || *v == 'D' ||
-                     *v == 'T' || *v == 'Z');
-            break;
-        }
-        p = strchr(p, '\n');
-        if (p) p++;
+    /*
+     * Linux State line format: "State:\tR (running)"
+     * We require at least the single letter; the human label is optional.
+     */
+    char state_val[64] = {0};
+    int got = extract_str(buf, "State", state_val, sizeof(state_val));
+    result("status: State field present", got);
+    if (!got) return;
+
+    /* First non-space character must be a valid Linux state letter. */
+    char letter = state_val[0];
+    result("status: State is a valid Linux letter (R/S/D/T/Z)",
+           letter == 'R' || letter == 'S' || letter == 'D' ||
+           letter == 'T' || letter == 'Z');
+
+    printf("    State field: '%s'\n", state_val);
+}
+
+static void test_status_uid_field(void) {
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/status", (int)getpid());
+
+    char buf[1024];
+    if (slurp(path, buf, sizeof(buf)) <= 0) {
+        result("status uid: read", 0);
+        return;
     }
-    result("status: State value is a valid Linux state letter", found);
+
+    /* Linux has "Uid:\t<real> <eff> <saved> <fs>" — we only require the
+     * field to be present and start with a numeric character. */
+    char uid_val[64] = {0};
+    if (!extract_str(buf, "Uid", uid_val, sizeof(uid_val))) {
+        /* Uid may not be implemented — skip rather than fail hard. */
+        printf("    Uid field not present (optional)\n");
+        return;
+    }
+
+    result("status: Uid value is numeric", uid_val[0] >= '0' && uid_val[0] <= '9');
+    printf("    Uid: %s\n", uid_val);
 }
 
 /* ------------------------------------------------------------------ */
@@ -306,6 +409,7 @@ int main(void) {
     printf("\n/proc/<pid>/status:\n");
     test_self_status();
     test_status_state_field();
+    test_status_uid_field();
 
     printf("\n/proc/<pid> directory:\n");
     test_pid_dir();
