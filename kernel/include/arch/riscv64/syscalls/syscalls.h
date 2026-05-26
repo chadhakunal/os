@@ -15,6 +15,8 @@
 #define SYS_lseek           62
 #define SYS_read            63
 #define SYS_write           64
+#define SYS_readv           65
+#define SYS_writev          66
 #define SYS_close           57
 #define SYS_openat          1024
 #define SYS_mmap            222
@@ -91,6 +93,8 @@ int64_t sys_chdir(struct trap_frame *tf);
 int64_t sys_openat(struct trap_frame *tf);
 int64_t sys_read(struct trap_frame *tf);
 int64_t sys_write(struct trap_frame *tf);
+int64_t sys_readv(struct trap_frame *tf);
+int64_t sys_writev(struct trap_frame *tf);
 int64_t sys_close(struct trap_frame *tf);
 int64_t sys_truncate(struct trap_frame *tf);
 int64_t sys_ftruncate(struct trap_frame *tf);

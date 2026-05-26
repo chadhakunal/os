@@ -56,6 +56,14 @@ void handle_syscall(struct trap_frame *tf) {
       ret = sys_write(tf);
       break;
 
+    case SYS_readv:
+      ret = sys_readv(tf);
+      break;
+
+    case SYS_writev:
+      ret = sys_writev(tf);
+      break;
+
     case SYS_close:
       debugk("syscall: close(fd=%llu)\n", tf->a0);
       ret = sys_close(tf);
