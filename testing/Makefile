@@ -14,7 +14,7 @@ BINDIR := $(ROOT)/build/rootfs/bin/tests
 RC_TESTS_CORE := test_shell test_signals test_rlimit \
 	testjobs testsignal test_pipe \
 	test_devnull test_oom test_oom_vs_enomem test_oom_stress test_waitpid \
-	test_repl test_access test_sigkill test_sa_restart test_dirent
+	test_repl test_access test_sigkill test_sa_restart test_dirent test_qsort
 
 RC_TESTS_EXTRA := posix_compliance test_bins \
 	test_grep test_sort_uname test_faults test_mount
@@ -64,6 +64,7 @@ $(BINDIR)/test_repl:          test_repl/test_repl.c $(CRT) $(LIBC)
 $(BINDIR)/test_access:        test_access/test_access.c $(CRT) $(LIBC)
 $(BINDIR)/test_sa_restart:    test_sa_restart/test_sa_restart.c $(CRT) $(LIBC)
 $(BINDIR)/test_dirent:        test_dirent/test_dirent.c $(CRT) $(LIBC)
+$(BINDIR)/test_qsort:         test_qsort/test_qsort.c $(CRT) $(LIBC)
 
 $(RC_TESTS:%=$(BINDIR)/%):
 	@mkdir -p $(BINDIR)
