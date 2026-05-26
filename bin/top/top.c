@@ -148,25 +148,22 @@ static int cmp_pid(const void *a, const void *b) {
 
 static void collect_procs(struct proc_info *procs, int *count) {
     *count = 0;
-    int fd = open("/proc", O_RDONLY | O_DIRECTORY);
-    if (fd < 0) return;
+    DIR *d = opendir("/proc");
+    if (!d) return;
 
-    struct dirent buf[32];
-    int n;
-    while ((n = getdents(fd, buf, 32)) > 0 && *count < MAX_PROCS) {
-        for (int i = 0; i < n && *count < MAX_PROCS; i++) {
-            if (!is_numeric(buf[i].d_name))
-                continue;
-            struct proc_info *p = &procs[*count];
-            memset(p, 0, sizeof(*p));
-            if (parse_stat(buf[i].d_name, p) < 0)
-                continue;
-            parse_statm(buf[i].d_name, p);
-            parse_cmdline(buf[i].d_name, p);
-            (*count)++;
-        }
+    struct dirent *ent;
+    while ((ent = readdir(d)) != NULL && *count < MAX_PROCS) {
+        if (!is_numeric(ent->d_name))
+            continue;
+        struct proc_info *p = &procs[*count];
+        memset(p, 0, sizeof(*p));
+        if (parse_stat(ent->d_name, p) < 0)
+            continue;
+        parse_statm(ent->d_name, p);
+        parse_cmdline(ent->d_name, p);
+        (*count)++;
     }
-    close(fd);
+    closedir(d);
     qsort(procs, (size_t)*count, sizeof(procs[0]), cmp_pid);
 }
 

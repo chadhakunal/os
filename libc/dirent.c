@@ -90,8 +90,6 @@ struct dirent *readdir(DIR *dirp) {
   }
 
   if (dirp->buf_pos >= dirp->buf_count) {
-    if (lseek(dirp->fd, dirp->loc, SEEK_SET) < 0)
-      return NULL;
     if (dir_refill(dirp) < 0)
       return NULL;
     if (dirp->buf_count == 0)
