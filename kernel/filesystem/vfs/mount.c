@@ -137,8 +137,22 @@ void vfs_init() {
   struct vnode_t  *root    = tarfs_sb->root_vnode;
   struct dentry_t *root_de = tarfs_sb->root_dentry;
 
-  add_mount_stub(tarfs_sb, root, root_de, "dev",  devfs_mount()->root_vnode);
-  add_mount_stub(tarfs_sb, root, root_de, "proc", procfs_mount()->root_vnode);
+  struct superblock_t *devfs_sb  = devfs_mount();
+  struct superblock_t *procfs_sb = procfs_mount();
+  add_mount_stub(tarfs_sb, root, root_de, "dev",  devfs_sb->root_vnode);
+  add_mount_stub(tarfs_sb, root, root_de, "proc", procfs_sb->root_vnode);
+
+  struct mount_t *dev_mount = mount_t_alloc();
+  dev_mount->root_path[0] = '/';
+  strncpy(dev_mount->root_path + 1, "dev", sizeof(dev_mount->root_path) - 2);
+  dev_mount->superblock = devfs_sb;
+  list_append(&mount_list, &dev_mount->sibling_mount);
+
+  struct mount_t *proc_mount = mount_t_alloc();
+  proc_mount->root_path[0] = '/';
+  strncpy(proc_mount->root_path + 1, "proc", sizeof(proc_mount->root_path) - 2);
+  proc_mount->superblock = procfs_sb;
+  list_append(&mount_list, &proc_mount->sibling_mount);
 
   /* Ensure /mnt exists as a traversable stub regardless of the tarfs image contents. */
   {
