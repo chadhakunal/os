@@ -182,7 +182,9 @@ static void collect_procs(struct proc_info *procs, int *count) {
         write(2, "  count++\n", 10);
     }
     closedir(d);
+    write(2, "collect: before qsort\n", 22);
     qsort(procs, (size_t)*count, sizeof(procs[0]), cmp_pid);
+    write(2, "collect: after qsort\n", 21);
 }
 
 static void render(struct proc_info *procs, int count) {
@@ -227,7 +229,9 @@ int main(void) {
 
     while (1) {
         collect_procs(procs, &count);
+        write(2, "main: after collect\n", 20);
         render(procs, count);
+        write(2, "main: after render\n", 19);
         struct timespec ts = { REFRESH_SEC, 0 };
         nanosleep(&ts, NULL);
     }
