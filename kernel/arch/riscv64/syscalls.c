@@ -24,9 +24,10 @@ void handle_syscall(struct trap_frame *tf) {
   asm volatile("csrs sstatus, %0" :: "r"(SSTATUS_SUM));
 
   /* Save args for SA_RESTART before anything can overwrite them. */
-  current_task->restart_a0 = tf->a0;
-  current_task->restart_a7 = tf->a7;
-  current_task->in_syscall  = 1;
+  current_task->restart_a0      = tf->a0;
+  current_task->restart_a7      = tf->a7;
+  current_task->in_syscall      = 1;
+  current_task->restart_blocked = 0;
 
 
   switch (syscall_num) {

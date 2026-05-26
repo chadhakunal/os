@@ -28,9 +28,7 @@ DEFINE_SYSCALL2(nanosleep, const struct timespec *, req, struct timespec *, rem)
   }
 
   current_task->sleep_until = virtual_time.os_ticks + ticks;
-
-  /* nanosleep is not restartable (remaining time would be wrong on restart) */
-  current_task->in_syscall = 0;
+  current_task->restart_blocked = 1;
 
   if (!task_block(WAIT_SLEEP)) {
     uint64_t remaining_ticks = 0;

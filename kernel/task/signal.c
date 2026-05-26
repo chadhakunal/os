@@ -228,7 +228,8 @@ void check_and_deliver_signals(struct trap_frame *tf) {
    * and the syscall re-executes transparently after the handler returns. */
   if ((action->sa_flags & SA_RESTART) &&
       (int64_t)tf->a0 == -EINTR &&
-      current_task->in_syscall == 0) {
+      current_task->in_syscall == 0 &&
+      !current_task->restart_blocked) {
     tf->sepc -= 4;
     tf->a0    = current_task->restart_a0;
     tf->a7    = current_task->restart_a7;

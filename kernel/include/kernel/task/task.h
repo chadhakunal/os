@@ -124,6 +124,7 @@ struct task_t {
   uint64_t restart_a0;  /* original a0 (first arg) */
   uint64_t restart_a7;  /* syscall number */
   int      in_syscall;  /* 1 while a restartable syscall is in progress */
+  int      restart_blocked; /* 1 if this syscall must not be SA_RESTART'd */
 
   struct task_rlimits_t rlimits;
 
