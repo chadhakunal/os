@@ -464,24 +464,51 @@ static int64_t proc_pid_limits_read(struct file_t *file, uint64_t offset,
   if (task == NULL)
     return -ENOENT;
 
-  /* Read all rlimit values out before formatting — avoids any re-entrant issues. */
-  uint64_t soft[10], hard[10];
-  for (int i = 0; i < 10; i++) {
-    soft[i] = task->rlimits.limits[i].rlim_cur;
-    hard[i] = task->rlimits.limits[i].rlim_max;
-  }
-  printk("[limits] soft[1]=%llu hard[1]=%llu\n", soft[1], hard[1]);
+  char tmp[1024];
+  char *p = tmp;
+  char *e = tmp + sizeof(tmp) - 1;
 
-  static const char limits_out[] =
-    "Limit                     Soft Limit           Hard Limit\n"
-    "Max cpu time              0                    0\n"
-    "Max file size             unlimited            unlimited\n"
-    "Max data size             0                    0\n"
-    "Max stack size            8388608              unlimited\n"
-    "Max core file size        unlimited            unlimited\n"
-    "Max open files            32                   256\n"
-    "Max address space         unlimited            unlimited\n";
-  return copy_slice(buf, size, limits_out, sizeof(limits_out) - 1, offset);
+  /* append a string, no NUL written mid-buffer */
+  #define LS(s) do { const char *_q=(s); while(*_q && p<e) *p++=*_q++; } while(0)
+  /* append a uint64, padded with spaces to total width w (0=no pad) */
+  #define LU(v,w) do { \
+    uint64_t _v=(v); char _d[20]; int _n=0,_w=(w); \
+    if(_v==0){_d[_n++]='0';}else{while(_v){_d[_n++]='0'+(int)(_v%10);_v/=10;}} \
+    int _written=_n; \
+    while(_n>0 && p<e) *p++=_d[--_n]; \
+    while(_written<_w && p<e){*p++=' ';_written++;} \
+  } while(0)
+  #define LRLIM(v,w) do { \
+    if((v)==RLIM_INFINITY){const char*_s="unlimited";int _n=0;while(*_s&&p<e){*p++=*_s++;_n++;}while(_n<(w)&&p<e){*p++=' ';_n++;}} \
+    else{LU((v),(w));} \
+  } while(0)
+  #define LNAME(s) do { const char*_s=(s);int _n=0;while(*_s&&p<e){*p++=*_s++;_n++;}while(_n<26&&p<e){*p++=' ';_n++;} } while(0)
+
+  LS("Limit                     Soft Limit           Hard Limit\n");
+
+  uint64_t s0=task->rlimits.limits[0].rlim_cur, h0=task->rlimits.limits[0].rlim_max;
+  uint64_t s1=task->rlimits.limits[1].rlim_cur, h1=task->rlimits.limits[1].rlim_max;
+  uint64_t s2=task->rlimits.limits[2].rlim_cur, h2=task->rlimits.limits[2].rlim_max;
+  uint64_t s3=task->rlimits.limits[3].rlim_cur, h3=task->rlimits.limits[3].rlim_max;
+  uint64_t s4=task->rlimits.limits[4].rlim_cur, h4=task->rlimits.limits[4].rlim_max;
+  uint64_t s7=task->rlimits.limits[7].rlim_cur, h7=task->rlimits.limits[7].rlim_max;
+  uint64_t s9=task->rlimits.limits[9].rlim_cur, h9=task->rlimits.limits[9].rlim_max;
+
+  LNAME("Max cpu time");       LRLIM(s0,21); LRLIM(h0,0); if(p<e)*p++='\n';
+  LNAME("Max file size");      LRLIM(s1,21); LRLIM(h1,0); if(p<e)*p++='\n';
+  LNAME("Max data size");      LRLIM(s2,21); LRLIM(h2,0); if(p<e)*p++='\n';
+  LNAME("Max stack size");     LRLIM(s3,21); LRLIM(h3,0); if(p<e)*p++='\n';
+  LNAME("Max core file size"); LRLIM(s4,21); LRLIM(h4,0); if(p<e)*p++='\n';
+  LNAME("Max open files");     LRLIM(s7,21); LRLIM(h7,0); if(p<e)*p++='\n';
+  LNAME("Max address space");  LRLIM(s9,21); LRLIM(h9,0); if(p<e)*p++='\n';
+
+  #undef LS
+  #undef LU
+  #undef LRLIM
+  #undef LNAME
+
+  *p = '\0';
+  return copy_slice(buf, size, tmp, (size_t)(p - tmp), offset);
 }
 
 static struct file_ops_t proc_pid_limits_fops;
