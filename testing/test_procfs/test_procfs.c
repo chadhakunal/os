@@ -99,6 +99,11 @@ static void test_proc_dir(void) {
 /* /proc/uptime                                                        */
 /* ------------------------------------------------------------------ */
 
+/* Parse the integer seconds portion before the first '.' or ' '. */
+static long parse_uptime_secs(const char *buf) {
+    return strtol(buf, NULL, 10);
+}
+
 static void test_uptime(void) {
     char buf[256];
     int n = slurp("/proc/uptime", buf, sizeof(buf));
@@ -106,12 +111,18 @@ static void test_uptime(void) {
     if (n <= 0) return;
 
     /* Linux format: "<uptime_seconds>.<centiseconds> <idle_seconds>.<centiseconds>\n"
-     * We accept any two whitespace-separated numeric tokens >= 0. */
-    double up, idle;
-    int parsed = sscanf(buf, "%lf %lf", &up, &idle);
-    result("uptime: two numeric fields present", parsed == 2);
-    result("uptime: uptime value >= 0",          up >= 0.0);
-    result("uptime: idle value >= 0",            idle >= 0.0);
+     * Parse the integer seconds of each field without floating-point. */
+    char *end;
+    long up = strtol(buf, &end, 10);
+    /* skip optional fractional part */
+    if (*end == '.') { end++; while (*end >= '0' && *end <= '9') end++; }
+    while (*end == ' ' || *end == '\t') end++;
+    int has_second = (*end >= '0' && *end <= '9');
+    long idle = has_second ? strtol(end, NULL, 10) : -1;
+
+    result("uptime: two numeric fields present", has_second);
+    result("uptime: uptime value >= 0",          up >= 0);
+    result("uptime: idle value >= 0",            idle >= 0);
 
     /* Must end with a newline. */
     result("uptime: ends with newline", buf[n - 1] == '\n');
@@ -124,11 +135,9 @@ static void test_uptime_sequential_reads(void) {
     int n2 = slurp("/proc/uptime", buf2, sizeof(buf2));
     result("uptime: two consecutive reads both succeed", n1 > 0 && n2 > 0);
 
-    double up1, up2;
-    if (sscanf(buf1, "%lf", &up1) == 1 && sscanf(buf2, "%lf", &up2) == 1)
-        result("uptime: second read >= first read", up2 >= up1);
-    else
-        result("uptime: second read >= first read", 0);
+    long up1 = parse_uptime_secs(buf1);
+    long up2 = parse_uptime_secs(buf2);
+    result("uptime: second read >= first read", up2 >= up1);
 }
 
 /* ------------------------------------------------------------------ */
