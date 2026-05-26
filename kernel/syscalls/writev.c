@@ -29,60 +29,72 @@ DEFINE_SYSCALL3(writev, int, fd, const struct kernel_iovec *, uiov, int, iovcnt)
   if ((file->flags & O_ACCMODE) == O_RDONLY)
     return -EBADF;
 
-  void *phys_page = get_page(false);
-  if (!phys_page)
-    return -ENOMEM;
-  char *kbuf = (char *)PHYS_TO_VIRT(phys_page);
+  /* Pipes handle user/kernel copying internally — pass user pointer directly. */
+  int is_pipe = (file->pipe != NULL);
+
+  void *phys_page = NULL;
+  char *kbuf = NULL;
+  if (!is_pipe) {
+    phys_page = get_page(false);
+    if (!phys_page)
+      return -ENOMEM;
+    kbuf = (char *)PHYS_TO_VIRT(phys_page);
+  }
 
   int64_t total = 0;
   for (int i = 0; i < iovcnt; i++) {
     struct kernel_iovec iov;
     if (copy_from_user(&iov, &uiov[i], sizeof(iov)) != 0) {
-      free_page(phys_page);
+      if (phys_page) free_page(phys_page);
       return -EFAULT;
     }
     if (iov.iov_len == 0)
       continue;
     if (iov.iov_base == NULL) {
-      free_page(phys_page);
+      if (phys_page) free_page(phys_page);
       return -EFAULT;
     }
 
-    size_t to_write = iov.iov_len;
-    if (to_write > SSIZE_MAX)
-      to_write = SSIZE_MAX;
+    int64_t n;
+    if (is_pipe) {
+      /* pipe_write does its own copy_from_user from iov_base */
+      n = vfs_write(file, 0, iov.iov_base, iov.iov_len);
+    } else {
+      size_t to_write = iov.iov_len > SSIZE_MAX ? SSIZE_MAX : iov.iov_len;
 
-    if (copy_from_user(kbuf, iov.iov_base, to_write) != 0) {
-      free_page(phys_page);
-      return -EFAULT;
-    }
-
-    uint64_t write_offset = file->offset;
-    if (file->flags & O_APPEND)
-      write_offset = file->vnode ? file->vnode->size : file->offset;
-
-    if (file->vnode) {
-      uint64_t new_size = write_offset + to_write;
-      if (file->vnode->size > new_size)
-        new_size = file->vnode->size;
-      int fsize_ret = rlimit_check_fsize(current_task, new_size);
-      if (fsize_ret < 0) {
+      if (copy_from_user(kbuf, iov.iov_base, to_write) != 0) {
         free_page(phys_page);
-        return total > 0 ? total : fsize_ret;
+        return -EFAULT;
       }
+
+      uint64_t write_offset = file->offset;
+      if (file->flags & O_APPEND)
+        write_offset = file->vnode ? file->vnode->size : file->offset;
+
+      if (file->vnode) {
+        uint64_t new_size = write_offset + to_write;
+        if (file->vnode->size > new_size)
+          new_size = file->vnode->size;
+        int fsize_ret = rlimit_check_fsize(current_task, new_size);
+        if (fsize_ret < 0) {
+          free_page(phys_page);
+          return total > 0 ? total : fsize_ret;
+        }
+      }
+
+      n = vfs_write(file, write_offset, kbuf, to_write);
+      if (n > 0)
+        file->offset = write_offset + (size_t)n;
     }
 
-    int64_t n = vfs_write(file, write_offset, kbuf, to_write);
     if (n < 0) {
-      free_page(phys_page);
+      if (phys_page) free_page(phys_page);
       return total > 0 ? total : n;
     }
 
-    if (file->pipe == NULL)
-      file->offset = write_offset + (size_t)n;
     total += n;
   }
 
-  free_page(phys_page);
+  if (phys_page) free_page(phys_page);
   return total;
 }

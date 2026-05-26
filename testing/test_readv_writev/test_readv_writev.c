@@ -53,7 +53,7 @@ static void test_pipe_basic(void) {
 /* 2. writev to a file, readv back                                     */
 /* ------------------------------------------------------------------ */
 static void test_file_roundtrip(void) {
-    const char *path = "/test_readv_writev.tmp";
+    const char *path = "/mnt/test_readv_writev.tmp";
     int fd = open(path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
     if (fd < 0) { result("file roundtrip: open write", 0); return; }
 
