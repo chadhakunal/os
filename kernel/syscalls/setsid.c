@@ -4,11 +4,9 @@
 
 DEFINE_SYSCALL0(setsid)
 {
-  /* Process group leaders cannot become session leaders. */
   if (current_task->pid == current_task->pgid)
     return -EPERM;
 
-  current_task->sid  = current_task->pid;
   current_task->pgid = current_task->pid;
-  return (int64_t)current_task->sid;
+  return (int64_t)current_task->pid;
 }
