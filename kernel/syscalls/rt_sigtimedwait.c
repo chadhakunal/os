@@ -48,22 +48,15 @@ DEFINE_SYSCALL4(rt_sigtimedwait, const sigset_t *, user_set, void *, user_info,
                    + (uint64_t)ts.tv_nsec * TICKS_PER_SEC / 1000000000ULL;
     deadline = virtual_time.os_ticks + ticks;
     has_timeout = 1;
-    /* Zero timeout: only check pending signals, don't block. */
-    if (ticks == 0) {
-      sigset_t pending = current_task->signal_state.pending & set;
-      if (!pending)
-        return -EAGAIN;
-      goto consume;
-    }
   }
 
+  sigset_t pending;
   while (1) {
     if (has_timeout && virtual_time.os_ticks >= deadline)
       return -EAGAIN;
 
-    sigset_t pending = current_task->signal_state.pending & set;
+    pending = current_task->signal_state.pending & set;
     if (pending) {
-consume:;
       for (int sig = 1; sig < NUM_SIGS; sig++) {
         if (sig_in_set(&pending, sig)) {
           delete_signal_from_set(&current_task->signal_state.pending, sig);
