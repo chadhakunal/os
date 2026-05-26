@@ -104,6 +104,19 @@ static int64_t proc_meminfo_read(struct file_t *file, uint64_t offset,
 static struct file_ops_t proc_meminfo_fops;
 
 /* -------------------------------------------------------------------------
+ * /proc/version
+ * ---------------------------------------------------------------------- */
+static int64_t proc_version_read(struct file_t *file, uint64_t offset,
+                                 void *buf, uint64_t size) {
+  (void)file;
+  static const char ver[] =
+    "Linux version 5.15.0 (root@os) (gcc 12.0) #1 SMP\n";
+  return copy_slice(buf, size, ver, sizeof(ver) - 1, offset);
+}
+
+static struct file_ops_t proc_version_fops;
+
+/* -------------------------------------------------------------------------
  * /proc/mounts — currently mounted filesystems
  * ---------------------------------------------------------------------- */
 static int64_t proc_mounts_read(struct file_t *file, uint64_t offset,
@@ -870,6 +883,7 @@ struct superblock_t *procfs_mount(void) {
   proc_pid_comm_fops.read     = proc_pid_comm_read;
   proc_pid_statm_fops.read    = proc_pid_statm_read;
   proc_pid_limits_fops.read   = proc_pid_limits_read;
+  proc_version_fops.read      = proc_version_read;
   proc_mounts_fops.read       = proc_mounts_read;
   proc_pid_maps_fops.read     = proc_pid_maps_read;
   proc_pid_dir_ops.readdir    = procfs_pid_readdir;
@@ -894,6 +908,7 @@ struct superblock_t *procfs_mount(void) {
   proc_add_file(sb, root, &id, "meminfo", &proc_meminfo_fops);
   proc_add_file(sb, root, &id, "kmsg",    &proc_kmsg_fops);
   proc_add_file(sb, root, &id, "mounts",  &proc_mounts_fops);
+  proc_add_file(sb, root, &id, "version", &proc_version_fops);
 
   struct dentry_t *root_dentry = dentry_t_alloc();
   strncpy(root_dentry->name, "proc", sizeof(root_dentry->name) - 1);
