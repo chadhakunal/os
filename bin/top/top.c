@@ -149,16 +149,21 @@ static int cmp_pid(const void *a, const void *b) {
 static void collect_procs(struct proc_info *procs, int *count) {
     *count = 0;
     DIR *d = opendir("/proc");
-    if (!d) return;
+    if (!d) { write(2, "collect: opendir fail\n", 22); return; }
 
     struct dirent *ent;
+    int total = 0;
     while ((ent = readdir(d)) != NULL && *count < MAX_PROCS) {
-        if (!is_numeric(ent->d_name))
-            continue;
+        total++;
+        int num = is_numeric(ent->d_name);
+        write(2, "ent: ", 5); write(2, ent->d_name, strlen(ent->d_name));
+        write(2, num ? " NUM\n" : " skip\n", num ? 5 : 6);
+        if (!num) continue;
         struct proc_info *p = &procs[*count];
         memset(p, 0, sizeof(*p));
-        if (parse_stat(ent->d_name, p) < 0)
-            continue;
+        if (parse_stat(ent->d_name, p) < 0) {
+            write(2, "  stat fail\n", 12); continue;
+        }
         parse_statm(ent->d_name, p);
         parse_cmdline(ent->d_name, p);
         (*count)++;
