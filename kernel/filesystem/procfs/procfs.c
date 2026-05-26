@@ -477,42 +477,52 @@ static int64_t proc_pid_limits_read(struct file_t *file, uint64_t offset,
     "Max address space",  /* 9 RLIMIT_AS     */
   };
 
+  /* Build output line by line into a fixed buffer. */
   char tmp[1024];
-  size_t pos = 0;
-  printk("[limits] A pid=%llu\n", pid);
-  pos = buf_puts(tmp, sizeof(tmp), pos,
-    "Limit                     Soft Limit           Hard Limit\n");
-  printk("[limits] B pos=%zu\n", pos);
+  int pos = 0;
+  int cap = (int)sizeof(tmp);
+
+#define LCAT(s) do { \
+    const char *_s = (s); \
+    while (*_s && pos < cap - 1) tmp[pos++] = *_s++; \
+  } while(0)
+
+#define LNUM(n) do { \
+    uint64_t _n = (n); \
+    char _b[20]; int _i = 0; \
+    if (_n == 0) { _b[_i++] = '0'; } \
+    else { while (_n > 0) { _b[_i++] = '0' + (int)(_n % 10); _n /= 10; } } \
+    while (_i > 0 && pos < cap - 1) tmp[pos++] = _b[--_i]; \
+  } while(0)
+
+  LCAT("Limit                     Soft Limit           Hard Limit\n");
 
   for (int i = 0; i < 10; i++) {
-    printk("[limits] i=%d name=%p\n", i, rlimit_names[i]);
     if (rlimit_names[i] == NULL) continue;
     struct rlimit *rl = &task->rlimits.limits[i];
-    printk("[limits] rl=%p cur=%llu max=%llu\n", rl, rl->rlim_cur, rl->rlim_max);
-    size_t name_len = 0;
-    for (const char *p = rlimit_names[i]; *p; p++) name_len++;
-    pos = buf_puts(tmp, sizeof(tmp), pos, rlimit_names[i]);
-    /* pad name to column 26 */
-    for (size_t k = name_len; k < 26 && pos < sizeof(tmp) - 1; k++)
-      tmp[pos++] = ' ';
-    if (rl->rlim_cur == RLIM_INFINITY) {
-      pos = buf_puts(tmp, sizeof(tmp), pos, "unlimited            ");
-    } else {
-      size_t before = pos;
-      pos = buf_putu64(tmp, sizeof(tmp), pos, rl->rlim_cur);
-      for (size_t k = pos - before; k < 21 && pos < sizeof(tmp) - 1; k++)
-        tmp[pos++] = ' ';
-    }
-    if (rl->rlim_max == RLIM_INFINITY) {
-      pos = buf_puts(tmp, sizeof(tmp), pos, "unlimited");
-    } else {
-      pos = buf_putu64(tmp, sizeof(tmp), pos, rl->rlim_max);
-    }
-    if (pos < sizeof(tmp) - 1) tmp[pos++] = '\n';
+
+    /* name, padded to 26 chars */
+    int name_start = pos;
+    LCAT(rlimit_names[i]);
+    while (pos - name_start < 26 && pos < cap - 1) tmp[pos++] = ' ';
+
+    /* soft limit, padded to 21 chars */
+    int field_start = pos;
+    if (rl->rlim_cur == RLIM_INFINITY) { LCAT("unlimited"); }
+    else { LNUM(rl->rlim_cur); }
+    while (pos - field_start < 21 && pos < cap - 1) tmp[pos++] = ' ';
+
+    /* hard limit */
+    if (rl->rlim_max == RLIM_INFINITY) { LCAT("unlimited"); }
+    else { LNUM(rl->rlim_max); }
+
+    if (pos < cap - 1) tmp[pos++] = '\n';
   }
+#undef LCAT
+#undef LNUM
+
   tmp[pos] = '\0';
-  printk("[limits] C pos=%zu\n", pos);
-  return copy_slice(buf, size, tmp, pos, offset);
+  return copy_slice(buf, size, tmp, (size_t)pos, offset);
 }
 
 static struct file_ops_t proc_pid_limits_fops;
