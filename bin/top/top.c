@@ -179,6 +179,7 @@ static void collect_procs(struct proc_info *procs, int *count) {
         parse_statm(ent->d_name, p);
         parse_cmdline(ent->d_name, p);
         (*count)++;
+        write(2, "  count++\n", 10);
     }
     closedir(d);
     qsort(procs, (size_t)*count, sizeof(procs[0]), cmp_pid);
@@ -205,14 +206,18 @@ static void render(struct proc_info *procs, int count) {
 
     /* Reserve 4 lines for header; list up to remaining rows */
     int max_rows = TERM_ROWS - 4;
+    write(2, "render: entering loop\n", 22);
     for (int i = 0; i < count && i < max_rows; i++) {
         struct proc_info *p = &procs[i];
+        write(2, "render: row\n", 12);
         printf("%5d %5d %c %5ldm %4ldm %-s\n",
                p->pid, p->ppid, p->state,
                p->vmsize_kb / 1024,
                p->vmrss_kb  / 1024,
                p->cmdline[0] ? p->cmdline : p->comm);
+        write(2, "render: row done\n", 17);
     }
+    write(2, "render: loop done\n", 18);
     fflush(stdout);
 }
 
