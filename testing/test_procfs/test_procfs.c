@@ -328,6 +328,112 @@ static void test_status_uid_field(void) {
 }
 
 /* ------------------------------------------------------------------ */
+/* /proc/meminfo — deeper field extraction                            */
+/* ------------------------------------------------------------------ */
+
+static void test_meminfo_fields(void) {
+    char buf[1024];
+    int n = slurp("/proc/meminfo", buf, sizeof(buf));
+    result("meminfo fields: read", n > 0);
+    if (n <= 0) return;
+
+    long total = extract_long(buf, "MemTotal");
+    long free  = extract_long(buf, "MemFree");
+
+    /* Used = Total - Free is a common convention; validate arithmetic. */
+    long used_calc = total - free;
+    result("meminfo: MemTotal - MemFree >= 0 (used memory is non-negative)",
+           used_calc >= 0);
+
+    /* If MemUsed is reported directly it must match Total - Free. */
+    long used_reported = extract_long(buf, "MemUsed");
+    if (used_reported >= 0)
+        result("meminfo: MemUsed == MemTotal - MemFree", used_reported == used_calc);
+
+    /* Optional fields — report presence without failing. */
+    printf("    MemTotal=%ld kB  MemFree=%ld kB  MemUsed=%ld kB\n",
+           total, free, used_reported >= 0 ? used_reported : used_calc);
+
+    if (has_key(buf, "MemAvailable"))
+        printf("    MemAvailable=%ld kB\n", extract_long(buf, "MemAvailable"));
+    if (has_key(buf, "Buffers"))
+        printf("    Buffers=%ld kB\n", extract_long(buf, "Buffers"));
+    if (has_key(buf, "Cached"))
+        printf("    Cached=%ld kB\n", extract_long(buf, "Cached"));
+}
+
+/* ------------------------------------------------------------------ */
+/* /proc/<pid>/status — vm and thread fields                          */
+/* ------------------------------------------------------------------ */
+
+static void test_status_vm_fields(void) {
+    char path[64];
+    snprintf(path, sizeof(path), "/proc/%d/status", (int)getpid());
+
+    char buf[1024];
+    if (slurp(path, buf, sizeof(buf)) <= 0) {
+        result("status vm: read", 0);
+        return;
+    }
+
+    /* VmSize / VmRSS are optional but if present must be > 0 and in kB. */
+    long vmsize = extract_long(buf, "VmSize");
+    long vmrss  = extract_long(buf, "VmRSS");
+
+    if (vmsize >= 0) {
+        result("status: VmSize > 0 kB",        vmsize > 0);
+        result("status: VmSize line has kB",    meminfo_line_has_kb(buf, "VmSize"));
+        printf("    VmSize=%ld kB\n", vmsize);
+    } else {
+        printf("    VmSize not present (optional)\n");
+    }
+
+    if (vmrss >= 0) {
+        result("status: VmRSS >= 0 kB",        vmrss >= 0);
+        result("status: VmRSS <= VmSize",       vmsize < 0 || vmrss <= vmsize);
+        result("status: VmRSS line has kB",     meminfo_line_has_kb(buf, "VmRSS"));
+        printf("    VmRSS=%ld kB\n", vmrss);
+    } else {
+        printf("    VmRSS not present (optional)\n");
+    }
+
+    /* Threads field. */
+    long threads = extract_long(buf, "Threads");
+    if (threads >= 0) {
+        result("status: Threads >= 1", threads >= 1);
+        printf("    Threads=%ld\n", threads);
+    } else {
+        printf("    Threads not present (optional)\n");
+    }
+}
+
+/* ------------------------------------------------------------------ */
+/* /proc/self — symlink or directory for the calling process          */
+/* ------------------------------------------------------------------ */
+
+static void test_proc_self(void) {
+    /*
+     * On Linux /proc/self is a symlink to /proc/<pid>.
+     * On a simpler OS it may be a directory directly.
+     * Either way, /proc/self/status must be readable and report our PID.
+     */
+    char buf[1024];
+    int n = slurp("/proc/self/status", buf, sizeof(buf));
+
+    if (n <= 0) {
+        /* Not implemented — note it rather than hard-fail. */
+        printf("    /proc/self not implemented (optional)\n");
+        return;
+    }
+
+    result("/proc/self/status: readable", n > 0);
+
+    long reported_pid = extract_long(buf, "Pid");
+    result("/proc/self/status: Pid matches getpid()", reported_pid == (long)getpid());
+    printf("    /proc/self/status Pid=%ld\n", reported_pid);
+}
+
+/* ------------------------------------------------------------------ */
 /* /proc/<pid> directory                                               */
 /* ------------------------------------------------------------------ */
 
@@ -405,11 +511,16 @@ int main(void) {
 
     printf("\n/proc/meminfo:\n");
     test_meminfo();
+    test_meminfo_fields();
 
     printf("\n/proc/<pid>/status:\n");
     test_self_status();
     test_status_state_field();
     test_status_uid_field();
+    test_status_vm_fields();
+
+    printf("\n/proc/self:\n");
+    test_proc_self();
 
     printf("\n/proc/<pid> directory:\n");
     test_pid_dir();
