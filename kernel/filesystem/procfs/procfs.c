@@ -247,13 +247,8 @@ static struct file_ops_t proc_pid_status_fops;
  * ---------------------------------------------------------------------- */
 static int64_t proc_pid_cmdline_read(struct file_t *file, uint64_t offset,
                                      void *buf, uint64_t size) {
-  uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
-  struct task_t *task = find_task_by_pid(pid);
-  if (task == NULL)
-    return -ENOENT;
-  if (task->cmdline_len == 0)
-    return 0;
-  return copy_slice(buf, size, task->cmdline, (size_t)task->cmdline_len, offset);
+  (void)file; (void)offset; (void)buf; (void)size;
+  return 0;
 }
 
 static struct file_ops_t proc_pid_cmdline_fops;
