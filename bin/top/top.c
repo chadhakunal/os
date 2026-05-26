@@ -148,22 +148,25 @@ static int cmp_pid(const void *a, const void *b) {
 
 static void collect_procs(struct proc_info *procs, int *count) {
     *count = 0;
-    DIR *d = opendir("/proc");
-    if (!d) return;
+    int fd = open("/proc", O_RDONLY | O_DIRECTORY);
+    if (fd < 0) return;
 
-    struct dirent *ent;
-    while ((ent = readdir(d)) != NULL && *count < MAX_PROCS) {
-        if (!is_numeric(ent->d_name))
-            continue;
-        struct proc_info *p = &procs[*count];
-        memset(p, 0, sizeof(*p));
-        if (parse_stat(ent->d_name, p) < 0)
-            continue;
-        parse_statm(ent->d_name, p);
-        parse_cmdline(ent->d_name, p);
-        (*count)++;
+    struct dirent buf[32];
+    int n;
+    while ((n = getdents(fd, buf, 32)) > 0 && *count < MAX_PROCS) {
+        for (int i = 0; i < n && *count < MAX_PROCS; i++) {
+            if (!is_numeric(buf[i].d_name))
+                continue;
+            struct proc_info *p = &procs[*count];
+            memset(p, 0, sizeof(*p));
+            if (parse_stat(buf[i].d_name, p) < 0)
+                continue;
+            parse_statm(buf[i].d_name, p);
+            parse_cmdline(buf[i].d_name, p);
+            (*count)++;
+        }
     }
-    closedir(d);
+    close(fd);
     qsort(procs, (size_t)*count, sizeof(procs[0]), cmp_pid);
 }
 
@@ -202,27 +205,6 @@ static void render(struct proc_info *procs, int count) {
 int main(void) {
     static struct proc_info procs[MAX_PROCS];
     int count;
-
-    write(2, "top: main start\n", 16);
-
-    DIR *d = opendir("/proc");
-    if (!d) { write(2, "top: opendir fail\n", 18); return 1; }
-    write(2, "top: opendir ok\n", 16);
-
-    struct dirent *e;
-    int n = 0;
-    while ((e = readdir(d)) != NULL && n < 5) {
-        write(2, "  ent: ", 7);
-        write(2, e->d_name, strlen(e->d_name));
-        write(2, "\n", 1);
-        n++;
-    }
-    closedir(d);
-
-    write(2, "top: calling render\n", 20);
-    count = 0;
-    render(procs, count);
-    write(2, "top: render returned\n", 21);
 
     while (1) {
         collect_procs(procs, &count);
