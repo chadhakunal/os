@@ -51,8 +51,8 @@ Directories are either **pruned** (not worth implementing), **done** (header + i
 | termios     | terminal I/O control — no header, not implemented |
 | fnmatch     | pattern matching — no header |
 | glob        | pathname expansion — no header |
-| sys_statvfs | statvfs — no header |
-| sys_utsname | uname() struct — no header (uname syscall exists) |
+| sys_statvfs | statvfs — done: sys/statvfs.h + kernel statfs syscall |
+| sys_utsname | uname — done: sys/utsname.h + uname syscall |
 | sys_ipc     | SysV IPC — no header, not implemented |
 | sys_msg     | SysV message queues — not implemented |
 | sys_shm     | SysV shared memory — not implemented |

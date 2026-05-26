@@ -64,16 +64,32 @@ static int64_t copy_slice(void *dst, uint64_t size,
 /* -------------------------------------------------------------------------
  * /proc/uptime
  * ---------------------------------------------------------------------- */
+/* TICKS_PER_SEC = 10 000 000 / TIMER_INTERVAL_CYCLES = 100 */
+#define PROC_TICKS_PER_SEC (10000000ULL / TIMER_INTERVAL_CYCLES)
+
 static int64_t proc_uptime_read(struct file_t *file, uint64_t offset,
                                 void *buf, uint64_t size) {
   (void)file;
-  char tmp[128];
+  uint64_t ticks = virtual_time.os_ticks;
+  uint64_t secs  = ticks / PROC_TICKS_PER_SEC;
+  uint64_t frac  = (ticks % PROC_TICKS_PER_SEC) * 100 / PROC_TICKS_PER_SEC;
+  uint64_t idle  = virtual_time.cpu_idle;
+  uint64_t isecs = idle / PROC_TICKS_PER_SEC;
+  uint64_t ifrac = (idle % PROC_TICKS_PER_SEC) * 100 / PROC_TICKS_PER_SEC;
+
+  char tmp[64];
   size_t pos = 0;
-  pos = buf_puts(tmp, sizeof(tmp), pos, "ticks: ");
-  pos = buf_putu64(tmp, sizeof(tmp), pos, virtual_time.os_ticks);
-  pos = buf_puts(tmp, sizeof(tmp), pos, "\ncycles: ");
-  pos = buf_putu64(tmp, sizeof(tmp), pos, virtual_time.system_uptime);
-  pos = buf_puts(tmp, sizeof(tmp), pos, "\n");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, secs);
+  if (pos < sizeof(tmp) - 1) tmp[pos++] = '.';
+  if (frac < 10 && pos < sizeof(tmp) - 1) tmp[pos++] = '0';
+  pos = buf_putu64(tmp, sizeof(tmp), pos, frac);
+  if (pos < sizeof(tmp) - 1) tmp[pos++] = ' ';
+  pos = buf_putu64(tmp, sizeof(tmp), pos, isecs);
+  if (pos < sizeof(tmp) - 1) tmp[pos++] = '.';
+  if (ifrac < 10 && pos < sizeof(tmp) - 1) tmp[pos++] = '0';
+  pos = buf_putu64(tmp, sizeof(tmp), pos, ifrac);
+  if (pos < sizeof(tmp) - 1) tmp[pos++] = '\n';
+  tmp[pos] = '\0';
   return copy_slice(buf, size, tmp, pos, offset);
 }
 
@@ -263,7 +279,7 @@ static int64_t proc_pid_status_read(struct file_t *file, uint64_t offset,
   sigset_t sig_ign, sig_cgt;
   sig_masks(&task->signal_state, &sig_ign, &sig_cgt);
 
-  char tmp[768];
+  char tmp[1024];
   size_t pos = 0;
   pos = buf_puts(tmp, sizeof(tmp), pos, "Name:\t");
   pos = buf_puts(tmp, sizeof(tmp), pos, task->comm);
@@ -353,7 +369,7 @@ static int64_t proc_pid_stat_read(struct file_t *file, uint64_t offset,
     default:              state_ch = 'X'; break;
   }
 
-  char tmp[256];
+  char tmp[512];
   size_t pos = 0;
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->pid);
   pos = buf_puts(tmp, sizeof(tmp), pos, " (");
@@ -510,9 +526,11 @@ static int64_t proc_pid_maps_read(struct file_t *file, uint64_t offset,
   if (task == NULL)
     return -ENOENT;
 
-  /* Write directly into the caller's buffer one VMA at a time to avoid
-   * any large stack allocation. */
-  size_t written = 0;
+  /* Global byte position across all lines; offset/size are the window. */
+  size_t global_pos = 0;
+  size_t written    = 0;
+  char  *dst        = (char *)buf;
+
   list_for_each(&task->mm_struct.vma_list, node) {
     struct vma_t *vma = container_of(node, struct vma_t, sibling_vma);
 
@@ -532,17 +550,69 @@ static int64_t proc_pid_maps_read(struct file_t *file, uint64_t offset,
     pos = buf_puthex64_nopad(line, sizeof(line), pos, vma->offset);
     pos = buf_puts(line, sizeof(line), pos, " 00:00 0\n");
 
-    int64_t n = copy_slice(buf, size, line, pos, offset > written ? offset - written : 0);
-    if (n > 0) {
-      buf = (char *)buf + n;
-      size -= (uint64_t)n;
-      written += (size_t)n;
+    /* Determine which bytes of this line fall within [offset, offset+size). */
+    size_t line_end = global_pos + pos;
+    if (line_end > offset && global_pos < offset + size) {
+      size_t skip = (global_pos < offset) ? (size_t)(offset - global_pos) : 0;
+      size_t avail = pos - skip;
+      size_t take  = (avail < size - written) ? avail : size - written;
+      memcpy(dst + written, line + skip, take);
+      written += take;
     }
+    global_pos = line_end;
+
+    if (written >= size)
+      break;
   }
   return (int64_t)written;
 }
 
 static struct file_ops_t proc_pid_maps_fops;
+
+/* -------------------------------------------------------------------------
+ * /proc/<pid>/cwd — current working directory path
+ * ---------------------------------------------------------------------- */
+static int64_t proc_pid_cwd_read(struct file_t *file, uint64_t offset,
+                                 void *buf, uint64_t size) {
+  uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
+  struct task_t *task = find_task_by_pid(pid);
+  if (task == NULL)
+    return -ENOENT;
+  char tmp[256];
+  int64_t ret = vfs_dentry_get_path(task->cwd, tmp, sizeof(tmp));
+  if (ret < 0)
+    return ret;
+  size_t len = 0;
+  while (tmp[len]) len++;
+  tmp[len++] = '\n';
+  return copy_slice(buf, size, tmp, len, offset);
+}
+
+static struct file_ops_t proc_pid_cwd_fops;
+
+/* -------------------------------------------------------------------------
+ * /proc/<pid>/exe — executable path (best-effort: argv[0] from cmdline)
+ * ---------------------------------------------------------------------- */
+static int64_t proc_pid_exe_read(struct file_t *file, uint64_t offset,
+                                 void *buf, uint64_t size) {
+  uint64_t pid = (uint64_t)file->vnode->fs_private_vnode;
+  struct task_t *task = find_task_by_pid(pid);
+  if (task == NULL)
+    return -ENOENT;
+  if (task->cmdline_len == 0)
+    return 0;
+  /* argv[0] is the first NUL-terminated string in cmdline */
+  size_t len = 0;
+  while (len < (size_t)task->cmdline_len && task->cmdline[len])
+    len++;
+  char tmp[257];
+  if (len > 256) len = 256;
+  memcpy(tmp, task->cmdline, len);
+  tmp[len++] = '\n';
+  return copy_slice(buf, size, tmp, len, offset);
+}
+
+static struct file_ops_t proc_pid_exe_fops;
 
 /* -------------------------------------------------------------------------
  * /proc/<pid>/fd/<n> — proxy read/write through the underlying file_t.
@@ -726,6 +796,12 @@ static int64_t procfs_pid_readdir(struct vnode_t *dir, uint32_t index,
     case 7:
       *out = proc_make_fd_dir_dentry(dir->superblock, pid);
       return 0;
+    case 8:
+      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_cwd_fops, "cwd");
+      return 0;
+    case 9:
+      *out = proc_make_pid_file(dir->superblock, priv, &proc_pid_exe_fops, "exe");
+      return 0;
     default:
       *out = NULL;
       return -1;
@@ -766,6 +842,14 @@ static int64_t procfs_pid_lookup(const char *name, struct vnode_t *parent,
   }
   if (strncmp(name, "fd") == 0) {
     *out = proc_make_fd_dir_dentry(parent->superblock, pid);
+    return 0;
+  }
+  if (strncmp(name, "cwd") == 0) {
+    *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_cwd_fops, "cwd");
+    return 0;
+  }
+  if (strncmp(name, "exe") == 0) {
+    *out = proc_make_pid_file(parent->superblock, priv, &proc_pid_exe_fops, "exe");
     return 0;
   }
   *out = NULL;
@@ -921,6 +1005,8 @@ struct superblock_t *procfs_mount(void) {
   proc_mounts_fops.read       = proc_mounts_read;
   proc_stat_fops.read         = proc_stat_read;
   proc_pid_maps_fops.read     = proc_pid_maps_read;
+  proc_pid_cwd_fops.read      = proc_pid_cwd_read;
+  proc_pid_exe_fops.read      = proc_pid_exe_read;
   proc_pid_dir_ops.readdir    = procfs_pid_readdir;
   proc_pid_dir_ops.lookup     = procfs_pid_lookup;
   proc_fd_entry_fops.read     = proc_fd_entry_read;
