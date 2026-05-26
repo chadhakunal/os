@@ -47,6 +47,17 @@ void timer_handler(uint64_t hardware_clock_ticks, int from_user_mode) {
 
   current_task->runtime += TIMER_INTERVAL_CYCLES;
 
+  /* CPU time accounting. */
+  if (current_task == idle_task) {
+    virtual_time.cpu_idle++;
+  } else if (from_user_mode) {
+    current_task->utime++;
+    virtual_time.cpu_user++;
+  } else {
+    current_task->stime++;
+    virtual_time.cpu_system++;
+  }
+
   // Only preempt when interrupted from user mode OR when idle is running.
   // Calling switch_to() from within a kernel-mode trap on a real task corrupts
   // the trap frame saved on the kernel stack (trap_from_kernel saves the frame

@@ -95,6 +95,9 @@ struct task_t {
   uint64_t runtime; // The total runtime for the task
   uint64_t max_runtime; // max runtime a task can run before being moved to expired
 
+  uint64_t utime;  /* ticks spent in user mode */
+  uint64_t stime;  /* ticks spent in kernel (syscall/interrupt) mode */
+
   uint64_t pgid;
   uint64_t sid;
   char comm[16];

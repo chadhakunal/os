@@ -18,7 +18,16 @@ struct proc_info {
     char  comm[64];
     long  vmsize_kb;
     long  vmrss_kb;
+    long  utime;
+    long  stime;
     char  cmdline[128];
+};
+
+struct cpu_sample {
+    long user;
+    long system;
+    long idle;
+    long total;
 };
 
 static int is_numeric(const char *s) {
@@ -48,20 +57,32 @@ static int parse_stat(const char *pid_str, struct proc_info *p) {
     p->pid = atoi(pid_str);
     p->state = '?';
     p->comm[0] = '\0';
+    p->utime = p->stime = 0;
 
     char *comm_start = strchr(buf, '(');
     char *comm_end   = strrchr(buf, ')');
-    if (comm_start && comm_end && comm_end > comm_start) {
-        size_t len = (size_t)(comm_end - comm_start - 1);
-        if (len >= sizeof(p->comm)) len = sizeof(p->comm) - 1;
-        memcpy(p->comm, comm_start + 1, len);
-        p->comm[len] = '\0';
+    if (!comm_start || !comm_end || comm_end <= comm_start)
+        return -1;
 
-        char *rest = comm_end + 1;
-        while (*rest == ' ') rest++;
-        if (*rest) p->state = *rest++;
-        while (*rest == ' ') rest++;
-        p->ppid = atoi(rest);
+    size_t len = (size_t)(comm_end - comm_start - 1);
+    if (len >= sizeof(p->comm)) len = sizeof(p->comm) - 1;
+    memcpy(p->comm, comm_start + 1, len);
+    p->comm[len] = '\0';
+
+    /* parse: ) state ppid pgrp session tty tpgid flags
+              minflt cminflt majflt cmajflt utime stime ... */
+    char *s = comm_end + 1;
+    int field = 3; /* field 3 = state, already past pid and comm */
+    while (*s && field <= 15) {
+        while (*s == ' ') s++;
+        switch (field) {
+        case 3: p->state = *s; break;
+        case 4: p->ppid  = atoi(s); break;
+        case 14: p->utime = atol(s); break;
+        case 15: p->stime = atol(s); break;
+        }
+        while (*s && *s != ' ') s++;
+        field++;
     }
     return 0;
 }
@@ -135,6 +156,29 @@ static void parse_uptime(long *ticks) {
     if (p) *ticks = atol(p + 6);
 }
 
+/* Read /proc/stat: "cpu  user nice system idle ..." */
+static void parse_cpu_stat(struct cpu_sample *s) {
+    char buf[128];
+    s->user = s->system = s->idle = s->total = 0;
+    if (read_file("/proc/stat", buf, sizeof(buf)) <= 0)
+        return;
+    char *p = buf;
+    /* skip "cpu  " */
+    while (*p && *p != ' ') p++;
+    while (*p == ' ') p++;
+    s->user = atol(p);
+    while (*p && *p != ' ') p++;
+    while (*p == ' ') p++;
+    /* nice — skip */
+    while (*p && *p != ' ') p++;
+    while (*p == ' ') p++;
+    s->system = atol(p);
+    while (*p && *p != ' ') p++;
+    while (*p == ' ') p++;
+    s->idle = atol(p);
+    s->total = s->user + s->system + s->idle;
+}
+
 static void sort_by_pid(struct proc_info *procs, int count) {
     for (int i = 1; i < count; i++) {
         struct proc_info key = procs[i];
@@ -168,7 +212,8 @@ static void collect_procs(struct proc_info *procs, int *count) {
     sort_by_pid(procs, *count);
 }
 
-static void render(struct proc_info *procs, int count) {
+static void render(struct proc_info *procs, int count,
+                   struct cpu_sample *prev, struct cpu_sample *cur) {
     long total_kb, free_kb, used_kb, ticks;
     parse_meminfo(&total_kb, &free_kb, &used_kb);
     parse_uptime(&ticks);
@@ -178,19 +223,29 @@ static void render(struct proc_info *procs, int count) {
     long up_m = (uptime_sec % 3600) / 60;
     long up_s = uptime_sec % 60;
 
-    printf("--- top - up %ld:%02ld:%02ld  tasks: %d ---\n", up_h, up_m, up_s, count);
+    /* CPU% over the last interval. */
+    long dtotal = cur->total - prev->total;
+    long didle  = cur->idle  - prev->idle;
+    long dbusy  = dtotal > 0 ? dtotal - didle : 0;
+    long cpu_pct = dtotal > 0 ? (dbusy * 100) / dtotal : 0;
+
+    printf("--- top - up %ld:%02ld:%02ld  tasks: %d  cpu: %ld%% ---\n",
+           up_h, up_m, up_s, count, cpu_pct);
     printf("MiB Mem: %6ld.0 total  %6ld.0 free  %6ld.0 used\n",
            total_kb / 1024, free_kb / 1024, used_kb / 1024);
     printf("\n");
-    printf("  PID  PPID S  VIRT  RES COMMAND\n");
+    printf("  PID  PPID S  VIRT  RES  %%CPU COMMAND\n");
 
     int max_rows = TERM_ROWS - 4;
     for (int i = 0; i < count && i < max_rows; i++) {
         struct proc_info *p = &procs[i];
-        printf("%5d %5d %c %5ldm %4ldm %s\n",
+        long task_ticks = p->utime + p->stime;
+        long task_pct = dtotal > 0 ? (task_ticks * 100) / dtotal : 0;
+        printf("%5d %5d %c %5ldm %4ldm %4ld%% %s\n",
                p->pid, p->ppid, p->state,
                p->vmsize_kb / 1024,
                p->vmrss_kb  / 1024,
+               task_pct,
                p->cmdline[0] ? p->cmdline : p->comm);
     }
     fflush(stdout);
@@ -198,13 +253,19 @@ static void render(struct proc_info *procs, int count) {
 
 int main(void) {
     static struct proc_info procs[MAX_PROCS];
+    static struct cpu_sample prev, cur;
     int count;
 
+    parse_cpu_stat(&prev);
+
     while (1) {
-        collect_procs(procs, &count);
-        render(procs, count);
         struct timespec ts = { REFRESH_SEC, 0 };
         nanosleep(&ts, NULL);
+
+        parse_cpu_stat(&cur);
+        collect_procs(procs, &count);
+        render(procs, count, &prev, &cur);
+        prev = cur;
     }
     return 0;
 }

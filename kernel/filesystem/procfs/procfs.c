@@ -151,6 +151,27 @@ static int64_t proc_mounts_read(struct file_t *file, uint64_t offset,
 static struct file_ops_t proc_mounts_fops;
 
 /* -------------------------------------------------------------------------
+ * /proc/stat — global CPU time counters
+ * Format matches Linux: "cpu  user nice system idle iowait irq softirq"
+ * ---------------------------------------------------------------------- */
+static int64_t proc_stat_read(struct file_t *file, uint64_t offset,
+                               void *buf, uint64_t size) {
+  (void)file;
+  char tmp[128];
+  size_t pos = 0;
+  pos = buf_puts(tmp, sizeof(tmp), pos, "cpu  ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, virtual_time.cpu_user);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " 0 ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, virtual_time.cpu_system);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, virtual_time.cpu_idle);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " 0 0 0 0\n");
+  return copy_slice(buf, size, tmp, pos, offset);
+}
+
+static struct file_ops_t proc_stat_fops;
+
+/* -------------------------------------------------------------------------
  * /proc/<pid>/status
  * ---------------------------------------------------------------------- */
 static const char *task_state_str(enum task_state state) {
@@ -347,10 +368,18 @@ static int64_t proc_pid_stat_read(struct file_t *file, uint64_t offset,
   pos = buf_putu64(tmp, sizeof(tmp), pos, task->sid);
   /* tty_nr=0 tpgid=0 flags=0 minflt=0 cminflt=0 majflt=0 cmajflt=0 */
   pos = buf_puts(tmp, sizeof(tmp), pos, " 0 0 0 0 0 0 0");
-  /* utime=0 stime=0 cutime=0 cstime=0 priority=0 nice=0 num_threads=1 */
-  pos = buf_puts(tmp, sizeof(tmp), pos, " 0 0 0 0 0 0 1");
-  /* itrealvalue=0 starttime=0 vsize=0 rss=0 */
-  pos = buf_puts(tmp, sizeof(tmp), pos, " 0 0 0 0\n");
+  /* utime stime cutime=0 cstime=0 priority=20 nice=0 num_threads=1 */
+  pos = buf_puts(tmp, sizeof(tmp), pos, " ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->utime);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, task->stime);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " 0 0 20 0 1");
+  /* itrealvalue=0 starttime=0 vsize rss */
+  pos = buf_puts(tmp, sizeof(tmp), pos, " 0 0 ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, vm_size_kb(task) * 1024);
+  pos = buf_puts(tmp, sizeof(tmp), pos, " ");
+  pos = buf_putu64(tmp, sizeof(tmp), pos, vm_rss_kb(task) * 1024 / DEFAULT_PAGE_SIZE);
+  pos = buf_puts(tmp, sizeof(tmp), pos, "\n");
   tmp[pos] = '\0';
   return copy_slice(buf, size, tmp, pos, offset);
 }
@@ -890,6 +919,7 @@ struct superblock_t *procfs_mount(void) {
   proc_pid_limits_fops.read   = proc_pid_limits_read;
   proc_version_fops.read      = proc_version_read;
   proc_mounts_fops.read       = proc_mounts_read;
+  proc_stat_fops.read         = proc_stat_read;
   proc_pid_maps_fops.read     = proc_pid_maps_read;
   proc_pid_dir_ops.readdir    = procfs_pid_readdir;
   proc_pid_dir_ops.lookup     = procfs_pid_lookup;
@@ -914,6 +944,7 @@ struct superblock_t *procfs_mount(void) {
   proc_add_file(sb, root, &id, "kmsg",    &proc_kmsg_fops);
   proc_add_file(sb, root, &id, "mounts",  &proc_mounts_fops);
   proc_add_file(sb, root, &id, "version", &proc_version_fops);
+  proc_add_file(sb, root, &id, "stat",    &proc_stat_fops);
 
   struct dentry_t *root_dentry = dentry_t_alloc();
   strncpy(root_dentry->name, "proc", sizeof(root_dentry->name) - 1);
