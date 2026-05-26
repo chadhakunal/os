@@ -223,19 +223,16 @@ void check_and_deliver_signals(struct trap_frame *tf) {
     debugk("[SIGCHLD] dispatching custom handler=%p\n", action->sa_handler);
 
   /* SA_RESTART: if the signal interrupted a syscall that returned -EINTR,
-   * rewind sepc to the ecall and restore the original a0 so the syscall
-   * re-executes transparently after the handler returns via sigreturn. */
+   * patch the trap frame that will be saved in the signal frame so that
+   * when sigreturn restores it, execution resumes at the ecall instruction
+   * and the syscall re-executes transparently after the handler returns. */
   if ((action->sa_flags & SA_RESTART) &&
       (int64_t)tf->a0 == -EINTR &&
       current_task->in_syscall == 0) {
-    /* in_syscall was cleared after the syscall set a0=-EINTR, so the
-     * saved restart_a0/a7 are valid from that syscall invocation. */
-    tf->sepc -= 4;          /* rewind past the ecall */
+    tf->sepc -= 4;
     tf->a0    = current_task->restart_a0;
     tf->a7    = current_task->restart_a7;
-    /* Don't dispatch the handler — just return to userspace to re-run ecall. */
-    delete_signal_from_set(&current_task->signal_state.pending, sig);
-    return;
+    /* Fall through to normal handler dispatch with the patched frame. */
   }
 
   uint64_t new_sp = (tf->sp - sizeof(struct signal_frame)) & ~15ULL;

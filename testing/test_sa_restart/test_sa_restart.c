@@ -114,14 +114,16 @@ static void test_read_no_restart(void) {
 }
 
 /* ------------------------------------------------------------------ */
-/* 3. nanosleep() with SA_RESTART: must re-sleep and not return EINTR  */
+/* 3. nanosleep() with SA_RESTART: nanosleep is non-restartable by     */
+/*    design (remaining time would be wrong).  Even with SA_RESTART it */
+/*    must return -1/EINTR and write the remaining time to rem.        */
 /* ------------------------------------------------------------------ */
 static void test_nanosleep_restart(void) {
     handler_ran = 0;
 
     struct sigaction sa = {0};
     sa.sa_handler = noop_handler;
-    sa.sa_flags   = SA_RESTART;
+    sa.sa_flags   = SA_RESTART;  /* nanosleep ignores this */
     sigaction(SIGUSR1, &sa, NULL);
 
     pid_t child = fork();
@@ -132,17 +134,18 @@ static void test_nanosleep_restart(void) {
         exit(0);
     }
 
-    /* Sleep for 500 ms.  Child interrupts at ~100 ms.  With SA_RESTART
-     * nanosleep re-enters and returns 0 when the full duration elapses. */
-    struct timespec req = {0, 500000000};
-    int ret = nanosleep(&req, NULL);
+    /* Sleep for 5 s — should be cut short by signal at ~100 ms. */
+    struct timespec req = {5, 0};
+    struct timespec rem = {0, 0};
+    int ret = nanosleep(&req, &rem);
     int saved_errno = errno;
 
     int status;
     waitpid(child, &status, 0);
 
-    result("nanosleep SA_RESTART: handler ran",        handler_ran == 1);
-    result("nanosleep SA_RESTART: returns 0 (not EINTR)", ret == 0 && saved_errno != EINTR);
+    result("nanosleep SA_RESTART: handler ran",          handler_ran == 1);
+    result("nanosleep SA_RESTART: returns EINTR (non-restartable)", ret == -1 && saved_errno == EINTR);
+    result("nanosleep SA_RESTART: rem has remaining time", rem.tv_sec > 0);
 }
 
 /* ------------------------------------------------------------------ */

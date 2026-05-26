@@ -29,8 +29,18 @@ DEFINE_SYSCALL2(nanosleep, const struct timespec *, req, struct timespec *, rem)
 
   current_task->sleep_until = virtual_time.os_ticks + ticks;
 
+  /* nanosleep is not restartable (remaining time would be wrong on restart) */
+  current_task->in_syscall = 0;
+
   if (!task_block(WAIT_SLEEP)) {
-    if (rem) { rem->tv_sec = 0; rem->tv_nsec = 0; }
+    uint64_t remaining_ticks = 0;
+    if (current_task->sleep_until > virtual_time.os_ticks)
+      remaining_ticks = current_task->sleep_until - virtual_time.os_ticks;
+    if (rem) {
+      rem->tv_sec  = (int64_t)(remaining_ticks / TICKS_PER_SEC);
+      rem->tv_nsec = (int64_t)((remaining_ticks % TICKS_PER_SEC) *
+                               (1000000000ULL / TICKS_PER_SEC));
+    }
     return -EINTR;
   }
 
