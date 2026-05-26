@@ -342,7 +342,16 @@ static int64_t proc_pid_cmdline_read(struct file_t *file, uint64_t offset,
     return -ENOENT;
   if (task->cmdline_len == 0)
     return 0;
-  return copy_slice(buf, size, task->cmdline, (size_t)task->cmdline_len, offset);
+  /* cmdline is NUL-separated argv; append a trailing newline for readability */
+  size_t len = (size_t)task->cmdline_len;
+  int64_t n = copy_slice(buf, size, task->cmdline, len, offset);
+  if (n > 0 && offset + (uint64_t)n >= len) {
+    /* we're at the end — append newline if there's room */
+    char nl = '\n';
+    int64_t r = copy_slice((char *)buf + n, size - (uint64_t)n, &nl, 1, 0);
+    if (r > 0) n += r;
+  }
+  return n;
 }
 
 static struct file_ops_t proc_pid_cmdline_fops;
@@ -468,33 +477,36 @@ static int64_t proc_pid_limits_read(struct file_t *file, uint64_t offset,
     "Max address space",  /* 9 RLIMIT_AS     */
   };
 
-  char tmp[768];
+  char tmp[1024];
   size_t pos = 0;
   pos = buf_puts(tmp, sizeof(tmp), pos,
-    "Limit                     Soft Limit           Hard Limit           Units\n");
+    "Limit                     Soft Limit           Hard Limit\n");
 
   for (int i = 0; i < 10; i++) {
     if (rlimit_names[i] == NULL) continue;
     struct rlimit *rl = &task->rlimits.limits[i];
-    pos = buf_puts(tmp, sizeof(tmp), pos, rlimit_names[i]);
-    /* pad to column 26 */
     size_t name_len = 0;
     for (const char *p = rlimit_names[i]; *p; p++) name_len++;
-    while (name_len++ < 26 && pos < sizeof(tmp) - 1) tmp[pos++] = ' ';
+    pos = buf_puts(tmp, sizeof(tmp), pos, rlimit_names[i]);
+    /* pad name to column 26 */
+    for (size_t k = name_len; k < 26 && pos < sizeof(tmp) - 1; k++)
+      tmp[pos++] = ' ';
     if (rl->rlim_cur == RLIM_INFINITY) {
       pos = buf_puts(tmp, sizeof(tmp), pos, "unlimited            ");
     } else {
+      size_t before = pos;
       pos = buf_putu64(tmp, sizeof(tmp), pos, rl->rlim_cur);
-      pos = buf_puts(tmp, sizeof(tmp), pos, "                     ");
+      for (size_t k = pos - before; k < 21 && pos < sizeof(tmp) - 1; k++)
+        tmp[pos++] = ' ';
     }
     if (rl->rlim_max == RLIM_INFINITY) {
-      pos = buf_puts(tmp, sizeof(tmp), pos, "unlimited            ");
+      pos = buf_puts(tmp, sizeof(tmp), pos, "unlimited");
     } else {
       pos = buf_putu64(tmp, sizeof(tmp), pos, rl->rlim_max);
-      pos = buf_puts(tmp, sizeof(tmp), pos, "                     ");
     }
-    pos = buf_puts(tmp, sizeof(tmp), pos, "\n");
+    if (pos < sizeof(tmp) - 1) tmp[pos++] = '\n';
   }
+  tmp[pos] = '\0';
   return copy_slice(buf, size, tmp, pos, offset);
 }
 
