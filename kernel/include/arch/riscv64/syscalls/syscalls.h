@@ -84,6 +84,7 @@
 #define SYS_mount            40
 #define SYS_umount2          39
 #define SYS_faccessat        48
+#define SYS_times            153
 
 void handle_syscall(struct trap_frame *tf);
 
@@ -95,6 +96,7 @@ int64_t sys_read(struct trap_frame *tf);
 int64_t sys_write(struct trap_frame *tf);
 int64_t sys_readv(struct trap_frame *tf);
 int64_t sys_writev(struct trap_frame *tf);
+int64_t sys_times(struct trap_frame *tf);
 int64_t sys_close(struct trap_frame *tf);
 int64_t sys_truncate(struct trap_frame *tf);
 int64_t sys_ftruncate(struct trap_frame *tf);

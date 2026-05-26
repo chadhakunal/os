@@ -1,75 +1,79 @@
 # os-tests-sortix status
 
-Directories are either **pruned** (removed from vendor, not worth fixing now) or
-**to fix** (header exists in libc/include, failures are compile/link errors we can address).
+Directories are either **pruned** (not worth implementing), **done** (header + implementation exist), or **partial** (header exists, implementation incomplete).
 
 ---
 
-## Pruned — no header / not applicable to sbunix
+## Done — header and implementation present
+
+| Directory    | Notes |
+|--------------|-------|
+| sys_uio      | readv/writev — sys/uio.h + kernel syscalls |
+| sys_times    | times() — sys/times.h + kernel syscall |
+| sys_resource | getrlimit/setrlimit — sys/resource.h |
+| endian       | endian.h — htobe/le macros, no-op for little-endian |
+| strings      | strings.h — ffs, bcmp, bcopy |
+| setjmp       | setjmp.h |
+| inttypes     | inttypes.h |
+| regex        | regex.h — regcomp/regexec (tre backend) |
+| libgen       | libgen.h — basename/dirname |
+| ctype        | ctype.h |
+| sched        | sched.h — sched_yield |
+| poll         | poll.h — poll/ppoll kernel + libc |
+| signal       | signal.h — sigaction, sigprocmask, kill, sigwait, sigwaitinfo, sigtimedwait, SA_RESTART |
+| dirent       | dirent.h — opendir/readdir/rewinddir/seekdir/scandir |
+| fcntl        | fcntl.h — open, fcntl, dup, dup2 |
+| stdio        | stdio.h — printf family, fopen, fread, fwrite, fseek |
+| stdlib       | stdlib.h — malloc, qsort, atoi, strtol, etc |
+| time         | time.h — clock_gettime, nanosleep, gmtime, strftime |
+| unistd       | unistd.h — read, write, readv, writev, lseek, fork, exec, pipe |
+| sys_mman     | sys/mman.h — mmap, munmap, mprotect |
+| sys_stat     | sys/stat.h — stat, fstat, mkdir, chmod |
+| sys_wait     | sys/wait.h — waitpid, waitid |
+
+---
+
+## Partial — header exists, implementation incomplete or untested
+
+| Directory  | Notes |
+|------------|-------|
+| wchar      | wchar.h exists; most functions are stubs |
+| wctype     | wctype.h exists; classification functions stub |
+| select     | sys/select.h — select/pselect kernel exists, libc wired |
+
+---
+
+## Pruned — not applicable or too large to implement
 
 | Directory   | Reason |
 |-------------|--------|
 | aio         | POSIX async I/O — not implemented |
+| termios     | terminal I/O control — no header, not implemented |
+| fnmatch     | pattern matching — no header |
+| glob        | pathname expansion — no header |
+| sys_statvfs | statvfs — no header |
+| sys_utsname | uname() struct — no header (uname syscall exists) |
+| sys_ipc     | SysV IPC — no header, not implemented |
+| sys_msg     | SysV message queues — not implemented |
+| sys_shm     | SysV shared memory — not implemented |
+| syslog      | syslog — no header |
 | libintl     | gettext/i18n — not implemented |
 | dlfcn       | dynamic linking — static freestanding OS |
 | fmtmsg      | fmtmsg() — no header |
-| fnmatch     | fnmatch() — no header |
-| ftw         | file tree walk — no header |
-| glob        | glob() — no header |
-| iconv       | character encoding conversion — no header |
-| langinfo    | nl_langinfo — locale stack not implemented |
-| locale      | setlocale/localeconv — locale stack not implemented |
-| monetary    | strfmon — locale stack not implemented |
-| nl_types    | catopen/catgets — locale stack not implemented |
+| iconv       | character encoding — not implemented |
+| langinfo    | nl_langinfo — locale not implemented |
+| locale      | setlocale — stub only |
+| monetary    | strfmon — not implemented |
+| nl_types    | catopen/catgets — not implemented |
 | mqueue      | POSIX message queues — not implemented |
-| ndbm        | legacy key-value DB — no header |
-| poll        | poll/ppoll — no poll stack |
-| sys_select  | select/pselect — no poll stack |
-| sys_time    | utimes/select — no header |
-| sched       | scheduler control APIs — not implemented |
 | search      | hsearch/tsearch — no header |
-| sys_ipc     | SysV IPC ftok — no header |
-| sys_msg     | SysV message queues — no header |
-| sys_shm     | SysV shared memory — no header |
-| sys_resource| getrlimit/getrusage — no header |
-| sys_statvfs | statvfs — no header |
-| sys_times   | times() — no header |
-| sys_utsname | uname() — no header |
-| sys_uio     | readv/writev — no header |
-| syslog      | syslog — no header |
-| termios     | terminal I/O — no header |
-| uchar       | C11 char16_t/char32_t — no header |
-| wchar       | wide char — no header |
-| wctype      | wide char classification — no header |
-| wordexp     | wordexp() — no header |
-| devctl      | posix_devctl — Sortix-specific, no header |
-| endian      | be16toh etc. — no <endian.h> |
-| math        | math.h functions — not implemented |
-| complex     | complex.h — not implemented |
-| fenv        | fenv.h — not implemented |
+| sched       | advanced scheduler APIs (only sched_yield done) |
 | grp         | group DB — not implemented |
 | pwd         | password DB — not implemented |
 | utmpx       | login records — not implemented |
-
----
-
-## To fix — header exists, failures are incomplete declarations/definitions
-
-| Directory  | Header(s)          | Failures | Notes |
-|------------|--------------------|----------|-------|
-| ctype      | ctype.h (missing)  | missing_header | need to add ctype.h |
-| dirent     | dirent.h           | unknown_type, undeclared | DIR, dirent struct incomplete |
-| fcntl      | fcntl.h            | compile_error, undeclared | openat, posix_fadvise, posix_fallocate |
-| inttypes   | inttypes.h (missing)| missing_header | need to add inttypes.h |
-| libgen     | libgen.h (missing) | missing_header | basename/dirname |
-| regex      | regex.h (missing)  | missing_header | regcomp/regexec |
-| setjmp     | setjmp.h (missing) | missing_header | need to add setjmp.h |
-| signal     | signal.h           | unknown_type, compile_error | siginfo_t, sigset_t incomplete |
-| stdio      | stdio.h            | compile_error | FILE, printf family incomplete |
-| stdlib     | stdlib.h           | compile_error, unknown_type | div_t, ldiv_t, wchar types missing |
-| strings    | strings.h          | compile_error | ffs/ffsl/ffsll, locale variants |
-| sys_mman   | sys/mman.h         | compile_error | mmap, mprotect, shm_open |
-| sys_stat   | sys/stat.h         | compile_error, undeclared | chmod, fstatat, utimensat |
-| sys_wait   | sys/wait.h         | compile_error | wait, waitpid, waitid |
-| time       | time.h             | compile_error, unknown_type | struct tm, clockid_t, timer_t |
-| unistd     | unistd.h           | compile_error, undeclared | large — most POSIX unistd functions |
+| math        | math.h — not implemented |
+| complex     | complex.h — not implemented |
+| fenv        | fenv.h — not implemented |
+| uchar       | C11 char16_t/char32_t — not implemented |
+| wordexp     | wordexp() — no header |
+| devctl      | posix_devctl — Sortix-specific |

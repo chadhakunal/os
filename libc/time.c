@@ -1,4 +1,5 @@
 #include <time.h>
+#include <sys/times.h>
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
@@ -296,3 +297,10 @@ size_t strftime_l(char *restrict s, size_t max, const char *restrict fmt,
   (void)loc;
   return strftime(s, max, fmt, tm);
 }
+
+clock_t times(struct tms *buf) {
+  long ret = syscall1(SYS_times, buf);
+  if (ret < 0) { errno = (int)(-ret); return (clock_t)-1; }
+  return (clock_t)ret;
+}
+

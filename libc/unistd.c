@@ -3,6 +3,7 @@
 #include <sys/wait.h>
 #include <sys/time.h>
 #include <sys/mman.h>
+#include <sys/utsname.h>
 #include <signal.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -339,16 +340,15 @@ void sync(void) {
   syscall0(SYS_sync);
 }
 
-struct _utsname {
-  char sysname[65];
-  char nodename[65];
-  char release[65];
-  char version[65];
-  char machine[65];
-};
+int uname(struct utsname *buf) {
+  if (!buf) { errno = EFAULT; return -1; }
+  long ret = syscall1(SYS_uname, buf);
+  if (ret < 0) { errno = (int)(-ret); return -1; }
+  return 0;
+}
 
 int gethostname(char *name, size_t len) {
-  struct _utsname u;
+  struct utsname u;
   long ret = syscall1(SYS_uname, &u);
   if (ret < 0) { errno = (int)(-ret); return -1; }
   size_t n = strlen(u.nodename);

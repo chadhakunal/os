@@ -609,8 +609,6 @@ void fork_sig_copy(struct signal_state_t *signal_state) {
 }
 
 uint64_t fork_off() {
-  // Should create a complete copy of the address space of the current task
-  // For now we will manually copy over everything on this call  TODO: add copy on write
   struct task_t *new_task = task_t_alloc();
   new_task->ppid = current_task->pid;
   new_task->pid = ++latest_pid;

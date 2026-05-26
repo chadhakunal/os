@@ -74,6 +74,7 @@
 #define SYS_mount            40
 #define SYS_umount2          39
 #define SYS_faccessat        48
+#define SYS_times            153
 
 #define syscall0(n) ({ \
   register long _a0 asm("a0"); \
