@@ -5,6 +5,7 @@
 #include "kernel/memory/memory_info.h"
 #include "kernel/memory/page_allocator.h"
 #include "kernel/memory/page_tables.h"
+#include "arch/riscv64/virtual_memory_init.h"
 #include "kernel/task/task.h"
 #include "lib/string.h"
 #include "lib/printk/printk.h"
