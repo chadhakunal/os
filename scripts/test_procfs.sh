@@ -86,12 +86,12 @@ result "status: VmSize ends with kB"        "$(matches "$OUT" 'VmSize:.*kB')"
 result "status: VmRSS ends with kB"         "$(matches "$OUT" 'VmRSS:.*kB')"
 result "status: Umask is 4 octal digits"    "$(matches "$OUT" 'Umask:[[:space:]]*[0-7][0-7][0-7][0-7]')"
 
-STATE=$(echo   "$OUT" | grep '^State:'   | sed 's/State:[[:space:]]*//' | cut -c1)
-PGRP=$(echo    "$OUT" | grep '^Pgrp:'   | sed 's/Pgrp:[[:space:]]*//')
-SID=$(echo     "$OUT" | grep '^Sid:'    | sed 's/Sid:[[:space:]]*//')
-THREADS=$(echo "$OUT" | grep '^Threads:'| sed 's/Threads:[[:space:]]*//')
-VMSIZE=$(echo  "$OUT" | grep '^VmSize:' | sed 's/VmSize:[[:space:]]*//' | sed 's/ kB//')
-VMRSS=$(echo   "$OUT" | grep '^VmRSS:'  | sed 's/VmRSS:[[:space:]]*//'  | sed 's/ kB//')
+STATE=$(echo   "$OUT" | grep -m1 '^State:'   | sed 's/State:[[:space:]]*//' | cut -c1)
+PGRP=$(echo    "$OUT" | grep -m1 '^Pgrp:'   | sed 's/Pgrp:[[:space:]]*//')
+SID=$(echo     "$OUT" | grep -m1 '^Sid:'    | sed 's/Sid:[[:space:]]*//')
+THREADS=$(echo "$OUT" | grep -m1 '^Threads:'| sed 's/Threads:[[:space:]]*//')
+VMSIZE=$(echo  "$OUT" | grep -m1 '^VmSize:' | sed 's/VmSize:[[:space:]]*//' | sed 's/ kB//')
+VMRSS=$(echo   "$OUT" | grep -m1 '^VmRSS:'  | sed 's/VmRSS:[[:space:]]*//'  | sed 's/ kB//')
 result "status: State is valid letter"      "$(echo "$STATE" | grep -qE '^[RSDTZ]$' && echo 1 || echo 0)"
 result "status: Pgrp >= 1"                  "$([ "$PGRP"    -ge 1 ] 2>/dev/null && echo 1 || echo 0)"
 result "status: Sid >= 1"                   "$([ "$SID"     -ge 1 ] 2>/dev/null && echo 1 || echo 0)"
@@ -106,8 +106,8 @@ echo "--- /proc/self/status pid consistency"
 
 # cat itself: its Pid should match what the shell sees
 OUT=$(run_cmd "cat /proc/self/status")
-RPID=$(echo  "$OUT" | grep '^Pid:'  | sed 's/Pid:[[:space:]]*//')
-RPPID=$(echo "$OUT" | grep '^PPid:' | sed 's/PPid:[[:space:]]*//')
+RPID=$(echo  "$OUT" | grep -m1 '^Pid:'  | sed 's/Pid:[[:space:]]*//')
+RPPID=$(echo "$OUT" | grep -m1 '^PPid:' | sed 's/PPid:[[:space:]]*//')
 result "status: Pid is numeric and > 0"     "$(echo "$RPID"  | grep -qE '^[0-9]+$' && [ "$RPID"  -gt 0 ] && echo 1 || echo 0)"
 result "status: PPid is numeric and >= 1"   "$(echo "$RPPID" | grep -qE '^[0-9]+$' && [ "$RPPID" -ge 1 ] && echo 1 || echo 0)"
 
