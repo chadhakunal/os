@@ -194,27 +194,20 @@ static void sort_by_pid(struct proc_info *procs, int count) {
 static void collect_procs(struct proc_info *procs, int *count) {
     *count = 0;
     DIR *d = opendir("/proc");
-    if (!d) { printf("[top] opendir(/proc) failed\n"); fflush(stdout); return; }
-    printf("[top] opendir ok\n"); fflush(stdout);
+    if (!d) return;
 
     struct dirent *ent;
-    int total_ents = 0;
     while ((ent = readdir(d)) != NULL && *count < MAX_PROCS) {
-        printf("[top] dent: '%s'\n", ent->d_name); fflush(stdout);
-        total_ents++;
         if (!is_numeric(ent->d_name))
             continue;
         struct proc_info *p = &procs[*count];
         memset(p, 0, sizeof(*p));
-        if (parse_stat(ent->d_name, p) < 0) {
-            printf("[top] parse_stat failed for pid %s\n", ent->d_name); fflush(stdout);
+        if (parse_stat(ent->d_name, p) < 0)
             continue;
-        }
         parse_statm(ent->d_name, p);
         parse_cmdline(ent->d_name, p);
         (*count)++;
     }
-    printf("[top] total_ents=%d count=%d\n", total_ents, *count); fflush(stdout);
     closedir(d);
     sort_by_pid(procs, *count);
 }
@@ -263,20 +256,14 @@ int main(void) {
     static struct cpu_sample prev, cur;
     int count;
 
-    printf("[top] starting\n"); fflush(stdout);
     parse_cpu_stat(&prev);
-    printf("[top] after parse_cpu_stat: user=%ld sys=%ld idle=%ld\n", prev.user, prev.system, prev.idle); fflush(stdout);
 
     while (1) {
         struct timespec ts = { REFRESH_SEC, 0 };
-        printf("[top] sleeping %d s\n", REFRESH_SEC); fflush(stdout);
         nanosleep(&ts, NULL);
-        printf("[top] awake\n"); fflush(stdout);
 
         parse_cpu_stat(&cur);
-        printf("[top] collecting procs\n"); fflush(stdout);
         collect_procs(procs, &count);
-        printf("[top] count=%d\n", count); fflush(stdout);
         render(procs, count, &prev, &cur);
         prev = cur;
     }
